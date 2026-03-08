@@ -1,0 +1,32 @@
+{
+  "name": "@tecma/design-system-tokens",
+  "version": "0.1.0",
+  "description": "Design system tokens (typography, color, spacing) per la piattaforma Tecma. Riusabile da followup-3.0 e da altri applicativi.",
+  "private": true,
+  "type": "module",
+  "main": "./dist/tokens/index.js",
+  "types": "./dist/tokens/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/tokens/index.js",
+      "types": "./dist/tokens/index.d.ts"
+    },
+    "./css": "./css/tokens.css",
+    "./tailwind": {
+      "import": "./dist/tailwind.theme.js",
+      "types": "./dist/tailwind.theme.d.ts"
+    }
+  },
+  "files": [
+    "css",
+    "dist",
+    "tokens"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2"
+  }
+}

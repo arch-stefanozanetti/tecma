@@ -1,0 +1,78 @@
+/**
+ * @tecma/design-system-tokens — CSS custom properties
+ * Importabile da qualsiasi applicativo (followup-3.0, altri).
+ * Allineato a DS — Tecma Software Suite (Figma).
+ */
+
+:root {
+  /* --- Typography (Figma: Variabili tipografiche) --- */
+  --tecma-font-serif: "Ivy Journal", Georgia, serif;
+  --tecma-font-sans: "Lato", "Segoe UI", sans-serif;
+  --tecma-font-body: "Lato", "Segoe UI", sans-serif;
+  --tecma-font-title: "Lato", "Segoe UI", sans-serif;
+
+  --tecma-font-weight-thin: 100;
+  --tecma-font-weight-light: 300;
+  --tecma-font-weight-regular: 400;
+  --tecma-font-weight-medium: 500;
+  --tecma-font-weight-semibold: 600;
+  --tecma-font-weight-bold: 700;
+
+  /* Size standard (px) */
+  --tecma-font-size-2xs: 10px;
+  --tecma-font-size-xs: 12px;
+  --tecma-font-size-s: 14px;
+  --tecma-font-size-m: 16px;
+  --tecma-font-size-l: 18px;
+  --tecma-font-size-xl: 20px;
+  --tecma-font-size-2xl: 24px;
+  /* Size oversize */
+  --tecma-font-size-oversize-s: 36px;
+  --tecma-font-size-oversize-m: 48px;
+  --tecma-font-size-oversize-l: 50px;
+  --tecma-font-size-oversize-xl: 62px;
+
+  /* Line height standard (px) */
+  --tecma-line-height-s: 16px;
+  --tecma-line-height-m: 20px;
+  --tecma-line-height-l: 24px;
+  --tecma-line-height-xl: 32px;
+  /* Line height oversize */
+  --tecma-line-height-oversize-s: 48px;
+  --tecma-line-height-oversize-m: 56px;
+  --tecma-line-height-oversize-l: 72px;
+
+  /* --- Color (semantici, HSL senza hsl()) --- */
+  --tecma-background: 0 0% 100%;
+  --tecma-foreground: 224 20% 26%;
+  --tecma-primary: 238 64% 58%;
+  --tecma-primary-foreground: 0 0% 100%;
+  --tecma-secondary: 220 20% 91%;
+  --tecma-secondary-foreground: 224 20% 26%;
+  --tecma-muted: 220 20% 95%;
+  --tecma-muted-foreground: 224 16% 45%;
+  --tecma-accent: 238 64% 58%;
+  --tecma-accent-foreground: 0 0% 100%;
+  --tecma-destructive: 1 58% 52%;
+  --tecma-destructive-foreground: 0 0% 100%;
+  --tecma-border: 220 17% 86%;
+  --tecma-input: 220 17% 86%;
+  --tecma-ring: 238 64% 58%;
+  --tecma-card: 0 0% 100%;
+  --tecma-card-foreground: 224 20% 26%;
+  --tecma-sidebar: 222 24% 90%;
+  --tecma-sidebar-foreground: 224 20% 26%;
+  --tecma-sidebar-border: 220 20% 83%;
+  --tecma-sidebar-accent: 238 64% 95%;
+  --tecma-sidebar-accent-foreground: 238 64% 42%;
+
+  /* Raw (hex/rgba) */
+  --tecma-app-bg: #f8f8f9;
+  --tecma-panel-bg: rgba(255, 255, 255, 0.85);
+  --tecma-panel-border: #dbe2ef;
+  --tecma-scrollbar-thumb: #d3d4da;
+  --tecma-scrollbar-thumb-hover: #b0b3bf;
+
+  /* --- Radius --- */
+  --tecma-radius: 0.85rem;
+}
