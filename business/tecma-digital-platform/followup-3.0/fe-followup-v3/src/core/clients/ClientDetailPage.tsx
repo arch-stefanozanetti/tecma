@@ -115,7 +115,7 @@ export const ClientDetailPage = () => {
     setMatchLoading(true);
     followupApi
       .getClientCandidates(clientId, workspaceId, [client.projectId])
-      .then((r) => setMatchCandidates((r.data ?? []) as typeof matchCandidates))
+      .then((r) => setMatchCandidates((r.data ?? []) as unknown as typeof matchCandidates))
       .catch(() => setMatchCandidates([]))
       .finally(() => setMatchLoading(false));
   }, [clientId, client?.projectId, workspaceId, selectedProjectIds.length]);

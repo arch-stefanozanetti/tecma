@@ -36,7 +36,7 @@ export const ProjectsPage = () => {
     setError(null);
     try {
       const res = await followupApi.listWorkspaceProjects(workspaceId);
-      setProjects((res.data ?? []) as ProjectItem[]);
+      setProjects((res.data ?? []) as unknown as ProjectItem[]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Errore caricamento");
     } finally {

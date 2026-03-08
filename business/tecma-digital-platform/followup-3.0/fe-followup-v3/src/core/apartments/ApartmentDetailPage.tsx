@@ -150,7 +150,7 @@ export const ApartmentDetailPage = () => {
     setMatchLoading(true);
     followupApi
       .getApartmentCandidates(apartmentId, workspaceId, [apartment.projectId])
-      .then((r) => setMatchCandidates((r.data ?? []) as typeof matchCandidates))
+      .then((r) => setMatchCandidates((r.data ?? []) as unknown as typeof matchCandidates))
       .catch(() => setMatchCandidates([]))
       .finally(() => setMatchLoading(false));
   }, [apartmentId, apartment?.projectId, workspaceId, selectedProjectIds.length]);
