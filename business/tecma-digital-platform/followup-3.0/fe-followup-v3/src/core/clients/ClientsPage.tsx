@@ -15,7 +15,7 @@ import {
   ArrowLeftRight,
 } from "lucide-react";
 import { followupApi } from "../../api/followupApi";
-import type { ClientRow } from "../../types/domain";
+import type { AdditionalInfoRow, ClientRow } from "../../types/domain";
 import { useWorkspace } from "../../auth/projectScope";
 import { usePaginatedList } from "../shared/usePaginatedList";
 import { cn } from "../../lib/utils";
@@ -29,7 +29,15 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import { Sheet, SheetContent } from "../../components/ui/sheet";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerBody,
+  DrawerFooter,
+  DrawerCloseButton,
+} from "../../components/ui/drawer";
 import { FiltersDrawer } from "../../components/ui/filters-drawer";
 import type { ClientCreateInput } from "../../types/domain";
 import { STATUS_FILTER_OPTIONS, TABLE_TYPE_OPTIONS, type ClientTableType } from "./constants";
@@ -99,9 +107,19 @@ export const ClientsPage = () => {
   const [formStatus, setFormStatus] = useState("lead");
   const [formProjectId, setFormProjectId] = useState("");
   const [formCity, setFormCity] = useState("");
+  const [formAdditionalInfo, setFormAdditionalInfo] = useState<Record<string, unknown>>({});
   const [formSubmitError, setFormSubmitError] = useState<string | null>(null);
   const [formSaving, setFormSaving] = useState(false);
+  const [additionalInfos, setAdditionalInfos] = useState<AdditionalInfoRow[]>([]);
   const otherOptionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!workspaceId) return;
+    followupApi
+      .listAdditionalInfos(workspaceId)
+      .then((r) => setAdditionalInfos(r.data ?? []))
+      .catch(() => setAdditionalInfos([]));
+  }, [workspaceId]);
 
   // Sincronizza draft filtri quando si apre il drawer
   useEffect(() => {
@@ -118,12 +136,20 @@ export const ClientsPage = () => {
   useEffect(() => {
     if (!clientFormOpen) return;
     setFormSubmitError(null);
+    const customInfos = additionalInfos.filter((ai) => (ai.path ?? "additionalInfo") === "additionalInfo");
     if (clientFormMode === "edit" && editingClient) {
       setFormFullName(editingClient.fullName ?? "");
       setFormEmail(editingClient.email ?? "");
       setFormPhone(editingClient.phone ?? "");
       setFormStatus(editingClient.status ?? "lead");
       setFormCity(editingClient.city ?? "");
+      setFormAdditionalInfo(
+        customInfos.length > 0
+          ? Object.fromEntries(customInfos.map((ai) => [ai.name, editingClient.additionalInfo?.[ai.name] ?? ""]))
+          : editingClient.additionalInfo && typeof editingClient.additionalInfo === "object"
+            ? { ...editingClient.additionalInfo }
+            : {}
+      );
     } else {
       setFormFullName("");
       setFormEmail("");
@@ -131,8 +157,9 @@ export const ClientsPage = () => {
       setFormStatus("lead");
       setFormCity("");
       setFormProjectId(selectedProjectIds[0] ?? "");
+      setFormAdditionalInfo(customInfos.length > 0 ? Object.fromEntries(customInfos.map((ai) => [ai.name, ""])) : {});
     }
-  }, [clientFormOpen, clientFormMode, editingClient, selectedProjectIds]);
+  }, [clientFormOpen, clientFormMode, editingClient, selectedProjectIds, additionalInfos]);
 
   const handleOpenCreateClient = () => {
     setClientFormMode("create");
@@ -152,6 +179,9 @@ export const ClientsPage = () => {
     setFormSubmitError(null);
     setFormSaving(true);
     try {
+      const additionalInfoPayload = Object.keys(formAdditionalInfo).length > 0
+        ? Object.fromEntries(Object.entries(formAdditionalInfo).filter(([, v]) => v != null && String(v).trim() !== ""))
+        : undefined;
       if (clientFormMode === "edit" && editingClient) {
         const res = await followupApi.updateClient(editingClient._id, {
           fullName: formFullName.trim(),
@@ -159,6 +189,7 @@ export const ClientsPage = () => {
           phone: formPhone.trim() || undefined,
           status: formStatus,
           city: formCity.trim() || undefined,
+          additionalInfo: additionalInfoPayload,
         });
         refetch();
         setSelectedClient(res.client);
@@ -176,6 +207,7 @@ export const ClientsPage = () => {
           phone: formPhone.trim() || undefined,
           status: formStatus,
           city: formCity.trim() || undefined,
+          additionalInfo: additionalInfoPayload,
         } as ClientCreateInput);
         refetch();
         setClientFormOpen(false);
@@ -432,8 +464,11 @@ export const ClientsPage = () => {
                     clients.map((client) => (
                       <tr
                         key={client._id}
+                        role="button"
+                        tabIndex={0}
                         className="group cursor-pointer border-b border-border text-sm text-foreground hover:bg-muted"
-                        onClick={() => navigate(`/clients/${client._id}`)}
+                        onClick={() => setSelectedClient(client)}
+                        onKeyDown={(e) => e.key === "Enter" && setSelectedClient(client)}
                       >
                         <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
                           <button
@@ -450,7 +485,7 @@ export const ClientsPage = () => {
                           <button
                             type="button"
                             className="text-left font-medium text-primary hover:underline"
-                            onClick={(e) => { e.stopPropagation(); navigate(`/clients/${client._id}`); }}
+                            onClick={(e) => { e.stopPropagation(); setSelectedClient(client); }}
                           >
                             {client.fullName}
                           </button>
@@ -645,13 +680,14 @@ export const ClientsPage = () => {
         </SheetContent>
       </Sheet>
 
-      {/* Dialog Crea/Modifica cliente */}
-      <Dialog open={clientFormOpen} onOpenChange={setClientFormOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{clientFormMode === "edit" ? "Modifica cliente" : "Nuovo cliente"}</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleClientFormSubmit} className="mt-4 space-y-4">
+      {/* Drawer Crea/Modifica cliente */}
+      <Drawer open={clientFormOpen} onOpenChange={setClientFormOpen}>
+        <DrawerContent side="right" className="sm:max-w-md">
+          <DrawerHeader actions={<DrawerCloseButton />}>
+            <DrawerTitle>{clientFormMode === "edit" ? "Modifica cliente" : "Nuovo cliente"}</DrawerTitle>
+          </DrawerHeader>
+          <form onSubmit={handleClientFormSubmit} className="flex flex-col flex-1 min-h-0">
+            <DrawerBody className="space-y-4">
             {clientFormMode === "create" && (
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">Progetto</label>
@@ -724,20 +760,64 @@ export const ClientsPage = () => {
                 </SelectContent>
               </Select>
             </div>
+            {additionalInfos
+              .filter((ai) => (ai.path ?? "additionalInfo") === "additionalInfo" && ai.active !== false)
+              .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+              .map((ai) => (
+                <div key={ai._id}>
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">
+                    {ai.label}
+                    {ai.required && <span className="ml-0.5 text-destructive">*</span>}
+                  </label>
+                  {ai.type === "radio" && ai.options && ai.options.length > 0 ? (
+                    <Select
+                      value={String(formAdditionalInfo[ai.name] ?? "")}
+                      onValueChange={(v) => setFormAdditionalInfo((prev) => ({ ...prev, [ai.name]: v }))}
+                    >
+                      <SelectTrigger className="h-10 rounded-lg border-border">
+                        <SelectValue placeholder={`Seleziona ${ai.label}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ai.options.map((opt) => (
+                          <SelectItem key={opt} value={opt}>
+                            {opt}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      className="h-10 rounded-lg border-border"
+                      type={ai.type === "number" ? "number" : "text"}
+                      value={String(formAdditionalInfo[ai.name] ?? "")}
+                      onChange={(e) =>
+                        setFormAdditionalInfo((prev) => ({
+                          ...prev,
+                          [ai.name]: ai.type === "number" ? (e.target.value ? Number(e.target.value) : "") : e.target.value,
+                        }))
+                      }
+                      placeholder={ai.label}
+                    />
+                  )}
+                </div>
+              ))}
             {formSubmitError && (
               <p className="text-sm text-destructive">{formSubmitError}</p>
             )}
-            <div className="flex gap-2 justify-end pt-2">
-              <Button type="button" variant="outline" onClick={() => setClientFormOpen(false)}>
-                Annulla
-              </Button>
-              <Button type="submit" disabled={formSaving}>
-                {formSaving ? "Salvataggio..." : clientFormMode === "edit" ? "Salva" : "Crea"}
-              </Button>
-            </div>
+            </DrawerBody>
+            <DrawerFooter>
+              <div className="flex gap-2 justify-end">
+                <Button type="button" variant="outline" onClick={() => setClientFormOpen(false)}>
+                  Annulla
+                </Button>
+                <Button type="submit" disabled={formSaving}>
+                  {formSaving ? "Salvataggio..." : clientFormMode === "edit" ? "Salva" : "Crea"}
+                </Button>
+              </div>
+            </DrawerFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 };

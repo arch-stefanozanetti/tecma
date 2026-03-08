@@ -1,9 +1,19 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { readFileSync } from "fs";
+
+const pkg = JSON.parse(readFileSync(path.resolve(__dirname, "package.json"), "utf-8"));
+const appVersion =
+  typeof process.env.VITE_APP_VERSION === "string" && process.env.VITE_APP_VERSION
+    ? process.env.VITE_APP_VERSION
+    : (pkg?.version ?? "0.0.0");
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    "import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion),
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ExternalLink, Filter, MoreHorizontal, Plus, RefreshCcw, RotateCcw, Search } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ExternalLink, Filter, Link2, MoreHorizontal, Plus, RefreshCcw, RotateCcw, Search } from "lucide-react";
 import { followupApi } from "../../api/followupApi";
 import type { RequestRow, RequestStatus, RequestType, ClientRole } from "../../types/domain";
 import { useWorkspace } from "../../auth/projectScope";
@@ -90,6 +91,7 @@ type ViewMode = "list" | "kanban";
 const REQUESTS_PER_PAGE = 25;
 
 export const RequestsPage = () => {
+  const navigate = useNavigate();
   const { workspaceId, selectedProjectIds } = useWorkspace();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -653,6 +655,33 @@ export const RequestsPage = () => {
                   <p className="font-mono text-xs text-foreground">{selectedRequest.projectId}</p>
                 </div>
               </div>
+              {selectedRequest.status === "won" &&
+                selectedRequest.clientId &&
+                selectedRequest.apartmentId && (
+                  <div className="mt-4 pt-3 border-t border-border">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="w-full gap-2"
+                      onClick={() => {
+                        navigate("/?section=associateAptClient", {
+                          state: {
+                            clientId: selectedRequest.clientId,
+                            apartmentId: selectedRequest.apartmentId,
+                            status: "proposta",
+                          },
+                        });
+                        setSelectedRequest(null);
+                      }}
+                    >
+                      <Link2 className="h-4 w-4" />
+                      Crea associazione proposta
+                    </Button>
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      Trattativa vinta. Crea l&apos;associazione per avviare il flusso proposta → compromesso → rogito.
+                    </p>
+                  </div>
+                )}
               <div className="mt-4 pt-3 border-t border-border">
                 <button
                   type="button"

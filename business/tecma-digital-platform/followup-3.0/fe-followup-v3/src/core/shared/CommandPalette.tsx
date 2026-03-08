@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Input } from "../../components/ui/input";
+import { isSectionEnabledByFeature } from "../features";
 
 type Section =
   | "cockpit"
@@ -9,12 +10,15 @@ type Section =
   | "requests"
   | "workspaces"
   | "audit"
-  | "reports";
+  | "reports"
+  | "releases";
 
 interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectSection: (section: Section) => void;
+  /** Feature abilitate per il workspace (undefined = tutte). Nasconde comandi non abilitati. */
+  enabledFeatures?: string[];
 }
 
 const commands: Array<{ id: Section; label: string; hint: string }> = [
@@ -26,9 +30,10 @@ const commands: Array<{ id: Section; label: string; hint: string }> = [
   { id: "workspaces", label: "Workspaces", hint: "Gestione workspace (admin)" },
   { id: "audit", label: "Audit log", hint: "Tracciamento CRUD (admin)" },
   { id: "reports", label: "Report", hint: "Pipeline, clienti, appartamenti" },
+  { id: "releases", label: "Release", hint: "Novità e cronologia release" },
 ];
 
-export const CommandPalette = ({ isOpen, onClose, onSelectSection }: CommandPaletteProps) => {
+export const CommandPalette = ({ isOpen, onClose, onSelectSection, enabledFeatures }: CommandPaletteProps) => {
   const [query, setQuery] = useState("");
 
   useEffect(() => {
@@ -37,11 +42,16 @@ export const CommandPalette = ({ isOpen, onClose, onSelectSection }: CommandPale
     }
   }, [isOpen]);
 
+  const visibleCommands = useMemo(
+    () => commands.filter((item) => isSectionEnabledByFeature(item.id, enabledFeatures)),
+    [enabledFeatures]
+  );
+
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return commands;
-    return commands.filter((item) => `${item.label} ${item.hint}`.toLowerCase().includes(needle));
-  }, [query]);
+    if (!needle) return visibleCommands;
+    return visibleCommands.filter((item) => `${item.label} ${item.hint}`.toLowerCase().includes(needle));
+  }, [query, visibleCommands]);
 
   if (!isOpen) return null;
 

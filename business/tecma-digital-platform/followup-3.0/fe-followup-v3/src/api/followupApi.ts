@@ -25,7 +25,9 @@ import type {
   RequestCreateInput,
   UserPreferences,
   WorkspaceProjectRow,
-  WorkspaceRow
+  WorkspaceRow,
+  WorkspaceUserRow,
+  WorkspaceUserRole,
 } from "../types/domain";
 
 export const followupApi = {
@@ -41,6 +43,34 @@ export const followupApi = {
   updateClient: (clientId: string, payload: ClientUpdateInput) =>
     patchJson<{ client: ClientRow }>(`/clients/${clientId}`, payload),
   getClientById: (clientId: string) => getJson<{ client: ClientRow }>(`/clients/${clientId}`),
+  createClientAction: (clientId: string, type: "mail_received" | "mail_sent" | "call_completed" | "meeting_scheduled") =>
+    postJson<{ action: { _id: string; type: string; at: string } }>(`/clients/${clientId}/actions`, { type }),
+  getApartmentCandidates: (apartmentId: string, workspaceId: string, projectIds: string[]) =>
+    getJson<{ data: Array<{ item: Pick<ApartmentRow, "_id" | "code" | "name" | "status" | "mode" | "surfaceMq" | "updatedAt">; score: number; reasons: string[] }> }>(
+      `/matching/apartments/${apartmentId}/candidates?workspaceId=${encodeURIComponent(workspaceId)}&projectIds=${projectIds.map((p) => encodeURIComponent(p)).join(",")}`
+    ),
+  getClientCandidates: (clientId: string, workspaceId: string, projectIds: string[]) =>
+    getJson<{ data: Array<{ item: Pick<ClientRow, "_id" | "fullName" | "email" | "status" | "city">; score: number; reasons: string[] }> }>(
+      `/matching/clients/${clientId}/candidates?workspaceId=${encodeURIComponent(workspaceId)}&projectIds=${projectIds.map((p) => encodeURIComponent(p)).join(",")}`
+    ),
+  getMatchingApartmentCandidates: (
+    apartmentId: string,
+    workspaceId: string,
+    projectIds: string[],
+    limit?: number
+  ) =>
+    getJson<{ data: Array<{ item: ClientRow; score: number; reasons: string[] }> }>(
+      `/matching/apartments/${apartmentId}/candidates?workspaceId=${encodeURIComponent(workspaceId)}&projectIds=${projectIds.map((p) => encodeURIComponent(p)).join(",")}${limit != null ? `&limit=${limit}` : ""}`
+    ),
+  getMatchingClientCandidates: (
+    clientId: string,
+    workspaceId: string,
+    projectIds: string[],
+    limit?: number
+  ) =>
+    getJson<{ data: Array<{ item: ApartmentRow; score: number; reasons: string[] }> }>(
+      `/matching/clients/${clientId}/candidates?workspaceId=${encodeURIComponent(workspaceId)}&projectIds=${projectIds.map((p) => encodeURIComponent(p)).join(",")}${limit != null ? `&limit=${limit}` : ""}`
+    ),
   getClientRequests: (
     clientId: string,
     workspaceId: string,
@@ -55,19 +85,64 @@ export const followupApi = {
   queryRequests: (query: ListQuery) => postJson<PaginatedResponse<RequestRow>>("/requests/query", query),
   getRequestById: (id: string) => getJson<{ request: RequestRow }>(`/requests/${id}`),
   // Projects (admin)
-  createProject: (payload: { name: string; displayName?: string; mode?: "rent" | "sell" }) =>
+  createProject: (payload: {
+    name: string;
+    displayName?: string;
+    mode?: "rent" | "sell";
+    city?: string;
+    payoff?: string;
+    contactEmail?: string;
+    contactPhone?: string;
+    projectUrl?: string;
+    customDomain?: string;
+    defaultLang?: string;
+    hostKey?: string;
+    assetKey?: string;
+    feVendorKey?: string;
+    automaticQuoteEnabled?: boolean;
+    accountManagerEnabled?: boolean;
+    hasDAS?: boolean;
+    broker?: string | null;
+    iban?: string;
+  }) =>
     postJson<{ project: { id: string; name: string; displayName: string; mode: "rent" | "sell" } }>("/projects", payload),
   // Project config (dettaglio, policies, email, pdf)
   getProjectDetail: (projectId: string, workspaceId: string) =>
-    getJson<{ id: string; name: string; displayName: string; mode: "rent" | "sell"; city?: string; payoff?: string }>(
+    getJson<{
+      id: string; name: string; displayName: string; mode: "rent" | "sell";
+      city?: string; payoff?: string;
+      contactEmail?: string; contactPhone?: string; projectUrl?: string;
+      customDomain?: string; defaultLang?: string;
+      hostKey?: string; assetKey?: string; feVendorKey?: string;
+      automaticQuoteEnabled?: boolean; accountManagerEnabled?: boolean; hasDAS?: boolean;
+      broker?: string | null; iban?: string;
+      archived?: boolean; createdAt?: string; updatedAt?: string;
+    }>(
       `/projects/${encodeURIComponent(projectId)}?workspaceId=${encodeURIComponent(workspaceId)}`
     ),
+  updateProject: (
+    projectId: string,
+    workspaceId: string,
+    payload: {
+      name?: string; displayName?: string; mode?: "rent" | "sell";
+      city?: string; payoff?: string;
+      contactEmail?: string; contactPhone?: string; projectUrl?: string;
+      customDomain?: string; defaultLang?: string;
+      hostKey?: string; assetKey?: string; feVendorKey?: string;
+      automaticQuoteEnabled?: boolean; accountManagerEnabled?: boolean; hasDAS?: boolean;
+      broker?: string | null; iban?: string;
+    }
+  ) =>
+    patchJson<{ id: string; name: string; displayName: string; mode: "rent" | "sell" }>(
+      `/projects/${encodeURIComponent(projectId)}?workspaceId=${encodeURIComponent(workspaceId)}`,
+      payload
+    ),
   getProjectPolicies: (projectId: string, workspaceId: string) =>
-    getJson<{ projectId: string; privacyPolicyUrl?: string; termsUrl?: string; content?: string; updatedAt: string }>(
+    getJson<{ projectId: string; privacyPolicyUrl?: string; termsUrl?: string; content?: string; legalNotes?: string; updatedAt: string }>(
       `/projects/${projectId}/policies?workspaceId=${encodeURIComponent(workspaceId)}`
     ),
-  putProjectPolicies: (projectId: string, workspaceId: string, payload: { privacyPolicyUrl?: string; termsUrl?: string; content?: string }) =>
-    putJson<{ projectId: string; privacyPolicyUrl?: string; termsUrl?: string; content?: string; updatedAt: string }>(
+  putProjectPolicies: (projectId: string, workspaceId: string, payload: { privacyPolicyUrl?: string; termsUrl?: string; content?: string; legalNotes?: string }) =>
+    putJson<{ projectId: string; privacyPolicyUrl?: string; termsUrl?: string; content?: string; legalNotes?: string; updatedAt: string }>(
       `/projects/${projectId}/policies?workspaceId=${encodeURIComponent(workspaceId)}`,
       payload
     ),
@@ -143,10 +218,36 @@ export const followupApi = {
   deleteProjectPdfTemplate: (projectId: string, templateId: string, workspaceId: string) =>
     deleteJson<{ deleted: boolean }>(`/projects/${projectId}/pdf-templates/${templateId}?workspaceId=${encodeURIComponent(workspaceId)}`),
   runReport: (
-    reportType: "pipeline" | "clients_by_status" | "apartments_by_availability",
+    reportType:
+      | "pipeline"
+      | "clients_by_status"
+      | "apartments_by_availability"
+      | "activity_per_period"
+      | "conversions_per_project"
+      | "avg_times",
     body: { workspaceId: string; projectIds: string[]; dateFrom?: string; dateTo?: string }
   ) =>
     postJson<{ data: Array<Record<string, unknown>> }>(`/reports/${reportType}`, body),
+  getAuditForEntity: (
+    entityType: string,
+    entityId: string,
+    workspaceId: string,
+    limit?: number
+  ) =>
+    getJson<{
+      data: Array<{
+        _id: string;
+        at: string;
+        action: string;
+        entityType: string;
+        entityId: string;
+        actor: { type: string; userId?: string; email?: string };
+        payload?: Record<string, unknown>;
+      }>;
+      pagination: { page: number; perPage: number; total: number; totalPages: number };
+    }>(
+      `/audit/entity/${encodeURIComponent(entityType)}/${encodeURIComponent(entityId)}?workspaceId=${encodeURIComponent(workspaceId)}${limit != null ? `&limit=${limit}` : ""}`
+    ),
   queryAuditLog: (query: {
     workspaceId: string;
     projectId?: string;
@@ -188,6 +289,43 @@ export const followupApi = {
     deleteJson<{ deleted: boolean }>(`/workspaces/${workspaceId}/projects/${projectId}`),
   listAdditionalInfos: (workspaceId: string) =>
     getJson<{ data: AdditionalInfoRow[] }>(`/workspaces/${workspaceId}/additional-infos`),
+  listWorkspaceUsers: (workspaceId: string) =>
+    getJson<{ data: WorkspaceUserRow[] }>(`/workspaces/${workspaceId}/users`),
+  addWorkspaceUser: (workspaceId: string, payload: { userId: string; role: WorkspaceUserRole }) =>
+    postJson<{ workspaceUser: WorkspaceUserRow }>(`/workspaces/${workspaceId}/users`, payload),
+  updateWorkspaceUser: (workspaceId: string, userId: string, payload: { role?: WorkspaceUserRole }) =>
+    patchJson<{ workspaceUser: WorkspaceUserRow }>(`/workspaces/${workspaceId}/users/${encodeURIComponent(userId)}`, payload),
+  removeWorkspaceUser: (workspaceId: string, userId: string) =>
+    deleteJson<{ deleted: boolean }>(`/workspaces/${workspaceId}/users/${encodeURIComponent(userId)}`),
+  listWorkspaceUserProjects: (workspaceId: string, userId: string) =>
+    getJson<{ data: string[] }>(`/workspaces/${workspaceId}/users/${encodeURIComponent(userId)}/projects`),
+  addWorkspaceUserProject: (workspaceId: string, userId: string, projectId: string) =>
+    postJson<{ row: { _id: string; workspaceId: string; userId: string; projectId: string } }>(
+      `/workspaces/${workspaceId}/users/${encodeURIComponent(userId)}/projects`,
+      { projectId }
+    ),
+  removeWorkspaceUserProject: (workspaceId: string, userId: string, projectId: string) =>
+    deleteJson<{ deleted: boolean }>(
+      `/workspaces/${workspaceId}/users/${encodeURIComponent(userId)}/projects/${encodeURIComponent(projectId)}`
+    ),
+  listEntityAssignments: (workspaceId: string, entityType: "client" | "apartment", entityId: string) =>
+    getJson<{
+      data: Array<{ _id: string; workspaceId: string; entityType: string; entityId: string; userId: string }>;
+    }>(`/workspaces/${workspaceId}/entities/${entityType}/${encodeURIComponent(entityId)}/assignments`),
+  assignEntity: (workspaceId: string, entityType: "client" | "apartment", entityId: string, userId: string) =>
+    postJson<{ assignment: { _id: string } }>(
+      `/workspaces/${workspaceId}/entities/${entityType}/${encodeURIComponent(entityId)}/assignments`,
+      { userId }
+    ),
+  unassignEntity: (
+    workspaceId: string,
+    entityType: "client" | "apartment",
+    entityId: string,
+    userId: string
+  ) =>
+    deleteJson<{ deleted: boolean }>(
+      `/workspaces/${workspaceId}/entities/${entityType}/${encodeURIComponent(entityId)}/assignments/${encodeURIComponent(userId)}`
+    ),
   createAdditionalInfo: (payload: AdditionalInfoCreateInput) =>
     postJson<{ additionalInfo: AdditionalInfoRow }>("/additional-infos", payload),
   updateAdditionalInfo: (id: string, payload: Partial<AdditionalInfoCreateInput>) =>

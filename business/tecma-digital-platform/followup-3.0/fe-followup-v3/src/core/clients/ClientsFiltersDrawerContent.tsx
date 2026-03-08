@@ -120,18 +120,18 @@ export function ClientsFiltersDrawerContent({
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Data da</label>
-              <input
+              <Input
                 type="date"
-                className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+                className="h-10 w-full"
                 value={timeFrame.fromDate}
                 onChange={(e) => updateTimeFrame({ fromDate: e.target.value })}
               />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Data a</label>
-              <input
+              <Input
                 type="date"
-                className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+                className="h-10 w-full"
                 value={timeFrame.toDate}
                 onChange={(e) => updateTimeFrame({ toDate: e.target.value })}
               />

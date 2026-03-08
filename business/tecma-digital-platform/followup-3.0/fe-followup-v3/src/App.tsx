@@ -25,6 +25,11 @@ import { WorkspacesPage } from "./core/workspaces/WorkspacesPage";
 import { ProjectDetailPage } from "./core/projects/ProjectDetailPage";
 import { AuditLogPage } from "./core/audit/AuditLogPage";
 import { ReportsPage } from "./core/reports/ReportsPage";
+import { ReleasesPage } from "./core/releases/ReleasesPage";
+import { IntegrationsPage } from "./core/integrations/IntegrationsPage";
+import { ProjectsPage } from "./core/projects/ProjectsPage";
+import { isSectionEnabledByFeature } from "./core/features";
+import type { ProjectAccessProject } from "./types/domain";
 
 type Section =
   | "cockpit"
@@ -32,6 +37,7 @@ type Section =
   | "clients"
   | "apartments"
   | "requests"
+  | "projects"
   | "createApartment"
   | "createApartmentHC"
   | "editApartmentHC"
@@ -42,15 +48,26 @@ type Section =
   | "aiApprovals"
   | "workspaces"
   | "audit"
-  | "reports";
+  | "reports"
+  | "releases"
+  | "integrations";
 
 const renderSection = (
   section: Section,
   workspaceId: string,
   projectIds: string[],
   onSectionChange: (s: Section) => void,
-  projectsForCockpit?: { id: string; name?: string; displayName?: string }[]
+  projectsForCockpit?: ProjectAccessProject[],
+  enabledFeatures?: string[],
+  location?: { state?: unknown }
 ) => {
+  if (!isSectionEnabledByFeature(section, enabledFeatures)) {
+    return (
+      <PageSimple title="Funzionalità non disponibile" description="Questa funzionalità non è abilitata per il workspace corrente.">
+        <p className="text-sm text-muted-foreground">Contatta l’amministratore per abilitarla.</p>
+      </PageSimple>
+    );
+  }
   if (section === "cockpit") {
     return (
       <PageSimple title="Cosa fare oggi" description="Azioni suggerite e prossimi appuntamenti. Scegli un’azione dalla card o vai al Calendario.">
@@ -93,20 +110,25 @@ const renderSection = (
   }
 
   if (section === "editApartmentHC") {
+    const editApartmentId = (location?.state as { editApartmentId?: string } | null)?.editApartmentId;
     return (
       <PageSimple title="Modifica Appartamento HC" description="Edit mode con caricamento configurazione HC esistente.">
-        <EditApartmentHCPage workspaceId={workspaceId} projectIds={projectIds} />
+        <EditApartmentHCPage workspaceId={workspaceId} projectIds={projectIds} initialApartmentId={editApartmentId} />
       </PageSimple>
     );
   }
 
   if (section === "associateAptClient") {
+    const assocState = (location?.state as { clientId?: string; apartmentId?: string; status?: string } | null) ?? {};
     return (
       <PageSimple title="Associa Apt/Cliente" description="Associazione cliente-appartamento con status proposta/compromesso/rogito.">
         <AssociateAptClientPage
           workspaceId={workspaceId}
           projectIds={projectIds}
           onNavigateToSection={(s) => onSectionChange(s as Section)}
+          initialClientId={assocState.clientId}
+          initialApartmentId={assocState.apartmentId}
+          initialStatus={assocState.status as "proposta" | "compromesso" | "rogito" | undefined}
         />
       </PageSimple>
     );
@@ -168,6 +190,22 @@ const renderSection = (
     );
   }
 
+  if (section === "releases") {
+    return (
+      <PageSimple title="Release e novità" description="Cronologia release con nuove funzionalità, correzioni e breaking change.">
+        <ReleasesPage />
+      </PageSimple>
+    );
+  }
+
+  if (section === "integrations") {
+    return <IntegrationsPage />;
+  }
+
+  if (section === "projects") {
+    return <ProjectsPage />;
+  }
+
   if (section === "apartments") {
     return <ApartmentsPage />;
   }
@@ -175,9 +213,9 @@ const renderSection = (
 };
 
 const SECTIONS: Section[] = [
-  "cockpit", "calendar", "clients", "apartments", "requests",
+  "cockpit", "calendar", "clients", "apartments", "requests", "projects",
   "createApartment", "createApartmentHC", "editApartmentHC", "associateAptClient",
-  "completeFlow", "catalogHC", "templateConfig", "aiApprovals", "workspaces", "audit", "reports",
+  "completeFlow", "catalogHC", "templateConfig", "aiApprovals", "workspaces", "audit", "reports", "releases", "integrations",
 ];
 
 const isLegacyWorkspace = (id: string) => id === "dev-1" || id === "demo" || id === "prod";
@@ -186,6 +224,7 @@ export const App = () => {
   const [section, setSection] = useState<Section>("cockpit");
   const [accessVersion, setAccessVersion] = useState(0);
   const [workspaceProjectIds, setWorkspaceProjectIds] = useState<string[] | null>(null);
+  const [workspaceFeatures, setWorkspaceFeatures] = useState<string[] | undefined>(undefined);
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -198,6 +237,7 @@ export const App = () => {
     const ws = projectScope.workspaceId;
     if (isLegacyWorkspace(ws)) {
       setWorkspaceProjectIds(null);
+      setWorkspaceFeatures(undefined);
       return;
     }
     setWorkspaceProjectIds(null);
@@ -205,6 +245,10 @@ export const App = () => {
       .listWorkspaceProjects(ws)
       .then((res) => setWorkspaceProjectIds((res.data ?? []).map((wp) => wp.projectId)))
       .catch(() => setWorkspaceProjectIds([]));
+    followupApi
+      .getWorkspaceById(ws)
+      .then((res) => setWorkspaceFeatures(res.workspace?.features))
+      .catch(() => setWorkspaceFeatures(undefined));
   }, [projectScope?.workspaceId, accessVersion]);
 
   // Sezione effettiva: sulle route dettaglio evidenziamo Clienti/Appartamenti in navbar
@@ -269,6 +313,7 @@ export const App = () => {
     workspaceId: projectScope.workspaceId ?? "",
     apiEnvironment: projectScope.apiEnvironment,
     isAdmin: projectScope.isAdmin ?? false,
+    enabledFeatures: workspaceFeatures,
     onChangeProjects: () => {
       clearProjectScope();
       setAccessVersion((v) => v + 1);
@@ -313,7 +358,9 @@ export const App = () => {
     projectScope.workspaceId ?? "",
     effectiveProjectIds,
     setSection,
-    filteredProjects
+    filteredProjects,
+    workspaceFeatures,
+    location
   );
 
   return (

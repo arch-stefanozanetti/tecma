@@ -22,6 +22,9 @@ vi.mock("../../api/followupApi", () => ({
       },
     }),
     queryRequests: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),
+    getAuditForEntity: vi.fn().mockResolvedValue({ data: [], pagination: { page: 1, perPage: 25, total: 0, totalPages: 0 } }),
+    listEntityAssignments: vi.fn().mockResolvedValue({ data: [] }),
+    listWorkspaceUsers: vi.fn().mockResolvedValue({ data: [] }),
   },
 }));
 
@@ -30,6 +33,7 @@ vi.mock("../../auth/projectScope", () => ({
     workspaceId: "ws-1",
     selectedProjectIds: ["p1"],
     projects: [],
+    isAdmin: false,
   }),
 }));
 

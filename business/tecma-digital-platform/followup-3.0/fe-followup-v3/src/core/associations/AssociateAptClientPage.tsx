@@ -3,14 +3,24 @@ import { followupApi } from "../../api/followupApi";
 import type { ApartmentRow } from "../../types/domain";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
-import { INPUT_LIKE_CLASSES } from "../../lib/ds-form-classes";
-import { cn } from "../../lib/utils";
+import { CheckboxWithLabel } from "../../components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
 
 interface AssociateAptClientPageProps {
   workspaceId: string;
   projectIds: string[];
   /** Callback per navigare a un'altra sezione (es. "requests" per Trattative). */
   onNavigateToSection?: (section: string) => void;
+  /** Valori iniziali (es. da trattativa vinta). */
+  initialClientId?: string;
+  initialApartmentId?: string;
+  initialStatus?: "proposta" | "compromesso" | "rogito";
 }
 
 type AssocRow = { _id?: string; apartmentId: string; clientId: string; status: string; projectId?: string };
@@ -24,12 +34,19 @@ const nextStatus = (status: DealStatus): DealStatus => {
   return "rogito";
 };
 
-export const AssociateAptClientPage = ({ workspaceId, projectIds, onNavigateToSection }: AssociateAptClientPageProps) => {
+export const AssociateAptClientPage = ({
+  workspaceId,
+  projectIds,
+  onNavigateToSection,
+  initialClientId,
+  initialApartmentId,
+  initialStatus,
+}: AssociateAptClientPageProps) => {
   const [clients, setClients] = useState<Array<{ _id: string; fullName: string; email: string }>>([]);
   const [apartments, setApartments] = useState<ApartmentRow[]>([]);
-  const [clientId, setClientId] = useState("");
-  const [apartmentId, setApartmentId] = useState("");
-  const [status, setStatus] = useState<DealStatus>("proposta");
+  const [clientId, setClientId] = useState(initialClientId ?? "");
+  const [apartmentId, setApartmentId] = useState(initialApartmentId ?? "");
+  const [status, setStatus] = useState<DealStatus>((initialStatus as DealStatus) ?? "proposta");
   const [createAlsoRequest, setCreateAlsoRequest] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -73,6 +90,14 @@ export const AssociateAptClientPage = ({ workspaceId, projectIds, onNavigateToSe
       setAssociations([]);
     });
   }, [workspaceId, projectIds, activeProjectIds]);
+
+  useEffect(() => {
+    if (initialClientId) setClientId(initialClientId);
+    if (initialApartmentId) setApartmentId(initialApartmentId);
+    if (initialStatus && ["proposta", "compromesso", "rogito"].includes(initialStatus)) {
+      setStatus(initialStatus as DealStatus);
+    }
+  }, [initialClientId, initialApartmentId, initialStatus]);
 
   const clientMap = useMemo(() => new Map(clients.map((row) => [row._id, row])), [clients]);
   const apartmentMap = useMemo(() => new Map(apartments.map((row) => [row._id, row])), [apartments]);
@@ -209,59 +234,78 @@ export const AssociateAptClientPage = ({ workspaceId, projectIds, onNavigateToSe
 
         <div className="association-layout">
           <form className="hc-grid" onSubmit={submit}>
-            <label>
-              Progetto
-              <select className={cn(INPUT_LIKE_CLASSES)} value={selectedProjectId} onChange={(e) => setSelectedProjectId(e.target.value)}>
-                {projectIds.map((projectId) => (
-                  <option key={projectId} value={projectId}>
-                    {projectId}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-foreground">Progetto</label>
+              <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                <SelectTrigger className="h-10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {projectIds.map((projectId) => (
+                    <SelectItem key={projectId} value={projectId}>
+                      {projectId}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-            <label>
-              Cliente
-              <select className={cn(INPUT_LIKE_CLASSES)} value={clientId} onChange={(e) => setClientId(e.target.value)}>
-                <option value="">Seleziona cliente</option>
-                {clients.map((client) => (
-                  <option key={client._id} value={client._id}>
-                    {client.fullName} ({client.email})
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-foreground">Cliente</label>
+              <Select value={clientId || "__none__"} onValueChange={(v) => setClientId(v === "__none__" ? "" : v)}>
+                <SelectTrigger className="h-10 w-full">
+                  <SelectValue placeholder="Seleziona cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Seleziona cliente</SelectItem>
+                  {clients.map((client) => (
+                    <SelectItem key={client._id} value={client._id}>
+                      {client.fullName} ({client.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-            <label>
-              Appartamento
-              <select className={cn(INPUT_LIKE_CLASSES)} value={apartmentId} onChange={(e) => setApartmentId(e.target.value)}>
-                <option value="">Seleziona appartamento</option>
-                {apartments.map((apt) => (
-                  <option key={apt._id} value={apt._id}>
-                    {apt.name} ({apt.code})
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-foreground">Appartamento</label>
+              <Select value={apartmentId || "__none__"} onValueChange={(v) => setApartmentId(v === "__none__" ? "" : v)}>
+                <SelectTrigger className="h-10 w-full">
+                  <SelectValue placeholder="Seleziona appartamento" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Seleziona appartamento</SelectItem>
+                  {apartments.map((apt) => (
+                    <SelectItem key={apt._id} value={apt._id}>
+                      {apt.name} ({apt.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-            <label>
-              Stato
-              <select className={cn(INPUT_LIKE_CLASSES)} value={status} onChange={(e) => setStatus(e.target.value as DealStatus)}>
-                <option value="proposta">proposta</option>
-                <option value="compromesso">compromesso</option>
-                <option value="rogito">rogito</option>
-              </select>
-            </label>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-foreground">Stato</label>
+              <Select value={status} onValueChange={(v) => setStatus(v as DealStatus)}>
+                <SelectTrigger className="h-10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="proposta">proposta</SelectItem>
+                  <SelectItem value="compromesso">compromesso</SelectItem>
+                  <SelectItem value="rogito">rogito</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
+            <div className="flex items-center">
+              <CheckboxWithLabel
+                id="createAlsoRequest"
                 checked={createAlsoRequest}
-                onChange={(e) => setCreateAlsoRequest(e.target.checked)}
-                className="rounded border-border"
+                onCheckedChange={(c) => setCreateAlsoRequest(c === true)}
+                label="Crea anche una trattativa (vendita, stato Nuova)"
               />
-              <span>Crea anche una trattativa (vendita, stato Nuova)</span>
-            </label>
+            </div>
 
             <div className="hc-summary-grid">
               <div>

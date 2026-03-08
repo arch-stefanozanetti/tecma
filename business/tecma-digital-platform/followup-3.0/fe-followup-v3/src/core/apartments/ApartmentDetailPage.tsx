@@ -1,12 +1,22 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Home, Calendar, FileText, Users } from "lucide-react";
+import { ArrowLeft, Home, Calendar, FileText, Users, Pencil, History, UserPlus, Trash2, Settings2 } from "lucide-react";
 import { followupApi } from "../../api/followupApi";
 import { useWorkspace } from "../../auth/projectScope";
 import type { ApartmentRow, RequestRow, RequestStatus } from "../../types/domain";
 import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { cn } from "../../lib/utils";
+
+const STATUS_FILTER_OPTIONS: { value: ApartmentRow["status"]; label: string }[] = [
+  { value: "AVAILABLE", label: "Disponibile" },
+  { value: "RESERVED", label: "Riservato" },
+  { value: "SOLD", label: "Venduto" },
+  { value: "RENTED", label: "Affittato" },
+];
 
 const STATUS_LABEL: Record<ApartmentRow["status"], string> = {
   AVAILABLE: "Disponibile",
@@ -44,12 +54,25 @@ const formatDate = (iso?: string) => {
 export const ApartmentDetailPage = () => {
   const { apartmentId } = useParams<{ apartmentId: string }>();
   const navigate = useNavigate();
-  const { workspaceId, selectedProjectIds } = useWorkspace();
+  const { workspaceId, selectedProjectIds, isAdmin } = useWorkspace();
   const [apartment, setApartment] = useState<ApartmentRow | null>(null);
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [auditEvents, setAuditEvents] = useState<Array<{ _id: string; at: string; action: string; actor?: { email?: string } }>>([]);
+  const [assignments, setAssignments] = useState<Array<{ userId: string }>>([]);
+  const [workspaceUsers, setWorkspaceUsers] = useState<Array<{ userId: string }>>([]);
+  const [assignUserId, setAssignUserId] = useState("");
+  const [matchCandidates, setMatchCandidates] = useState<Array<{ item: { _id: string; fullName: string; email?: string; status: string }; score: number; reasons: string[] }>>([]);
+  const [matchLoading, setMatchLoading] = useState(false);
+  const [editApartmentOpen, setEditApartmentOpen] = useState(false);
+  const [editCode, setEditCode] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editStatus, setEditStatus] = useState<ApartmentRow["status"]>("AVAILABLE");
+  const [editSurfaceMq, setEditSurfaceMq] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!apartmentId) return;
@@ -98,7 +121,103 @@ export const ApartmentDetailPage = () => {
     [requests]
   );
 
+  useEffect(() => {
+    if (!apartmentId || !workspaceId) return;
+    followupApi
+      .getAuditForEntity("apartment", apartmentId, workspaceId, 25)
+      .then((r) => setAuditEvents(r.data ?? []))
+      .catch(() => setAuditEvents([]));
+  }, [apartmentId, workspaceId]);
+
+  useEffect(() => {
+    if (!apartmentId || !workspaceId) return;
+    followupApi
+      .listEntityAssignments(workspaceId, "apartment", apartmentId)
+      .then((r) => setAssignments(r.data ?? []))
+      .catch(() => setAssignments([]));
+  }, [apartmentId, workspaceId]);
+
+  useEffect(() => {
+    if (!workspaceId || !isAdmin) return;
+    followupApi
+      .listWorkspaceUsers(workspaceId)
+      .then((r) => setWorkspaceUsers(r.data ?? []))
+      .catch(() => setWorkspaceUsers([]));
+  }, [workspaceId, isAdmin]);
+
+  useEffect(() => {
+    if (!apartmentId || !apartment || !workspaceId || selectedProjectIds.length === 0) return;
+    setMatchLoading(true);
+    followupApi
+      .getApartmentCandidates(apartmentId, workspaceId, [apartment.projectId])
+      .then((r) => setMatchCandidates((r.data ?? []) as typeof matchCandidates))
+      .catch(() => setMatchCandidates([]))
+      .finally(() => setMatchLoading(false));
+  }, [apartmentId, apartment?.projectId, workspaceId, selectedProjectIds.length]);
+
+  const handleAssign = async () => {
+    if (!apartmentId || !workspaceId || !assignUserId.trim()) return;
+    try {
+      await followupApi.assignEntity(workspaceId, "apartment", apartmentId, assignUserId.trim());
+      setAssignments((prev) => [...prev, { userId: assignUserId.trim() }]);
+      setAssignUserId("");
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "Errore assegnazione");
+    }
+  };
+
+  const handleUnassign = async (userId: string) => {
+    if (!apartmentId || !workspaceId) return;
+    if (!window.confirm(`Rimuovere assegnazione a ${userId}?`)) return;
+    try {
+      await followupApi.unassignEntity(workspaceId, "apartment", apartmentId, userId);
+      setAssignments((prev) => prev.filter((a) => a.userId !== userId));
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "Errore rimozione");
+    }
+  };
+
   const goBack = () => navigate("/?section=apartments");
+
+  const goToEditApartmentHC = () => {
+    navigate("/?section=editApartmentHC", { state: { editApartmentId: apartmentId } });
+  };
+
+  useEffect(() => {
+    if (editApartmentOpen && apartment) {
+      setEditCode(apartment.code);
+      setEditName(apartment.name ?? "");
+      setEditStatus(apartment.status);
+      setEditSurfaceMq(String(apartment.surfaceMq ?? ""));
+      setEditError(null);
+    }
+  }, [editApartmentOpen, apartment]);
+
+  const handleEditApartmentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!apartment) return;
+    setEditError(null);
+    setEditSaving(true);
+    try {
+      const surfaceMq = Number(editSurfaceMq);
+      if (Number.isNaN(surfaceMq) || surfaceMq < 0) {
+        setEditError("Superficie non valida.");
+        return;
+      }
+      const updated = await followupApi.updateApartment(apartment._id, {
+        code: editCode.trim(),
+        name: editName.trim() || editCode.trim(),
+        status: editStatus,
+        surfaceMq,
+      });
+      setApartment(updated.apartment);
+      setEditApartmentOpen(false);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Errore durante il salvataggio.");
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -147,6 +266,16 @@ export const ApartmentDetailPage = () => {
           <ArrowLeft className="h-4 w-4" />
           Torna a Appartamenti
         </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => setEditApartmentOpen(true)}>
+            <Pencil className="h-4 w-4" />
+            Modifica
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={goToEditApartmentHC}>
+            <Settings2 className="h-4 w-4" />
+            Configura HC
+          </Button>
+        </div>
       </div>
 
       <header className="flex flex-wrap items-start gap-3 border-b border-border pb-4">
@@ -186,8 +315,14 @@ export const ApartmentDetailPage = () => {
           <TabsTrigger value="trattative" icon={<Users className="h-4 w-4" />}>
             Trattative
           </TabsTrigger>
+          <TabsTrigger value="matching" icon={<Users className="h-4 w-4" />}>
+            Clienti papabili
+          </TabsTrigger>
           <TabsTrigger value="dettagli" icon={<FileText className="h-4 w-4" />}>
             Dettagli
+          </TabsTrigger>
+          <TabsTrigger value="timeline" icon={<History className="h-4 w-4" />}>
+            Timeline
           </TabsTrigger>
         </TabsList>
 
@@ -344,6 +479,48 @@ export const ApartmentDetailPage = () => {
           </section>
         </TabsContent>
 
+        {/* Tab Clienti papabili — matching */}
+        <TabsContent value="matching" className="space-y-4 mt-4">
+          <section className="rounded-lg border border-border bg-card p-4">
+            <h2 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Clienti papabili (matching)
+            </h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              Clienti il cui profilo (budget, zona) è più compatibile con questo appartamento. Score 0-100.
+            </p>
+            {matchLoading ? (
+              <p className="text-sm text-muted-foreground">Calcolo in corso...</p>
+            ) : matchCandidates.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nessun cliente papabile trovato. Completa i profili clienti (budget, città) per migliorare il matching.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {matchCandidates.map(({ item, score, reasons }) => (
+                  <li key={item._id} className="flex items-start gap-3 rounded-md border border-border px-3 py-2.5 text-sm">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                      {score}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        to={`/clients/${item._id}`}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {item.fullName}
+                      </Link>
+                      {item.email && <p className="text-xs text-muted-foreground">{item.email}</p>}
+                      {reasons.length > 0 && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">{reasons.join(" · ")}</p>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </TabsContent>
+
         {/* Tab Dettagli — extraInfo, date e ID */}
         <TabsContent value="dettagli" className="space-y-4 mt-4">
           {apartment.extraInfo && Object.keys(apartment.extraInfo).length > 0 && (
@@ -374,8 +551,139 @@ export const ApartmentDetailPage = () => {
               </div>
             </div>
           </section>
+
+          {isAdmin && (
+            <section className="rounded-lg border border-border bg-card p-4">
+              <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <UserPlus className="h-4 w-4" />
+                Assegnato a
+              </h2>
+              <p className="text-xs text-muted-foreground mb-2">
+                Assegna questo appartamento a un vendor per limitarne la visibilità.
+              </p>
+              <ul className="space-y-1 mb-3">
+                {assignments.map((a) => (
+                  <li key={a.userId} className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 text-sm">
+                    <span>{a.userId}</span>
+                    <Button variant="ghost" size="sm" className="h-7 text-muted-foreground hover:text-destructive" onClick={() => handleUnassign(a.userId)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </li>
+                ))}
+                {assignments.length === 0 && <li className="text-sm text-muted-foreground">Nessuna assegnazione</li>}
+              </ul>
+              <div className="flex gap-2">
+                <Select value={assignUserId} onValueChange={setAssignUserId}>
+                  <SelectTrigger className="flex-1 max-w-xs">
+                    <SelectValue placeholder="Seleziona utente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {workspaceUsers
+                      .filter((u) => !assignments.some((a) => a.userId === u.userId))
+                      .map((u) => (
+                        <SelectItem key={u.userId} value={u.userId}>{u.userId}</SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <Button size="sm" onClick={handleAssign} disabled={!assignUserId.trim()}>
+                  Assegna
+                </Button>
+              </div>
+            </section>
+          )}
+        </TabsContent>
+
+        {/* Tab Timeline — audit log per appartamento */}
+        <TabsContent value="timeline" className="space-y-4 mt-4">
+          <section className="rounded-lg border border-border bg-card p-4">
+            <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+              <History className="h-4 w-4" />
+              Ultime attività
+            </h2>
+            {auditEvents.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nessun evento registrato.</p>
+            ) : (
+              <ul className="space-y-2">
+                {auditEvents.map((ev) => (
+                  <li key={ev._id} className="flex gap-3 py-2 border-b border-border/50 last:border-0 text-sm">
+                    <span className="text-muted-foreground shrink-0">{formatDate(ev.at)}</span>
+                    <span className="font-medium text-foreground">
+                      {ev.action.replace(/\./g, " ")}
+                      {ev.actor?.email && (
+                        <span className="text-muted-foreground font-normal ml-1">— {ev.actor.email}</span>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={editApartmentOpen} onOpenChange={setEditApartmentOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Modifica appartamento</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditApartmentSubmit} className="mt-4 space-y-4">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Codice</label>
+              <Input
+                className="h-10 rounded-lg border-border"
+                value={editCode}
+                onChange={(e) => setEditCode(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Nome</label>
+              <Input
+                className="h-10 rounded-lg border-border"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Nome appartamento"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Stato</label>
+              <Select value={editStatus} onValueChange={(v) => setEditStatus(v as ApartmentRow["status"])}>
+                <SelectTrigger className="h-10 rounded-lg border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_FILTER_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Superficie (mq)</label>
+              <Input
+                type="number"
+                min={0}
+                step={1}
+                className="h-10 rounded-lg border-border"
+                value={editSurfaceMq}
+                onChange={(e) => setEditSurfaceMq(e.target.value)}
+                required
+              />
+            </div>
+            {editError && <p className="text-sm text-destructive">{editError}</p>}
+            <div className="flex gap-2 justify-end pt-2">
+              <Button type="button" variant="outline" onClick={() => setEditApartmentOpen(false)}>
+                Annulla
+              </Button>
+              <Button type="submit" disabled={editSaving}>
+                {editSaving ? "Salvataggio..." : "Salva"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

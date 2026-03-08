@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { followupApi } from "../../api/followupApi";
 import type { ApartmentRow, HCApartmentConfig } from "../../types/domain";
 import { Button } from "../../components/ui/button";
@@ -9,9 +9,11 @@ import { cn } from "../../lib/utils";
 interface EditApartmentHCPageProps {
   workspaceId: string;
   projectIds: string[];
+  /** Se fornito, salta lo step 1 e carica direttamente la config di questo appartamento */
+  initialApartmentId?: string;
 }
 
-export const EditApartmentHCPage = ({ workspaceId, projectIds }: EditApartmentHCPageProps) => {
+export const EditApartmentHCPage = ({ workspaceId, projectIds, initialApartmentId }: EditApartmentHCPageProps) => {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [apartmentId, setApartmentId] = useState("");
   const [hcRows, setHcRows] = useState<HCApartmentConfig[]>([]);
@@ -21,6 +23,7 @@ export const EditApartmentHCPage = ({ workspaceId, projectIds }: EditApartmentHC
   const [message, setMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [searchText, setSearchText] = useState("");
+  const initialLoadDone = useRef(false);
 
   const loadRows = async () => {
     const [hcResult, aptResult] = await Promise.all([
@@ -51,6 +54,17 @@ export const EditApartmentHCPage = ({ workspaceId, projectIds }: EditApartmentHC
       setApartments([]);
     });
   }, [workspaceId, projectIds]);
+
+  useEffect(() => {
+    if (!initialApartmentId) {
+      initialLoadDone.current = false;
+      return;
+    }
+    if (apartments.length > 0 && !initialLoadDone.current) {
+      initialLoadDone.current = true;
+      void loadConfig(initialApartmentId);
+    }
+  }, [initialApartmentId, apartments.length]);
 
   const apartmentMap = useMemo(() => new Map(apartments.map((a) => [a._id, a])), [apartments]);
 

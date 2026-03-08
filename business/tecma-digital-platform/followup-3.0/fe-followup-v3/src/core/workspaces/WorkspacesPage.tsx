@@ -4,7 +4,7 @@
  */
 import { useEffect, useState } from "react";
 import { followupApi } from "../../api/followupApi";
-import type { WorkspaceRow, WorkspaceProjectRow, ProjectAccessProject } from "../../types/domain";
+import type { WorkspaceRow, WorkspaceProjectRow, ProjectAccessProject, WorkspaceUserRow, WorkspaceUserRole } from "../../types/domain";
 import { useWorkspace } from "../../auth/projectScope";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -18,9 +18,16 @@ import {
   DrawerFooter,
   DrawerCloseButton,
 } from "../../components/ui/drawer";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
 import { cn } from "../../lib/utils";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, Trash2, Link2, Unlink, ChevronDown, Settings } from "lucide-react";
+import { Plus, Pencil, Trash2, Link2, Unlink, ChevronDown, Settings, Users, UserPlus } from "lucide-react";
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -141,7 +148,19 @@ export const WorkspacesPage = () => {
   /* search associazione */
   const [associateProjectId, setAssociateProjectId] = useState("");
   const [associateSearch, setAssociateSearch] = useState("");
+  const [associateSearchDebounced, setAssociateSearchDebounced] = useState("");
   const [associateOpen, setAssociateOpen] = useState(false);
+
+  /* workspace users */
+  const [workspaceUsers, setWorkspaceUsers] = useState<WorkspaceUserRow[]>([]);
+  const [userDrawerOpen, setUserDrawerOpen] = useState(false);
+  const [userFormEmail, setUserFormEmail] = useState("");
+  const [userFormRole, setUserFormRole] = useState<WorkspaceUserRole>("vendor");
+
+  useEffect(() => {
+    const t = setTimeout(() => setAssociateSearchDebounced(associateSearch), 300);
+    return () => clearTimeout(t);
+  }, [associateSearch]);
 
   /* ── loaders ── */
 
@@ -177,10 +196,15 @@ export const WorkspacesPage = () => {
     setAssociateSearch("");
     setAssociateOpen(false);
     try {
-      const res = await followupApi.listWorkspaceProjects(ws._id);
-      setProjects(res.data ?? []);
+      const [projRes, usersRes] = await Promise.all([
+        followupApi.listWorkspaceProjects(ws._id),
+        followupApi.listWorkspaceUsers(ws._id).catch(() => ({ data: [] })),
+      ]);
+      setProjects(projRes.data ?? []);
+      setWorkspaceUsers(usersRes.data ?? []);
     } catch {
       setProjects([]);
+      setWorkspaceUsers([]);
     }
   };
 
@@ -270,13 +294,16 @@ export const WorkspacesPage = () => {
       });
       setProjDrawerOpen(false);
       await loadProjectsByEmail();
-      if (selectedWs) {
+      const wsId = selectedWs?._id;
+      if (wsId) {
         await followupApi.associateProjectToWorkspace({
-          workspaceId: selectedWs._id,
+          workspaceId: wsId,
           projectId: res.project.id,
         });
-        openProjectList(selectedWs);
+        openProjectList(selectedWs!);
       }
+      // Link "Configura progetto" (Opzione B): redirect a ProjectDetailPage per policies, email, templates
+      navigate(`/projects/${res.project.id}${wsId ? `?workspaceId=${wsId}` : ""}`);
     } catch (e) {
       window.alert(e instanceof Error ? e.message : "Errore creazione progetto");
     } finally {
@@ -299,6 +326,58 @@ export const WorkspacesPage = () => {
       openProjectList(selectedWs);
     } catch (e) {
       window.alert(e instanceof Error ? e.message : "Errore associazione");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openAddUser = () => {
+    setUserFormEmail("");
+    setUserFormRole("vendor");
+    setUserDrawerOpen(true);
+  };
+
+  const handleAddWorkspaceUser = async () => {
+    if (!selectedWs || !userFormEmail.trim()) return;
+    const email = userFormEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      window.alert("Inserisci un'email valida.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await followupApi.addWorkspaceUser(selectedWs._id, { userId: email, role: userFormRole });
+      setUserDrawerOpen(false);
+      openProjectList(selectedWs);
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "Errore aggiunta utente");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemoveWorkspaceUser = async (wu: WorkspaceUserRow) => {
+    if (!selectedWs) return;
+    if (!window.confirm(`Rimuovere ${wu.userId} dal workspace?`)) return;
+    setSaving(true);
+    try {
+      await followupApi.removeWorkspaceUser(selectedWs._id, wu.userId);
+      openProjectList(selectedWs);
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "Errore rimozione utente");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdateWorkspaceUserRole = async (wu: WorkspaceUserRow, newRole: WorkspaceUserRole) => {
+    if (!selectedWs) return;
+    setSaving(true);
+    try {
+      await followupApi.updateWorkspaceUser(selectedWs._id, wu.userId, { role: newRole });
+      openProjectList(selectedWs);
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "Errore aggiornamento ruolo");
     } finally {
       setSaving(false);
     }
@@ -397,7 +476,55 @@ export const WorkspacesPage = () => {
                 </div>
 
                 {selectedWs?._id === ws._id && (
-                  <div className="mt-4 pt-4 border-t border-border">
+                  <div className="mt-4 pt-4 border-t border-border space-y-6">
+                    <div>
+                      <h4 className="mb-2 text-sm font-medium text-foreground flex items-center gap-2">
+                        <Users className="h-3.5 w-3.5" />
+                        Utenti nel workspace
+                      </h4>
+                      <div className="mb-2">
+                        <Button size="sm" variant="outline" onClick={openAddUser} className="h-9 gap-1">
+                          <UserPlus className="h-3.5 w-3.5" />
+                          Aggiungi utente
+                        </Button>
+                      </div>
+                      {workspaceUsers.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Nessun utente. Aggiungi utenti per gestire ruoli e visibilità.</p>
+                      ) : (
+                        <ul className="space-y-1">
+                          {workspaceUsers.map((wu) => (
+                            <li
+                              key={wu._id}
+                              className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 text-sm"
+                            >
+                              <span className="text-foreground font-medium">{wu.userId}</span>
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={wu.role}
+                                  onChange={(e) => handleUpdateWorkspaceUserRole(wu, e.target.value as WorkspaceUserRole)}
+                                  disabled={saving}
+                                  className="h-7 rounded border border-border bg-background px-2 text-xs"
+                                >
+                                  <option value="vendor">Vendor</option>
+                                  <option value="vendor_manager">Vendor Manager</option>
+                                  <option value="admin">Admin</option>
+                                </select>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-muted-foreground hover:text-destructive"
+                                  onClick={() => handleRemoveWorkspaceUser(wu)}
+                                  disabled={saving}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                    <div>
                     <h4 className="mb-2 text-sm font-medium text-foreground">Progetti associati</h4>
                     <div className="flex flex-wrap gap-2 mb-3">
                       <Button size="sm" variant="outline" onClick={openCreateProject} className="h-9">
@@ -416,19 +543,20 @@ export const WorkspacesPage = () => {
                           placeholder="Cerca progetto…"
                           className="h-9 text-sm"
                         />
-                        {associateOpen && associateSearch.trim().length > 0 && (
+                        {associateOpen && (
                           <div className="absolute z-50 mt-1 w-full max-h-56 overflow-y-auto rounded-lg border border-border bg-background shadow-lg">
                             {allProjects
                               .filter((p) => !projects.some((wp) => wp.projectId === p.id))
                               .filter((p) => {
-                                const q = associateSearch.toLowerCase();
+                                const q = associateSearchDebounced.trim().toLowerCase();
+                                if (!q) return true;
                                 return (
                                   (p.displayName ?? "").toLowerCase().includes(q) ||
                                   (p.name ?? "").toLowerCase().includes(q) ||
                                   p.id.toLowerCase().includes(q)
                                 );
                               })
-                              .slice(0, 30)
+                              .slice(0, 50)
                               .map((p) => (
                                 <button
                                   key={p.id}
@@ -447,14 +575,17 @@ export const WorkspacesPage = () => {
                             {allProjects
                               .filter((p) => !projects.some((wp) => wp.projectId === p.id))
                               .filter((p) => {
-                                const q = associateSearch.toLowerCase();
+                                const q = associateSearchDebounced.trim().toLowerCase();
+                                if (!q) return true;
                                 return (
                                   (p.displayName ?? "").toLowerCase().includes(q) ||
                                   (p.name ?? "").toLowerCase().includes(q) ||
                                   p.id.toLowerCase().includes(q)
                                 );
                               }).length === 0 && (
-                              <div className="px-3 py-2 text-sm text-muted-foreground">Nessun risultato</div>
+                              <div className="px-3 py-2 text-sm text-muted-foreground">
+                                {associateSearchDebounced.trim() ? "Nessun risultato" : "Digita per cercare"}
+                              </div>
                             )}
                           </div>
                         )}
@@ -501,6 +632,7 @@ export const WorkspacesPage = () => {
                         <p className="text-sm text-muted-foreground">Nessun progetto associato</p>
                       )}
                     </ul>
+                    </div>
                   </div>
                 )}
               </div>
@@ -726,6 +858,53 @@ export const WorkspacesPage = () => {
               Crea progetto
             </Button>
             <Button variant="outline" onClick={() => setProjDrawerOpen(false)} className="w-full">
+              Annulla
+            </Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+
+      {/* ── Drawer aggiungi utente ── */}
+      <Drawer open={userDrawerOpen} onOpenChange={setUserDrawerOpen}>
+        <DrawerContent>
+          <DrawerHeader actions={<DrawerCloseButton />}>
+            <DrawerTitle>Aggiungi utente</DrawerTitle>
+            <DrawerSubtitle>
+              Aggiungi un utente al workspace con un ruolo (vendor, vendor_manager, admin).
+            </DrawerSubtitle>
+          </DrawerHeader>
+          <DrawerBody className="space-y-5">
+            <Field label="Email" required>
+              <Input
+                type="email"
+                placeholder="utente@esempio.it"
+                value={userFormEmail}
+                onChange={(e) => setUserFormEmail(e.target.value)}
+                disabled={saving}
+              />
+            </Field>
+            <Field label="Ruolo">
+              <Select
+                value={userFormRole}
+                onValueChange={(v) => setUserFormRole(v as WorkspaceUserRole)}
+                disabled={saving}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="vendor">Vendor</SelectItem>
+                  <SelectItem value="vendor_manager">Vendor Manager</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+          </DrawerBody>
+          <DrawerFooter>
+            <Button onClick={handleAddWorkspaceUser} disabled={saving || !userFormEmail.trim()}>
+              Aggiungi
+            </Button>
+            <Button variant="outline" onClick={() => setUserDrawerOpen(false)} className="w-full">
               Annulla
             </Button>
           </DrawerFooter>

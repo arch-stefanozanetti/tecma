@@ -7,6 +7,13 @@ import { followupApi } from "../../api/followupApi";
 import { useWorkspace } from "../../auth/projectScope";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
 
 const ENTITY_TYPES = ["client", "apartment", "request", "association", "calendar_event"] as const;
 const ACTIONS = [
@@ -30,7 +37,7 @@ const formatDate = (s: string) => {
 };
 
 export const AuditLogPage = () => {
-  const { workspaceId } = useWorkspace();
+  const { workspaceId, projects } = useWorkspace();
   const [data, setData] = useState<Array<{
     _id: string;
     at: string;
@@ -113,38 +120,47 @@ export const AuditLogPage = () => {
         <div className="mt-6 flex flex-wrap gap-4">
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Progetto</label>
-            <Input
-              value={filters.projectId}
-              onChange={(e) => setFilters((f) => ({ ...f, projectId: e.target.value }))}
-              placeholder="ID progetto"
-              className="w-40"
-            />
+            <Select value={filters.projectId || "__all__"} onValueChange={(v) => setFilters((f) => ({ ...f, projectId: v === "__all__" ? "" : v }))}>
+              <SelectTrigger className="h-10 w-48">
+                <SelectValue placeholder="Tutti i progetti" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Tutti i progetti</SelectItem>
+                {(projects ?? []).map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.displayName ?? p.name ?? p.id}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Tipo entità</label>
-            <select
-              value={filters.entityType}
-              onChange={(e) => setFilters((f) => ({ ...f, entityType: e.target.value }))}
-              className="h-10 rounded-lg border border-input bg-background px-3 text-sm w-36"
-            >
-              <option value="">Tutti</option>
-              {ENTITY_TYPES.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
+            <Select value={filters.entityType || "__all__"} onValueChange={(v) => setFilters((f) => ({ ...f, entityType: v === "__all__" ? "" : v }))}>
+              <SelectTrigger className="h-10 w-36">
+                <SelectValue placeholder="Tutti" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Tutti</SelectItem>
+                {ENTITY_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Azione</label>
-            <select
-              value={filters.action}
-              onChange={(e) => setFilters((f) => ({ ...f, action: e.target.value }))}
-              className="h-10 rounded-lg border border-input bg-background px-3 text-sm w-48"
-            >
-              <option value="">Tutte</option>
-              {ACTIONS.map((a) => (
-                <option key={a} value={a}>{a}</option>
-              ))}
-            </select>
+            <Select value={filters.action || "__all__"} onValueChange={(v) => setFilters((f) => ({ ...f, action: v === "__all__" ? "" : v }))}>
+              <SelectTrigger className="h-10 w-48">
+                <SelectValue placeholder="Tutte" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Tutte</SelectItem>
+                {ACTIONS.map((a) => (
+                  <SelectItem key={a} value={a}>{a}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Da data</label>

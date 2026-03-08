@@ -12,6 +12,7 @@ vi.mock("../../api/followupApi", () => ({
     queryClients: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),
     createClient: vi.fn().mockResolvedValue(undefined),
     updateClient: vi.fn().mockResolvedValue({ client: {} }),
+    listAdditionalInfos: vi.fn().mockResolvedValue({ data: [] }),
   },
 }));
 

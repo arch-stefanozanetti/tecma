@@ -25,12 +25,25 @@ export interface WorkspaceRow {
   name: string;
   createdAt: string;
   updatedAt: string;
+  /** Chiavi feature abilitate per questo workspace. Se assente = tutte abilitate. */
+  features?: string[];
 }
 
 export interface WorkspaceProjectRow {
   workspaceId: string;
   projectId: string;
   createdAt: string;
+}
+
+export type WorkspaceUserRole = "vendor" | "vendor_manager" | "admin";
+
+export interface WorkspaceUserRow {
+  _id: string;
+  workspaceId: string;
+  userId: string;
+  role: WorkspaceUserRole;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type AdditionalInfoType = "text" | "radio" | "slider" | "number" | "checkbox";
@@ -154,6 +167,7 @@ export interface ClientCreateInput {
   phone?: string;
   status?: string;
   city?: string;
+  additionalInfo?: Record<string, unknown>;
 }
 
 export interface ClientUpdateInput {
@@ -162,6 +176,7 @@ export interface ClientUpdateInput {
   phone?: string;
   status?: string;
   city?: string;
+  additionalInfo?: Record<string, unknown>;
 }
 
 export interface CalendarEventCreateInput {

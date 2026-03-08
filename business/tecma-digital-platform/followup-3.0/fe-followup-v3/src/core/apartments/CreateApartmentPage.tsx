@@ -3,8 +3,13 @@ import { followupApi } from "../../api/followupApi";
 import type { ApartmentCreateInput } from "../../types/domain";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
-import { INPUT_LIKE_CLASSES } from "../../lib/ds-form-classes";
-import { cn } from "../../lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
 
 interface CreateApartmentPageProps {
   workspaceId: string;
@@ -189,28 +194,32 @@ export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: Crea
               URL planimetria
               <Input value={form.planimetryUrl} onChange={(e) => setForm((s) => ({ ...s, planimetryUrl: e.target.value }))} className="w-full" />
             </label>
-            <label>
-              Modalita
-              <select className={cn(INPUT_LIKE_CLASSES)} value={form.mode} onChange={(e) => setForm((s) => ({ ...s, mode: e.target.value as "RENT" | "SELL" }))}>
-                <option value="SELL">SELL</option>
-                <option value="RENT">RENT</option>
-              </select>
-            </label>
-            <label>
-              Stato
-              <select
-                className={cn(INPUT_LIKE_CLASSES)}
-                value={form.status}
-                onChange={(e) =>
-                  setForm((s) => ({ ...s, status: e.target.value as "AVAILABLE" | "RESERVED" | "SOLD" | "RENTED" }))
-                }
-              >
-                <option value="AVAILABLE">AVAILABLE</option>
-                <option value="RESERVED">RESERVED</option>
-                <option value="SOLD">SOLD</option>
-                <option value="RENTED">RENTED</option>
-              </select>
-            </label>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-foreground">Modalità</label>
+              <Select value={form.mode} onValueChange={(v) => setForm((s) => ({ ...s, mode: v as "RENT" | "SELL" }))}>
+                <SelectTrigger className="h-10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SELL">Vendita</SelectItem>
+                  <SelectItem value="RENT">Affitto</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-foreground">Stato</label>
+              <Select value={form.status} onValueChange={(v) => setForm((s) => ({ ...s, status: v as "AVAILABLE" | "RESERVED" | "SOLD" | "RENTED" }))}>
+                <SelectTrigger className="h-10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="AVAILABLE">Disponibile</SelectItem>
+                  <SelectItem value="RESERVED">Riservato</SelectItem>
+                  <SelectItem value="SOLD">Venduto</SelectItem>
+                  <SelectItem value="RENTED">Affittato</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="hc-actions">
               <Button variant="outline" type="button" onClick={saveSession}>

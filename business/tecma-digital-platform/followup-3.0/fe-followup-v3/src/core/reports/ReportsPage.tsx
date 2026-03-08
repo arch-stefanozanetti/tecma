@@ -6,13 +6,29 @@ import { followupApi } from "../../api/followupApi";
 import { useWorkspace } from "../../auth/projectScope";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
 
-type ReportType = "pipeline" | "clients_by_status" | "apartments_by_availability";
+type ReportType =
+  | "pipeline"
+  | "clients_by_status"
+  | "apartments_by_availability"
+  | "activity_per_period"
+  | "conversions_per_project"
+  | "avg_times";
 
 const REPORT_LABELS: Record<ReportType, string> = {
   pipeline: "Pipeline vendita/affitto",
   clients_by_status: "Clienti per stato",
   apartments_by_availability: "Appartamenti per disponibilità",
+  activity_per_period: "Attività per periodo",
+  conversions_per_project: "Conversioni per progetto",
+  avg_times: "Tempi medi (giorni a vinto)",
 };
 
 export const ReportsPage = () => {
@@ -71,15 +87,16 @@ export const ReportsPage = () => {
         <div className="mt-6 flex flex-wrap gap-4 items-end">
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Tipo report</label>
-            <select
-              value={reportType}
-              onChange={(e) => setReportType(e.target.value as ReportType)}
-              className="h-10 rounded-lg border border-input bg-background px-3 text-sm w-56"
-            >
-              {(Object.keys(REPORT_LABELS) as ReportType[]).map((t) => (
-                <option key={t} value={t}>{REPORT_LABELS[t]}</option>
-              ))}
-            </select>
+            <Select value={reportType} onValueChange={(v) => setReportType(v as ReportType)}>
+              <SelectTrigger className="h-10 w-56">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(REPORT_LABELS) as ReportType[]).map((t) => (
+                  <SelectItem key={t} value={t}>{REPORT_LABELS[t]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Da data</label>

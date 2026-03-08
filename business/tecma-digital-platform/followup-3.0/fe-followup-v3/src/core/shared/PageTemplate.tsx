@@ -10,8 +10,10 @@ import {
   Handshake,
   Home,
   Layers,
+  Link2,
   LogOut,
   Menu,
+  Plug,
   Settings,
   UserCircle,
   Users,
@@ -25,6 +27,7 @@ import type { ProjectAccessProject } from "../../types/domain";
 import { clearProjectScope, WorkspaceOverrideProvider } from "../../auth/projectScope";
 import { followupApi } from "../../api/followupApi";
 import { clearTokens, getRefreshToken } from "../../api/http";
+import { isSectionEnabledByFeature } from "../features";
 
 type Section =
   | "cockpit"
@@ -40,9 +43,12 @@ type Section =
   | "catalogHC"
   | "templateConfig"
   | "aiApprovals"
+  | "projects"
   | "workspaces"
   | "audit"
-  | "reports";
+  | "reports"
+  | "releases"
+  | "integrations";
 
 interface PageTemplateProps {
   section: Section;
@@ -57,6 +63,8 @@ interface PageTemplateProps {
   projects: ProjectAccessProject[];
   selectedProjectIds: string[];
   onSelectedProjectIdsChange: (ids: string[]) => void;
+  /** Feature abilitate per il workspace corrente (undefined = tutte). Usate per nascondere voci di menu. */
+  enabledFeatures?: string[];
   children: ReactNode;
 }
 
@@ -73,31 +81,44 @@ const navItems: NavItem[] = [
   { id: "apartments", label: "Appartamenti", icon: Building2 },
   { id: "clients", label: "Clienti", icon: Users },
   { id: "requests", label: "Trattative", icon: Handshake },
+  { id: "associateAptClient", label: "Associa Apt/Cliente", icon: Link2 },
   { id: "calendar", label: "Calendario", icon: CalendarDays },
+  { id: "projects", label: "Progetti", icon: Building2 },
+  { id: "integrations", label: "Integrazioni", icon: Plug },
   { id: "workspaces", label: "Workspaces", icon: FolderKanban, adminOnly: true },
   { id: "audit", label: "Audit log", icon: FileText, adminOnly: true },
   { id: "reports", label: "Report", icon: BarChart2 },
 ];
 
 const mainNav = navItems.filter((item) => !item.compact);
-const getMainNav = (isAdmin: boolean) =>
-  mainNav.filter((item) => !item.adminOnly || isAdmin);
-const getSecondaryNav = (isAdmin: boolean) =>
-  navItems.filter((item) => item.compact && (!item.adminOnly || isAdmin));
+const getMainNav = (isAdmin: boolean, enabledFeatures?: string[]) =>
+  mainNav.filter(
+    (item) =>
+      (!item.adminOnly || isAdmin) && isSectionEnabledByFeature(item.id, enabledFeatures)
+  );
+const getSecondaryNav = (isAdmin: boolean, enabledFeatures?: string[]) =>
+  navItems.filter(
+    (item) =>
+      item.compact &&
+      (!item.adminOnly || isAdmin) &&
+      isSectionEnabledByFeature(item.id, enabledFeatures)
+  );
 
 const SideNav = ({
   section,
   onSectionChange,
   isAdmin = false,
+  enabledFeatures,
   className,
 }: {
   section: Section;
   onSectionChange: (section: Section) => void;
   isAdmin?: boolean;
+  enabledFeatures?: string[];
   className?: string;
 }) => {
   const [toolsOpen, setToolsOpen] = useState(false);
-  const secondaryNav = getSecondaryNav(isAdmin);
+  const secondaryNav = getSecondaryNav(isAdmin, enabledFeatures);
   const isSecondaryActive = useMemo(
     () => secondaryNav.some((item) => item.id === section),
     [section, secondaryNav]
@@ -132,7 +153,7 @@ const SideNav = ({
         </div>
 
         <nav className="space-y-4">
-          {getMainNav(isAdmin).map((item) => {
+          {getMainNav(isAdmin, enabledFeatures).map((item) => {
             const Icon = item.icon;
             const isActive = section === item.id;
             return (
@@ -420,6 +441,7 @@ export const PageTemplate = ({
   projects,
   selectedProjectIds,
   onSelectedProjectIdsChange,
+  enabledFeatures,
   children,
 }: PageTemplateProps) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -463,7 +485,7 @@ export const PageTemplate = ({
   return (
     <div className="flex h-screen w-full overflow-hidden bg-app font-body text-foreground" data-testid="tecma-templatePage">
       <div className="hidden lg:block">
-        <SideNav section={section} onSectionChange={onSectionChange} isAdmin={isAdmin} />
+        <SideNav section={section} onSectionChange={onSectionChange} isAdmin={isAdmin} enabledFeatures={enabledFeatures} />
       </div>
 
       <Sheet>
@@ -477,7 +499,7 @@ export const PageTemplate = ({
           </button>
         </SheetTrigger>
         <SheetContent side="left" className="w-[290px] border-none p-0">
-          <SideNav section={section} onSectionChange={onSectionChange} isAdmin={isAdmin} className="h-full" />
+          <SideNav section={section} onSectionChange={onSectionChange} isAdmin={isAdmin} enabledFeatures={enabledFeatures} className="h-full" />
         </SheetContent>
       </Sheet>
 
@@ -611,6 +633,16 @@ export const PageTemplate = ({
             {children}
           </WorkspaceOverrideProvider>
         </main>
+
+        <footer className="flex shrink-0 items-center justify-end gap-4 border-t border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+          <button
+            type="button"
+            onClick={() => onSectionChange("releases")}
+            className="hover:text-foreground hover:underline"
+          >
+            Release notes
+          </button>
+        </footer>
       </div>
     </div>
   );
