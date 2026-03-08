@@ -5,12 +5,14 @@ on:
     branches: [develop, demo, main]
     paths:
       - "business/tecma-digital-platform/followup-3.0/fe-followup-v3/**"
+      - "business/tecma-digital-platform/design-system/**"
       - "vercel.json"
       - ".github/workflows/followup-3.0-ci-cd.yml"
   pull_request:
     branches: [develop, demo, main]
     paths:
       - "business/tecma-digital-platform/followup-3.0/fe-followup-v3/**"
+      - "business/tecma-digital-platform/design-system/**"
       - "vercel.json"
       - ".github/workflows/followup-3.0-ci-cd.yml"
   workflow_dispatch:
