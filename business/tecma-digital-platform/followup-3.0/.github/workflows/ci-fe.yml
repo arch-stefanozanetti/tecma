@@ -3,12 +3,12 @@ name: CI Frontend
 
 on:
   push:
-    branches: [main, master, develop, demo]
+    branches: [main, develop, demo]
     paths:
       - "fe-followup-v3/**"
       - ".github/workflows/ci-fe.yml"
   pull_request:
-    branches: [main, master, develop, demo]
+    branches: [main, develop, demo]
     paths:
       - "fe-followup-v3/**"
       - ".github/workflows/ci-fe.yml"

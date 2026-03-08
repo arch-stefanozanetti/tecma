@@ -36,11 +36,31 @@ Per richiedere un **approval** prima del deploy prod:
 2. Seleziona **Required reviewers** e aggiungi uno o più reviewer.
 3. Nel workflow il job `deploy-prod` usa già `environment: production`, quindi il deploy parte solo dopo l’approvazione.
 
-## Branch (già creati in locale)
+## Branch (modello standard)
 
-Sono già presenti: `develop`, `demo`, `main`, `master`. La pipeline usa `main` per il deploy prod.
+Branch utilizzati: `main` (default, deploy prod manuale), `develop` (deploy dev automatico), `demo` (deploy demo automatico). Feature branch si mergiano in `develop`; hotfix in `main`. Il branch `master` non è più usato.
 
-## Primo push su GitHub (repo tecma)
+## Se il progetto non è ancora su GitHub e Vercel
+
+1. **Crea il repo su GitHub**  
+   Vai su [github.com/new](https://github.com/new), nome es. `followup-3.0` o `tecma` (se monorepo). Non inizializzare con README se il codice è già in locale.
+
+2. **Aggiungi remote e push** (dalla root del repo, es. `tecma`):
+   ```bash
+   cd /path/to/tecma
+   git remote add origin https://github.com/TUO_USERNAME/NOME_REPO.git
+   git push -u origin main
+   git push -u origin develop
+   git push -u origin demo
+   ```
+
+3. **Vercel**  
+   [vercel.com](https://vercel.com) → Add New Project → Import il repo GitHub. Imposta **Root Directory** (vedi sezione Vercel sotto). Aggiungi i **Secret** nel repo GitHub (Settings → Secrets → Actions) per la pipeline.
+
+4. **Secret GitHub**  
+   Dopo il primo deploy da Vercel (o dopo `vercel link` in locale), prendi Org ID e Project ID e crea il token Vercel; poi in GitHub → Settings → Secrets and variables → Actions aggiungi `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.
+
+## Primo push su GitHub (repo già creato)
 
 Dalla **root del repo** (cartella `tecma`):
 
@@ -57,8 +77,26 @@ Se il repo è solo followup-3.0 (repo dedicato), i path nel workflow in root dev
 ## Vercel
 
 1. Collega il repo GitHub a Vercel (Import Project).
-2. **Root Directory**: imposta `fe-followup-v3` (monorepo).
-3. Disattiva i deploy automatici da Vercel per evitare doppi deploy: in Project Settings → Git puoi lasciare che siano solo le Actions a deployare, oppure usa solo le Actions e non collegare il repo a Vercel per auto-deploy (deploy solo via Actions con i secret sopra).
+2. **Root Directory** (monorepo): `business/tecma-digital-platform/followup-3.0/fe-followup-v3`. Repo solo followup-3.0: `fe-followup-v3` o `.` se la root del repo è già la cartella del frontend.
+3. La build usa `vercel.json` in quella cartella (framework Vite, SPA rewrites su `index.html`).
+4. Disattiva i deploy automatici da Vercel se vuoi usare solo GitHub Actions per il deploy.
+
+### Variabili d'ambiente Vercel
+
+Impostale in **Project Settings → Environment Variables** (Production / Preview / Development). Non mettere secret in `vercel.json`.
+
+| Variabile | Descrizione | Esempio |
+|-----------|-------------|---------|
+| `VITE_API_BASE_URL` | Base URL API backend | `https://api-demo.example.com/v1` (preview), `https://api.example.com/v1` (prod) |
+| `VITE_APP_VERSION` | Versione app (opzionale, iniettata da CI) | `1.2.3` |
+| `VITE_USE_BSS_AUTH` | Usa auth BSS gateway | `true` / `false` |
+| `VITE_BUCKET_BASEURL` | Base URL bucket (es. file) | `https://bucket.example.com` |
+| `VITE_BUSINESSPLATFORM_LOGIN` | URL login Business Platform | `https://.../login` |
+| `VITE_FORGOT_CREDENTIALS_URL` | URL recupero credenziali | `#` o URL |
+| `VITE_DATA_MODE` | Modalità dati (mock/real) | `real` in prod |
+| `VITE_GITHUB_RELEASES_REPO` | Repo GitHub per release notes (pagina Release) | `owner/repo` |
+
+Per sviluppatori locali: `vercel env pull` nella cartella del progetto (dopo `vercel link`) per scaricare le variabili.
 
 ## RabbitMQ / Grafana
 
