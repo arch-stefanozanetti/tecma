@@ -1,6 +1,7 @@
 # CI/CD – Tre ambienti (dev, demo, prod)
 
-Workflow: [.github/workflows/ci-cd.yml](../.github/workflows/ci-cd.yml). Copia di esempio: [docs/ci-cd-workflow.example.yml](ci-cd-workflow.example.yml).
+- **Repo monorepo (root = tecma)**: workflow in root: `.github/workflows/followup-3.0-ci-cd.yml` (path FE: `business/tecma-digital-platform/followup-3.0/fe-followup-v3`).
+- **Repo solo followup-3.0**: usa [docs/ci-cd-workflow.example.yml](ci-cd-workflow.example.yml) copiato in `.github/workflows/ci-cd.yml`.
 
 ## Branch e comportamenti
 
@@ -35,19 +36,23 @@ Per richiedere un **approval** prima del deploy prod:
 2. Seleziona **Required reviewers** e aggiungi uno o più reviewer.
 3. Nel workflow il job `deploy-prod` usa già `environment: production`, quindi il deploy parte solo dopo l’approvazione.
 
-## Creazione dei branch
+## Branch (già creati in locale)
 
-Se non esistono ancora:
+Sono già presenti: `develop`, `demo`, `main`, `master`. La pipeline usa `main` per il deploy prod.
+
+## Primo push su GitHub (repo tecma)
+
+Dalla **root del repo** (cartella `tecma`):
 
 ```bash
-git checkout -b develop
+cd /path/to/tecma
+git remote add origin https://github.com/TUO_USERNAME/tecma.git
+git push -u origin main
 git push -u origin develop
-
-git checkout -b demo
 git push -u origin demo
 ```
 
-`main` è il branch di produzione (di solito già presente).
+Se il repo è solo followup-3.0 (repo dedicato), i path nel workflow in root devono usare `fe-followup-v3/` (vedi `docs/ci-cd-workflow.example.yml`).
 
 ## Vercel
 
