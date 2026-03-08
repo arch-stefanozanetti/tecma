@@ -1,0 +1,112 @@
+@import "@tecma/design-system-tokens/css";
+
+/* Lato (sans) — percorsi da public/fonts, serviti alla root */
+@font-face {
+  font-family: "Lato";
+  src: url("/fonts/Lato/Lato-Light.ttf") format("truetype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lato";
+  src: url("/fonts/Lato/Lato-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lato";
+  src: url("/fonts/Lato/Lato-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Ivy Journal (serif) — usata dai token --tecma-font-serif */
+@font-face {
+  font-family: "Ivy Journal";
+  src: url("/fonts/IvyJournal/IvyJournal-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Ivy Journal";
+  src: url("/fonts/IvyJournal/IvyJournal-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 224 20% 26%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 20% 26%;
+    --muted: 220 20% 95%;
+    --muted-foreground: 224 16% 45%;
+    --primary: 238 64% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 20% 91%;
+    --secondary-foreground: 224 20% 26%;
+    --accent: 238 64% 58%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 1 58% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 17% 86%;
+    --input: 220 17% 86%;
+    --ring: 238 64% 58%;
+    --radius: 0.85rem;
+    --radius-chrome: 2px;
+    --sidebar: 222 24% 90%;
+    --sidebar-foreground: 224 20% 26%;
+    --sidebar-border: 220 20% 83%;
+    --sidebar-accent: 238 64% 95%;
+    --sidebar-accent-foreground: 238 64% 42%;
+    --app-bg: #f8f8f9;
+    --panel-bg: rgba(255, 255, 255, 0.85);
+    --panel-border: #dbe2ef;
+    --title-font: var(--tecma-font-title);
+    --body-font: var(--tecma-font-body);
+    --scrollbar-thumb: #d3d4da;
+    --scrollbar-thumb-hover: #b0b3bf;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body {
+    @apply text-foreground;
+    background: var(--app-bg);
+    font-family: var(--body-font);
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--body-font);
+    letter-spacing: 0;
+  }
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+
+@layer components {
+  .glass-panel {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    backdrop-filter: blur(10px);
+  }
+}

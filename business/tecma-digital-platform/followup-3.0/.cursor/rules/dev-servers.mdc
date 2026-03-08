@@ -1,0 +1,18 @@
+---
+description: Mantenere backend e frontend Followup 3.0 sempre avviati per poter navigare in localhost.
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Dev servers — Followup 3.0
+
+Quando lavori su **followup-3.0**, l’utente deve poter **sempre navigare** l’app in localhost.
+
+- **Backend:** `be-followup-v3` — porta **5060**
+  - Comando: `npm run dev` (da `be-followup-v3`)
+  - Health: `http://localhost:5060/v1/health`
+- **Frontend:** `fe-followup-v3` — porta **5177**
+  - Comando: `npm run dev` (da `fe-followup-v3`)
+  - App: `http://localhost:5177/`
+
+**Regola:** prima di sessioni lunghe o dopo modifiche che possono aver fermato i processi, verifica che entrambi i server siano in esecuzione; se mancano, avviali in background (es. `npm run dev` in background). Non lasciare l’utente senza backend o frontend avviati se sta lavorando su Followup 3.0.

@@ -1,0 +1,55 @@
+---
+description: Regole per implementare design da Figma in Followup 3.0. Tailwind, token, componenti ui, flusso Figma MCP e convenzioni progetto.
+globs: ["src/**/*.tsx", "src/**/*.css"]
+alwaysApply: false
+---
+
+# Figma Design System Rules — Followup 3.0
+
+## Component organization
+
+- IMPORTANT: Usa i componenti da `src/components/ui/` quando esistono (Button, Input, Select, Sheet, Checkbox, CheckboxWithLabel, ecc.). Per ogni scelta booleana (Ricordami, accetta termini, selezione in lista) usa **Checkbox** o **CheckboxWithLabel**, mai checkbox HTML custom o span stilizzati.
+- I nuovi componenti UI vanno in `src/components/ui/` con nome PascalCase.
+- Le pagine e le sezioni di flusso stanno in `src/core/` (auth, calendar, clients, apartments, shared).
+- Non duplicare componenti già presenti in `src/components/ui/`: estendi o compone.
+
+## Styling
+
+- Usa **Tailwind** per tutto lo styling. Non aggiungere CSS modules o file CSS per componenti singoli salvo variabili/token condivisi.
+- I **token** sono definiti in:
+  - `src/styles.css`: variabili CSS `:root` (--background, --foreground, --primary, --border, --radius, --app-bg, --panel-bg, --scrollbar-thumb, --title-font, --body-font).
+  - `tailwind.config.js`: theme.extend (colors da HSL var + app, panel; fontFamily.body/title; backgroundImage: auth-page, auth-sidebar, sidebar-nav; boxShadow: panel, sidebar-nav, sidebar-nav-active, sidebar, dropdown; borderRadius: lg, md, sm, chrome).
+- **Border radius:** usare solo classi da tema: `rounded-lg`, `rounded-md`, `rounded-sm` per contenuti/card/form; `rounded-chrome` per shell/nav/dropdown (2px). Non usare `rounded-[Npx]` salvo casi documentati (es. checkbox).
+- IMPORTANT: Non hardcodare colori esadecimali. Usa sempre le classi del tema: `text-foreground`, `text-muted-foreground`, `text-card-foreground`, `bg-primary`, `bg-background`, `bg-app`, `bg-muted`, `border-border`, `bg-sidebar-accent`, `text-primary`, `shadow-panel`, `font-body`.
+- Pagine auth: layout full-page con `bg-auth-page`, `font-body`, colonna sinistra `bg-auth-sidebar`, card `glass-panel shadow-panel`.
+- Shell: `bg-app`, `font-body`, sidebar `bg-sidebar-nav shadow-sidebar`, nav items `shadow-sidebar-nav` / `shadow-sidebar-nav-active` e `text-primary` per attivo.
+- Font: usa `font-body` (o `font-title`) da tema; Lato è il font di progetto.
+- Spaziatura: scala coerente (gap-2, gap-3, gap-4, p-4, px-6, py-2). Preferire classi Tailwind standard.
+
+## Figma MCP integration (quando il server Figma è connesso)
+
+1. Esegui **get_design_context** per il nodo/nodi da implementare.
+2. Se la risposta è troncata, usa **get_metadata** e poi get_design_context solo sui nodi necessari.
+3. Esegui **get_screenshot** per riferimento visivo.
+4. Solo dopo aver ottenuto contesto e screenshot: scarica eventuali asset e inizia l’implementazione.
+5. Traduci l’output (di solito React + Tailwind) nelle convenzioni di questo progetto: componenti da `src/components/ui/`, token e colori dal tema, nessun colore hardcoded fuori dalla palette Tecma.
+6. Verifica parità visiva con lo screenshot Figma prima di considerare completato.
+
+## Implementation rules
+
+- I componenti devono accettare `className?: string` per composizione (e passarlo all’elemento radice dove ha senso).
+- Per varianti (primary/secondary, size) usa union type e `cn()` da `src/lib/utils`.
+- Bottoni e CTA: usa il componente `Button` esistente con variant (default, outline, ghost) e size; non creare nuovi bottoni custom salvo casi eccezionali.
+- Form: usa `Input`, `Select`, `SelectTrigger`, `SelectContent`, `SelectItem` da `src/components/ui/`.
+- Layout responsive: preferire `flex`, `grid`, con breakpoint `sm:`, `md:`, `lg:`; su mobile elementi in colonna (`flex-col`) e da `sm:`/`md:` in riga dove appropriato per evitare sovrapposizioni.
+
+## Asset
+
+- Le immagini/icone da Figma vanno in `public/` o `src/assets/`; non aggiungere nuove librerie di icone senza motivo. Il progetto usa già lucide-react per le icone.
+- Se Figma MCP restituisce un URL localhost per un’immagine/SVG, usare quella sorgente direttamente; non sostituire con placeholder.
+
+## Project-specific
+
+- Stato e dati: REST via `src/api/followupApi.ts` e `src/api/http.ts`; l’header `Authorization: Bearer` è gestito in http.ts quando è presente `followup3.accessToken` in sessionStorage.
+- Routing: SPA senza React Router; sezione corrente in stato in `App.tsx`. Mantenere questo pattern salvo diversa decisione architetturale.
+- Accessibilità: label esplicite per input, `aria-label` per bottoni icon-only, contrasto adeguato (palette esistente).

@@ -1,0 +1,787 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ExternalLink, Filter, MoreHorizontal, Plus, RefreshCcw, RotateCcw, Search } from "lucide-react";
+import { followupApi } from "../../api/followupApi";
+import type { RequestRow, RequestStatus, RequestType, ClientRole } from "../../types/domain";
+import { useWorkspace } from "../../auth/projectScope";
+import { usePaginatedList } from "../shared/usePaginatedList";
+import { cn } from "../../lib/utils";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
+import { Sheet, SheetContent } from "../../components/ui/sheet";
+import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { FiltersDrawer } from "../../components/ui/filters-drawer";
+
+const TYPE_LABEL: Record<RequestType, string> = {
+  rent: "Affitto",
+  sell: "Vendita",
+};
+
+const STATUS_LABEL: Record<RequestStatus, string> = {
+  new: "Nuova",
+  contacted: "Contattato",
+  viewing: "In visita",
+  quote: "Preventivo",
+  offer: "Offerta",
+  won: "Vinto",
+  lost: "Perso",
+};
+
+const CLIENT_ROLE_LABEL: Record<ClientRole, string> = {
+  buyer: "Acquirente",
+  seller: "Venditore",
+  tenant: "Affittuario",
+  landlord: "Cedente",
+};
+
+/** Ordine colonne kanban (flusso trattativa). */
+const KANBAN_STATUS_ORDER: RequestStatus[] = [
+  "new",
+  "contacted",
+  "viewing",
+  "quote",
+  "offer",
+  "won",
+  "lost",
+];
+
+/** Transizioni ammesse (allineate al backend). */
+const ALLOWED_NEXT_STATUSES: Record<RequestStatus, RequestStatus[]> = {
+  new: ["contacted", "viewing", "lost"],
+  contacted: ["viewing", "quote", "offer", "lost"],
+  viewing: ["quote", "offer", "contacted", "lost"],
+  quote: ["offer", "viewing", "lost"],
+  offer: ["won", "lost", "viewing", "quote"],
+  won: [],
+  lost: [],
+};
+
+const TYPE_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: "all", label: "Tutti i tipi" },
+  { value: "rent", label: "Affitto" },
+  { value: "sell", label: "Vendita" },
+];
+
+const STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: "all", label: "Tutti gli stati" },
+  ...(Object.entries(STATUS_LABEL).map(([v, label]) => ({ value: v, label }))),
+];
+
+const formatDate = (iso?: string) => {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return new Intl.DateTimeFormat("it-IT", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(d);
+};
+
+type ViewMode = "list" | "kanban";
+
+const REQUESTS_PER_PAGE = 25;
+
+export const RequestsPage = () => {
+  const { workspaceId, selectedProjectIds } = useWorkspace();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false);
+  const [statusDraft, setStatusDraft] = useState("all");
+  const [typeDraft, setTypeDraft] = useState("all");
+  const [selectedRequest, setSelectedRequest] = useState<RequestRow | null>(null);
+  const [showDetailMore, setShowDetailMore] = useState(false);
+  const [newRequestOpen, setNewRequestOpen] = useState(false);
+  const [formProjectId, setFormProjectId] = useState("");
+  const [formClientId, setFormClientId] = useState("");
+  const [formApartmentId, setFormApartmentId] = useState("");
+  const [formType, setFormType] = useState<RequestType>("sell");
+  const [formStatus, setFormStatus] = useState<RequestStatus>("new");
+  const [formClientRole, setFormClientRole] = useState<ClientRole | "">("");
+  const [formSaving, setFormSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [clientsLite, setClientsLite] = useState<{ _id: string; fullName: string; email: string; projectId: string }[]>([]);
+  const [apartmentsList, setApartmentsList] = useState<{ _id: string; code: string; name: string }[]>([]);
+  const [statusChangingId, setStatusChangingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (filtersDrawerOpen) {
+      setStatusDraft(statusFilter);
+      setTypeDraft(typeFilter);
+    }
+  }, [filtersDrawerOpen, statusFilter, typeFilter]);
+
+  useEffect(() => {
+    if (!newRequestOpen || !workspaceId || selectedProjectIds.length === 0) return;
+    setFormError(null);
+    setFormProjectId(selectedProjectIds[0] ?? "");
+    setFormClientId("");
+    setFormApartmentId("");
+    setFormType("sell");
+    setFormStatus("new");
+    setFormClientRole("");
+    followupApi.queryClientsLite(workspaceId, selectedProjectIds).then((r) => setClientsLite(r.data ?? []));
+    followupApi
+      .queryApartments({
+        workspaceId,
+        projectIds: selectedProjectIds,
+        page: 1,
+        perPage: 500,
+        searchText: "",
+        sort: { field: "updatedAt", direction: -1 },
+        filters: {},
+      })
+      .then((r) => setApartmentsList(r.data ?? []));
+  }, [newRequestOpen, workspaceId, selectedProjectIds]);
+
+  const handleOpenNewRequest = () => setNewRequestOpen(true);
+
+  const handleNewRequestSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!workspaceId || !formProjectId || !formClientId) {
+      setFormError("Seleziona progetto e cliente.");
+      return;
+    }
+    setFormError(null);
+    setFormSaving(true);
+    try {
+      await followupApi.createRequest({
+        workspaceId,
+        projectId: formProjectId,
+        clientId: formClientId,
+        apartmentId: formApartmentId || undefined,
+        type: formType,
+        status: formStatus,
+        clientRole: formClientRole || undefined,
+      });
+      refetch();
+      setNewRequestOpen(false);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Errore durante la creazione.");
+    } finally {
+      setFormSaving(false);
+    }
+  };
+
+  const filters = useMemo<Record<string, unknown>>(
+    () => {
+      const f: Record<string, unknown> = {};
+      if (statusFilter !== "all") f.status = [statusFilter];
+      if (typeFilter !== "all") f.type = [typeFilter];
+      return f;
+    },
+    [statusFilter, typeFilter]
+  );
+
+  const {
+    data: requests,
+    total,
+    page,
+    setPage,
+    searchText: committedSearch,
+    setSearchText: setCommittedSearch,
+    isLoading,
+    error,
+    refetch,
+  } = usePaginatedList<RequestRow>({
+    loader: followupApi.queryRequests,
+    workspaceId: workspaceId ?? "",
+    projectIds: selectedProjectIds,
+    defaultSortField: "updatedAt",
+    defaultPerPage: REQUESTS_PER_PAGE,
+    filters,
+    enabled: !!(workspaceId && selectedProjectIds.length > 0),
+  });
+
+  const handleSearch = () => {
+    setCommittedSearch(search);
+    setPage(1);
+  };
+
+  const handleResetFilters = () => {
+    setSearch("");
+    setCommittedSearch("");
+    setStatusFilter("all");
+    setTypeFilter("all");
+    setPage(1);
+  };
+
+  const handleApplyFilters = () => {
+    setStatusFilter(statusDraft);
+    setTypeFilter(typeDraft);
+    setPage(1);
+  };
+
+  const handleResetDrawerFilters = () => {
+    setStatusDraft("all");
+    setTypeDraft("all");
+    setStatusFilter("all");
+    setTypeFilter("all");
+    setPage(1);
+  };
+
+  /** Per vista kanban: raggruppa le richieste della pagina corrente per stato. */
+  const requestsByStatus = useMemo(() => {
+    const map = new Map<RequestStatus, RequestRow[]>();
+    for (const s of KANBAN_STATUS_ORDER) map.set(s, []);
+    for (const req of requests) {
+      const list = map.get(req.status) ?? [];
+      list.push(req);
+      map.set(req.status, list);
+    }
+    return map;
+  }, [requests]);
+
+  const totalPages = Math.max(1, Math.ceil(total / REQUESTS_PER_PAGE));
+  const pageStart = total === 0 ? 0 : (page - 1) * REQUESTS_PER_PAGE + 1;
+  const pageEnd = Math.min(total, page * REQUESTS_PER_PAGE);
+
+  const handleStatusChange = async (requestId: string, newStatus: RequestStatus) => {
+    setStatusChangingId(requestId);
+    try {
+      await followupApi.updateRequestStatus(requestId, { status: newStatus });
+      refetch();
+      setSelectedRequest((prev) => (prev?._id === requestId ? { ...prev, status: newStatus } : prev));
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "Errore durante l'aggiornamento dello stato.");
+    } finally {
+      setStatusChangingId(null);
+    }
+  };
+
+  return (
+    <div className="min-h-full bg-app font-body text-foreground">
+      <div className="px-5 pb-10 pt-8 lg:px-20">
+
+        <div className="flex flex-wrap items-start gap-3">
+          <div className="flex-1">
+            <h1 className="text-2xl font-semibold text-foreground">Trattative</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Richieste e trattative (affitto e vendita). Clicca su una riga o su una card per i dettagli.
+            </p>
+          </div>
+          <Button className="h-10 rounded-lg" onClick={handleOpenNewRequest}>
+            <Plus className="h-4 w-4" />
+            Nuova trattativa
+          </Button>
+        </div>
+
+        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)} className="mt-6">
+          <TabsList className="h-auto w-auto border-b border-border bg-transparent p-0">
+            <TabsTrigger value="list" className="rounded-none">Lista</TabsTrigger>
+            <TabsTrigger value="kanban" className="rounded-none">Kanban</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <div className="mt-4">
+          <div className="overflow-hidden rounded-lg border border-border bg-background shadow-panel">
+
+            <div className="border-b border-border px-4 py-4 lg:px-6">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div className="flex flex-1 flex-wrap items-end gap-3">
+                  <div className="relative min-w-[200px] max-w-md flex-1">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      className="h-10 w-full rounded-lg border-border pl-10 text-sm shadow-none placeholder:text-muted-foreground"
+                      placeholder="Cerca per ID cliente..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="h-10 gap-1.5 rounded-lg border-border px-3 text-sm text-foreground hover:bg-muted"
+                    onClick={() => setFiltersDrawerOpen(true)}
+                  >
+                    <Filter className="h-4 w-4" />
+                    Filtri
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-10 rounded-lg border-border px-4 text-sm font-medium hover:bg-muted"
+                    onClick={handleSearch}
+                  >
+                    Cerca
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="h-10 gap-1.5 rounded-lg px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                    onClick={handleResetFilters}
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    Azzera
+                  </Button>
+                </div>
+                <Button
+                  variant="outline"
+                  className="h-10 shrink-0 rounded-lg border-border px-3 text-sm hover:bg-muted"
+                  onClick={() => refetch()}
+                >
+                  <RefreshCcw className="h-4 w-4" />
+                  Aggiorna
+                </Button>
+              </div>
+            </div>
+
+            {error && (
+              <div className="border-b border-border bg-destructive/5 px-6 py-3 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+
+            {viewMode === "list" && (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[700px]">
+                <thead>
+                  <tr className="border-b border-border text-left text-sm font-normal text-muted-foreground">
+                    <th className="w-10 px-4 py-4 font-normal" />
+                    <th className="px-4 py-4 font-normal">Cliente</th>
+                    <th className="px-4 py-4 font-normal">Appartamento</th>
+                    <th className="px-4 py-4 font-normal">Tipo</th>
+                    <th className="px-4 py-4 font-normal">Ruolo</th>
+                    <th className="px-4 py-4 font-normal">Stato</th>
+                    <th className="px-4 py-4 font-normal">Aggiornato il</th>
+                    <th className="w-10 px-4 py-4 font-normal" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading && requests.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-16 text-center text-sm text-muted-foreground">
+                        Caricamento...
+                      </td>
+                    </tr>
+                  ) : requests.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-16 text-center text-sm text-muted-foreground">
+                        {committedSearch ? "Nessun risultato" : "Nessuna trattativa trovata"}
+                      </td>
+                    </tr>
+                  ) : (
+                    requests.map((req) => (
+                      <tr
+                        key={req._id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setSelectedRequest(req)}
+                        onKeyDown={(e) => e.key === "Enter" && setSelectedRequest(req)}
+                        className="border-b border-border text-sm text-foreground hover:bg-muted cursor-pointer"
+                      >
+                        <td className="px-4 py-4">
+                          <button
+                            type="button"
+                            className="inline-flex h-6 w-6 items-center justify-center text-primary opacity-50 hover:opacity-100"
+                            aria-label="Apri dettaglio"
+                            onClick={(e) => { e.stopPropagation(); setSelectedRequest(req); }}
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </button>
+                        </td>
+                        <td className="px-4 py-4 text-foreground">
+                          {req.clientName ?? req.clientId}
+                        </td>
+                        <td className="px-4 py-4 text-muted-foreground">
+                          {req.apartmentCode ?? req.apartmentId ?? "—"}
+                        </td>
+                        <td className="px-4 py-4">{TYPE_LABEL[req.type]}</td>
+                        <td className="px-4 py-4 text-muted-foreground">
+                          {req.clientRole ? CLIENT_ROLE_LABEL[req.clientRole] : "—"}
+                        </td>
+                        <td className="px-4 py-4">
+                          <Select
+                            value={req.status}
+                            onValueChange={(v) => handleStatusChange(req._id, v as RequestStatus)}
+                            disabled={statusChangingId === req._id}
+                          >
+                            <SelectTrigger className="h-8 w-[140px] rounded-lg border-border text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={req.status}>{STATUS_LABEL[req.status]}</SelectItem>
+                              {(ALLOWED_NEXT_STATUSES[req.status] ?? []).map((s) => (
+                                <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </td>
+                        <td className="px-4 py-4">{formatDate(req.updatedAt)}</td>
+                        <td className="px-4 py-4">
+                          <button
+                            type="button"
+                            className="inline-flex h-6 w-6 items-center justify-center text-muted-foreground opacity-0 hover:opacity-100"
+                            aria-label="Altro"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            )}
+
+            {viewMode === "kanban" && (
+              <div className="overflow-x-auto p-4">
+                <div className="flex gap-4 min-h-[400px]">
+                  {KANBAN_STATUS_ORDER.map((status) => {
+                    const items = requestsByStatus.get(status) ?? [];
+                    return (
+                      <div
+                        key={status}
+                        className="flex w-[280px] shrink-0 flex-col rounded-lg border border-border bg-muted/30"
+                      >
+                        <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                          <span className="text-sm font-semibold text-foreground">
+                            {STATUS_LABEL[status]}
+                          </span>
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                            {items.length}
+                          </span>
+                        </div>
+                        <div className="flex-1 space-y-2 overflow-y-auto p-2">
+                          {items.length === 0 ? (
+                            <p className="py-4 text-center text-xs text-muted-foreground">
+                              Nessuna
+                            </p>
+                          ) : (
+                            items.map((req) => (
+                              <button
+                                key={req._id}
+                                type="button"
+                                onClick={() => setSelectedRequest(req)}
+                                className={cn(
+                                  "w-full rounded-lg border border-border bg-background px-3 py-2.5 text-left text-sm",
+                                  "hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                                )}
+                              >
+                                <div className="truncate text-foreground font-medium">
+                                  {req.clientName ?? req.clientId}
+                                </div>
+                                <div className="mt-1 flex items-center justify-between gap-2">
+                                  <span className="text-xs font-medium text-foreground">
+                                    {TYPE_LABEL[req.type]}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {formatDate(req.updatedAt)}
+                                  </span>
+                                </div>
+                                {(req.apartmentCode ?? req.apartmentId) && (
+                                  <div className="mt-1 text-[10px] text-muted-foreground truncate">
+                                    Apt: {req.apartmentCode ?? req.apartmentId}
+                                  </div>
+                                )}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 lg:px-6">
+              <span className="text-sm text-muted-foreground">
+                {total === 0 ? "Nessuna trattativa" : `${pageStart}–${pageEnd} di ${total}`}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-lg"
+                  onClick={() => setPage(1)}
+                  disabled={page === 1}
+                  aria-label="Prima pagina"
+                >
+                  <span className="text-xs">{"<<"}</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-lg"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  aria-label="Precedente"
+                >
+                  <span className="text-xs">{"<"}</span>
+                </Button>
+                <span className="px-2 text-sm">
+                  <strong>{page}</strong> / <strong>{totalPages}</strong>
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-lg"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  aria-label="Successiva"
+                >
+                  <span className="text-xs">{">"}</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-lg"
+                  onClick={() => setPage(totalPages)}
+                  disabled={page === totalPages}
+                  aria-label="Ultima pagina"
+                >
+                  <span className="text-xs">{">>"}</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <FiltersDrawer
+        open={filtersDrawerOpen}
+        onOpenChange={setFiltersDrawerOpen}
+        title="Filtri"
+        onApply={handleApplyFilters}
+        onReset={handleResetDrawerFilters}
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-foreground">Tipo</label>
+            <Select value={typeDraft} onValueChange={setTypeDraft}>
+              <SelectTrigger className="h-10 w-full rounded-lg border-border text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TYPE_FILTER_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-foreground">Stato</label>
+            <Select value={statusDraft} onValueChange={setStatusDraft}>
+              <SelectTrigger className="h-10 w-full rounded-lg border-border text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_FILTER_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </FiltersDrawer>
+
+      <Sheet
+        open={selectedRequest !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedRequest(null);
+            setShowDetailMore(false);
+          }
+        }}
+      >
+        <SheetContent side="right" className="sm:max-w-md flex flex-col">
+          {selectedRequest && (
+            <>
+              <h2 className="text-lg font-semibold text-foreground border-b border-border pb-3">
+                Dettaglio trattativa
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground border-b border-border pb-3">
+                {TYPE_LABEL[selectedRequest.type]} · {STATUS_LABEL[selectedRequest.status]}
+              </p>
+              <div className="mt-4 space-y-3 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Tipo</span>
+                  <p className="font-medium text-foreground">{TYPE_LABEL[selectedRequest.type]}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Stato</span>
+                  <p className="font-medium text-foreground">{STATUS_LABEL[selectedRequest.status]}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Cliente</span>
+                  <p className="font-medium text-foreground">{selectedRequest.clientName ?? selectedRequest.clientId}</p>
+                </div>
+                {selectedRequest.clientRole && (
+                  <div>
+                    <span className="text-muted-foreground">Ruolo</span>
+                    <p className="font-medium text-foreground">{CLIENT_ROLE_LABEL[selectedRequest.clientRole]}</p>
+                  </div>
+                )}
+                <div>
+                  <span className="text-muted-foreground">Appartamento</span>
+                  <p className="text-foreground">{selectedRequest.apartmentCode ?? selectedRequest.apartmentId ?? "—"}</p>
+                </div>
+                {(selectedRequest.quoteNumber ?? selectedRequest.quoteStatus ?? selectedRequest.quoteTotalPrice != null) && (
+                  <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
+                    <span className="text-muted-foreground text-xs">Preventivo</span>
+                    {selectedRequest.quoteNumber && (
+                      <p className="font-medium text-foreground">N° {selectedRequest.quoteNumber}</p>
+                    )}
+                    {selectedRequest.quoteStatus && (
+                      <p className="text-sm text-muted-foreground">Stato: {selectedRequest.quoteStatus}</p>
+                    )}
+                    {selectedRequest.quoteTotalPrice != null && (
+                      <p className="text-sm font-medium text-foreground">
+                        {new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(selectedRequest.quoteTotalPrice)}
+                      </p>
+                    )}
+                    {selectedRequest.quoteExpiryOn && (
+                      <p className="text-xs text-muted-foreground">Scadenza: {formatDate(selectedRequest.quoteExpiryOn)}</p>
+                    )}
+                  </div>
+                )}
+                <div>
+                  <span className="text-muted-foreground">Progetto</span>
+                  <p className="font-mono text-xs text-foreground">{selectedRequest.projectId}</p>
+                </div>
+              </div>
+              <div className="mt-4 pt-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setShowDetailMore((v) => !v)}
+                  className="text-sm text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded"
+                >
+                  {showDetailMore ? "Mostra meno" : "Mostra altro"}
+                </button>
+                {showDetailMore && (
+                  <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                    <p><span className="font-medium text-foreground">ID:</span> <span className="font-mono text-xs">{selectedRequest._id}</span></p>
+                    <p><span className="font-medium text-foreground">Creato il:</span> {formatDate(selectedRequest.createdAt)}</p>
+                    <p><span className="font-medium text-foreground">Aggiornato il:</span> {formatDate(selectedRequest.updatedAt)}</p>
+                    <p><span className="font-medium text-foreground">Workspace:</span> {selectedRequest.workspaceId}</p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      <Dialog open={newRequestOpen} onOpenChange={(o) => !o && setNewRequestOpen(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nuova trattativa</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleNewRequestSubmit} className="flex flex-col gap-4">
+            {formError && (
+              <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{formError}</p>
+            )}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-foreground">Progetto</label>
+              <Select value={formProjectId} onValueChange={setFormProjectId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Seleziona progetto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {selectedProjectIds.map((id) => (
+                    <SelectItem key={id} value={id}>
+                      {id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-foreground">Cliente *</label>
+              <Select value={formClientId} onValueChange={setFormClientId} required>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Seleziona cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clientsLite.map((c) => (
+                    <SelectItem key={c._id} value={c._id}>
+                      {c.fullName} {c.email ? `(${c.email})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-muted-foreground">Appartamento (opzionale)</label>
+              <Select value={formApartmentId || "_none"} onValueChange={(v) => setFormApartmentId(v === "_none" ? "" : v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Nessuno" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">Nessuno</SelectItem>
+                  {apartmentsList.map((a) => (
+                    <SelectItem key={a._id} value={a._id}>
+                      {a.code} {a.name ? `— ${a.name}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-foreground">Tipo</label>
+              <Select value={formType} onValueChange={(v) => setFormType(v as RequestType)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="rent">{TYPE_LABEL.rent}</SelectItem>
+                  <SelectItem value="sell">{TYPE_LABEL.sell}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-muted-foreground">Ruolo cliente (opzionale)</label>
+              <Select value={formClientRole || "_none"} onValueChange={(v) => setFormClientRole(v === "_none" ? "" : (v as ClientRole))}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Nessuno" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">Nessuno</SelectItem>
+                  {(Object.entries(CLIENT_ROLE_LABEL) as [ClientRole, string][]).map(([v, label]) => (
+                    <SelectItem key={v} value={v}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-foreground">Stato</label>
+              <Select value={formStatus} onValueChange={(v) => setFormStatus(v as RequestStatus)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(STATUS_LABEL).map(([v, label]) => (
+                    <SelectItem key={v} value={v}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setNewRequestOpen(false)}>
+                Annulla
+              </Button>
+              <Button type="submit" disabled={formSaving}>
+                {formSaving ? "Creazione..." : "Crea trattativa"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};

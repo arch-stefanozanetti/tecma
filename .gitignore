@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build / cache
+dist/
+build/
+.vercel/
+.turbo/
+.next/
+coverage/
+.npm-cache/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store

@@ -1,0 +1,30 @@
+{
+  "name": "followup-3.0",
+  "private": true,
+  "description": "Followup 3.0 – CRM multi-progetto (BE + FE). Avvio 100% in locale.",
+  "scripts": {
+    "dev": "concurrently -n be,fe \"npm run dev:be\" \"npm run dev:fe\"",
+    "dev:be": "cd be-followup-v3 && npm run dev",
+    "dev:fe": "cd fe-followup-v3 && npm run dev",
+    "test": "npm run test:be && npm run test:fe",
+    "test:be": "cd be-followup-v3 && npm run test",
+    "test:fe": "cd fe-followup-v3 && npm run test:run",
+    "test:unit": "cd be-followup-v3 && npm run test:unit && cd ../fe-followup-v3 && npm run test:unit",
+    "test:api": "cd be-followup-v3 && npm run test:api",
+    "test:api:gateway": "cd be-followup-v3 && npm run test:api:gateway",
+    "test:integration": "cd be-followup-v3 && npm run test:integration",
+    "test:coverage": "cd be-followup-v3 && npm run test:coverage && cd ../fe-followup-v3 && npm run test:coverage",
+    "test:e2e": "cd fe-followup-v3 && npm run test:e2e",
+    "test:e2e:ui": "cd fe-followup-v3 && npm run test:e2e:ui",
+    "test:visual": "cd fe-followup-v3 && npm run test:visual",
+    "test:a11y": "cd fe-followup-v3 && npm run test:a11y",
+    "test:performance": "k6 run performance/basic.js",
+    "test:load": "k6 run load/load.js",
+    "test:stress": "k6 run load/stress.js",
+    "test:security": "cd be-followup-v3 && npm audit --audit-level=high && cd ../fe-followup-v3 && npm audit --audit-level=high",
+    "test:lint": "cd be-followup-v3 && npm run test:lint && cd ../fe-followup-v3 && npm run test:lint"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

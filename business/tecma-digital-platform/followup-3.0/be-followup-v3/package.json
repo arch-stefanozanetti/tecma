@@ -1,0 +1,54 @@
+{
+  "name": "be-followup-v3",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run -c vitest.coverage.config.ts --coverage",
+    "test:unit": "vitest run",
+    "test:api": "vitest run src/routes",
+    "test:api:gateway": "vitest run src/api-gateway",
+    "test:integration": "vitest run -c vitest.integration.config.ts",
+    "test:lint": "eslint src",
+    "seed": "tsx src/utils/seed.ts",
+    "seed:fake-projects": "tsx src/utils/seedFakeProjects.ts",
+    "db:list-collections": "tsx src/utils/listCollections.ts",
+    "db:copy-test": "tsx src/utils/copyCollections.ts"
+  },
+  "dependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongodb": "^6.16.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.15.0",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^24.6.2",
+    "@types/supertest": "^6.0.2",
+    "@vitest/coverage-v8": "^3.2.4",
+    "eslint": "^9.15.0",
+    "globals": "^15.12.0",
+    "mongodb-memory-server": "^10.0.0",
+    "supertest": "^7.0.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.15.0",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "npm@10"
+}

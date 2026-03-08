@@ -1,0 +1,40 @@
+# CI frontend fe-followup-v3: test + build su push/PR
+name: CI Frontend
+
+on:
+  push:
+    branches: [main, master, develop, demo]
+    paths:
+      - "fe-followup-v3/**"
+      - ".github/workflows/ci-fe.yml"
+  pull_request:
+    branches: [main, master, develop, demo]
+    paths:
+      - "fe-followup-v3/**"
+      - ".github/workflows/ci-fe.yml"
+
+defaults:
+  run:
+    working-directory: fe-followup-v3
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: fe-followup-v3/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm run test:run
+
+      - name: Build
+        run: npm run build

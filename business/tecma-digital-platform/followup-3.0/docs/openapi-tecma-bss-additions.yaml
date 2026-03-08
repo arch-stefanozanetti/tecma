@@ -1,0 +1,574 @@
+# Addizioni OpenAPI per TECMA-BSS (api/TECMA-BSS/raw/)
+# Da mergiare nello spec "TECMA Digital Platform - Dev-v1-oas30-apigateway.yaml".
+# Integrazione: uri "http://${stageVariables.url}/v1/..." (stesso pattern BSS).
+# Backend: be-followup-v3; stageVariables.url punta all'host del backend per ambiente.
+
+paths:
+  /v1/health:
+    get:
+      summary: "Healthcheck"
+      responses:
+        "200": { description: "OK" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.url}/v1/health"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/session/projects-by-email:
+    post:
+      summary: "Resolve projects by user email"
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+        "500": { description: "Server error" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/session/projects-by-email"
+        responses:
+          "200*": { statusCode: "200" }
+          "400*": { statusCode: "400" }
+          "500*": { statusCode: "500" }
+        passthroughBehavior: "when_no_match"
+
+  /v1/session/preferences:
+    get:
+      summary: "Get user preferences"
+      parameters:
+        - name: "email"
+          in: "query"
+          required: true
+          schema: { type: "string" }
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Missing email" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.url}/v1/session/preferences"
+        requestParameters:
+          integration.request.querystring.email: "method.request.querystring.email"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+    post:
+      summary: "Save user preferences"
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/session/preferences"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/auth/login:
+    post:
+      summary: "Login with credentials"
+      responses:
+        "200": { description: "OK" }
+        "401": { description: "Invalid credentials" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/auth/login"
+        responses:
+          "200*": { statusCode: "200" }
+          "401*": { statusCode: "401" }
+        passthroughBehavior: "when_no_match"
+
+  /v1/auth/sso-exchange:
+    post:
+      summary: "Exchange SSO JWT for access token"
+      responses:
+        "200": { description: "OK" }
+        "401": { description: "Invalid token" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/auth/sso-exchange"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/auth/me:
+    get:
+      summary: "Current user from JWT"
+      parameters:
+        - name: "Authorization"
+          in: "header"
+          schema: { type: "string" }
+      responses:
+        "200": { description: "OK" }
+        "401": { description: "Missing or invalid token" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.url}/v1/auth/me"
+        requestParameters:
+          integration.request.header.Authorization: "method.request.header.Authorization"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/calendar/events/query:
+    post:
+      summary: "Query calendar events"
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/calendar/events/query"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/clients/query:
+    post:
+      summary: "Paginated clients query"
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/clients/query"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/clients/lite/query:
+    post:
+      summary: "Light clients list for selectors"
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/clients/lite/query"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/apartments/query:
+    post:
+      summary: "Paginated apartments query"
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/apartments/query"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/apartments:
+    post:
+      summary: "Create apartment"
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+        "409": { description: "Conflict" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/apartments"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/apartments/{id}:
+    get:
+      summary: "Get apartment by id"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema: { type: "string" }
+      responses:
+        "200": { description: "OK" }
+        "404": { description: "Not found" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.url}/v1/apartments/{id}"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+    patch:
+      summary: "Update apartment"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema: { type: "string" }
+      responses:
+        "200": { description: "OK" }
+        "404": { description: "Not found" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "PATCH"
+        uri: "http://${stageVariables.url}/v1/apartments/{id}"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/hc/apartments/query:
+    post:
+      summary: "Query HC apartment configs"
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/hc/apartments/query"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/hc/apartments:
+    post:
+      summary: "Upsert HC apartment config"
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/hc/apartments"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/hc/apartments/{apartmentId}:
+    get:
+      summary: "Get HC apartment config"
+      parameters:
+        - name: "apartmentId"
+          in: "path"
+          required: true
+          schema: { type: "string" }
+      responses:
+        "200": { description: "OK" }
+        "404": { description: "Not found" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.url}/v1/hc/apartments/{apartmentId}"
+        requestParameters:
+          integration.request.path.apartmentId: "method.request.path.apartmentId"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+    patch:
+      summary: "Update HC apartment config"
+      parameters:
+        - name: "apartmentId"
+          in: "path"
+          required: true
+          schema: { type: "string" }
+      responses:
+        "200": { description: "OK" }
+        "404": { description: "Not found" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "PATCH"
+        uri: "http://${stageVariables.url}/v1/hc/apartments/{apartmentId}"
+        requestParameters:
+          integration.request.path.apartmentId: "method.request.path.apartmentId"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/associations/apartment-client:
+    post:
+      summary: "Create apartment-client association"
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+        "409": { description: "Conflict" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/associations/apartment-client"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/associations/query:
+    post:
+      summary: "Query associations"
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/associations/query"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/associations/{id}:
+    delete:
+      summary: "Delete (deactivate) association"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema: { type: "string" }
+      responses:
+        "200": { description: "OK" }
+        "404": { description: "Not found" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "DELETE"
+        uri: "http://${stageVariables.url}/v1/associations/{id}"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/workflows/complete-flow/preview:
+    post:
+      summary: "Preview complete flow"
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/workflows/complete-flow/preview"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/workflows/complete-flow/execute:
+    post:
+      summary: "Execute complete flow"
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/workflows/complete-flow/execute"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/hc-master/{entity}/query:
+    post:
+      summary: "Query HC master entity"
+      parameters:
+        - name: "entity"
+          in: "path"
+          required: true
+          schema: { type: "string" }
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/hc-master/{entity}/query"
+        requestParameters:
+          integration.request.path.entity: "method.request.path.entity"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/hc-master/{entity}:
+    post:
+      summary: "Create HC master entity"
+      parameters:
+        - name: "entity"
+          in: "path"
+          required: true
+          schema: { type: "string" }
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/hc-master/{entity}"
+        requestParameters:
+          integration.request.path.entity: "method.request.path.entity"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/hc-master/{entity}/{id}:
+    patch:
+      summary: "Update HC master entity"
+      parameters:
+        - name: "entity"
+          in: "path"
+          required: true
+          schema: { type: "string" }
+        - name: "id"
+          in: "path"
+          required: true
+          schema: { type: "string" }
+      responses:
+        "200": { description: "OK" }
+        "404": { description: "Not found" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "PATCH"
+        uri: "http://${stageVariables.url}/v1/hc-master/{entity}/{id}"
+        requestParameters:
+          integration.request.path.entity: "method.request.path.entity"
+          integration.request.path.id: "method.request.path.id"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+    delete:
+      summary: "Delete HC master entity"
+      parameters:
+        - name: "entity"
+          in: "path"
+          required: true
+          schema: { type: "string" }
+        - name: "id"
+          in: "path"
+          required: true
+          schema: { type: "string" }
+      responses:
+        "200": { description: "OK" }
+        "404": { description: "Not found" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "DELETE"
+        uri: "http://${stageVariables.url}/v1/hc-master/{entity}/{id}"
+        requestParameters:
+          integration.request.path.entity: "method.request.path.entity"
+          integration.request.path.id: "method.request.path.id"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/templates/configuration:
+    get:
+      summary: "Get template configuration"
+      parameters:
+        - name: "projectId"
+          in: "query"
+          required: true
+          schema: { type: "string" }
+      responses:
+        "200": { description: "OK" }
+        "404": { description: "Not found" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "GET"
+        uri: "http://${stageVariables.url}/v1/templates/configuration"
+        requestParameters:
+          integration.request.querystring.projectId: "method.request.querystring.projectId"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/templates/configuration/{projectId}:
+    put:
+      summary: "Save template configuration"
+      parameters:
+        - name: "projectId"
+          in: "path"
+          required: true
+          schema: { type: "string" }
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "PUT"
+        uri: "http://${stageVariables.url}/v1/templates/configuration/{projectId}"
+        requestParameters:
+          integration.request.path.projectId: "method.request.path.projectId"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/templates/configuration/{projectId}/validate:
+    post:
+      summary: "Validate template configuration"
+      parameters:
+        - name: "projectId"
+          in: "path"
+          required: true
+          schema: { type: "string" }
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/templates/configuration/{projectId}/validate"
+        requestParameters:
+          integration.request.path.projectId: "method.request.path.projectId"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/ai/suggestions:
+    post:
+      summary: "Generate AI suggestions"
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/ai/suggestions"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/ai/approvals:
+    post:
+      summary: "Decide on AI suggestion"
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/ai/approvals"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/ai/actions/drafts:
+    post:
+      summary: "Create AI action draft"
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/ai/actions/drafts"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/ai/actions/drafts/query:
+    post:
+      summary: "Query AI action drafts"
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/ai/actions/drafts/query"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
+
+  /v1/ai/actions/drafts/{id}/decision:
+    post:
+      summary: "Decide on AI action draft"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema: { type: "string" }
+      responses:
+        "200": { description: "OK" }
+        "400": { description: "Validation error" }
+        "404": { description: "Not found" }
+      x-amazon-apigateway-integration:
+        type: "http"
+        httpMethod: "POST"
+        uri: "http://${stageVariables.url}/v1/ai/actions/drafts/{id}/decision"
+        requestParameters:
+          integration.request.path.id: "method.request.path.id"
+        responses: { default: { statusCode: "200" } }
+        passthroughBehavior: "when_no_match"
