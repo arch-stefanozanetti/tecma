@@ -25,6 +25,7 @@ vi.mock("../../api/followupApi", () => ({
     getAuditForEntity: vi.fn().mockResolvedValue({ data: [], pagination: { page: 1, perPage: 25, total: 0, totalPages: 0 } }),
     listEntityAssignments: vi.fn().mockResolvedValue({ data: [] }),
     listWorkspaceUsers: vi.fn().mockResolvedValue({ data: [] }),
+    getApartmentCandidates: vi.fn().mockResolvedValue({ data: [] }),
   },
 }));
 

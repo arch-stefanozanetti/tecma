@@ -68,8 +68,9 @@ describe("ReportsPage", () => {
     await waitFor(() => {
       expect(followupApi.runReport).toHaveBeenCalled();
     }, { timeout: 2000 });
-    const combobox = screen.getByRole("combobox");
-    await userEvent.selectOptions(combobox, "clients_by_status");
+    // Radix UI Select: open trigger then click option by visible label
+    await userEvent.click(screen.getByRole("combobox"));
+    await userEvent.click(await screen.findByText("Clienti per stato"));
     await waitFor(() => {
       expect(vi.mocked(followupApi.runReport).mock.calls.some((c) => c[0] === "clients_by_status")).toBe(true);
     }, { timeout: 2000 });
@@ -80,16 +81,19 @@ describe("ReportsPage", () => {
     await waitFor(() => {
       expect(followupApi.runReport).toHaveBeenCalled();
     }, { timeout: 2000 });
-    const combobox = screen.getByRole("combobox");
-    await userEvent.selectOptions(combobox, "activity_per_period");
+    // Radix UI Select: open trigger then click option by visible label
+    await userEvent.click(screen.getByRole("combobox"));
+    await userEvent.click(await screen.findByText("Attività per periodo"));
     await waitFor(() => {
       expect(vi.mocked(followupApi.runReport).mock.calls.some((c) => c[0] === "activity_per_period")).toBe(true);
     }, { timeout: 2000 });
-    await userEvent.selectOptions(combobox, "conversions_per_project");
+    await userEvent.click(screen.getByRole("combobox"));
+    await userEvent.click(await screen.findByText("Conversioni per progetto"));
     await waitFor(() => {
       expect(vi.mocked(followupApi.runReport).mock.calls.some((c) => c[0] === "conversions_per_project")).toBe(true);
     }, { timeout: 2000 });
-    await userEvent.selectOptions(combobox, "avg_times");
+    await userEvent.click(screen.getByRole("combobox"));
+    await userEvent.click(await screen.findByText("Tempi medi (giorni a vinto)"));
     await waitFor(() => {
       expect(vi.mocked(followupApi.runReport).mock.calls.some((c) => c[0] === "avg_times")).toBe(true);
     }, { timeout: 2000 });
