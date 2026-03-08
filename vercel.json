@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "cd business/tecma-digital-platform/followup-3.0/fe-followup-v3 && npm ci",
+  "buildCommand": "cd business/tecma-digital-platform/followup-3.0/fe-followup-v3 && npm run build",
+  "outputDirectory": "business/tecma-digital-platform/followup-3.0/fe-followup-v3/dist",
+  "framework": null,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
