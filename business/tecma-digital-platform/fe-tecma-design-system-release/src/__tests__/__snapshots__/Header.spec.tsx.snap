@@ -1,0 +1,140 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Header Component Should render Desktop Header 1`] = `
+<nav
+  class="tecma-header"
+  data-testid="Tecma-header"
+>
+  <span
+    class="tecma-lazyImage tecma-header-logo"
+    data-testid="tecma-lazyImage"
+  >
+     
+  </span>
+  <div
+    class="tecma-header-utility-menu"
+  >
+    <button
+      class="tecma-button transparent icon-on-right medium dropDown-trigger rotate-icon-on-toggle tecma-header-item-trigger popover-trigger"
+      data-testid="tecma-button"
+      type="button"
+    >
+      <svg
+        aria-label="chevron-down"
+        class="tecma-icon medium"
+      />
+      <span>
+        Mario Rossi
+      </span>
+      <svg
+        class="tecma-icon medium"
+      />
+    </button>
+    <button
+      aria-haspopup="true"
+      class="tecma-button outlined primary medium language-selector popover-trigger"
+      data-testid="tecma-languageSelector-button"
+      id="language-selector-button"
+      type="button"
+    >
+      <svg
+        aria-label="translate"
+        class="tecma-icon medium"
+      />
+      English
+      <svg
+        class="tecma-icon medium language-selector__chevron  "
+      />
+    </button>
+    <button
+      class="tecma-button transparent medium tecma-header-item"
+      data-testid="tecma-button"
+      type="button"
+    >
+      <svg
+        aria-label="headset"
+        class="tecma-icon medium"
+      />
+      <span>
+        Contact us
+      </span>
+    </button>
+  </div>
+</nav>
+`;
+
+exports[`Header Component Should render Mobile Header 1`] = `
+<nav
+  class="tecma-header"
+  data-testid="Tecma-header"
+>
+  <span
+    class="tecma-lazyImage tecma-header-logo"
+    data-testid="tecma-lazyImage"
+  >
+     
+  </span>
+  <div
+    class="tecma-header-utility-menu"
+  >
+    <button
+      class="tecma-button transparent medium tecma-header-item"
+      data-testid="tecma-button"
+      type="button"
+    >
+      <svg
+        aria-label="headset"
+        class="tecma-icon medium"
+      />
+    </button>
+    <button
+      class="tecma-button transparent medium tecma-header-item toggle-drawer-button"
+      data-testid="tecma-button"
+      type="button"
+    >
+      <svg
+        aria-label="menu"
+        class="tecma-icon medium"
+      />
+    </button>
+  </div>
+</nav>
+`;
+
+exports[`Header Component should render without exploding 1`] = `
+<nav
+  class="tecma-header"
+  data-testid="Tecma-header"
+>
+  <span
+    class="tecma-lazyImage tecma-header-logo"
+    data-testid="tecma-lazyImage"
+  >
+     
+  </span>
+  <div
+    class="tecma-header-utility-menu"
+  >
+    <button
+      class="tecma-button transparent medium tecma-header-item"
+      data-testid="tecma-button"
+      type="button"
+    >
+      <svg
+        aria-label="headset"
+        class="tecma-icon medium"
+      />
+    </button>
+    <button
+      class="tecma-button transparent medium tecma-header-item toggle-drawer-button"
+      data-testid="tecma-button"
+      type="button"
+    >
+      <svg
+        aria-label="menu"
+        class="tecma-icon medium"
+      />
+    </button>
+  </div>
+</nav>
+`;

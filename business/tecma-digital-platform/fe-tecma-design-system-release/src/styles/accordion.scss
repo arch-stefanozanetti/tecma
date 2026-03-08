@@ -1,0 +1,36 @@
+@use "theme/utils/colors.scss" as *;
+
+.tecma-accordion {
+  .tecma-accordion-content {
+    .tecma-accordion-header {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      width: 100%;
+      justify-content: space-between;
+      border: none;
+      background-color: transparent;
+      &:hover {
+        background-color: $general-hover;
+      }
+      &.disabled {
+        cursor: not-allowed;
+      }
+    }
+
+    .tecma-accordion-content-panel-wrapper {
+      overflow: hidden;
+
+      &.collapse:not(.open) {
+        height: 0px;
+      }
+
+      &.open {
+        display: block;
+      }
+    }
+    + .tecma-accordion-content {
+      border-top: 0.0625rem solid $general-border;
+    }
+  }
+}

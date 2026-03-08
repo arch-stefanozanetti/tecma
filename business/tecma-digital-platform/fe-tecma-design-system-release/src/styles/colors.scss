@@ -1,0 +1,144 @@
+// Tecma Design System - Colors Export
+// Import all color variables for external use
+
+@use './theme/utils/colors.scss' as colors;
+
+// Export color variables for external projects
+:export {
+  // Main colors
+  accent: colors.$accent;
+  accentActive: colors.$accent-active;
+  accentAlternative: colors.$accent-alternative;
+  accentBorder: colors.$accent-border;
+  accentHover: colors.$accent-hover;
+  accentLight: colors.$accent-light;
+  onAccent: colors.$on-accent;
+  onAccentDisabled: colors.$on-accent-disabled;
+  onAccentLight: colors.$on-accent-light;
+  onAccentSub: colors.$on-accent-sub;
+
+  // Primary colors
+  primary: colors.$primary;
+  primaryActive: colors.$primary-active;
+  primaryBorder: colors.$primary-border;
+  primaryHover: colors.$primary-hover;
+  primaryLight: colors.$primary-light;
+  onPrimary: colors.$on-primary;
+  onPrimaryDisabled: colors.$on-primary-disabled;
+  onPrimaryLight: colors.$on-primary-light;
+  onPrimarySub: colors.$on-primary-sub;
+
+  // Secondary colors
+  secondary: colors.$secondary;
+  secondaryActive: colors.$secondary-active;
+  secondaryBorder: colors.$secondary-border;
+  secondaryHover: colors.$secondary-hover;
+  secondaryLight: colors.$secondary-light;
+  onSecondary: colors.$on-secondary;
+  onSecondaryDisabled: colors.$on-secondary-disabled;
+  onSecondaryLight: colors.$on-secondary-light;
+  onSecondarySub: colors.$on-secondary-sub;
+
+  // Tertiary colors
+  tertiary: colors.$tertiary;
+  tertiaryActive: colors.$tertiary-active;
+  tertiaryBorder: colors.$tertiary-border;
+  tertiaryHover: colors.$tertiary-hover;
+  tertiaryLight: colors.$tertiary-light;
+  onTertiary: colors.$on-tertiary;
+  onTertiaryDisabled: colors.$on-tertiary-disabled;
+  onTertiaryLight: colors.$on-tertiary-light;
+  onTertiarySub: colors.$on-tertiary-sub;
+
+  // Gradient colors
+  gradient1: colors.$gradient-1;
+  gradient2: colors.$gradient-2;
+  onGradient: colors.$on-gradient;
+  onGradientDisabled: colors.$on-gradient-disabled;
+  onGradientSub: colors.$on-gradient-sub;
+
+  // Neutral colors
+  general: colors.$general;
+  generalActive: colors.$general-active;
+  generalBorder: colors.$general-border;
+  generalHover: colors.$general-hover;
+  onGeneral: colors.$on-general;
+  onGeneralDisabled: colors.$on-general-disabled;
+  onGeneralSub: colors.$on-general-sub;
+  canvas: colors.$canvas;
+
+  // Inverse colors
+  inverse: colors.$inverse;
+  inverseActive: colors.$inverse-active;
+  inverseBorder: colors.$inverse-border;
+  inverseHover: colors.$inverse-hover;
+  onInverse: colors.$on-inverse;
+  onInverseDisabled: colors.$on-inverse-disabled;
+  onInverseSub: colors.$on-inverse-sub;
+
+  // Negative colors
+  negative: colors.$negative;
+  negativeActive: colors.$negative-active;
+  negativeBorder: colors.$negative-border;
+  negativeHover: colors.$negative-hover;
+  onNegative: colors.$on-negative;
+  onNegativeDisabled: colors.$on-negative-disabled;
+  onNegativeSub: colors.$on-negative-sub;
+
+  // Disabled colors
+  disabled: colors.$disabled;
+  onDisabled: colors.$on-disabled;
+
+  // Semantic colors
+  danger: colors.$danger;
+  dangerActive: colors.$danger-active;
+  dangerBorder: colors.$danger-border;
+  dangerHover: colors.$danger-hover;
+  dangerLight: colors.$danger-light;
+  onDanger: colors.$on-danger;
+  onDangerLight: colors.$on-danger-light;
+  onDangerLightSub: colors.$on-danger-light-sub;
+
+  info: colors.$info;
+  infoActive: colors.$info-active;
+  infoBorder: colors.$info-border;
+  infoHover: colors.$info-hover;
+  infoLight: colors.$info-light;
+  onInfo: colors.$on-info;
+  onInfoLight: colors.$on-info-light;
+  onInfoLightSub: colors.$on-info-light-sub;
+
+  success: colors.$success;
+  successActive: colors.$success-active;
+  successBorder: colors.$success-border;
+  successHover: colors.$success-hover;
+  successLight: colors.$success-light;
+  onSuccess: colors.$on-success;
+  onSuccessLight: colors.$on-success-light;
+  onSuccessLightSub: colors.$on-success-light-sub;
+
+  warning: colors.$warning;
+  warningActive: colors.$warning-active;
+  warningBorder: colors.$warning-border;
+  warningHover: colors.$warning-hover;
+  warningLight: colors.$warning-light;
+  onWarning: colors.$on-warning;
+  onWarningLight: colors.$on-warning-light;
+  onWarningLightSub: colors.$on-warning-light-sub;
+
+  // Gray scale
+  gray50: colors.$gray-50;
+  gray100: colors.$gray-100;
+  gray200: colors.$gray-200;
+  gray300: colors.$gray-300;
+  gray400: colors.$gray-400;
+  gray500: colors.$gray-500;
+  gray600: colors.$gray-600;
+  gray700: colors.$gray-700;
+  gray800: colors.$gray-800;
+  gray900: colors.$gray-900;
+
+  // Technical
+  blanketOverlay: colors.$blanket-overlay;
+  overlay: colors.$overlay;
+}

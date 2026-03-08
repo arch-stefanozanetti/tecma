@@ -1,0 +1,303 @@
+@use 'theme/utils/colors.scss' as *;
+@use 'theme/utils/fonts' as *;
+
+.dynamic-multi-select,
+.select-dynamic-multiple-modal {
+  position: relative;
+  width: 300px;
+  font-family: $primaryFont !important;
+
+  &.open {
+    .dms-input-area {
+      outline-color: #0000ff52;
+      outline-style: solid;
+      border-color: $accent;
+      padding-right: 30px;
+    }
+  }
+
+  .dms-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: $on-general;
+  }
+
+  .dms-input-area {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+    border: 1px solid $general-border;
+    border-radius: 2px;
+    background-color: $general;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+    overflow-x: hidden;
+
+    .dms-tags-container {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      overflow-x: hidden;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .dms-tags-container::-webkit-scrollbar {
+      display: none;
+    }
+
+    .dms-placeholder {
+      color: $gray-400;
+    }
+
+    .tecma-icon {
+      position: absolute;
+      right: 0.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background-color: $general;
+      z-index: 2;
+      padding: 0 0.125rem;
+      height: 98%;
+    }
+
+    .dms-see-all {
+      color: $accent;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 20px;
+    }
+  }
+
+  .dms-dropdown {
+    position: absolute;
+    width: 100%;
+    margin-top: 0.5rem;
+    background-color: $general;
+    border: 1px solid $general-border;
+    border-radius: 2px;
+    z-index: 3;
+    box-shadow: 0px 2px 18px 0px rgba(100, 100, 100, 0.25);
+
+    .dms-search {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      font-family: $primaryFont !important;
+      padding: 16px 16px;
+      border-bottom: 1px solid $gray-200;
+
+      .input-container {
+        outline-color: $accent;
+      }
+
+      .dms-clear-search {
+        position: absolute;
+        right: 0;
+        margin-top: 8px;
+        margin-right: 16px;
+      }
+
+      input {
+        flex: 1;
+      }
+
+      .input-right-icon {
+        display: inline-flex;
+        cursor: pointer;
+      }
+
+      .dms-clear {
+        align-self: flex-end;
+        font-size: $defaultFont;
+        color: $accent;
+        cursor: pointer;
+        text-decoration: underline;
+        margin-top: 12px;
+
+        &:hover {
+          text-decoration: none;
+        }
+      }
+    }
+
+    .dms-list {
+      max-height: 18rem;
+      overflow-y: auto;
+      .dms-list-item-label {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .disabled-option-tooltip-icon-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 1rem;
+        height: 1rem;
+        .disabled-option-tooltip-icon {
+          margin-top: auto;
+          margin-bottom: auto;
+          path {
+            fill: $warning;
+          }
+        }
+      }
+
+      .dms-list-item {
+        padding: 0px 16px 0px 16px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        &:hover {
+          background-color: $general-active;
+        }
+        label {
+          margin-right: 0 !important;
+        }
+      }
+    }
+
+    .dms-loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: $gray-600;
+      padding: 16px 16px;
+    }
+
+    .dms-footer {
+      padding: 16px 16px;
+      text-align: left;
+
+      .dms-show-more {
+        font-size: $defaultFont;
+        color: $accent;
+        cursor: pointer;
+        text-decoration: underline;
+
+        &:hover {
+          text-decoration: none;
+        }
+      }
+    }
+  }
+
+  &.small {
+    .dms-input-area {
+      min-height: 2rem;
+      font-size: $smallFont;
+      padding-right: 1.8rem;
+
+      .tecma-icon {
+        width: 1rem;
+        min-width: 1rem;
+        min-height: 1rem;
+      }
+    }
+    .dms-label {
+      font-size: $smallFont;
+    }
+  }
+
+  &.medium {
+    .dms-input-area {
+      min-height: 2.5rem;
+      font-size: $defaultFont;
+      padding-right: 2rem;
+
+      .tecma-icon {
+        width: 1.2rem;
+        min-width: 1.2rem;
+        min-height: 1.2rem;
+      }
+    }
+    .dms-label {
+      font-size: $defaultFont;
+    }
+  }
+
+  &.large {
+    .dms-input-area {
+      min-height: 3rem;
+      font-size: $mediumFont;
+      padding-right: 2.5rem;
+
+      .tecma-icon {
+        width: 1.5rem;
+        min-width: 1.5rem;
+        min-height: 1.5rem;
+      }
+    }
+    .dms-label {
+      font-size: $mediumFont;
+    }
+  }
+
+  .ds-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0.5rem;
+    height: 3.5rem;
+    &.empty {
+      padding: 3.5rem 0;
+    }
+    .ds-loading-text {
+      font-size: 0.875rem;
+      color: $on-general-sub;
+    }
+  }
+
+  .dms-empty-state {
+    text-align: center;
+    color: $on-general-sub;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 24px;
+  }
+}
+
+.disable-mobile-animation {
+  .select-dynamic-multiple-modal.tecma-modal {
+    width: 100%;
+    max-width: none;
+    max-height: calc(100vh - 4.5rem);
+    .tecma-modal-content {
+      padding: 0;
+      max-height: none;
+      .dms-dropdown {
+        position: relative;
+        box-shadow: none;
+        border-top: none;
+      }
+      .dms-list {
+        max-height: none;
+        .dms-list-item {
+          height: 3.5rem;
+        }
+      }
+    }
+  }
+  &.tecma-modal-container {
+    inset: initial;
+    bottom: 0;
+    left: 0;
+    position: fixed;
+    height: 100vh;
+    max-height: none;
+  }
+}
+
+.tecma-tooltip {
+  .tecma-icon {
+    margin-top: 0.2rem; // this is a hack to align the icon with the text
+    path {
+      fill: $warning;
+    }
+  }
+}

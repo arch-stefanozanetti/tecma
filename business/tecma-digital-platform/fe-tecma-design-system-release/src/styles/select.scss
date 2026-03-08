@@ -1,0 +1,206 @@
+@use 'theme/utils/colors.scss' as *;
+@use 'theme/utils/dimensions' as *;
+@use 'theme/utils/mixins' as *;
+@use 'theme/utils/fonts' as *;
+@use 'theme/utils/breakpoints' as *;
+
+.tecma-select,
+.select-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+  .control-isLoading {
+    pointer-events: none;
+  }
+  &.warning {
+    .help-text {
+      color: $warning;
+    }
+  }
+  .help-text {
+    font-size: 0.75rem;
+    color: $danger;
+    font-family: $primaryFont;
+  }
+  .single-value {
+    grid-area: 1 / 1 / 2 / 3;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--on-general, #3b3b3b);
+    margin-left: 2px;
+    margin-right: 2px;
+    box-sizing: border-box;
+    font-family: $primaryFont;
+    font-weight: 400;
+    font-size: 14px;
+    display: inline-block;
+  }
+  .input-container {
+    height: auto !important;
+    min-height: 1.5rem;
+    padding: 0.5rem 0.75rem;
+    input {
+      order: 1;
+      &::placeholder {
+        font-size: 0.875rem;
+      }
+    }
+    svg {
+      width: 1.25rem;
+      height: 1.25rem;
+      min-width: 1.25rem;
+      min-height: 1.25rem;
+    }
+  }
+  .placeholder {
+    color: var(--on-general-active, #767676);
+    margin-left: 2px;
+    margin-right: 2px;
+    box-sizing: border-box;
+    font-family: Lato, sans-serif;
+    font-weight: 400;
+    font-size: 0.875rem;
+    display: inline-block;
+    line-height: 1.5rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow-x: clip;
+    overflow: hidden;
+    -webkit-box-flex-wrap: nowrap;
+    -webkit-flex-wrap: nowrap;
+    -ms-flex-wrap: nowrap;
+    flex-wrap: nowrap;
+    max-width: unset;
+  }
+  &-label {
+    font-size: 0.875rem;
+    font-family: Lato, sans-serif;
+    color: $on-general;
+    display: flex;
+    gap: 0.25rem;
+  }
+  label.tecma-checkbox {
+    margin-right: 7px;
+  }
+  .error-icon {
+    position: absolute;
+    right: 0;
+    path {
+      fill: $danger;
+    }
+  }
+  .select__option {
+    cursor: pointer;
+    &.disabled-option:not(.isSelected) {
+      color: $on-disabled;
+      cursor: not-allowed;
+      &:hover {
+        background-color: transparent;
+      }
+    }
+    .option-wrapper {
+      font-family: Lato, sans-serif;
+      display: flex;
+      gap: $spacing-xs;
+      align-items: center;
+      overflow: hidden;
+
+      > span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+        flex: 1;
+      }
+    }
+  }
+  .disabled-option-tooltip-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1rem;
+    height: 1rem;
+    .disabled-option-tooltip-icon {
+      margin-top: auto;
+      margin-bottom: auto;
+      path {
+        fill: $warning;
+      }
+    }
+  }
+  &-option-icon {
+    margin-top: 2px;
+    margin-right: 0.65rem;
+    margin-left: 0.2rem;
+  }
+  &-box {
+    width: 17rem;
+    &.fluid {
+      width: auto;
+    }
+    .dropdownIndicator {
+      transform: rotate(0);
+      transition: 0.1s;
+      &.isOpen {
+        transform: rotate(180deg);
+      }
+    }
+  }
+  .checkIcon path {
+    fill: $accent;
+  }
+  .multi-select-heading {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid $general-border;
+    padding: 0.5rem 0.875rem;
+    .tecma-button {
+      font-size: 0.875rem;
+      padding: 0 0.5rem;
+      color: $accent;
+    }
+  }
+}
+
+.select-menu-list {
+  .tecma-modal-header {
+    align-items: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: $on-general;
+    font-family: $primaryFont;
+  }
+  .tecma-modal-content {
+    padding: 0;
+    height: fit-content;
+    max-height: none;
+    .select__option {
+      height: 3.5rem;
+    }
+    .select__menu-list {
+      max-height: none;
+    }
+  }
+}
+
+.disable-mobile-animation {
+  .select-menu-list.tecma-modal {
+    width: 100%;
+    max-width: none;
+    max-height: 60vh;
+    @media screen and (max-width: $tablet) {
+      max-height: calc(100vh - 4.5rem);
+    }
+  }
+  &.tecma-modal-container {
+    max-height: none;
+  }
+}
+
+.disabled-option-tooltip {
+  span {
+    font-weight: 700;
+  }
+}

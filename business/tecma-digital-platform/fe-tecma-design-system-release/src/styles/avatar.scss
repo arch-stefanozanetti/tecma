@@ -1,0 +1,57 @@
+@use "theme/utils/colors.scss" as *;
+@use "theme/utils/fonts" as *;
+@use "theme/utils/mixins" as *;
+
+.tecma-avatar {
+  box-sizing: border-box;
+  background-color: $general;
+  text-align: center;
+  border-radius: 50%;
+  border: 0.125rem solid $general-border;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  color: $accent;
+  text-transform: uppercase;
+  @include iconColor($accent);
+
+  &.small {
+    width: 1.5rem;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    min-height: 1.5rem;
+    font-size: $extraSmallFont;
+    .avatar-icon {
+      padding: 0.2rem;
+    }
+  }
+
+  &.medium {
+    width: 2.5rem;
+    height: 2.5rem;
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+    font-size: $defaultFont;
+    .avatar-icon {
+      padding: 0.3rem;
+    }
+  }
+
+  &.large {
+    width: 4rem;
+    min-width: 4rem;
+    height: 4rem;
+    min-height: 4rem;
+    font-size: 1.125rem;
+    .avatar-icon {
+      padding: 0.4rem;
+    }
+  }
+
+  img {
+    object-fit: cover;
+    width: 100%;
+    height: 100%;
+  }
+}

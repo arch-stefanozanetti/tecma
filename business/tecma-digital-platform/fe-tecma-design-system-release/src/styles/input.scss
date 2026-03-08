@@ -1,0 +1,152 @@
+@use "theme/utils/colors.scss" as *;
+@use "theme/utils/mixins" as *;
+
+.tecma-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem 0;
+
+  .input-container {
+    box-sizing: border-box;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.5rem 0.5rem 1rem;
+    border-radius: 0.125rem;
+    border: 0.063rem solid $general-border;
+    overflow: hidden;
+    gap: 0.5rem;
+
+    .tecma-button.transparent.icon-only:focus {
+      outline: none;
+    }
+    &:has(input:focus) {
+      outline: 0.188rem solid opaqueColor($general-border, 0.3);
+    }
+    input {
+      border: none;
+      outline: none;
+      flex: 1;
+      &::placeholder {
+        color: $on-general-sub;
+      }
+    }
+  }
+  &.small {
+    .input-container {
+      height: 2rem;
+    }
+  }
+  &.medium {
+    .input-container {
+      height: 2.5rem;
+    }
+  }
+  &.large {
+    .input-container {
+      height: 3rem;
+    }
+  }
+  &.error {
+    .input-container {
+      border-color: $danger;
+      &:has(input:focus) {
+        outline: 0.188rem solid opaqueColor($danger, 0.3);
+      }
+      .tecma-icon path {
+        fill: $danger;
+      }
+    }
+  }
+  &.disabled {
+    .input-container {
+      color: $disabled;
+      background-color: $disabled;
+      input {
+        background-color: $disabled;
+        pointer-events: none;
+      }
+      .tecma-icon path {
+        fill: $on-disabled;
+      }
+    }
+  }
+  .input-label {
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    color: $on-general;
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  .help-text,
+  .help-text-errored {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+  }
+  .help-text-errored {
+    color: $danger;
+  }
+
+  &.type-password {
+    .input-button {
+      .tecma-icon path {
+        fill: $on-general;
+      }
+
+      background-image: none;
+    }
+  }
+
+  .validators {
+    width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+
+    .validator {
+      font-size: 0.75rem;
+      display: flex;
+      align-items: start;
+      list-style: none;
+      color: $on-general-sub;
+
+      &-label {
+        line-height: 1rem;
+        padding-left: 0.5rem;
+      }
+
+      .tecma-icon {
+        flex: 0;
+      }
+
+      .tecma-icon {
+        path {
+          color: $on-general;
+          fill: $on-general;
+        }
+      }
+
+      &-ok {
+        color: $success;
+
+        .tecma-icon {
+          path {
+            color: $success;
+            fill: $success;
+          }
+        }
+      }
+
+      &-ko {
+        color: $danger;
+
+        .tecma-icon {
+          path {
+            color: $danger;
+            fill: $danger;
+          }
+        }
+      }
+    }
+  }
+}

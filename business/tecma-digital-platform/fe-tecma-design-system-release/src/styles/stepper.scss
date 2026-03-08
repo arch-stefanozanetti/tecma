@@ -1,0 +1,95 @@
+@use "theme/utils/colors.scss" as *;
+
+.tecma-stepper {
+  display: flex;
+  .step {
+    display: flex;
+    gap: 0.25rem;
+    align-items: stretch;
+    position: relative;
+    .step-index-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      .step-index-line {
+        position: absolute;
+        &::after {
+          content: "";
+          display: block;
+          height: 100%;
+          width: 0.0625rem;
+          background-color: $disabled;
+        }
+      }
+      .step-index {
+        border-radius: 100%;
+        background-color: $disabled;
+        width: 1.5rem;
+        height: 1.5rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: $on-disabled;
+        .tecma-icon path {
+          fill: $on-disabled;
+        }
+        &.selected {
+          background-color: $primary;
+          color: $on-primary;
+        }
+      }
+    }
+    .step-content {
+      .content {
+        margin: 0.5rem 0 1rem 0;
+      }
+    }
+    p {
+      margin: 0;
+    }
+  }
+  &.vertical {
+    flex-direction: column;
+    .step-index {
+      z-index: 1;
+    }
+    .step-index-line {
+      height: 100%;
+    }
+    .step:last-child {
+      .step-index-line::after {
+        height: 0;
+      }
+    }
+  }
+  &.horizontal {
+    gap: 1rem;
+    .step {
+      flex-direction: column;
+      .step-index-container {
+        position: relative;
+        .step-index {
+          z-index: 1;
+        }
+        .step-index-line {
+          top: 50%;
+          width: 100%;
+          &::after {
+            width: 100%;
+            height: 0.0625rem;
+          }
+        }
+      }
+      &:first-child {
+        .step-index-line {
+          left: 50%;
+        }
+      }
+      &:last-child {
+        .step-index-line {
+          right: 50%;
+        }
+      }
+    }
+  }
+}

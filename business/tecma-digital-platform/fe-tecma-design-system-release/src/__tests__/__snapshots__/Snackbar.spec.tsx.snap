@@ -1,0 +1,44 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Snackbar should render without exploding 1`] = `
+<div
+  class="MuiSnackbar-root MuiSnackbar-anchorOriginBottomLeft tecma-snackbar css-cpgvjg-MuiSnackbar-root"
+  data-testid="tecma-snackbar"
+  role="presentation"
+>
+  <div
+    direction="up"
+    style="opacity: 1; transform: scale(1, 1); transition: opacity 225ms cubic-bezier(0.4, 0, 0.2, 1) 0ms,transform 150ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;"
+  >
+    <div
+      class="tecma-alert default dismissable"
+      data-testid="tecma-alert"
+    >
+      <div
+        class="alert-container"
+      >
+        <div
+          class="alert-header"
+        >
+          <h4
+            class="alert-title"
+          />
+          <button
+            class="tecma-button transparent medium icon-only"
+            data-testid="tecma-button"
+            type="button"
+          >
+            <svg
+              aria-label="x"
+              class="tecma-icon medium"
+            />
+          </button>
+        </div>
+        <div
+          class="alert-content vertical"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+`;

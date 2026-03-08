@@ -1,0 +1,144 @@
+@use "theme/utils/colors.scss" as *;
+
+.tecma-sidebar-container {
+  position: absolute;
+  background-color: transparent;
+  z-index: 9999;
+
+  &.isOpen {
+    background-color: rgba(0, 0, 0, 0.5);
+    transition: background-color 1s;
+  }
+
+  &.offcanvas {
+    &.tecma-sidebar-container-right,
+    &.tecma-sidebar-container-left {
+      width: 0;
+    }
+    &.tecma-sidebar-container-top,
+    &.tecma-sidebar-container-bottom {
+      height: 0;
+    }
+    &.tecma-sidebar-container-right {
+      .tecma-sidebar {
+        width: 0;
+      }
+    }
+    &.tecma-sidebar-container-left {
+      .tecma-sidebar {
+        width: 0;
+      }
+    }
+    &.tecma-sidebar-container-top {
+      .tecma-sidebar {
+        height: 0;
+      }
+    }
+    &.tecma-sidebar-container-bottom {
+      .tecma-sidebar {
+        height: 0;
+      }
+    }
+  }
+
+  &.shrinkable {
+    &.tecma-sidebar-container-right,
+    &.tecma-sidebar-container-left {
+      width: 6rem;
+    }
+    &.tecma-sidebar-container-top,
+    &.tecma-sidebar-container-bottom {
+      height: 6rem;
+    }
+    &.tecma-sidebar-container-right {
+      .tecma-sidebar {
+        width: 6rem;
+      }
+    }
+    &.tecma-sidebar-container-left {
+      .tecma-sidebar {
+        width: 6rem;
+      }
+    }
+    &.tecma-sidebar-container-top {
+      .tecma-sidebar {
+        height: 6rem;
+      }
+    }
+    &.tecma-sidebar-container-bottom {
+      .tecma-sidebar {
+        height: 6rem;
+      }
+    }
+  }
+
+  &.tecma-sidebar-container-right,
+  &.tecma-sidebar-container-left {
+    height: 100%;
+    &.isOpen {
+      width: 100%;
+      .tecma-sidebar {
+        width: 16rem;
+        transition: width 1s;
+      }
+    }
+  }
+
+  &.tecma-sidebar-container-top,
+  &.tecma-sidebar-container-bottom {
+    height: 0;
+    width: 100%;
+    &.isOpen {
+      height: 100%;
+      .tecma-sidebar {
+        height: 16rem;
+      }
+    }
+  }
+
+  &.tecma-sidebar-container-right {
+    right: 0;
+    .tecma-sidebar {
+      right: inherit;
+      height: inherit;
+      transition: width 1s;
+    }
+  }
+
+  &.tecma-sidebar-container-left {
+    left: 0;
+    .tecma-sidebar {
+      left: inherit;
+      height: inherit;
+      transition: width 1s;
+    }
+  }
+
+  &.tecma-sidebar-container-top {
+    top: 0;
+    .tecma-sidebar {
+      top: inherit;
+      width: inherit;
+      transition: height 1s;
+    }
+  }
+
+  &.tecma-sidebar-container-bottom {
+    bottom: 0;
+    .tecma-sidebar {
+      bottom: inherit;
+      width: inherit;
+      transition: height 1s;
+    }
+  }
+
+  .tecma-sidebar {
+    background-color: $primary;
+    position: absolute;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 1rem 0;
+  }
+}

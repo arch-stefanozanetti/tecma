@@ -1,0 +1,94 @@
+@use "theme/utils/variables" as *;
+
+.tecma-SidebarBSSPlatformTools {
+  height: 100%;
+  width: 20rem;
+  overflow-x: hidden;
+  padding-top: 2rem;
+  background: $background-color-2;
+  box-shadow: 0.625rem 0 0.875rem rgba(58, 58, 58, 0.3), -0.625rem 0 0.875rem rgba(58, 58, 58, 0.3);
+}
+
+.sidebarBSSPlatformTools-header {
+  margin-left: 2rem;
+  width: 16rem;
+  margin-bottom: 2rem;
+  color: $primary-dark;
+  font-family: $primaryFont;
+  font-style: normal;
+  font-weight: 600;
+  font-size: $defaultFont;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sidebarBSSPlatformTools-redirect-button {
+  font-family: $primaryFont;
+  background: $background-color-2;
+  font-size: $defaultFont;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  &.tecma-button {
+    padding: 0 0;
+  }
+  &:hover {
+    background-color: inherit;
+  }
+
+  &:focus {
+    outline: inherit;
+  }
+
+  &:active {
+    background-color: inherit;
+  }
+}
+
+.sidebarBSSPlatformTools-redirect-button-icon {
+  fill: $primary;
+}
+
+.sidebarBSSPlatformTools-toolBox {
+  box-sizing: border-box;
+  width: 16rem;
+  height: 4.125rem;
+  left: 1rem;
+  margin: 1rem;
+  border: 0.0625rem solid $neutral-95;
+  position: relative;
+  border-radius: 0.125rem;
+  box-shadow: none;
+}
+
+.sidebarBSSPlatformTools-toolName {
+  font-family: $primaryFont;
+  font-style: normal;
+  font-weight: 600;
+  font-size: $defaultFont;
+  color: $primary-dark;
+  display: flex;
+  align-items: center;
+  padding-left: 1rem;
+}
+
+.tecma-card.horizontal {
+  .tecma-card-media {
+    &.sidebarBSSPlatformTools-card-media-override {
+      max-width: 4rem;
+      max-height: 4rem;
+      min-width: 4rem;
+      min-height: 4rem;
+    }
+    &:first-child {
+      .sidebarBSSPlatformTools-toolImage {
+        width: 4rem;
+        height: 4rem;
+        border-radius: 0;
+      }
+    }
+  }
+}

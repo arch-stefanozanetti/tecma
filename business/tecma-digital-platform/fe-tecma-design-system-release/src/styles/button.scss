@@ -1,0 +1,183 @@
+@use "theme/utils/fonts" as *;
+@use "theme/utils/mixins" as *;
+@use "theme/utils/colors.scss" as *;
+@use "./buttonMixins.scss" as *;
+
+.tecma-button {
+  cursor: pointer;
+  box-sizing: border-box;
+  border-radius: 0.125rem;
+  border: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0 0.375rem;
+  background-image: linear-gradient(rgba($accent, 0.4), rgba($accent, 0.4));
+  @include iconColor(white);
+  font-size: $defaultFont;
+  padding: 0rem 1rem;
+  font-family: $primaryFont;
+
+  &.icon-on-right {
+    flex-direction: row-reverse;
+  }
+
+  // ----------------------------
+  // SIZES
+  // ----------------------------
+  &.small {
+    height: 2rem;
+    min-height: 2rem;
+    &.icon-only {
+      width: 2rem;
+    }
+    .tecma-icon,
+    .tecma-spinner {
+      width: 1rem;
+      height: 1rem;
+      min-width: 1rem;
+      min-height: 1rem;
+    }
+  }
+
+  &.medium {
+    height: 2.5rem;
+    min-height: 2.5rem;
+    &.icon-only {
+      width: 2.5rem;
+    }
+    .tecma-icon,
+    .tecma-spinner {
+      width: 1.25rem;
+      height: 1.25rem;
+      min-width: 1.25rem;
+      min-height: 1.25rem;
+    }
+  }
+
+  &.large {
+    height: 3rem;
+    min-height: 3rem;
+    &.icon-only {
+      width: 3rem;
+    }
+    .tecma-icon,
+    .tecma-spinner {
+      width: 1.5rem;
+      height: 1.5rem;
+      min-width: 1.5rem;
+      min-height: 1.5rem;
+    }
+  }
+
+  // ----------------------------
+  // COLORS
+  // ----------------------------
+
+  @include button-with-color("primary", $accent, $on-accent, $accent-hover, $accent-active);
+  @include button-with-color(
+    "secondary",
+    $secondary,
+    $on-secondary,
+    $secondary-hover,
+    $secondary-active
+  );
+  @include button-with-color("inverse", $inverse, $on-inverse, $inverse-hover, $inverse-active);
+
+  @include button-with-color("danger", $danger, $on-danger, $danger-hover, $danger-active);
+
+  // ----------------------------
+  // OUTLINED
+  // ----------------------------
+  @include button-outlined(
+    "primary",
+    $on-general,
+    $general-border,
+    $accent-hover,
+    $accent-active
+  );
+  @include button-outlined(
+    "secondary",
+    $on-secondary,
+    $secondary-border,
+    $secondary-hover,
+    $secondary-active
+  );
+  @include button-outlined(
+    "inverse",
+    $on-inverse,
+    $inverse-border,
+    $inverse-hover,
+    $inverse-active
+  );
+
+  @include button-outlined("danger", $danger, $danger-border, $danger-hover, $danger-active);
+
+  &.default {
+    color: $on-general;
+  }
+  &.transparent {
+    color: $on-general;
+    background-color: transparent;
+    transition: background-color 0.25s ease;
+    @include iconColor($on-general);
+    &:focus {
+      // outline: 0.188rem solid opaqueColor($on-general, 0.3);
+    }
+    &:active {
+      background-color: $general-active;
+    }
+    &:hover {
+      background-color: $general-hover;
+    }
+  }
+  @include button-link("primary", $on-accent-light);
+  @include button-link("secondary", $on-secondary-light);
+  @include button-link("info", $on-info-light);
+  @include button-link("warning", $on-warning-light);
+  @include button-link("success", $on-success-light);
+  @include button-link("danger", $on-danger-light);
+  // &.link {
+  //   text-underline-offset: 0.25rem;
+  //   background-color: transparent;
+  //   color: $primary;
+  //   @include iconColor($primary);
+  //   &:hover,
+  //   &:active {
+  //     text-decoration: underline;
+  //   }
+  //   &.disabled {
+  //     background-color: unset;
+  //   }
+  // }
+
+  &.rounded {
+    border-radius: 100rem;
+  }
+
+  &.fluid {
+    width: 100%;
+  }
+
+  &.disabled {
+    cursor: default;
+    pointer-events: none;
+    background-color: $disabled;
+    color: $on-disabled;
+
+    @include iconColor($on-disabled);
+    &.outlined {
+      background-color: $general;
+      color: $on-disabled;
+      border-color: $disabled;
+      @include iconColor($on-disabled);
+    }
+  }
+  &.outlined {
+    background-color: transparent;
+    border: 0.063rem solid;
+    .tecma-icon:not(.no-color-override) path {
+      fill: $on-general;
+    }
+  }
+}

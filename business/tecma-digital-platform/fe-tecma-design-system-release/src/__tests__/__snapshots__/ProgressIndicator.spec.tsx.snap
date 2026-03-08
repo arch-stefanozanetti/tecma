@@ -1,0 +1,48 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ProgressIndicator Component should render without exploding 1`] = `
+<div
+  class="tecma-progressIndicator"
+  data-testid="tecma-progressIndicator"
+>
+  <div
+    class="stepProgressBar "
+  >
+    <div
+      class="tecma-progressBar"
+      data-testid="tecma-progressBar"
+    >
+      <div
+        class="progressBar"
+        style="width: 100%;"
+      />
+    </div>
+  </div>
+  <div
+    class="stepProgressBar currentStep"
+  >
+    <div
+      class="tecma-progressBar"
+      data-testid="tecma-progressBar"
+    >
+      <div
+        class="progressBar"
+        style="width: 50%;"
+      />
+    </div>
+  </div>
+  <div
+    class="stepProgressBar "
+  >
+    <div
+      class="tecma-progressBar"
+      data-testid="tecma-progressBar"
+    >
+      <div
+        class="progressBar"
+        style="width: 0%;"
+      />
+    </div>
+  </div>
+</div>
+`;

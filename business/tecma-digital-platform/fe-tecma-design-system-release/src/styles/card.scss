@@ -1,0 +1,98 @@
+@use "theme/utils/fonts" as *;
+@use "theme/utils/colors.scss" as *;
+
+.tecma-card {
+  padding: 2rem;
+  border-radius: 0.5rem;
+  width: 30rem;
+  background-color: $general;
+  box-shadow: 0 0 1.2rem -1rem;
+  display: flex;
+  .tecma-card-container {
+    padding: 1.5rem;
+    .tecma-card-header {
+      h2 {
+        margin: 0;
+      }
+    }
+    .tecma-card-content {
+      margin-top: 1rem;
+    }
+    + .tecma-card-footer {
+      padding: 1rem;
+    }
+  }
+  &.borderLess {
+    padding: 0;
+  }
+  &.horizontal {
+    padding: 0;
+
+    .tecma-card-media {
+      min-width: 40%;
+      height: unset;
+      flex-grow: 1;
+      margin: 0;
+    }
+
+    .tecma-card-header,
+    .tecma-card-content,
+    .tecma-card-footer {
+      margin: 0;
+    }
+  }
+
+  &.horizontal {
+    .tecma-card-media:first-child {
+      * {
+        border-top-right-radius: 0;
+        border-bottom-left-radius: 0.5rem;
+      }
+    }
+  }
+
+  &.vertical {
+    flex-direction: column;
+  }
+
+  &.horizontal {
+    flex-direction: row;
+  }
+
+  &.fluid {
+    width: 100%;
+  }
+
+  .tecma-card-media {
+    aspect-ratio: 16/9;
+    overflow: hidden;
+
+    img {
+      object-fit: cover;
+      height: 100%;
+      width: 100%;
+    }
+  }
+
+  &.selected {
+    box-shadow: none;
+    outline: 0.188rem solid rgba($primary, 0.3);
+  }
+
+  .tecma-card-table {
+    display: flex;
+    flex-direction: column;
+    .table-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 1rem 0;
+      .row-label {
+        color: $on-general;
+      }
+      .row-value {
+        color: $on-general;
+        font-weight: 600;
+      }
+    }
+  }
+}

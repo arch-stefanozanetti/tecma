@@ -1,0 +1,36 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Searchbar Component should render without exploding 1`] = `
+<form
+  class="tecma-search-bar"
+  data-testid="tecma-searchbar"
+>
+  <div
+    class="tecma-input type-text medium"
+    data-testid="tecma-input"
+  >
+    
+    <div
+      class="input-container"
+    >
+      <svg
+        class="tecma-icon medium"
+      />
+      <input
+        name="search"
+        type="text"
+        value=""
+      />
+    </div>
+    
+  </div>
+  <button
+    class="tecma-button primary medium search-button"
+    data-testid="tecma-button"
+    id="search-bar-submit-button"
+    type="submit"
+  >
+    Search
+  </button>
+</form>
+`;

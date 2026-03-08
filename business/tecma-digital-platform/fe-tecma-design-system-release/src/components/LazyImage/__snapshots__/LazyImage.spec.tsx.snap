@@ -1,0 +1,81 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`LazyImage.Background Component Should render a div with background-image rule 1`] = `
+<div
+  class="tecma-lazyImage"
+  data-testid="tecma-lazyImage"
+  role="img"
+  style="background-image: url(/test/url.png);"
+/>
+`;
+
+exports[`LazyImage.Background Component Should render a div with error fallback 1`] = `
+<div
+  class="tecma-lazyImage"
+  data-testid="tecma-lazyImage"
+  role="img"
+  style="background-image: none;"
+>
+  Error
+</div>
+`;
+
+exports[`LazyImage.Background Component Should render a loading element 1`] = `
+<div
+  class="tecma-lazyImage"
+  data-testid="tecma-lazyImage"
+  role="img"
+  style="background-image: none;"
+>
+  <div>
+    Loading ...
+  </div>
+</div>
+`;
+
+exports[`LazyImage.Background Component should render without exploding 1`] = `
+<div
+  class="tecma-lazyImage"
+  data-testid="tecma-lazyImage"
+  role="img"
+  style="background-image: none;"
+>
+  Error
+</div>
+`;
+
+exports[`LazyImage.Image Component Should render a div with error fallback 1`] = `
+<span
+  class="tecma-lazyImage"
+  data-testid="tecma-lazyImage"
+>
+  Error
+</span>
+`;
+
+exports[`LazyImage.Image Component Should render a div with src rule 1`] = `
+<img
+  alt=""
+  class="tecma-lazyImage"
+  data-testid="tecma-lazyImage"
+  src="/test/url.png"
+/>
+`;
+
+exports[`LazyImage.Image Component Should render a loading element 1`] = `
+<span
+  class="tecma-lazyImage"
+  data-testid="tecma-lazyImage"
+>
+  Loading...
+</span>
+`;
+
+exports[`LazyImage.Image Component should render without exploding 1`] = `
+<span
+  class="tecma-lazyImage"
+  data-testid="tecma-lazyImage"
+>
+  Error
+</span>
+`;

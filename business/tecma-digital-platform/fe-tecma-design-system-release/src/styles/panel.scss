@@ -1,0 +1,649 @@
+@use "theme/utils/variables.scss" as *;
+
+/* @keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+ .traditional {
+  &:before {
+    animation: spin 0.5s infinite linear;
+    border-radius: 100%;
+    box-shadow: inset -2px 0 0 0px $neutral-000;
+    content: "";
+    height: 50px;
+    position: absolute;
+    width: 50px;
+  }
+} */
+
+.tecma-picker {
+  &-loader {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.2);
+    align-items: center;
+    z-index: 3;
+  }
+  &-panel {
+    display: inline-flex;
+    flex-direction: column;
+    text-align: center;
+    background: $neutral-100;
+    border: 1px solid $neutral-100;
+    border-radius: 2px;
+    outline: none;
+
+    &-focused {
+      border-color: $primary-focus;
+    }
+  }
+
+  // ========================================================
+  // =                     Shared Panel                     =
+  // ========================================================
+  &-year-panel,
+  &-decade-panel,
+  &-month-panel,
+  &-week-panel,
+  &-date-panel,
+  &-time-panel {
+    display: flex;
+    flex-direction: column;
+    width: 280px;
+  }
+
+  // ======================= Header =======================
+  &-header {
+    display: flex;
+    padding: 5px 12px 0;
+    color: $on-primary-light;
+    background-color: $primary-light;
+    > * {
+      flex: none;
+    }
+
+    button {
+      padding: 0;
+      color: $on-primary-light;
+      line-height: 40px;
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      transition: color 0.3s;
+      text-transform: none;
+      overflow: visible;
+      text-transform: capitalize;
+    }
+
+    > button {
+      min-width: 1.6em;
+      font-size: 14px;
+
+      &:hover {
+        color: $accent;
+      }
+    }
+
+    &-view {
+      flex: auto;
+      font-weight: 500;
+      line-height: 40px;
+
+      button {
+        color: $on-primary-light;
+        font-family: "Segoe UI", sans-serif;
+
+        &:not(:first-child) {
+          margin-left: 8px;
+        }
+
+        &:hover {
+          color: $accent;
+        }
+      }
+    }
+  }
+
+  // Arrow button
+  &-prev-icon,
+  &-next-icon,
+  &-super-prev-icon,
+  &-super-next-icon {
+    position: relative;
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+
+    &::before {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border: 0 solid currentcolor;
+      border-width: 1.5px 0 0 1.5px;
+      content: "";
+    }
+  }
+
+  &-super-prev-icon,
+  &-super-next-icon {
+    &::after {
+      position: absolute;
+      top: calc((7px / 2));
+      left: calc((7px / 2));
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border: 0 solid currentcolor;
+      border-width: 1.5px 0 0 1.5px;
+      content: "";
+    }
+  }
+
+  &-prev-icon,
+  &-super-prev-icon {
+    transform: rotate(-45deg);
+  }
+
+  &-next-icon,
+  &-super-next-icon {
+    transform: rotate(135deg);
+  }
+
+  // ======================== Body ========================
+  &-content {
+    width: 100%;
+    table-layout: fixed;
+    border-spacing: 0 0.25rem;
+    th,
+    td {
+      position: relative;
+      min-width: 24px;
+      font-weight: 400;
+    }
+
+    th {
+      height: 30px;
+      color: $on-general;
+      line-height: 30px;
+      font-weight: 400;
+      font-size: 12px;
+      font-family: "Segoe UI", sans-serif;
+    }
+  }
+
+  &-cell {
+    padding: 3px 0;
+    color: rgba(0, 0, 0, 0.25);
+    cursor: pointer;
+
+    &:not(.tecma-picker-cell-in-view) {
+      z-index: -1;
+    }
+
+    // In view
+    &.tecma-picker-cell-in-view {
+      color: $on-general;
+    }
+
+    &::before {
+      position: absolute;
+      top: 0;
+      right: 0;
+      left: 0;
+      z-index: 1;
+      height: 100%;
+      transition: all 0.3s;
+      content: "";
+    }
+
+    .tecma-picker-cell-inner {
+      position: relative;
+      font-family: "Segoe UI", sans-serif;
+      font-weight: 300;
+      font-size: 14px;
+      z-index: 2;
+      display: inline-block;
+      min-width: 22px;
+      height: 22px;
+      line-height: 22px;
+      border-radius: 2px;
+      transition: all 0.3s;
+    }
+
+    &:hover:not(.tecma-picker-cell-in-view),
+    &:hover:not(.tecma-picker-cell-selected):not(.tecma-picker-cell-in-range):not(
+        .tecma-picker-cell-range-start
+      ):not(.tecma-picker-cell-range-end):not(.tecma-picker-cell-range-hover-start):not(
+        .tecma-picker-cell-range-hover-end
+      ) {
+      background: $accent;
+      color: $on-accent;
+    }
+
+    // >>> Today
+    &.tecma-picker-cell-in-view.tecma-picker-cell-today {
+      border: 1px solid $general-border;
+    }
+
+    // >>> In Range
+    &.tecma-picker-cell-in-view &-in-range {
+      position: relative;
+
+      &::before {
+        background: #475868;
+      }
+    }
+
+    // >>> Selected
+    &.tecma-picker-cell-in-view.tecma-picker-cell-selected,
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-start,
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-end {
+      background: $primary;
+      color: $on-primary;
+    }
+
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-end:not(
+        .tecma-picker-cell-range-end-single
+      ) {
+      background: $primary;
+      color: $on-primary;
+    }
+
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-start::before {
+      left: 50%;
+    }
+
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-end::before {
+      right: 50%;
+    }
+
+    &.tecma-picker-cell-in-view.tecma-picker-cell-in-range {
+      background: $primary-light;
+    }
+
+    // >>> Range Hover
+    &:not(.tecma-picker-cell-in-range):not(.tecma-picker-cell-range-start):not(
+        .tecma-picker-cell-range-end
+      ).tecma-picker-cell-in-view.tecma-picker-cell-range-hover-start,
+    &:not(.tecma-picker-cell-in-range):not(.tecma-picker-cell-range-start):not(
+        .tecma-picker-cell-range-end
+      ).tecma-picker-cell-in-view.tecma-picker-cell-range-hover-end,
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-hover-start.tecma-picker-cell-range-start-single,
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-hover-start.tecma-picker-cell-range-start.tecma-picker-cell-range-end.tecma-picker-cell-range-end-near-hover,
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-hover-end
+      .tecma-picker-cell-range-start.tecma-picker-cell-range-end.tecma-picker-cell-range-start-near-hover,
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-hover-end.tecma-picker-cell--range-end-single,
+    &:not(.tecma-picker-cell-in-range).tecma-picker-cell-in-view.tecma-picker-cell-range-hover {
+      &::after {
+        border-top: 1px dashed $primary;
+        border-bottom: 1px dashed $primary;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        transition: all 0.3s;
+        z-index: 0;
+        height: 90%;
+        content: "";
+      }
+      // Add space for stash
+      &-range-hover-start::after,
+      &-range-hover-end::after,
+      &-range-hover::after {
+        right: 0;
+        left: 2px;
+      }
+    }
+
+    // Add space for stash
+    &.tecma-picker-cell-range-hover-start::after,
+    &.tecma-picker-cell-range-hover-end::after,
+    &.tecma-picker-cell-range-hover::after {
+      right: 0;
+      left: 2px;
+    }
+
+    // Hover with in range
+
+    &.tecma-picker-cell-in-view.tecma-picker-cell-in-range.tecma-picker-cell-range-hover,
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-start.tecma-picker-cell-range-hover,
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-end.tecma-picker-cell-range-hover,
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-start:not(
+        .tecma-picker-cell-range-start-single
+      ).tecma-picker-cell-range-hover-start,
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-end:not(
+        .tecma-picker-cell-range-end-single
+      ).tecma-picker-cell-range-hover-end,
+    .tecma-picker-panel
+      > :not(.tecma-picker-date-panel)
+      .tecma-picker-cell-in-view.tecma-picker-cell-in-range.tecma-picker-cell-range-hover-start,
+    .tecma-picker-panel
+      > :not(.tecma-picker-date-panel)
+      .tecma-picker-cell-in-view.tecma-picker-cell-in-range.tecma-picker-cell-range-hover-end {
+      background: $primary-hover;
+    }
+
+    // range start border-radius
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-start:not(
+        .tecma-picker-cell-range-start-single
+      ):not(.tecma-picker-cell-range-end)
+      .tecma-picker-cell-inner {
+      border-radius: 2px 0 0 2px;
+      color: $on-primary;
+    }
+
+    // range end border-radius
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-end:not(
+        .tecma-picker-cell-range-end-single
+      ):not(.tecma-picker-cell-range-start)
+      .tecma-picker-cell-inner {
+      border-radius: 0 2px 2px 0;
+    }
+
+    // DatePanel only
+
+    &.tecma-picker-cell-in-view.tecma-picker-cell-in-range.tecma-picker-cell-range-hover-start,
+    &.tecma-picker-cell-in-view.tecma-picker-cell-in-range.tecma-picker-cell-range-hover-end {
+      background: $primary-hover;
+      transition: all 0.3s;
+    }
+
+    &.tecma-picker-cell-in-view.tecma-picker-cell-in-range.tecma-picker-cell-range-hover-start
+      .tecma-picker-cell-inner::after {
+      right: -5px;
+      left: -5px;
+    }
+
+    &.tecma-picker-cell-in-view.tecma-picker-cell-in-range.tecma-picker-cell-range-hover-end
+      .tecma-picker-cell-inner::after {
+      right: -5px;
+      left: -5px;
+    }
+
+    // Hover with range start & end
+    &.tecma-picker-cell-range-hover.tecma-picker-cell--range-start::after {
+      right: 50%;
+    }
+
+    &.tecma-picker-cell-range-hover.tecma-picker-cell--range-end::after {
+      left: 50%;
+    }
+
+    // Edge start
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-hover:first-child::after,
+    &.tecma-picker-cell-in-view.tecma-picker-cell--range-hover-end:first-child::after,
+    &.tecma-picker-cell-in-view.tecma-picker-cell-start.tecma-picker-cell--range-hover-edge-start.tecma-picker-cell--range-hover-edge-start-near-range::after,
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-hover-edge-start:not(
+        .tecma-picker-cell-range-hover-edge-start-near-range
+      )::after,
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-hover-start::after {
+      left: 0;
+      border-left: 1px dashed $primary-hover;
+      border-top-left-radius: 2px;
+      border-bottom-left-radius: 2px;
+    }
+
+    // Edge end
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-hover:last-child::after,
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-hover-start:last-child::after,
+    &.tecma-picker-cell-in-view.tecma-picker-cell-end.tecma-picker-cell-range-hover-edge-end.tecma-picker-cell-range-hover-edge-end-near-range::after,
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-hover-edge-end:not(
+        .tecma-picker-cell-range-hover-edge-end-near-range
+      )::after,
+    &.tecma-picker-cell-in-view.tecma-picker-cell-range-hover-end::after {
+      right: 0;
+      border-right: 1px dashed $primary-hover;
+      border-top-right-radius: 2px;
+      border-bottom-right-radius: 2px;
+    }
+
+    // >>> Disabled
+    &.tecma-picker-cell-disabled {
+      color: rgba(0, 0, 0, 0.25);
+      pointer-events: none;
+
+      .tecma-picker-cell-inner {
+        background: transparent;
+      }
+
+      &::before {
+        background: rgba(0, 0, 0, 0.04);
+      }
+    }
+    &.tecma-picker-cell-disabled.tecma-picker-cell-today .tecma-picker-cell-inner::before {
+      border-color: rgba(0, 0, 0, 0.25);
+    }
+  }
+
+  &-year-panel,
+  &-decade-panel,
+  &-month-panel {
+    .tecma-picker-cell-range-hover-start::after {
+      left: calc(calc(calc(280px - 8px * 2) / 3) - 60px) / 2;
+      border-left: 1px dashed $primary-hover;
+      border-radius: 2px 0 0 2px;
+
+      .tecma-picker-panel-rtl::after {
+        right: calc(calc(calc(280px - 8px * 2) / 3) - 60px) / 2;
+        border-right: 1px dashed $primary;
+        border-radius: 0 2px 2px 0;
+      }
+    }
+    .tecma-picker-cell-range-hover-end::after {
+      right: calc(calc(calc(280px - 8px * 2) / 3) - 60px) / 2;
+      border-right: 1px dashed $primary-hover;
+      border-radius: 0 2px 2px 0;
+
+      .tecma-picker-panel-rtl::after {
+        left: calc(calc(calc(280px - 8px * 2) / 3) - 60px) / 2;
+        border-left: 1px dashed $primary;
+        border-radius: 2px 0 0 2px;
+      }
+    }
+    .tecma-picker-body {
+      padding: 0 8px 10px;
+    }
+    .tecma-picker-content {
+      height: calc(66px * 4);
+    }
+
+    .tecma-picker-cell-inner {
+      padding: 0 8px;
+      width: 60px;
+    }
+  }
+
+  // ====================== Week Panel ======================
+  &-week-panel {
+    .tecma-picker-body {
+      padding: 8px 12px;
+    }
+
+    // Clear cell style
+    .tecma-picker-cell {
+      &:hover .tecma-picker-cell-inner,
+      &-selected .tecma-picker-cell-inner,
+      .tecma-picker-cell-inner {
+        background: transparent !important;
+      }
+    }
+
+    &-row {
+      td {
+        transition: background-color 0.3s;
+      }
+
+      &:hover td {
+        background: #f5f5f5;
+      }
+
+      &-selected td,
+      &-selected:hover td {
+        background: $primary-hover;
+
+        &.tecma-picker-cell-week {
+          color: rgba(255, 255, 255, 50%);
+        }
+
+        &.tecma-picker-cell-today .tecma-picker-cell-inner::before {
+          border-color: $on-primary;
+        }
+
+        .tecma-picker-cell-inner {
+          color: $on-primary;
+        }
+      }
+    }
+  }
+
+  // ====================== Date Panel ======================
+  &-date-panel {
+    .tecma-picker-body {
+      padding: 1rem;
+    }
+
+    .tecma-picker-content {
+      width: 252px;
+      tbody tr:last-of-type {
+        display: none;
+      }
+
+      th {
+        width: 35px;
+      }
+    }
+  }
+
+  // ==================== Datetime Panel ====================
+  &-datetime-panel {
+    display: flex;
+
+    .tecma-picker-time-panel {
+      border-left: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .tecma-picker-date-panel,
+    .tecma-picker-time-panel {
+      transition: opacity 0.3s;
+    }
+
+    // Keyboard
+    &-active {
+      .tecma-picker-date-panel,
+      .tecma-picker-time-panel {
+        opacity: 0.3;
+
+        &-active {
+          opacity: 1;
+        }
+      }
+    }
+  }
+
+  // ====================== Time Panel ======================
+  &-time-panel {
+    width: auto;
+    min-width: auto;
+
+    .tecma-picker-content {
+      display: flex;
+      flex: auto;
+      height: 224px;
+    }
+
+    &-column {
+      flex: 1 0 auto;
+      width: 56px;
+      margin: 0;
+      padding: 0;
+      overflow-y: hidden;
+      text-align: left;
+      list-style: none;
+      transition: background-color 0.3s;
+
+      &::after {
+        display: block;
+        height: calc(224px - 28px);
+        content: "";
+        .tecma-picker-datetime-panel & {
+          height: calc(224px - 28px + 2 * 1px);
+        }
+      }
+
+      &:not(:first-child) {
+        border-left: 1px solid rgba(0, 0, 0, 0.06);
+      }
+
+      &-active {
+        background: $primary;
+      }
+
+      &:hover {
+        overflow-y: auto;
+      }
+
+      > li {
+        margin: 0;
+        padding: 0;
+
+        &.tecma-picker-time-panel-cell {
+          .tecma-picker-time-panel-cell-inner {
+            display: block;
+            width: 100%;
+            height: 28px;
+            margin: 0;
+            padding: 0 0 0 calc(28px / 2);
+            color: rgba(0, 0, 0, 0.85);
+            line-height: 28px;
+            border-radius: 0;
+            cursor: pointer;
+            transition: background-color 0.3s;
+
+            &:hover {
+              background: #f5f5f5;
+            }
+          }
+
+          &-selected {
+            .tecma-picker-time-panel-cell-inner {
+              background: #188fff98;
+            }
+          }
+
+          &-disabled {
+            .tecma-picker-time-panel-cell-inner {
+              color: rgba(0, 0, 0, 0.25);
+              background: transparent;
+              cursor: not-allowed;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// Fix IE11 render bug by css hacks
+// https://github.com/ant-design/ant-design/issues/21559
+// https://codepen.io/afc163-1472555193/pen/mdJRaNj?editors=0110
+/* stylelint-disable selector-type-no-unknown,selector-no-vendor-prefix */
+_:-ms-fullscreen,
+:root {
+  .tecma-picker-range-wrapper {
+    .tecma-picker-month-panel .tecma-picker-cell,
+    .tecma-picker-year-panel .tecma-picker-cell,
+    .tecma-picker-decade-panel {
+      padding: 21px 0;
+    }
+  }
+}

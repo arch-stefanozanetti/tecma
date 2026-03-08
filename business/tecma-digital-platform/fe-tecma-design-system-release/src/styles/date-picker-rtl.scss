@@ -1,0 +1,221 @@
+.tecma-date-picker-rtl {
+  direction: rtl;
+
+  .tecma-date-picker-suffix {
+    margin-right: 4px;
+    margin-left: 0;
+  }
+
+  .tecma-date-picker-clear {
+    right: auto;
+    left: 0;
+  }
+
+  .tecma-date-picker-separator {
+    transform: rotate(180deg);
+  }
+}
+
+.tecma-date-picker-panel-rtl .tecma-date-picker-header-view button:not(:first-child) {
+  margin-right: 8px;
+  margin-left: 0;
+}
+
+.tecma-date-picker-rtl.tecma-date-picker-range {
+  .tecma-date-picker-clear {
+    right: auto;
+    left: 11px;
+  }
+
+  .tecma-date-picker-active-bar {
+    margin-right: 11px;
+    margin-left: 0;
+  }
+
+  &.tecma-date-picker-small .tecma-date-picker-active-bar {
+    margin-right: 7px;
+  }
+}
+
+.tecma-date-picker-dropdown-rtl .tecma-date-picker-ranges {
+  text-align: right;
+
+  .tecma-date-picker-ok {
+    float: left;
+    margin-right: 8px;
+    margin-left: 0;
+  }
+}
+
+.tecma-date-picker-panel-rtl {
+  direction: rtl;
+
+  .tecma-date-picker-cell-in-view {
+    &.tecma-date-picker-cell-end.tecma-date-picker-cell-range-hover-start.tecma-date-picker-cell-range-hover-edge-end:not(
+        .tecma-date-picker-cell-range-hover
+      )::after {
+      right: 6px;
+      left: 6px;
+      border-right: dashed;
+      border-left: dashed;
+      border-radius: 2px;
+    }
+
+    &.tecma-date-picker-cell-range-start::before {
+      right: 50%;
+      left: 0;
+    }
+
+    &.tecma-date-picker-cell-range-end::before {
+      right: 0;
+      left: 50%;
+    }
+
+    &.tecma-date-picker-cell-range-start.tecma-date-picker-cell-range-end::before {
+      right: 50%;
+      left: 50%;
+    }
+    &.tecma-date-picker-cell-range-start:not(.tecma-date-picker-cell-range-start-single):not(
+        .tecma-date-picker-cell-range-end
+      )
+      .tecma-date-picker-cell-inner {
+      border-radius: 0 2px 2px 0;
+    }
+
+    &.tecma-date-picker-cell-range-end:not(.tecma-date-picker-cell-range-end-single):not(
+        .tecma-date-picker-cell-range-start
+      )
+      .tecma-date-picker-cell-inner {
+      border-radius: 2px 0 0 2px;
+    }
+    &.tecma-date-picker-cell-start.tecma-date-picker-cell-range-hover-edge-start.tecma-date-picker-cell-range-hover-edge-start-near-range::after,
+    &.tecma-date-picker-cell-range-hover-edge-start:not(
+        .tecma-date-picker-cell-range-hover-edge-start-near-range
+      )::after,
+    &.tecma-date-picker-cell-range-hover-start::after {
+      right: 6px;
+      left: 0;
+      border-right: dashed;
+      border-left: none;
+      border-radius: 0 2px 2px 0;
+    }
+    &.tecma-date-picker-cell-end.tecma-date-picker-cell-range-hover-edge-end.tecma-date-picker-cell-range-hover-edge-end-near-range::after,
+    &.tecma-date-picker-cell-range-hover-edge-end:not(
+        .tecma-date-picker-cell-range-hover-edge-end-near-range
+      )::after,
+    &.tecma-date-picker-cell-range-hover-end::after {
+      right: 0;
+      left: 6px;
+      border-right: none;
+      border-left: dashed;
+      border-radius: 2px 0 0 2px;
+    }
+    &.tecma-date-picker-cell-start {
+      &.tecma-date-picker-cell-range-hover-edge-start:not(.tecma-date-picker-cell-range-hover)::after,
+      &.tecma-date-picker-cell-range-hover-end.tecma-date-picker-cell-range-hover-edge-start:not(
+          .tecma-date-picker-cell-range-hover
+        )::after {
+        right: 6px;
+        left: 6px;
+        border-right: dashed;
+        border-left: dashed;
+        border-radius: 2px;
+      }
+    }
+  }
+
+  .tecma-date-picker-date-panel .tecma-date-picker-cell-in-view.tecma-date-picker-cell-in-range {
+    &.tecma-date-picker-cell-range-hover-start .tecma-date-picker-cell-inner::after {
+      right: 0;
+      left: -4px;
+    }
+
+    &.tecma-date-picker-cell-range-hover-end .tecma-date-picker-cell-inner::after {
+      right: -4px;
+      left: 0;
+    }
+  }
+
+  .tecma-date-picker-cell-range-hover {
+    &.tecma-date-picker-cell-range-start::after {
+      right: 0;
+      left: 50%;
+    }
+
+    &.tecma-date-picker-cell-range-end::after {
+      right: 50%;
+      left: 0;
+    }
+  }
+
+  tr
+    > .tecma-date-picker-cell-in-view.tecma-date-picker-cell-range-hover:not(
+      .tecma-date-picker-cell-selected
+    ):first-child::after {
+    right: 6px;
+    left: 0;
+    border-right: dashed;
+    border-left: none;
+    border-radius: 0 2px 2px 0;
+  }
+
+  tr
+    > .tecma-date-picker-cell-in-view.tecma-date-picker-cell-range-hover:not(
+      .tecma-date-picker-cell-selected
+    ):last-child::after {
+    right: 0;
+    left: 6px;
+    border-right: none;
+    border-left: dashed;
+    border-radius: 2px 0 0 2px;
+  }
+
+  tr > .tecma-date-picker-cell-in-view {
+    &.tecma-date-picker-cell-range-hover-start:last-child::after,
+    &.tecma-date-picker-cell-range-hover-end:first-child::after {
+      right: 6px;
+      left: 6px;
+      border-right: dashed;
+      border-left: dashed;
+      border-radius: 2px;
+    }
+    &.tecma-date-picker-cell-start.tecma-date-picker-cell-range-hover.tecma-date-picker-cell-range-hover-edge-start:last-child::after,
+    &.tecma-date-picker-cell-end.tecma-date-picker-cell-range-hover.tecma-date-picker-cell-range-hover-edge-end:first-child::after {
+      right: 6px;
+      left: 6px;
+      border-right: dashed;
+      border-left: dashed;
+      border-radius: 2px;
+    }
+  }
+
+  .tecma-date-picker-prev-icon,
+  .tecma-date-picker-super-prev-icon {
+    transform: rotate(135deg);
+  }
+
+  .tecma-date-picker-next-icon,
+  .tecma-date-picker-super-next-icon {
+    transform: rotate(-45deg);
+  }
+}
+
+.tecma-date-picker-cell .tecma-date-picker-cell-inner {
+  position: relative;
+  z-index: 2;
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: inline-block;
+  line-height: 1.25rem;
+  transition: all 0.3s;
+  text-transform: capitalize;
+}
+
+.tecma-date-picker-dropdown-rtl .tecma-date-picker-footer-extra {
+  direction: rtl;
+  text-align: right;
+}
+
+.tecma-date-picker-panel-rtl .tecma-date-picker-time-panel {
+  direction: ltr;
+}

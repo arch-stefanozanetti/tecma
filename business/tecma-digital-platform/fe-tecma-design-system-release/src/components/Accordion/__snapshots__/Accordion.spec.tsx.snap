@@ -1,0 +1,38 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Accordion Component AccordionContent component should render without exploding 1`] = `
+<div
+  class="tecma-accordion-content"
+  data-testid="tecma-accordion"
+>
+  <div
+    class="tecma-accordion-content-header"
+  >
+    <button
+      class="tecma-button link primary small icon-only"
+      data-testid="tecma-button"
+      type="button"
+    >
+      <svg
+        class="tecma-icon small"
+      />
+    </button>
+  </div>
+  <div
+    class="tecma-accordion-content-panel-wrapper collapse"
+    style="transition: height 350ms ease-in-out; height: 0px;"
+  >
+    <div
+      class="tecma-accordion-content-panel"
+      data-testid="tecma-accordion-content-panel"
+    />
+  </div>
+</div>
+`;
+
+exports[`Accordion Component should render without exploding 1`] = `
+<div
+  class="tecma-accordion"
+  data-testid="tecma-accordion"
+/>
+`;

@@ -1,0 +1,242 @@
+@use "theme/utils/colors.scss" as *;
+@use "theme/utils/fonts.scss" as *;
+
+.navigation-item-wrapper {
+  position: relative;
+  transition: width 0.5s ease-in-out, margin 0.5s ease-in-out;
+  
+  &.collapsed {
+    width: 40px;
+    margin: auto;
+  }
+}
+
+.box-navigation-item {
+  position: relative;
+  margin: 4px 0;
+  transition: margin 0.5s ease-in-out;
+  
+  &.collapsed {
+    margin: 0;
+  }
+  
+  &.active {
+    border-radius: 2px;
+    .navigation-item {
+      background-color: transparent !important;
+      color: $accent !important;
+      background-color: #FFFFFF !important;
+      
+      .button-content {
+        .main-label {
+          color: $accent !important;
+          text-align: left !important;
+        }
+        
+        .sub-label {
+          color: #666 !important;
+        }
+      }
+      
+      * {
+        color: $accent !important;
+        fill: $accent !important;
+      }
+      
+      // Keep accent color on hover when active
+      &:hover {
+        color: $accent !important;
+        svg, .tecma-icon, .tecma-icon * {
+          fill: $accent !important;
+          color: $accent !important;
+        }
+      }
+    }
+    &::before {
+      content: '';
+      position: absolute;
+      left: -12px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background-color: $accent;
+      border-radius: 2px;
+      z-index: 2;
+    }
+  }
+}
+
+.navigation-item {
+  background-color: rgba(255, 255, 255, 0.25);
+  border: 0.001px solid rgba(255, 255, 255, 0.25) !important;
+  padding: 12px 16px;
+  justify-content: flex-start;
+  transition: padding 0.5s ease-in-out, width 0.5s ease-in-out, height 0.5s ease-in-out, min-width 0.5s ease-in-out, min-height 0.5s ease-in-out;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  // Default color for label and icon
+  color: $on-gradient;
+  // Ensure DS button variant doesn't override this color
+  &.tecma-button.primary.outlined {
+    color: $on-gradient !important;
+  }
+  // Make the icon inherit the button color
+  svg {
+    color: inherit !important;
+    fill: currentColor !important;
+    transition: width 0.5s ease-in-out, height 0.5s ease-in-out, margin 0.5s ease-in-out;
+  }
+  box-shadow: 0px 2px 9px 0px rgba(100, 100, 100, 0.15);
+  
+  // Hover style requested: 50% white bg and #585E70 for label and icon
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.5) !important;
+    color: #585E70 !important;
+    // enforce icon color also for inner shapes of fetched SVGs
+    svg, .tecma-icon, .tecma-icon * {
+      fill: #585E70 !important;
+    }
+  }
+  
+  // Collapsed state - show icon + chevron-right
+  &.collapsed {
+    padding: 0;
+    justify-content: center;
+    align-items: center;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    display: flex;
+    position: relative;
+    
+    .button-content {
+      display: none;
+    }
+    
+    // Make main icon smaller
+    svg:not(.dropdown-arrow), .tecma-icon:not(.dropdown-arrow) {
+      width: 14px !important;
+      height: 14px !important;
+      margin: 0 !important;
+    }
+    
+    // Style the dropdown arrow specifically - position absolute
+    .dropdown-arrow {
+      position: absolute;
+      right: -22px;
+      width: 14px !important;
+      height: 14px !important;
+      margin: 0 !important;
+    }
+  }
+  
+  .button-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex: 1;
+    
+    .main-label {
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.2;
+      text-align: left !important;
+    }
+    
+    .sub-label {
+      font-size: 12px;
+      font-weight: 400;
+      color: #666;
+      margin-top: 2px;
+      line-height: 1.2;
+    }
+  }
+}
+
+.sidebar-padding {
+  padding-left: 16px;
+  transition: padding 0.5s ease-in-out;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  
+  &.collapsed {
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+}
+
+// Tooltip distance for collapsed sidebar items
+.sidebar-item-tooltip {
+  margin-left: -16px !important;
+}
+
+// Dropdown arrow styles
+.dropdown-arrow {
+  margin-left: auto;
+  transition: transform 0.3s ease;
+  
+  &.expanded {
+    transform: rotate(180deg);
+  }
+}
+
+// Sub-items container
+.sub-items-container {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  
+  &.expanded {
+    max-height: 500px; // Adjust based on your needs
+  }
+}
+
+.sub-items-container {
+  .sub-item {
+    margin-left: 32px;
+    margin-top: 2px;
+    width: calc(100% - 26px) !important;
+    justify-content: flex-start !important;
+    &.active {
+      background-color: #FFFFFF !important;
+      &::before {
+        content: '';
+        position: absolute;
+        left: -12px !important;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background-color: $accent;
+        border-radius: 2px;
+        z-index: 2;
+      }
+    }
+  }
+}
+
+.subitem-collapsed-hovered {
+  position: absolute;
+  left: 77px;
+  top: 0;
+  z-index: 1000;
+  background-color: #FFFFFF;
+  border-radius: 2px;
+  box-shadow: 0px 8px 24px rgba(16, 24, 40, 0.12);
+  margin-top: 48px;
+  min-width: 160px;
+}
+
+.subitem-collapsed-hovered-item {
+  font-family: Lato, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  padding: 10px;
+  &:hover {
+    background-color: $gray-50;
+    cursor: pointer;
+  }
+}

@@ -1,0 +1,67 @@
+@use "theme/utils/colors.scss" as *;
+@use "theme/utils/fonts" as *;
+@use "theme/utils/breakpoints" as *;
+
+.tecma-errorPage {
+  display: flex;
+  text-align: center;
+  align-items: center;
+  justify-content: center;
+  height: 100dvh;
+  background-color: white;
+  overflow: hidden;
+  font-family: $primaryFont;
+  color: $on-general;
+  .errorPage-container {
+    max-width: 53.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    @media screen and (max-width: $desktop_M) {
+      padding: 0 3.5rem;
+      max-width: 50rem;
+    }
+    @media screen and (max-width: $tablet) {
+      padding: 0 2.5rem;
+    }
+    .tecma-divider {
+      width: 100%;
+      margin: 1.5rem 0;
+    }
+    .errorPage {
+      &-errorMsg {
+        text-align: center;
+        font-size: 2.5rem;
+        font-style: normal;
+        font-weight: 400;
+        line-height: 3.5rem;
+        margin: unset;
+        @media screen and (max-width: $desktop_M) {
+          font-size: 2rem;
+        }
+        @media screen and (max-width: $tablet) {
+          font-size: 1.5rem;
+          line-height: 2rem;
+        }
+      }
+      &-desc {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-size: $defaultFont;
+        font-style: normal;
+        line-height: 1.5rem;
+        :last-child {
+          margin: 2rem 0 2.5rem 0;
+        }
+      }
+    }
+  }
+}
+
+.tecma-errorPage .tecma-lazyImage {
+  margin-top: 6rem;
+  width: 4.5rem;
+  height: 4.5rem;
+  object-fit: contain;
+}

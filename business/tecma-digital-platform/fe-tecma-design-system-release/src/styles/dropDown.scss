@@ -1,0 +1,42 @@
+@use "theme/utils/colors.scss" as *;
+
+.tecma-dropDown {
+  position: relative;
+  &.tecma-popover {
+    margin-top: 0.5rem;
+    padding: unset;
+  }
+  ul {
+    margin: 0;
+    padding: 0.25rem 0;
+    position: relative;
+    border-radius: 0.125rem;
+    .tecma-dropDown-item {
+      list-style: none;
+    }
+  }
+  .tecma-dropDown-divider {
+    width: 100%;
+    height: 0.0625rem;
+    background-color: $general-border;
+    margin: 0.15rem 0;
+  }
+  .tecma-dropDown-link {
+    text-decoration: none;
+    color: inherit;
+  }
+}
+
+.dropDown-trigger,
+.tecma-header-item-trigger {
+  &.rotate-icon-on-toggle {
+    .tecma-icon:first-of-type {
+      transition: transform 200ms linear;
+    }
+    &.isOpen {
+      .tecma-icon:first-of-type {
+        transform: rotate(180deg);
+      }
+    }
+  }
+}

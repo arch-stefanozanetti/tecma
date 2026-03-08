@@ -1,0 +1,15 @@
+@use "theme/utils/colors.scss" as *;
+@use "theme/utils/dimensions" as *;
+@use "theme/utils/fonts" as *;
+
+$outline-size: 0.063rem;
+
+.MuiTooltip-tooltip {
+  background-color: $negative-active !important;
+  border-radius: $border-radius-standard !important;
+  color: $on-negative !important;
+  font-size: $smallFont !important;
+}
+.MuiTooltip-arrow {
+  color: $negative-active !important;
+}

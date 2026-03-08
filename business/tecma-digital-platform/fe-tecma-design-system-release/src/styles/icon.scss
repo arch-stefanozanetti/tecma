@@ -1,0 +1,64 @@
+@use "theme/utils/variables";
+
+$extra-small: 0.5rem;
+$small: 1rem;
+$medium: 1.5rem;
+$large: 2rem;
+$extra-large: 2rem;
+
+.tecma-icon {
+  &.extra-small {
+    width: $extra-small;
+    height: $extra-small;
+    min-width: $extra-small;
+    min-height: $extra-small;
+  }
+
+  &.small {
+    width: $small;
+    height: $small;
+    min-width: $small;
+    min-height: $small;
+  }
+
+  &.medium {
+    width: $medium;
+    min-width: $medium;
+    height: $medium;
+    min-height: $medium;
+  }
+
+  &.large {
+    width: $large;
+    height: $large;
+    min-width: $large;
+    min-height: $large;
+  }
+
+  &.extra-large {
+    width: $extra-large;
+    height: $extra-large;
+    min-width: $extra-large;
+    min-height: $extra-large;
+  }
+  &.isLogo {
+    &.small {
+      width: 2.5rem;
+      height: 2.5rem;
+      min-width: 2.5rem;
+      min-height: 2.5rem;
+    }
+    &.medium {
+      width: 3.5rem;
+      height: 3.5rem;
+      min-width: 3.5rem;
+      min-height: 3.5rem;
+    }
+    &.large {
+      width: 5.5rem;
+      height: 5.5rem;
+      min-width: 5.5rem;
+      min-height: 5.5rem;
+    }
+  }
+}

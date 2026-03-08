@@ -1,0 +1,30 @@
+@use "theme/utils/colors.scss" as *;
+@use "theme/utils/fonts" as *;
+
+.tecma-loaderPage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 100dvh;
+  width: 100dvw;
+  background-color: $canvas;
+  font-family: $primaryFont;
+  color: $on-general;
+
+  .loaderPage-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    .loaderPage-text {
+      margin-top: 1rem;
+      font-size: $mediumFont;
+      font-weight: 600;
+      line-height: 1.5625rem;
+      color: $on-general;
+    }
+  }
+}
+
+

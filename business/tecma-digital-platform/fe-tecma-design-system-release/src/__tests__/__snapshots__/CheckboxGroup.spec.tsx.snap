@@ -1,0 +1,18 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`CheckboxGroup Component should render without exploding 1`] = `
+<fieldset
+  class="MuiFormControl-root tecma-checkboxGroup vertical css-1nrlq1o-MuiFormControl-root"
+  data-testid="tecma-checkboxGroup"
+>
+  <legend
+    class="MuiFormLabel-root MuiFormLabel-colorPrimary css-u4tvz2-MuiFormLabel-root"
+  />
+  <div
+    class="MuiFormGroup-root css-dmmspl-MuiFormGroup-root"
+  />
+  <p
+    class="MuiFormHelperText-root MuiFormHelperText-sizeMedium css-1d1r5q-MuiFormHelperText-root"
+  />
+</fieldset>
+`;

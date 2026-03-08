@@ -1,0 +1,51 @@
+@use "theme/utils/variables" as *;
+
+.tecma-valuePicker {
+  display: flex;
+  overflow: hidden;
+  > * {
+    background-color: $neutral-95;
+    border: 0.0625rem solid $neutral-90;
+  }
+  .valuePicker-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 8rem;
+    overflow: hidden;
+    margin: 0 0.25rem;
+    border-radius: 0.125rem;
+    text-transform: capitalize;
+    font-size: $mediumFont;
+    p {
+      display: flex;
+      justify-content: center;
+      text-align: center;
+      width: 100%;
+      padding: 0.25rem 0;
+      position: absolute;
+      transition: all 1s;
+    }
+
+    &.disabled p {
+      color: $semantic-disabled;
+    }
+  }
+
+  &.outlined {
+    * {
+      background-color: unset;
+    }
+    .valuePicker-container {
+      border: 0.0625rem solid $neutral-90;
+    }
+    .tecma-button.outlined {
+      border: 0.0625rem solid $neutral-90;
+      outline: unset;
+      .tecma-icon path {
+        fill: $neutral-70;
+      }
+    }
+  }
+}

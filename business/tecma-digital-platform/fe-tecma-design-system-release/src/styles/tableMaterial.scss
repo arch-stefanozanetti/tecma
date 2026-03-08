@@ -1,0 +1,99 @@
+@use "theme/utils/colors.scss" as *;
+@use "theme/utils/fonts" as *;
+
+.tecma-table-material {
+  min-width: 500px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  font-family: $primaryFont;
+  .tecma-table-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid $general-border;
+    padding: 2rem 1.5rem;
+    .table-toolbar-title {
+      margin: 0;
+      color: $gray-800;
+    }
+  }
+  .tecma-table-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 1.5rem;
+    padding: 0 1.5rem 2rem;
+    .tecma-pagination {
+      .tecma-button {
+        height: 2rem;
+        width: 2rem;
+        min-height: auto;
+        min-width: auto;
+      }
+    }
+    .tecma-select {
+      .tecma-select-box {
+        width: fit-content;
+        .select__control {
+          height: 2rem;
+          min-height: auto;
+          width: fit-content;
+          min-width: 7.5rem;
+          .select__value-container {
+            display: flex;
+            justify-content: center;
+          }
+        }
+      }
+    }
+  }
+  .tecma-table-overlay-loading {
+    height: 100%;
+    width: 100%;
+    border-end-end-radius: 0.25rem;
+    border-end-start-radius: 0.25rem;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(0.25rem);
+    -webkit-backdrop-filter: blur(0.25rem);
+    position: absolute;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .MuiTableContainer-root {
+    padding: 2rem 1.5rem;
+    box-sizing: border-box;
+  }
+  table {
+    thead {
+      .MuiTableCell-root {
+        color: $on-general-sub;
+        font-family: $primaryFont;
+        font-size: $mediumFont;
+      }
+    }
+    tbody {
+      tr {
+        min-height: 4.5rem;
+        height: 4.5rem;
+        .MuiTableCell-root {
+          color: $on-general;
+          font-family: $primaryFont;
+          max-width: 16rem;
+          font-size: $mediumFont;
+        }
+      }
+    }
+  }
+  .empty-data {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 8rem;
+    font-family: $primaryFont;
+    color: $on-general;
+  }
+}

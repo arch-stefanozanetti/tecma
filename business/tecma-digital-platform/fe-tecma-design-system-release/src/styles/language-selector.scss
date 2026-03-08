@@ -1,0 +1,115 @@
+@use "theme/utils/variables" as *;
+
+#language-selector-button {
+  &.tecma-button {
+    outline: none;
+  }
+  &.outlined.tecma-button {
+    box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.1), 0px 0px 10px 0px rgba(0, 0, 0, 0.1),
+      0px 0px 10px 0px rgba(0, 0, 0, 0.1);
+    background-color: transparent;
+    color: $inverse;
+    border-color: $inverse-border;
+    .tecma-icon path {
+      fill: $inverse;
+    }
+    &:hover {
+      color: $inverse;
+      border-color: $inverse-border;
+      .tecma-icon path {
+        fill: $inverse;
+      }
+    }
+  }
+}
+.language-selector {
+  &__chevron {
+    transition: transform 200ms linear;
+    &.open {
+      transform: rotate(180deg);
+    }
+  }
+  &-dropdown {
+    overflow: hidden;
+    box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.1), 0px 0px 10px 0px rgba(0, 0, 0, 0.1),
+      0px 0px 10px 0px rgba(0, 0, 0, 0.1);
+    border-radius: 0.25rem;
+    &.rotated {
+      li {
+        transform: rotate(180deg);
+      }
+    }
+    &.open-upwards {
+      margin-top: -0.5rem;
+      &.rotated {
+        margin-top: 0.5rem;
+      }
+    }
+    &.open-downwards {
+      margin-top: 0.5rem;
+      &.rotated {
+        margin-top: -0.5rem;
+      }
+    }
+    ul {
+      height: 100%;
+      box-sizing: border-box;
+      padding: 0;
+      overflow: auto;
+      .tecma-dropDown-item {
+        .tecma-button {
+          display: flex;
+          justify-content: space-between;
+          gap: 0.5rem;
+          height: 3.75rem;
+          &.rotated {
+            transform: rotate(180deg);
+          }
+          &:hover {
+            background-color: $general-hover;
+          }
+          .language-selector {
+            &__wrapper {
+              display: flex;
+              flex-direction: column;
+              align-items: flex-start;
+              gap: 0.5rem;
+              &__language {
+                color: #3b3b3b;
+                font-size: 14px;
+                font-weight: 500;
+                line-height: 24px;
+                letter-spacing: 0;
+              }
+              &__region {
+                color: #767676;
+                font-size: 12px;
+                font-weight: 500;
+                line-height: 1rem;
+                letter-spacing: 0;
+              }
+            }
+            &__icon {
+              opacity: 0;
+              width: 1rem;
+              height: 1rem;
+              min-width: 1rem;
+              min-height: 1rem;
+              &.selected {
+                opacity: 1;
+              }
+            }
+          }
+        }
+        &.selected {
+          .tecma-button {
+            background-color: $general-active;
+            &:hover {
+              background-color: $general-active;
+            }
+          }
+        }
+      }
+    }
+  }
+}

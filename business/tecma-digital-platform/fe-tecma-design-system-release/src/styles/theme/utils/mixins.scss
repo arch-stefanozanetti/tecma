@@ -1,0 +1,72 @@
+@mixin opacity($opacity) {
+  opacity: $opacity;
+  $opacity-ie: $opacity * 100;
+  filter: alpha(opacity=$opacity-ie);
+}
+
+@mixin iconColor($color) {
+  .tecma-icon:not(.no-color-override) path {
+    fill: $color;
+  }
+}
+
+//TODO: export this mixin to let the user change easily the spinner color (type: circular-dotted)
+@mixin spinnerColor($color) {
+  @keyframes mulShdSpin {
+    0%,
+    100% {
+      box-shadow: 0em -2.6em 0em 0em $color, 1.8em -1.8em 0 0em rgba($color, 0.2),
+        2.5em 0em 0 0em rgba($color, 0.2), 1.75em 1.75em 0 0em rgba($color, 0.2),
+        0em 2.5em 0 0em rgba($color, 0.2), -1.8em 1.8em 0 0em rgba($color, 0.2),
+        -2.6em 0em 0 0em rgba($color, 0.5), -1.8em -1.8em 0 0em rgba($color, 0.7);
+    }
+    12.5% {
+      box-shadow: 0em -2.6em 0em 0em rgba($color, 0.7), 1.8em -1.8em 0 0em $color,
+        2.5em 0em 0 0em rgba($color, 0.2), 1.75em 1.75em 0 0em rgba($color, 0.2),
+        0em 2.5em 0 0em rgba($color, 0.2), -1.8em 1.8em 0 0em rgba($color, 0.2),
+        -2.6em 0em 0 0em rgba($color, 0.2), -1.8em -1.8em 0 0em rgba($color, 0.5);
+    }
+    25% {
+      box-shadow: 0em -2.6em 0em 0em rgba($color, 0.5), 1.8em -1.8em 0 0em rgba($color, 0.7),
+        2.5em 0em 0 0em $color, 1.75em 1.75em 0 0em rgba($color, 0.2),
+        0em 2.5em 0 0em rgba($color, 0.2), -1.8em 1.8em 0 0em rgba($color, 0.2),
+        -2.6em 0em 0 0em rgba($color, 0.2), -1.8em -1.8em 0 0em rgba($color, 0.2);
+    }
+    37.5% {
+      box-shadow: 0em -2.6em 0em 0em rgba($color, 0.2), 1.8em -1.8em 0 0em rgba($color, 0.5),
+        2.5em 0em 0 0em rgba($color, 0.7), 1.75em 1.75em 0 0em $color,
+        0em 2.5em 0 0em rgba($color, 0.2), -1.8em 1.8em 0 0em rgba($color, 0.2),
+        -2.6em 0em 0 0em rgba($color, 0.2), -1.8em -1.8em 0 0em rgba($color, 0.2);
+    }
+    50% {
+      box-shadow: 0em -2.6em 0em 0em rgba($color, 0.2), 1.8em -1.8em 0 0em rgba($color, 0.2),
+        2.5em 0em 0 0em rgba($color, 0.5), 1.75em 1.75em 0 0em rgba($color, 0.7),
+        0em 2.5em 0 0em $color, -1.8em 1.8em 0 0em rgba($color, 0.2),
+        -2.6em 0em 0 0em rgba($color, 0.2), -1.8em -1.8em 0 0em rgba($color, 0.2);
+    }
+    62.5% {
+      box-shadow: 0em -2.6em 0em 0em rgba($color, 0.2), 1.8em -1.8em 0 0em rgba($color, 0.2),
+        2.5em 0em 0 0em rgba($color, 0.2), 1.75em 1.75em 0 0em rgba($color, 0.5),
+        0em 2.5em 0 0em rgba($color, 0.7), -1.8em 1.8em 0 0em $color,
+        -2.6em 0em 0 0em rgba($color, 0.2), -1.8em -1.8em 0 0em rgba($color, 0.2);
+    }
+    75% {
+      box-shadow: 0em -2.6em 0em 0em rgba($color, 0.2), 1.8em -1.8em 0 0em rgba($color, 0.2),
+        2.5em 0em 0 0em rgba($color, 0.2), 1.75em 1.75em 0 0em rgba($color, 0.2),
+        0em 2.5em 0 0em rgba($color, 0.5), -1.8em 1.8em 0 0em rgba($color, 0.7),
+        -2.6em 0em 0 0em $color, -1.8em -1.8em 0 0em rgba($color, 0.2);
+    }
+    87.5% {
+      box-shadow: 0em -2.6em 0em 0em rgba($color, 0.2), 1.8em -1.8em 0 0em rgba($color, 0.2),
+        2.5em 0em 0 0em rgba($color, 0.2), 1.75em 1.75em 0 0em rgba($color, 0.2),
+        0em 2.5em 0 0em rgba($color, 0.2), -1.8em 1.8em 0 0em rgba($color, 0.5),
+        -2.6em 0em 0 0em rgba($color, 0.7), -1.8em -1.8em 0 0em $color;
+    }
+  }
+
+  animation: mulShdSpin 1.1s infinite ease;
+}
+
+@function opaqueColor($color, $alpha) {
+  @return color-mix(in srgb, $color ($alpha * 100%), transparent);
+}

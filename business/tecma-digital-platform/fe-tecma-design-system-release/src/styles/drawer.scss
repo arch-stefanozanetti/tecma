@@ -1,0 +1,206 @@
+@use 'theme/utils/colors.scss' as *;
+@use 'theme/utils/fonts' as *;
+
+$drawer-padding-horizontal: 1.5rem;
+
+.tecma-drawer {
+  .MuiPaper-root,
+  .tecma-drawer-nested-content {
+    width: 20rem;
+    color: $on-general;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    font-family: $primaryFont;
+    .tecma-drawerHeader {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem $drawer-padding-horizontal;
+      &.nested-header {
+        flex-direction: row-reverse;
+        justify-content: flex-end;
+      }
+      span {
+        font-weight: 700;
+      }
+      .close-drawer-button {
+        width: auto;
+        &.tecma-button {
+          outline: none;
+          &:hover {
+            background-color: transparent;
+          }
+        }
+      }
+    }
+    .tecma-drawer-content {
+      display: flex;
+      padding: 0.5rem $drawer-padding-horizontal;
+      gap: 1rem;
+      flex-direction: column;
+      box-sizing: border-box;
+      overflow-y: auto;
+      height: calc(100%);
+      .tecma-drawerLanguages {
+        .tecma-drawer-item {
+          border-radius: 0.25rem;
+          min-height: 3.5rem;
+          justify-content: space-between;
+          .item-text-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+            justify-content: center;
+            .item-description {
+              font-size: $smallFont;
+              color: $on-general-sub;
+              font-family: $primaryFont;
+              /* 
+          width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          text-align: left;
+          */
+            }
+          }
+          &.selected {
+            background-color: #f0f1f3;
+            .language-wrapper {
+              width: calc(100% - 1.7rem);
+            }
+          }
+        }
+      }
+    }
+
+    .tecma-drawer-avatar {
+      border: 1px solid $general-border;
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      flex-direction: column;
+      border-radius: 0.25rem;
+      gap: 1rem;
+      font-family: $primaryFont;
+      .tecma-avatar {
+        border-width: 1px;
+        span {
+          font-weight: 700;
+        }
+      }
+      .drawer-avatar {
+        &-info {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+          width: 100%;
+        }
+        &-title,
+        &-subtitle {
+          text-align: center;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          word-break: break-word;
+        }
+        &-title {
+          font-weight: 700;
+        }
+        &-subtitle {
+          color: $on-general-sub;
+          font-size: 0.875rem;
+        }
+      }
+    }
+    .tecma-drawer-footer {
+      margin-top: auto;
+      padding: 0.5rem $drawer-padding-horizontal;
+    }
+    .tecma-button,
+    .tecma-accordion-header {
+      width: 100%;
+      font-size: $mediumFont;
+      font-family: $primaryFont;
+      justify-content: flex-start;
+      gap: 1rem;
+      width: 100%;
+      outline: none;
+      height: 3.5rem;
+      color: $on-general;
+      border-radius: 0.25rem;
+      color: $on-general;
+      text-transform: capitalize;
+      .tecma-icon path {
+        fill: $on-general;
+      }
+      .tecma-drawer-item-right-icon {
+        margin-left: auto;
+      }
+      .tecma-icon {
+        width: 1.5rem;
+        min-width: 1.5rem;
+        height: 1.5rem;
+        min-height: 1.5rem;
+      }
+    }
+    .tecma-accordion {
+      .tecma-accordion-header {
+        padding: 0 1rem;
+        .tecma-icon:last-child {
+          margin-left: auto;
+        }
+      }
+      .tecma-accordion-content-panel {
+        .tecma-button {
+          &:not(:has(> .tecma-icon:first-child)) {
+            padding-left: 3.5rem;
+          }
+        }
+      }
+    }
+  }
+  .MuiDrawer-paperAnchorLeft {
+    .tecma-drawer-nested-content {
+      left: 0;
+      transform: translateX(-100%);
+    }
+  }
+  .MuiDrawer-paperAnchorRight {
+    .tecma-drawer-nested-content {
+      right: 0;
+      transform: translateX(100%);
+    }
+  }
+  .tecma-drawer-nested-content {
+    position: fixed;
+    top: 0;
+    height: 100vh;
+    background-color: $general;
+    transition: transform 0.2s ease-out;
+    &.open {
+      transform: translateX(0);
+      transition: transform 0.2s ease-out;
+    }
+  }
+  .drawer-scroll-shadow {
+    position: fixed;
+    width: 100%;
+    height: 20px;
+    z-index: 2;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+
+    &.top {
+      background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0) 100%);
+    }
+
+    &.bottom {
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0) 100%);
+    }
+  }
+}

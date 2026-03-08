@@ -1,0 +1,29 @@
+@use "theme/utils/colors.scss" as *;
+
+.tecma-sidebarHeader {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  padding: 1rem;
+  .sidebarHeader-toggleSection {
+    padding: 1rem 0;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    justify-content: center;
+    span {
+      display: none;
+    }
+    .tecma-icon path {
+      fill: black;
+    }
+  }
+  &.isOpen {
+    .sidebarHeader-toggleSection {
+      justify-content: space-between;
+      span {
+        display: block;
+      }
+    }
+  }
+}

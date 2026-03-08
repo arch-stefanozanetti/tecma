@@ -1,0 +1,59 @@
+@use "theme/utils/variables" as *;
+
+.tecma-slider-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  .slider-label {
+    font-size: 0.875rem;
+    color: $neutral-20;
+  }
+
+  .tecma-slider {
+    position: relative;
+    width: 100%;
+    height: 0.5rem;
+    background-color: $neutral-85;
+    border-radius: 1rem;
+    cursor: pointer;
+    .slider-container {
+      height: 0.5rem;
+      .slider-pointer {
+        width: 1rem;
+        top: -50%;
+        right: 0;
+        aspect-ratio: 1/1;
+        &:hover {
+          background-color: $primary-hover;
+        }
+        &:active {
+          background-color: $primary-active;
+        }
+        &:focus {
+          outline: 0.125rem solid $primary-focus;
+        }
+      }
+    }
+    .slider-container,
+    .slider-pointer {
+      background-color: $primary;
+      border-radius: 1rem;
+      position: absolute;
+    }
+    &.disabled {
+      pointer-events: none;
+      .slider-container,
+      .slider-pointer {
+        background-color: $neutral-50;
+      }
+    }
+  }
+  .slider-helpText {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    &-errored {
+      color: $semantic-alert;
+    }
+  }
+}

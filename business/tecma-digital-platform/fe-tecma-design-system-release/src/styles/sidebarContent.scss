@@ -1,0 +1,31 @@
+@use "theme/utils/colors.scss" as *;
+
+.tecma-sidebarContent {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex: 1;
+  padding: 1rem;
+  ul {
+    padding: unset;
+    margin: unset;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  &.isOpen {
+    ul {
+      align-items: unset;
+      .floatingContent-trigger {
+        width: 100%;
+      }
+
+      li {
+        .tecma-icon + span {
+          margin-left: 1rem;
+        }
+      }
+    }
+  }
+}

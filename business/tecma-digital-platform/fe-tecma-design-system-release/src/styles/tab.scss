@@ -1,0 +1,45 @@
+@use "theme/utils/colors.scss" as *;
+@use "theme/utils/mixins" as *;
+
+.tecma-tab {
+  &.outlined {
+    li {
+      .tecma-button {
+        border-bottom: 0.125rem solid $general-border;
+      }
+      &.isActive {
+        .tecma-button.transparent {
+          border-bottom: 0.25rem solid $accent;
+          color: $accent;
+          @include iconColor($accent);
+          &.disabled {
+            color: $on-disabled;
+            border-color: $disabled;
+            @include iconColor($disabled);
+          }
+        }
+      }
+    }
+  }
+  &.filled {
+    li {
+      &.isActive {
+        .tecma-button {
+          background-color: $accent-light;
+          color: $accent;
+          @include iconColor($accent);
+        }
+      }
+    }
+  }
+  nav {
+    ul {
+      display: flex;
+      margin: unset;
+      padding: unset;
+      li {
+        list-style: none;
+      }
+    }
+  }
+}

@@ -1,0 +1,58 @@
+@use "theme/utils/mixins" as *;
+@use "theme/utils/colors.scss" as *;
+
+@mixin radioButton-with-color($name, $color) {
+  &.#{$name}:not(&.disabled):not(.radio-card) {
+    &.checked {
+      .radioButton-container {
+        border-color: $color;
+        .radioButton-element {
+          background-color: $color;
+        }
+      }
+    }
+    &:focus {
+      .radioButton-container {
+        outline: 0.125rem solid opaqueColor($color, 0.3);
+      }
+    }
+    &.danger {
+      .radioButton-container {
+        border-color: $general-border;
+        outline: 0.125rem solid $danger;
+      }
+    }
+  }
+}
+
+@mixin radioButton-card-with-color(
+  $name,
+  $color,
+  $borderColor,
+  $checkedColor,
+  $checkedBackgroundColor
+) {
+  &.#{$name}.radio-card:not(&.disabled) {
+    @include borderColor($borderColor, $color);
+
+    @media (pointer: fine) {
+      &:hover {
+        @include borderColor($checkedColor, $checkedColor);
+      }
+      &:focus {
+        outline: 0.125rem solid opaqueColor($checkedColor, 0.3);
+      }
+    }
+    &.checked {
+      @include borderColor($checkedColor, $checkedColor);
+      background-color: $checkedBackgroundColor;
+    }
+  }
+}
+
+@mixin borderColor($color, $textColor) {
+  color: $textColor;
+  border-color: $color;
+
+  @include iconColor($textColor);
+}

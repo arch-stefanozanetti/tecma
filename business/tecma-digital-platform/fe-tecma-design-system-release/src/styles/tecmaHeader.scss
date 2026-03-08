@@ -1,0 +1,458 @@
+@use "theme/utils/variables.scss" as *;
+@use "theme/utils/colors.scss" as *;
+
+// Desktop Navbar Styles
+.header {
+  padding: 16px 24px;
+  width: 100%;
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 999;
+  transition: left 0.3s ease;
+  border-left: none;
+  background-color: #FFF;
+  border-bottom: 1px solid  #D3D4DA;
+
+  .header-content {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .header-left {
+    flex: 1;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+}
+
+// Vertical divider between header buttons
+.header-divider {
+  width: 1px;
+  height: 24px;
+  background-color: $gray-300;
+}
+
+// Dropdown panel style within header
+.header-dropdown {
+  .MuiPaper-root, .tecma-popover, ul {
+    min-width: 180px;
+    max-width: 232px;
+    width: 232px;
+    overflow: hidden;
+    max-height: 400px;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  ul {
+    width: 100%;
+    box-sizing: border-box;
+    max-height: 400px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    
+    // First two items (Back and Language) + divider are fixed
+    .tecma-dropDown-item:nth-child(1),
+    .tecma-dropDown-item:nth-child(2),
+    .tecma-dropDown-divider {
+      flex-shrink: 0;
+    }
+    
+    // Wrapper for scrollable language items
+    .language-items-scrollable-wrapper {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      
+      .language-items-scrollable {
+        max-height: 200px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        display: flex;
+        flex-direction: column;
+        list-style: none;
+        padding: 0;
+        padding-bottom: 10px;
+        margin: 0;
+        
+        // Custom scrollbar styling
+        &::-webkit-scrollbar {
+          width: 8px;
+        }
+        
+        &::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        
+        &::-webkit-scrollbar-thumb {
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 4px;
+        }
+        
+        &::-webkit-scrollbar-thumb:hover {
+          background: rgba(0, 0, 0, 0.3);
+        }
+      }
+    }
+  }
+  
+  // Menu transition
+  .dropdown-menu-container {
+    position: relative;
+    width: 100%;
+    min-height: 0;
+    overflow: hidden;
+    
+    .dropdown-menu-panel {
+      width: 100%;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      
+      &.menu-hidden {
+        position: absolute;
+        top: 0;
+        left: 0;
+        opacity: 0;
+        transform: translateX(-20px);
+        pointer-events: none;
+      }
+      
+      &.menu-visible {
+        opacity: 1;
+        transform: translateX(0);
+        pointer-events: auto;
+      }
+    }
+    
+    .dropdown-menu-main {
+      position: relative;
+      opacity: 1;
+      transform: translateX(0);
+      
+      &.menu-hidden {
+        position: absolute;
+        top: 0;
+        left: 0;
+        opacity: 0;
+        transform: translateX(-20px);
+        pointer-events: none;
+      }
+    }
+    
+    .dropdown-menu-language {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      opacity: 0;
+      transform: translateX(20px);
+      pointer-events: none;
+      
+      &.menu-visible {
+        position: relative;
+        opacity: 1;
+        transform: translateX(0);
+        pointer-events: auto;
+      }
+    }
+  }
+
+  .tecma-dropDown-item {
+    min-width: 0;
+    
+    padding: 10px 0;
+    
+    // Ensure button content can be truncated
+    button, .tecma-button {
+      min-width: 0;
+      width: 100%;
+    }
+    
+    // Language items with check icon - maintain fixed width
+    // Apply to items that have space-between layout (language items)
+    .dropdown-item[style*="justify-content: space-between"] {
+      position: relative;
+      padding-right: 32px !important; // Always reserve space for check icon (even when icon is not present)
+      align-items: center;
+      
+      // Container for language labels - vertical alignment
+      > div:first-child {
+        display: flex;
+        align-items: center;
+        flex: 1;
+        min-width: 0;
+        
+        .language-label-container {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
+          min-width: 0;
+          flex: 1;
+        }
+      }
+      
+      // Check icon positioning - absolute to not affect layout, vertically centered
+      > .tecma-icon:last-child,
+      > .MuiSvgIcon-root:last-child {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 20px;
+        height: 20px;
+        min-width: 20px;
+        flex-shrink: 0;
+      }
+    }
+  }
+  
+  // Truncate text with ellipsis when too long
+  .dropdown-item {
+    min-width: 0;
+    
+    span, .title, .language-label, .otp-label {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
+    
+    .otp-container {
+      min-width: 0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      
+      .otp-label {
+        display: block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+        text-align: left;
+        font-weight: 400;
+        font-size: $defaultFont;
+        line-height: 20px;
+        color: $gray-900;
+      }
+      
+      .sub-label {
+        display: block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+        text-align: left;
+        font-weight: 500;
+        font-size: $smallFont;
+        line-height: 17px;
+        color: $gray-700;
+      }
+    }
+  }
+
+  .wrapper-profile-info {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  
+  .profile-item {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .title {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    text-align: left;
+    font-weight: 500;
+    font-size: $smallFont;
+    line-height: 17px;
+    color: $on-gradient;
+  }
+  
+  .container-text-info {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .phone-text, .email-text {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    font-weight: 500;
+    font-size: $extraSmallFont;
+    line-height: 14px;
+    color: $gray-800;
+  }
+  
+  .language-label-wrapper {
+    min-width: 0;
+    flex: 1;
+  }
+  
+  .language-label-container {
+    min-width: 0;
+    flex: 1;
+    max-width: 100%;
+    
+    .language-label {
+      display: block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+      font-weight: 400;
+      font-size: $defaultFont;
+      line-height: 20px;
+      color: $gray-900;
+    }
+    
+    .sub-label {
+      display: block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+      font-weight: 500;
+      font-size: $smallFont;
+      line-height: 17px;
+      color: $gray-700;
+    }
+  }
+  
+  .resources-label-wrapper {
+    min-width: 0;
+    flex: 1;
+    max-width: 100%;
+    
+    span {
+      display: block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
+  }
+}
+
+.btn-header {
+  background-color: transparent;
+  border-color: transparent;
+  padding: 10px 24px;
+  color: $on-gradient;
+  box-shadow: none;
+}
+
+.tecma-button.fluid {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+
+.language-label-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  .language-label-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    
+    .language-label {
+      font-weight: 700;
+      font-size: $defaultFont;
+      line-height: 20px;
+      color: 'red';
+    }
+  }
+}
+
+.resources-label-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+
+.otp-label {
+  display: flex;
+}
+
+.back-label {
+  font-size: $defaultFont;
+  font-weight: 700;
+  line-height: 20px;
+  text-decoration-line: underline;
+  text-decoration-style: solid;
+  text-underline-offset: 2px;
+  color: #585bd7;
+}
+
+.language-menu-title {
+  font-weight: 700;
+  font-size: $defaultFont;
+  line-height: 20px;
+  color: 'red';
+}
+
+
+// Active language styles
+.language-item-active {
+  .language-label {
+    color: #585bd7;
+    font-weight: 700;
+  }
+  
+  .sub-label {
+    color: #585bd7;
+    font-weight: 500;
+  }
+  
+  .MuiSvgIcon-root {
+    color: #585bd7 !important;
+  }
+}

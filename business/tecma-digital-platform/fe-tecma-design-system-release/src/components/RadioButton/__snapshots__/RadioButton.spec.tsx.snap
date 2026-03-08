@@ -1,0 +1,24 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`RadioButton Component should render without exploding 1`] = `
+<div
+  aria-label="radioButton"
+  class="tecma-radioButton primary medium right"
+  data-testid="tecma-radioButton"
+  role="button"
+  tabindex="0"
+>
+  <div
+    class="radioButton-container"
+  >
+    <div
+      class="radioButton-element"
+    />
+  </div>
+  <span
+    class="radioButton-content"
+  >
+    Text
+  </span>
+</div>
+`;

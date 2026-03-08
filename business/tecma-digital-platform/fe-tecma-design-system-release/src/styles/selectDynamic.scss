@@ -1,0 +1,244 @@
+@use 'theme/utils/colors.scss' as *;
+@use 'theme/utils/fonts' as *;
+@use 'theme/utils/breakpoints' as *;
+
+.dynamic-select {
+  position: relative;
+  width: 18.75rem;
+  font-family: $primaryFont !important;
+  &.error {
+    .ds-input-area {
+      border-color: $danger-border;
+    }
+    .ds-help-text {
+      color: $danger;
+    }
+  }
+
+  .disabled {
+    &.ds-input-area {
+      background-color: $disabled;
+      cursor: not-allowed;
+      .tecma-icon {
+        background-color: $disabled;
+      }
+    }
+  }
+
+  &.open {
+    .ds-input-area {
+      outline-color: #0000ff52;
+      outline-style: solid;
+      border-color: $accent;
+      padding-right: 1.875rem;
+    }
+  }
+
+  .ds-label {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: $on-general;
+    .ds-extra-label {
+      color: $on-general-sub;
+    }
+  }
+
+  .ds-help-text {
+    color: $on-general;
+    font-family: $primaryFont;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+  }
+
+  .ds-input-area {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+    border: 1px solid $general-border;
+    border-radius: 0.125rem;
+    background-color: $general;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+
+    .ds-selected-container {
+      flex: 1;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .ds-placeholder {
+      color: $gray-400;
+    }
+
+    .tecma-icon {
+      position: absolute;
+      right: 0.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background-color: $general;
+      z-index: 2;
+      padding: 0 0.125rem;
+      height: 98%;
+    }
+  }
+
+  &.small {
+    .ds-input-area {
+      min-height: 2rem;
+      font-size: $smallFont;
+      padding-right: 1.8rem;
+
+      .tecma-icon {
+        width: 1rem;
+        min-width: 1rem;
+        min-height: 1rem;
+      }
+    }
+    .ds-label {
+      font-size: $smallFont;
+    }
+  }
+
+  &.medium {
+    .ds-input-area {
+      min-height: 2.5rem;
+      font-size: $defaultFont;
+      padding-right: 2rem;
+
+      .tecma-icon {
+        width: 1.2rem;
+        min-width: 1.2rem;
+        min-height: 1.2rem;
+      }
+    }
+    .ds-label {
+      font-size: $defaultFont;
+    }
+  }
+
+  &.large {
+    .ds-input-area {
+      min-height: 3rem;
+      font-size: $mediumFont;
+      padding-right: 2.5rem;
+
+      .tecma-icon {
+        width: 1.5rem;
+        min-width: 1.5rem;
+        min-height: 1.5rem;
+      }
+    }
+    .ds-label {
+      font-size: $mediumFont;
+    }
+  }
+}
+
+.ds-popover,
+.select-dynamic-modal {
+  box-sizing: border-box;
+  margin-top: 0.5rem;
+  padding: 0;
+  .ds-dropdown {
+    .ds-search {
+      padding: 1rem;
+      border-bottom: 1px solid $general-border;
+    }
+    .ds-list {
+      max-height: calc(3rem * 6);
+      overflow-y: auto;
+
+      .ds-list-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0 1rem;
+        height: 3rem;
+        cursor: pointer;
+        &:hover:not(.disabled) {
+          background-color: $general-hover;
+        }
+        .ds-list-item-label {
+          font-size: $defaultFont;
+          color: $on-general;
+          text-overflow: ellipsis;
+          overflow: hidden;
+          white-space: nowrap;
+          word-break: break-word;
+        }
+        &.disabled {
+          cursor: not-allowed;
+          color: $on-general-sub;
+          .ds-list-item-label {
+            color: $on-disabled;
+          }
+        }
+      }
+      .ds-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 0.5rem;
+        height: 3.5rem;
+        &.empty {
+          padding: 3.5rem 0;
+        }
+        .ds-loading-text {
+          font-size: 0.875rem;
+          color: $on-general-sub;
+        }
+      }
+    }
+  }
+}
+
+.select-dynamic-modal.tecma-modal {
+  width: 100% !important;
+  max-width: none;
+  .tecma-modal-header {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: $on-general;
+    font-family: $primaryFont;
+    align-items: center;
+  }
+  .tecma-modal-content {
+    .tecma-modal-content {
+      padding: 0;
+      height: fit-content;
+      max-height: none;
+    }
+  }
+}
+.disable-mobile-animation {
+  width: 100%;
+  max-width: none;
+
+  .tecma-modal-content {
+    padding: 0;
+    max-height: none;
+    .ds-list {
+      max-height: none;
+    }
+  }
+  &.tecma-modal-container {
+    inset: initial;
+    bottom: 0;
+    left: 0;
+    max-height: none;
+  }
+}
+
+.tecma-tooltip {
+  .tecma-icon {
+    margin-top: 0.2rem;
+    path {
+      fill: $warning;
+    }
+  }
+}

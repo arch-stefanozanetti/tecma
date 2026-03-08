@@ -1,0 +1,35 @@
+@use "theme/utils/colors.scss" as *;
+
+.tecma-date-picker {
+  &.tecma-date-picker-status-error {
+    border: 1px solid $danger;
+    &:not([disabled]):hover {
+      background-color: $general;
+      border-color: $danger;
+    }
+
+    &-focused,
+    &:focus {
+      border-color: $danger;
+      box-shadow: 0 0 0 2px $danger;
+      border-right-width: 1px;
+      outline: 0;
+    }
+  }
+
+  &-status-warning {
+    border: 1px solid $warning;
+    &:not([disabled]):hover {
+      background-color: $general;
+      border-color: $warning;
+    }
+
+    &-focused,
+    &:focus {
+      border-color: $warning;
+      box-shadow: 0 0 0 2px $warning;
+      border-right-width: 1px;
+      outline: 0;
+    }
+  }
+}

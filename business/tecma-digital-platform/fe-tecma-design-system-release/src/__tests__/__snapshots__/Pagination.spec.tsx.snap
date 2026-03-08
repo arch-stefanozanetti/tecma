@@ -1,0 +1,42 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Pagination Component should render without exploding 1`] = `
+<div
+  class="tecma-pagination"
+  data-testid="tecma-pagination"
+>
+  <button
+    class="tecma-button transparent medium icon-only"
+    data-testid="tecma-button"
+    type="button"
+  >
+    <svg
+      aria-label="arrow-left"
+      class="tecma-icon medium"
+    />
+  </button>
+  <button
+    class="tecma-button transparent medium pagination-page"
+    data-testid="tecma-button"
+    type="button"
+  >
+    1
+  </button>
+  <button
+    class="tecma-button transparent medium pagination-page is-selected"
+    data-testid="tecma-button"
+    type="button"
+  />
+  <button
+    class="tecma-button disabled transparent medium icon-only"
+    data-testid="tecma-button"
+    disabled=""
+    type="button"
+  >
+    <svg
+      aria-label="arrow-right"
+      class="tecma-icon medium"
+    />
+  </button>
+</div>
+`;

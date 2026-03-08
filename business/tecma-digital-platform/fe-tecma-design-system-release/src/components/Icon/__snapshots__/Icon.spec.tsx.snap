@@ -1,0 +1,123 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Icon Component retrieveSVGElement should retrieve element and match the SVG 1`] = `
+<div>
+  <svg
+    fill="none"
+    height="24"
+    viewBox="0 0 24 24"
+    width="24"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      clip-rule="evenodd"
+      d="M11.2929 6.79289C11.6834 6.40237 12.3166 6.40237 12.7071 6.79289L20.2071 14.2929C20.5976 14.6834 20.5976 15.3166 20.2071 15.7071C19.8166 16.0976 19.1834 16.0976 18.7929 15.7071L12 8.91421L5.20711 15.7071C4.81658 16.0976 4.18342 16.0976 3.79289 15.7071C3.40237 15.3166 3.40237 14.6834 3.79289 14.2929L11.2929 6.79289Z"
+      fill="#262626"
+      fill-rule="evenodd"
+    />
+  </svg>
+</div>
+`;
+
+exports[`Icon Component should render local icon if iconName is passed and no remote URL is provided 1`] = `
+<svg
+  class="tecma-icon medium"
+  data-testid="tecma-icon"
+  fill="none"
+  height="24"
+  viewBox="0 0 24 24"
+  width="24"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <path
+    clip-rule="evenodd"
+    d="M11.2929 6.79289C11.6834 6.40237 12.3166 6.40237 12.7071 6.79289L20.2071 14.2929C20.5976 14.6834 20.5976 15.3166 20.2071 15.7071C19.8166 16.0976 19.1834 16.0976 18.7929 15.7071L12 8.91421L5.20711 15.7071C4.81658 16.0976 4.18342 16.0976 3.79289 15.7071C3.40237 15.3166 3.40237 14.6834 3.79289 14.2929L11.2929 6.79289Z"
+    fill="#262626"
+    fill-rule="evenodd"
+  />
+</svg>
+`;
+
+exports[`Icon Component should render local icon if iconName is passed and remote URL is invalid 1`] = `
+<svg
+  class="tecma-icon medium"
+  data-testid="tecma-icon"
+  fill="none"
+  height="24"
+  viewBox="0 0 24 24"
+  width="24"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <path
+    clip-rule="evenodd"
+    d="M11.2929 6.79289C11.6834 6.40237 12.3166 6.40237 12.7071 6.79289L20.2071 14.2929C20.5976 14.6834 20.5976 15.3166 20.2071 15.7071C19.8166 16.0976 19.1834 16.0976 18.7929 15.7071L12 8.91421L5.20711 15.7071C4.81658 16.0976 4.18342 16.0976 3.79289 15.7071C3.40237 15.3166 3.40237 14.6834 3.79289 14.2929L11.2929 6.79289Z"
+    fill="#262626"
+    fill-rule="evenodd"
+  />
+</svg>
+`;
+
+exports[`Icon Component should render remote icon if iconName is passed and remote URL is provided 1`] = `
+<svg
+  class="tecma-icon medium"
+  data-testid="tecma-icon"
+  viewBox="0 0 8.67 14.51"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <g
+    data-name="Livello 2"
+    id="Livello_2__:r0:__:r7:"
+  >
+    <g
+      data-name="Livello 1"
+      id="Livello_1-2__:r0:__:r7:"
+    >
+      <polygon
+        points="0 7.25 7.25 0 8.67 1.41 2.83 7.25 8.67 13.1 7.25 14.51 0 7.25"
+      />
+    </g>
+  </g>
+</svg>
+`;
+
+exports[`Icon Component should render remote icon if iconName is passed and remote URL is provided as context 1`] = `
+<svg
+  class="tecma-icon medium"
+  data-testid="tecma-icon"
+  viewBox="0 0 8.67 14.51"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <g
+    data-name="Livello 2"
+    id="Livello_2__:r0:__:r8:"
+  >
+    <g
+      data-name="Livello 1"
+      id="Livello_1-2__:r0:__:r8:"
+    >
+      <polygon
+        points="0 7.25 7.25 0 8.67 1.41 2.83 7.25 8.67 13.1 7.25 14.51 0 7.25"
+      />
+    </g>
+  </g>
+</svg>
+`;
+
+exports[`Icon Component should render without exploding 1`] = `
+<svg
+  class="tecma-icon medium"
+  data-testid="tecma-icon"
+  fill="none"
+  height="24"
+  viewBox="0 0 24 24"
+  width="24"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <path
+    clip-rule="evenodd"
+    d="M11.2929 6.79289C11.6834 6.40237 12.3166 6.40237 12.7071 6.79289L20.2071 14.2929C20.5976 14.6834 20.5976 15.3166 20.2071 15.7071C19.8166 16.0976 19.1834 16.0976 18.7929 15.7071L12 8.91421L5.20711 15.7071C4.81658 16.0976 4.18342 16.0976 3.79289 15.7071C3.40237 15.3166 3.40237 14.6834 3.79289 14.2929L11.2929 6.79289Z"
+    fill="#262626"
+    fill-rule="evenodd"
+  />
+</svg>
+`;

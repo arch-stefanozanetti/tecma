@@ -1,0 +1,49 @@
+@use "theme/utils/variables" as *;
+@use "sass:math";
+
+// mixin to calculate column dimension
+@mixin calculateColSize($className) {
+  @for $i from 1 to 12 {
+    &.#{$className}-#{$i} {
+      flex: none;
+      width: math.div($i, 12) * 100%;
+    }
+  }
+}
+
+// Creates from 1 to $cols number of offsets classes
+
+@mixin create-offset($offsetName) {
+  @for $i from 1 to 12 {
+    &.#{$offsetName}-#{$i} {
+      margin-left: (($i)/ 12) * 100%;
+    }
+  }
+}
+
+.tecma-grid {
+  display: flex;
+  flex-wrap: wrap;
+  .tecma-grid-column {
+    flex-grow: 1;
+    flex-basis: 0;
+    box-sizing: border-box;
+    @include calculateColSize("col");
+    @include create-offset("offset");
+  }
+  &.start {
+    align-items: flex-start;
+  }
+  &.center {
+    align-items: center;
+  }
+  &.end {
+    align-items: flex-end;
+  }
+  &.stretch {
+    align-items: stretch;
+  }
+  &.baseline {
+    align-items: baseline;
+  }
+}

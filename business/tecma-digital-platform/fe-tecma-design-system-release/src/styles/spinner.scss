@@ -1,0 +1,128 @@
+@use "theme/utils/colors.scss" as *;
+
+.tecma-spinner {
+  &.circle {
+    border-radius: 100%;
+    border: solid $on-disabled;
+    border-left-color: $disabled;
+    animation: spin 1s linear infinite;
+    &.small {
+      width: 1rem;
+      height: 1rem;
+
+      &:not(.gradient) {
+        border-width: 0.125rem;
+      }
+
+      &.gradient {
+        padding: 0.125rem;
+      }
+    }
+
+    &.medium {
+      width: 1.5rem;
+      height: 1.5rem;
+
+      &:not(.gradient) {
+        border-width: 0.19rem;
+      }
+
+      &.gradient {
+        padding: 0.19rem;
+      }
+    }
+
+    &.large {
+      width: 2rem;
+      height: 2rem;
+
+      &:not(.gradient) {
+        border-width: 0.25rem;
+      }
+
+      &.gradient {
+        padding: 0.25rem;
+      }
+    }
+
+    &.gradient {
+      border: 0;
+      background: linear-gradient(to right, $on-disabled 70%, $disabled);
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask-composite: exclude;
+    }
+  }
+  &.dotted {
+    display: flex;
+
+    .dot {
+      background-color: $accent;
+      border-radius: 100%;
+      animation: degrow 0.8s linear infinite;
+
+      &:first-child,
+      &:last-child {
+        animation: grow 0.8s linear infinite;
+      }
+      + .dot {
+        margin-left: 0.5rem;
+      }
+    }
+    &.small {
+      .dot {
+        width: 1rem;
+        height: 1rem;
+      }
+    }
+
+    &.medium {
+      .dot {
+        width: 1.5rem;
+        height: 1.5rem;
+      }
+    }
+
+    &.large {
+      .dot {
+        width: 2rem;
+        height: 2rem;
+      }
+    }
+  }
+  &.dotted-circle {
+    animation: spin 2s linear infinite;
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes grow {
+  0% {
+    transform: scale(0.5);
+  }
+  50% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(0.5);
+  }
+}
+
+@keyframes degrow {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.5);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

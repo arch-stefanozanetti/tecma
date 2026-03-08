@@ -1,0 +1,76 @@
+@use "theme/utils/colors.scss" as *;
+@use "theme/utils/mixins" as *;
+
+.tecma-toggle-container {
+  &--inline {
+    flex-direction: row-reverse;
+    align-items: center;
+    gap: 8px;
+  }
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  .toggle-label {
+    font-size: 0.875rem;
+    color: $on-general-sub;
+  }
+  .tecma-toggle {
+    --toggle-size: 1.25rem;
+    width: 2.75rem;
+    height: 1.5rem;
+    background-color: $negative;
+    border-radius: 100rem;
+    position: relative;
+    box-sizing: border-box;
+    padding: 0.125rem;
+    transition: background-color 0.5s;
+    &:focus {
+      outline: 0.188rem solid opaqueColor($accent, 0.3);
+    }
+    .toggle-element {
+      width: var(--toggle-size);
+      height: var(--toggle-size);
+      box-sizing: border-box;
+      border-radius: 100%;
+      background-color: $on-negative;
+      transform: translateX(0);
+      transition: transform 0.5s;
+      cursor: pointer;
+    }
+    &.active {
+      background-color: $accent;
+      transition: background-color 0.5s;
+      .toggle-element {
+        transform: translateX(100%);
+        transition: transform 0.5s;
+      }
+    }
+    &.disabled {
+      background-color: $disabled;
+      .toggle-element {
+        background-color: $on-disabled;
+        pointer-events: none;
+      }
+    }
+    // ----------------------------
+    // SIZES
+    // ----------------------------
+    &.large {
+      --toggle-size: 1.75rem;
+      width: 3.75rem;
+      height: 2rem;
+    }
+    &.small {
+      --toggle-size: 0.75rem;
+      width: 1.75rem;
+      height: 1rem;
+    }
+  }
+  .toggle-helpText {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    &-errored {
+      color: $danger;
+    }
+  }
+}

@@ -1,0 +1,141 @@
+// Token globali - Colori principali
+$primary: var(--primary, #6266ef);
+$primary-light: var(--primary-light, #ebedf8);
+$primary-dark: var(--primary-dark, #4a56bf);
+$primary-elements: var(--primary-elements, #f0f1f5);
+$primary-border: var(--primary-border, #b5b9c2);
+$primary-hover: var(--primary-hover, #474bcd);
+$primary-active: var(--primary-active, #3134ac);
+$primary-focus: var(--primary-focus, #5d6bef80);
+$on-primary: var(--on-primary, #ffffff);
+$on-primary-light: var(--on-primary-light, #474747);
+
+$secondary: var(--secondary, #ebedf8);
+$secondary-light: var(--secondary-light, #f4f4f5);
+$secondary-dark: var(--secondary-dark, #a4a4ac);
+$secondary-elements: var(--secondary-elements, #0c0c0d);
+$secondary-hover: var(--secondary-hover, #ebedf8);
+$secondary-active: var(--secondary-active, #ebedf8);
+$secondary-focus: var(--secondary-focus, #f4f5fc);
+$on-secondary: var(--on-secondary, #212121);
+
+$inverse: var(--inverse, #ffffff);
+$inverse-border: var(--inverse-border, #ffffff);
+$inverse-hover: var(--inverse-hover, #eeeeee);
+$inverse-active: var(--inverse-active, #e0e0e0);
+$inverse-focus: var(--inverse-focus, #989898);
+$on-inverse: var(--on-inverse, #3b3b3b);
+
+$accent: var(--accent, #6266ef);
+$on-accent: var(--on-accent, #ffffff);
+$accent-light: var(--accent-light, #f6f8ff);
+$accent-dark: var(--accent-dark, #4a56bf);
+$accent-elements: var(--accent-elements, #f0f1f5);
+$accent-alt-elements: var(--accent-alt-elements, #f0f1f5);
+
+$accent-alternative: var(--accent-alternative, #0db392);
+$accent-alternative-light: var(--accent-alternative-light, #20efc6);
+$accent-alternative-dark: var(--accent-alternative-dark, #086d59);
+
+//Token alias - Colori specifici
+$background-color-1: var(--background-color-1, #dbe1e1);
+$background-color-2: var(--background-color-2, #f4f4f5);
+$background-color-3: var(--background-color-3, #212631);
+
+$background-1-elements: var(--background-1-elements, #1a1a1a);
+$background-2-elements: var(--background-2-elements, #1a1a1a);
+$background-3-elements: var(--background-3-elements, #f2f2f2);
+
+$background-alternative: var(--background-alternative, #ffffff);
+$background-alt-elements: var(--background-alt-elements, #ad78b0);
+
+//Token globali - Colori fissi
+$neutral-000: var(--neutral-000, #000000);
+$neutral-10: var(--neutral-10, #1a1a1a);
+$neutral-20: var(--neutral-20, #333333);
+$neutral-30: var(--neutral-30, #4d4d4d);
+$neutral-40: var(--neutral-40, #666666);
+$neutral-50: var(--neutral-50, #808080);
+$neutral-60: var(--neutral-60, #999999);
+$neutral-70: var(--neutral-70, #b3b3b3);
+$neutral-75: var(--neutral-75, #bfbfbf);
+$neutral-80: var(--neutral-80, #cccccc);
+$neutral-85: var(--neutral-85, #d9d9d9);
+$neutral-90: var(--neutral-90, #e6e6e6);
+$neutral-95: var(--neutral-95, #f2f2f2);
+$neutral-100: var(--neutral-100, #ffffff);
+
+$general: var(--general, #ffffff);
+$general-active: var(--general-active, #f1f1f1);
+$general-border: var(--general-border, #e0e0e0);
+$general-hover: var(--general-hover, #f8f8f8);
+$on-general: var(--on-general, #3b3b3b);
+$on-general-sub: var(--on-general-sub, #767676);
+
+$main-accent-hover: var(--colors-main-accent-hover, #4e51c0);
+$main-accent-active: var(--colors-main-accent-active, #3a3c92);
+
+$text-grey: var(--text-grey, #555);
+
+//Palette cromatica per elementi e messaggi di avviso
+$semantic-warning: var(--semantic-warning, #a46a1d);
+$semantic-warning-dark: var(--semantic-warning-dark, #bd7100);
+$semantic-warning-light: var(--semantic-warning-light, #f7f0e9);
+
+//Palette cromatica per elementi e messaggi di errore
+$semantic-alert: var(--semantic-alert, #ca4a46);
+$semantic-alert-dark: var(--semantic-alert-dark, #a23b38);
+$semantic-alert-light: var(--semantic-alert-light, #feedeb);
+$semantic-alert-hover: var(--semantic-alert-hover, #ad3339);
+$semantic-alert-active: var(--semantic-alert-active, #912332);
+$semantic-alert-focus: var(--semantic-alert-focus, #efa1a0);
+
+//Palette cromatica per elementi e messaggi di successo
+$semantic-success: var(--semantic-success, #2e872b);
+$semantic-success-dark: var(--semantic-success-dark, #096250);
+$semantic-success-light: var(--semantic-success-light, #ebf3ea);
+
+//Palette cromatica per elementi e messaggi di info
+$semantic-info: var(--semantic-info, #4073d5);
+$semantic-info-dark: var(--semantic-info-dark, #1b456f);
+$semantic-info-light: var(--semantic-info-light, #eaf1fe);
+
+//Palette cromatica per elementi disabilitati
+$semantic-disabled: var(--semantic-disabled, #eeeeee);
+$semantic-disabled-dark: var(--semantic-disabled-dark, #9e9e9e);
+$semantic-disabled-light: var(--semantic-disabled-light, #f2f2f2);
+$on-disabled: var(--on-disabled, #b9b9b9);
+
+$semantic-danger: var(--semantic-danger, #ca4a46);
+
+$spacing-xxs: var(--spacing-xxs, 0.25rem);
+$spacing-xs: var(--spacing-xs, 0.5rem);
+$spacing-s: var(--spacing-s, 1rem);
+$spacing-m: var(--spacing-m, 1.5rem);
+$spacing-l: var(--spacing-l, 2rem);
+$border-radius-element: var(--border-radius-element, 0.125rem);
+$border-radius-internal: var(--border-radius-internal, 0.125rem);
+$border-radius-external: var(--border-radius-external, 0.25rem);
+$border-radius-standard: var(--border-radius-standard, 0.0625rem);
+
+// font size 1rem === 16px
+$extraSmallFont: 0.625rem; //10px
+$smallFont: 0.76rem; //12px
+$defaultFont: 0.875rem; // 14px
+$mediumFont: 1rem; //16px
+$largeFont: 1.25rem; //20px
+$extraLargeFont: 1.5rem; //24px
+
+$primaryFont: var(--textFont, "Segoe UI");
+
+// BREAKPOINTS
+// Mobile: 320 - 768
+// Tablet: 769 -1024
+// Desktop_S: 1025 -1440
+// Desktop_M: 1441 - 1920
+// Desktop_L: 1921 in su
+$mobile: 320px;
+$tablet: 768px;
+$desktop_S: 1024px;
+$desktop_M: 1440px;
+$desktop_L: 1920px;

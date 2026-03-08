@@ -1,0 +1,11 @@
+{
+    "all": true,
+    "include": "src",
+    "reporter": [
+        "json",
+        "lcov",
+        "cobertura",
+        "text"
+    ],
+    "tempDirectory": "./coverage"
+}

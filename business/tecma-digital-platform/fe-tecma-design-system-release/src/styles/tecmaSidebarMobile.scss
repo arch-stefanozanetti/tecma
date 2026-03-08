@@ -1,0 +1,146 @@
+@use "theme/utils/colors.scss" as *;
+
+// Tecma Sidebar Mobile Styles
+.tecma-sidebar-mobile {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  background: linear-gradient(180deg, $gradient-1 0%, $gradient-2 100%);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 998;
+  padding: 0;
+
+  .tecma-sidebar-mobile-content {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 16px;
+    max-width: 100%;
+  }
+
+  .tecma-sidebar-mobile-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 0;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    width: 64px;
+    height: 64px;
+    min-width: 64px;
+    min-height: 64px;
+    max-width: 64px;
+    max-height: 64px;
+    position: relative;
+    box-sizing: border-box;
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    &:active {
+      transform: scale(0.98);
+    }
+
+    &.tecma-sidebar-mobile-item--active {
+      background-color: $on-accent;
+      box-shadow: 0 2px 18px 0 rgba(100, 100, 100, 0.30);
+      border-radius: 2px;
+
+      .tecma-sidebar-mobile-item-icon {        
+        .tecma-icon,
+        .tecma-icon svg,
+        .tecma-icon path {
+          color: $accent;
+          fill: $accent;
+        }
+      }
+
+      .tecma-sidebar-mobile-item-label {
+        color: $accent;
+        font-weight: 500;
+        font-size: 10px;
+        line-height: 14px;
+      }
+    }
+
+    .tecma-sidebar-mobile-item-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 4px;
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+
+      .tecma-icon {
+        width: 24px;
+        height: 24px;
+        color: $gray-800;
+        transition: color 0.2s ease;
+      }
+    }
+
+    .tecma-sidebar-mobile-item-label {
+      font-size: 10px;
+      font-weight: 500;
+      line-height: 12px;
+      color: $gray-800;
+      text-align: center;
+      transition: all 0.2s ease;
+      font-family: inherit;
+      width: 100%;
+      max-height: 24px;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      text-overflow: ellipsis;
+      word-break: break-word;
+    }
+  }
+}
+
+.tecma-sidebar-mobile-drawer {
+  height: calc(100vh - 80px);
+}
+
+// Drawer specific styles for mobile sidebar
+.tecma-drawer.tecma-sidebar-mobile-drawer .MuiPaper-root,
+.tecma-drawer.tecma-sidebar-mobile-drawer .tecma-drawer-nested-content {
+  width: 100% !important; 
+  top: 60px;
+  height: calc(100vh - 60px - 80px);
+  bottom: 80px;
+  box-shadow: none !important;
+}
+
+// Responsive adjustments
+@media (max-width: 480px) {
+  .tecma-sidebar-mobile {
+    .tecma-sidebar-mobile-content {
+      padding: 0 8px;
+    }
+
+    .tecma-sidebar-mobile-item {
+      width: 64px;
+      height: 64px;
+      min-width: 64px;
+      min-height: 64px;
+      max-width: 64px;
+      max-height: 64px;
+
+      .tecma-sidebar-mobile-item-label {
+        font-size: 10px;
+      }
+    }
+  }
+}

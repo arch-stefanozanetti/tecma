@@ -1,0 +1,48 @@
+@use "theme/utils/colors.scss" as *;
+@use "theme/utils/mixins" as *;
+
+.tecma-tag {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  background-color: $primary;
+  border-radius: 0.125rem;
+  padding: 0.25rem 0.5rem;
+  width: fit-content;
+  height: 1.25rem;
+  color: $on-primary;
+  .tecma-icon + span {
+    margin-left: 0.5rem;
+    + .tecma-button {
+      margin-left: 0.5rem;
+    }
+  }
+  &.dismissable {
+    .tecma-button {
+      width: 1rem;
+      height: 1rem;
+      min-height: 1rem;
+      padding: 0;
+      .tecma-icon path {
+        fill: $on-primary;
+      }
+    }
+    &:hover {
+      .tecma-button {
+        background-color: $primary-hover;
+      }
+    }
+  }
+  &.disabled {
+    pointer-events: none;
+    color: $on-disabled;
+    background-color: $disabled;
+    @include iconColor($on-disabled);
+
+    .tecma-button {
+      .tecma-icon path {
+        fill: $on-disabled;
+      }
+    }
+  }
+}

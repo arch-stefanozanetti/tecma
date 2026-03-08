@@ -1,0 +1,22 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Radio Component should render without exploding 1`] = `
+<span
+  class="MuiButtonBase-root MuiRadio-root MuiRadio-colorDefault PrivateSwitchBase-root MuiRadio-root MuiRadio-colorDefault MuiRadio-root MuiRadio-colorDefault css-wxwe5p-MuiButtonBase-root-MuiRadio-root"
+  data-testid="tecma-radio"
+>
+  <input
+    class="PrivateSwitchBase-input css-1m9pwf3"
+    type="radio"
+    value=""
+  />
+  <div
+    class="radioButton-container medium"
+    font-size="medium"
+  >
+    <div
+      class="radioButton-element"
+    />
+  </div>
+</span>
+`;

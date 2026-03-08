@@ -1,0 +1,12 @@
+@use "theme/utils/colors.scss" as *;
+
+.tecma-divider {
+  border: 0.0625rem solid;
+  border-color: $general-border;
+
+  &.vertical {
+    margin: 0 1rem;
+    display: inline;
+    height: 1rem;
+  }
+}

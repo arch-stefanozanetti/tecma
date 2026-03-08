@@ -1,0 +1,4 @@
+node_modules
+coverage
+.gitlab-ci.yml
+lib/*

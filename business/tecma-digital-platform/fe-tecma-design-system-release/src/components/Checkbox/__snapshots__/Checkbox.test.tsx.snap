@@ -1,0 +1,9 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Checkbox component should render without exploding 1`] = `
+<input
+  checked=""
+  data-testid="tecma-checkbox"
+  type="checkbox"
+/>
+`;

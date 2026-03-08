@@ -1,0 +1,14 @@
+@use "theme/utils/colors.scss" as *;
+
+.tecma-checkboxGroup {
+  .MuiFormLabel-root {
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    color: $on-general;
+  }
+  &.horizontal {
+    .MuiFormGroup-root {
+      flex-direction: row;
+    }
+  }
+}

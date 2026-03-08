@@ -1,0 +1,21 @@
+@use "theme/utils/colors.scss" as *;
+
+.tecma-progressBar {
+  position: relative;
+  width: 100%;
+  height: 0.5rem;
+  background-color: $gray-100;
+  border-radius: 1rem;
+  .progressBar {
+    position: absolute;
+    background-color: $accent;
+    height: 100%;
+    border-radius: 1rem;
+    transition: all 1s linear;
+  }
+  .progressBar-value {
+    position: absolute;
+    right: 0;
+    top: -1.5rem;
+  }
+}

@@ -1,0 +1,52 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Avatar Component Should render with the icon component inside if the icon prop is provided 1`] = `
+<div
+  class="tecma-avatar medium"
+  data-testid="tecma-avatar"
+>
+  <svg
+    class="tecma-icon medium avatar-icon"
+    data-testid="tecma-icon"
+    viewBox="0 0 8.67 14.51"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <g
+      data-name="Livello 2"
+      id="Livello_2__:r0:__:r1:"
+    >
+      <g
+        data-name="Livello 1"
+        id="Livello_1-2__:r0:__:r1:"
+      >
+        <polygon
+          points="0 7.25 7.25 0 8.67 1.41 2.83 7.25 8.67 13.1 7.25 14.51 0 7.25"
+        />
+      </g>
+    </g>
+  </svg>
+</div>
+`;
+
+exports[`Avatar Component Should render with the image inside if the src prop is provided 1`] = `
+<div
+  class="tecma-avatar medium"
+  data-testid="tecma-avatar"
+>
+  <span
+    class="tecma-lazyImage"
+    data-testid="tecma-lazyImage"
+  >
+    Loading...
+  </span>
+</div>
+`;
+
+exports[`Avatar Component should render without exploding 1`] = `
+<div
+  class="tecma-avatar medium"
+  data-testid="tecma-avatar"
+>
+  <span />
+</div>
+`;

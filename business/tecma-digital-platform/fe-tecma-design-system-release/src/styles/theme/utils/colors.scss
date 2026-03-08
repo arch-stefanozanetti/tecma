@@ -1,0 +1,148 @@
+/** -- MAIN -- */
+
+// Accent
+$accent: var(--accent, #585bd7);
+$accent-active: var(--accent-active, #3a3c92);
+$accent-alternative: var(--accent-alternative, #3a3c92);
+$accent-border: var(--accent-border, #6266ef);
+$accent-hover: var(--accent-hover, #4e51c0);
+$accent-light: var(--accent-light, #f6f8ff);
+$on-accent: var(--on-accent, #ffffff);
+$on-accent-disabled: var(--on-accent-disabled, #b6b9c2);
+$on-accent-light: var(--on-accent-light, #585bd7);
+$on-accent-sub: var(--on-accent-sub, #f0f1f3);
+
+// Primary
+$primary: var(--primary, #e0e5ef);
+$primary-active: var(--primary-active, #b5b9c2);
+$primary-border: var(--primary-border, #e0e5ef);
+$primary-hover: var(--primary-hover, #d0d5de);
+$primary-light: var(--primary-light, #f6f8fb);
+$on-primary: var(--on-primary, #414655);
+$on-primary-disabled: var(--on-primary-disabled, #8991a6);
+$on-primary-light: var(--on-primary-light, #414655);
+$on-primary-sub: var(--on-primary-sub, #585e70);
+
+// Secondary
+$secondary: var(--secondary, #b2b6e1);
+$secondary-active: var(--secondary-active, #70739b);
+$secondary-border: var(--secondary-border, #9ca0d7);
+$secondary-hover: var(--secondary-hover, #9ca0d7);
+$secondary-light: var(--secondary-light, #f7f8fc);
+$on-secondary: var(--on-secondary, #000000);
+$on-secondary-disabled: var(--on-secondary-disabled, #6e748c);
+$on-secondary-light: var(--on-secondary-light, #363b4c);
+$on-secondary-sub: var(--on-secondary-sub, #363b4c);
+
+// Tertiary
+$tertiary: var(--tertiary, #5a5c7e);
+$tertiary-active: var(--tertiary-active, #43445f);
+$tertiary-border: var(--tertiary-border, #5a5c7e);
+$tertiary-hover: var(--tertiary-hover, #5a5c7e);
+$tertiary-light: var(--tertiary-light, #f7f8fc);
+$on-tertiary: var(--on-tertiary, #ffffff);
+$on-tertiary-disabled: var(--on-tertiary-disabled, #b6b9c2);
+$on-tertiary-light: var(--on-tertiary-light, #464c62);
+$on-tertiary-sub: var(--on-tertiary-sub, #f0f1f3);
+
+// Gradient
+$gradient-1: var(--gradient-1, #e0e3f5);
+$gradient-2: var(--gradient-2, #fceded);
+$on-gradient: var(--on-gradient, #383b48);
+$on-gradient-disabled: var(--on-gradient-disabled, #8991a6);
+$on-gradient-sub: var(--on-gradient-sub, #585e70);
+
+/** -- NEUTRAL -- */
+
+// General
+$general: var(--general, #ffffff);
+$general-active: var(--general-active, #f0f1f3);
+$general-border: var(--general-border, #d3d4da);
+$general-hover: var(--general-hover, #f8f8f9);
+$on-general: var(--on-general, #363b4c);
+$on-general-disabled: var(--on-general-disabled, #a6a9b5);
+$on-general-sub: var(--on-general-sub, #6e748c);
+$canvas: var(--canvas, #f8f8f9);
+
+// Inverse
+$inverse: var(--inverse, #ffffff);
+$inverse-active: var(--inverse-active, #d3d4da);
+$inverse-border: var(--inverse-border, #f0f1f3);
+$inverse-hover: var(--inverse-hover, #f0f1f3);
+$on-inverse: var(--on-inverse, #363b4c);
+$on-inverse-disabled: var(--on-inverse-disabled, #8c909e);
+$on-inverse-sub: var(--on-inverse-sub, #6e748c);
+
+// Negative
+$negative: var(--negative, #6e748c);
+$negative-active: var(--negative-active, #363b4c);
+$negative-border: var(--negative-border, #363b4c);
+$negative-hover: var(--negative-hover, #9a9eab);
+$on-negative: var(--on-negative, #ffffff);
+$on-negative-disabled: var(--on-negative-disabled, #a6a9b5);
+$on-negative-sub: var(--on-negative-sub, #d3d4da);
+
+// Disabled
+$disabled: var(--disabled, #f0f1f3);
+$on-disabled: var(--on-disabled, #b6b9c2);
+
+/** -- SEMANTIC -- */
+
+// Danger
+$danger: var(--danger, #ca4a46);
+$danger-active: var(--danger-active, #7e2a28);
+$danger-border: var(--danger-border, #ca4a46);
+$danger-hover: var(--danger-hover, #a33b38);
+$danger-light: var(--danger-light, #feedeb);
+$on-danger: var(--on-danger, #ffffff);
+$on-danger-light: var(--on-danger-light, #7e2a28);
+$on-danger-light-sub: var(--on-danger-light-sub, #464c62);
+
+// Info
+$info: var(--info, #4073d5);
+$info-active: var(--info-active, #1a4390);
+$info-border: var(--info-border, #4073d5);
+$info-hover: var(--info-hover, #2b64d1);
+$info-light: var(--info-light, #eaf1fe);
+$on-info: var(--on-info, #ffffff);
+$on-info-light: var(--on-info-light, #1a4390);
+$on-info-light-sub: var(--on-info-light-sub, #414655);
+
+// Success
+$success: var(--success, #2e872b);
+$success-active: var(--success-active, #015300);
+$success-border: var(--success-border, #2e872b);
+$success-hover: var(--success-hover, #007c00);
+$success-light: var(--success-light, #ebf3ea);
+$on-success: var(--on-success, #ffffff);
+$on-success-light: var(--on-success-light, #015300);
+$on-success-light-sub: var(--on-success-light-sub, #414655);
+
+// Warning
+$warning: var(--warning, #a46a1d);
+$warning-active: var(--warning-active, #663d00);
+$warning-border: var(--warning-border, #a46a1d);
+$warning-hover: var(--warning-hover, #875200);
+$warning-light: var(--warning-light, #f7f0e9);
+$on-warning: var(--on-warning, #ffffff);
+$on-warning-light: var(--on-warning-light, #663d00);
+$on-warning-light-sub: var(--on-warning-light-sub, #464c62);
+
+/** -- GRAY -- */
+$gray-50: var(--gray-50, #f8f8f9);
+$gray-100: var(--gray-100, #f0f1f3);
+$gray-200: var(--gray-200, #d3d4da);
+$gray-300: var(--gray-300, #b6b9c2);
+$gray-400: var(--gray-400, #9e9e9e);
+$gray-500: var(--gray-500, #8c909e);
+$gray-600: var(--gray-600, #9a9eab);
+$gray-700: var(--gray-700, #6e748c);
+$gray-800: var(--gray-800, #464c62);
+$gray-900: var(--gray-900, #363b4c);
+
+$blue-50: var(--blue-50, #e0e3f5);
+$white-50: var(--white-50, #ffffff);
+
+/** -- TECHNICAL -- */
+$blanket-overlay: rgba(#000, 0.4);
+$overlay: rgba(#fff, 0.3);

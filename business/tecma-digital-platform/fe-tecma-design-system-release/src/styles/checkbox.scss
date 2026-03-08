@@ -1,0 +1,102 @@
+@use "theme/utils/colors.scss" as *;
+@use "theme/utils/mixins.scss" as *;
+
+.tecma-checkbox {
+  .tecma-custom-checkbox {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem 0;
+  }
+  .help-text,
+  .help-text-errored {
+    margin-left: 9px;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+  }
+  .help-text-errored {
+    color: $danger;
+  }
+  .MuiTypography-root {
+    font-size: 0.875rem;
+    color: $on-general;
+  }
+
+  .tecma-checkbox-container {
+    display: flex;
+    align-items: center;
+    // ----------------------------
+    // SIZES
+    // ----------------------------
+
+    &.small {
+      width: 1rem;
+      height: 1rem;
+      .checkbox-element svg {
+        width: 0.75rem;
+        height: 0.75rem;
+        min-width: 0.75rem;
+        min-height: 0.75rem;
+      }
+    }
+
+    &.medium {
+      width: 1.5rem;
+      height: 1.5rem;
+      .checkbox-element svg {
+        width: 1.25rem;
+        height: 1.25rem;
+        min-width: 1.25rem;
+        min-height: 1.25rem;
+      }
+    }
+
+    &.large {
+      width: 2rem;
+      height: 2rem;
+      .checkbox-element svg {
+        width: 1.75rem;
+        height: 1.75rem;
+        min-width: 1.75rem;
+        min-height: 1.75rem;
+      }
+    }
+
+    &.checked {
+      .checkbox-element {
+        border-color: $accent;
+        background-color: $accent;
+      }
+    }
+
+    .checkbox-element {
+      background-color: $general;
+      border: 0.15rem solid $general-border;
+      border-radius: 0.0625rem;
+      cursor: pointer;
+      display: flex;
+      box-sizing: border-box;
+      width: 100%;
+      height: 100%;
+      .tecma-icon path {
+        fill: white;
+      }
+    }
+  }
+  span:not(.MuiCheckbox-colorError) input:focus + .tecma-checkbox-container {
+    .checkbox-element {
+      outline: 0.188rem solid opaqueColor($accent, 0.3);
+    }
+  }
+
+  .MuiCheckbox-colorError .checkbox-element {
+    outline: 0.125rem solid $danger;
+  }
+  &.Mui-disabled .tecma-checkbox-container .checkbox-element {
+    border-color: transparent;
+    background-color: $disabled;
+    pointer-events: none;
+    .tecma-icon path {
+      fill: $on-disabled;
+    }
+  }
+}

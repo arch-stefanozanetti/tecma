@@ -1,0 +1,20 @@
+@use "theme/utils/colors.scss" as *;
+
+.tecma-radioGroup {
+  .MuiFormGroup-root {
+    gap: 1rem;
+  }
+  .MuiFormLabel-root {
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    color: $on-general;
+    &.Mui-focused {
+      color: $on-general;
+    }
+  }
+  .helper-text {
+    color: $danger;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+  }
+}

@@ -1,0 +1,11 @@
+**/*.js
+**/*.ttf
+**/*.png
+**/*.svg
+node_modules
+build
+coverage
+nginx
+public
+**/assets
+lib/*

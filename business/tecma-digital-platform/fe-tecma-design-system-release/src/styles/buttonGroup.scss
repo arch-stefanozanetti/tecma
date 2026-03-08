@@ -1,0 +1,39 @@
+.tecma-buttonGroup {
+  display: flex;
+  gap: 1rem;
+  &.vertical {
+    flex-direction: column;
+  }
+  &.fluid {
+    width: 100%;
+  }
+  &.segmented {
+    gap: 0;
+    &.horizontal {
+      .tecma-button:first-child {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+      }
+      .tecma-button:last-child {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+      }
+      .tecma-button:not(.tecma-button:first-child, .tecma-button:last-child) {
+        border-radius: 0;
+      }
+    }
+    &.vertical {
+      .tecma-button:first-child {
+        border-bottom-right-radius: 0;
+        border-bottom-left-radius: 0;
+      }
+      .tecma-button:last-child {
+        border-top-right-radius: 0;
+        border-top-left-radius: 0;
+      }
+      .tecma-button:not(.tecma-button:first-child, .tecma-button:last-child) {
+        border-radius: 0;
+      }
+    }
+  }
+}

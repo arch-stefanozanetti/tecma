@@ -1,0 +1,88 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Perform standard test Carousel Component should render without exploding 1`] = `
+<div
+  class="tecma-carousel"
+  data-testid="tecma-carousel"
+>
+  <div
+    class="slider-wrapper loop"
+  >
+    <ul
+      class="slider"
+    >
+      <li
+        class="slide selected"
+        style="transform: translateX(0%);"
+      >
+        <span
+          class="tecma-lazyImage"
+          data-testid="tecma-lazyImage"
+        >
+          Loading...
+        </span>
+      </li>
+      <li
+        class="slide next"
+        style="transform: translateX(0%); opacity: 0;"
+      >
+        <span
+          class="tecma-lazyImage"
+          data-testid="tecma-lazyImage"
+        >
+          Loading...
+        </span>
+      </li>
+      <li
+        class="slide"
+        style="transform: translateX(0%); opacity: 0;"
+      >
+        <span
+          class="tecma-lazyImage"
+          data-testid="tecma-lazyImage"
+        >
+          Loading...
+        </span>
+      </li>
+      <li
+        class="slide"
+        style="transform: translateX(-400%); opacity: 0;"
+      >
+        <span
+          class="tecma-lazyImage"
+          data-testid="tecma-lazyImage"
+        >
+          Loading...
+        </span>
+      </li>
+    </ul>
+  </div>
+  <div
+    class="carousel-buttons-container"
+  />
+  <div
+    class="control-dots"
+  >
+    <button
+      aria-label="image item 1"
+      class="dot selected"
+      type="button"
+    />
+    <button
+      aria-label="image item 2"
+      class="dot"
+      type="button"
+    />
+    <button
+      aria-label="image item 3"
+      class="dot"
+      type="button"
+    />
+    <button
+      aria-label="image item 4"
+      class="dot"
+      type="button"
+    />
+  </div>
+</div>
+`;

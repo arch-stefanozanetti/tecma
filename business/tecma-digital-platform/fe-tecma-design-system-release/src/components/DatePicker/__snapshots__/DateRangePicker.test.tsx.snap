@@ -1,0 +1,57 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`generateRangePicker should render a date range picker component with default props and styles 1`] = `
+<div
+  data-testid="tecma-dateRangePicker"
+  style="position: relative;"
+>
+  <div
+    class="tecma-picker tecma-picker-range"
+  >
+    <div
+      class="tecma-picker-input"
+    >
+      <input
+        aria-invalid="false"
+        autocomplete="off"
+        date-range="start"
+        id="calendar"
+        size="13"
+        value=""
+      />
+    </div>
+    <div
+      class="tecma-picker-range-separator"
+    >
+      <span
+        aria-label="to"
+        class="tecma-picker-separator"
+      >
+        -
+      </span>
+    </div>
+    <div
+      class="tecma-picker-input"
+    >
+      <input
+        aria-invalid="false"
+        autocomplete="off"
+        date-range="end"
+        size="13"
+        value=""
+      />
+    </div>
+    <div
+      class="tecma-picker-active-bar"
+      style="position: absolute; width: 0px; left: 0px;"
+    />
+    <span
+      class="tecma-picker-suffix"
+    >
+      <svg
+        class="tecma-icon small"
+      />
+    </span>
+  </div>
+</div>
+`;

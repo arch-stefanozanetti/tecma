@@ -1,0 +1,6 @@
+@use "theme/utils/fonts" as *;
+
+.tecma-popover {
+  padding: 0.5rem 1rem;
+  font-family: $primaryFont;
+}

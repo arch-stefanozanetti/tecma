@@ -1,0 +1,60 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Modal Component Modal Content component should render without exploding 1`] = `
+<div
+  class="tecma-modal-content"
+  data-testid="tecma-modal-content"
+/>
+`;
+
+exports[`Modal Component Modal Footer component should render without exploding 1`] = `
+<div
+  class="tecma-modal-footer"
+  data-testid="tecma-modal-footer"
+/>
+`;
+
+exports[`Modal Component Modal Header component should render without exploding 1`] = `
+<div
+  class="tecma-modal-header"
+  data-testid="tecma-modal-header"
+/>
+`;
+
+exports[`Modal Component should render without exploding 1`] = `
+<div
+  aria-hidden="true"
+  class="tecma-modal-container"
+  data-testid="tecma-modal"
+>
+  <div
+    class="tecma-modal"
+    style="width: 30rem;"
+  />
+</div>
+`;
+
+exports[`Modal Component should support closeIcon prop 1`] = `
+<button
+  class="tecma-button transparent medium"
+  data-testid="tecma-button"
+  type="button"
+>
+  <svg
+    class="tecma-icon medium"
+    data-testid="tecma-icon"
+    fill="none"
+    height="24"
+    viewBox="0 0 24 24"
+    width="24"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      clip-rule="evenodd"
+      d="M11.2929 6.79289C11.6834 6.40237 12.3166 6.40237 12.7071 6.79289L20.2071 14.2929C20.5976 14.6834 20.5976 15.3166 20.2071 15.7071C19.8166 16.0976 19.1834 16.0976 18.7929 15.7071L12 8.91421L5.20711 15.7071C4.81658 16.0976 4.18342 16.0976 3.79289 15.7071C3.40237 15.3166 3.40237 14.6834 3.79289 14.2929L11.2929 6.79289Z"
+      fill="#262626"
+      fill-rule="evenodd"
+    />
+  </svg>
+</button>
+`;

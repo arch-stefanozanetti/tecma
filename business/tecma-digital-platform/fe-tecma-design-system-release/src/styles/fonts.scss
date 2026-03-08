@@ -1,0 +1,19 @@
+// Tecma Design System - Fonts Export
+// Import all font variables for external use
+
+@use './theme/utils/fonts.scss' as fonts;
+
+// Export font variables for external projects
+:export {
+  // Font sizes
+  extraSmallFont: fonts.$extraSmallFont;
+  smallFont: fonts.$smallFont;
+  defaultFont: fonts.$defaultFont;
+  mediumFont: fonts.$mediumFont;
+  largeFont: fonts.$largeFont;
+  extraLargeFont: fonts.$extraLargeFont;
+
+  // Font families
+  primaryFont: fonts.$primaryFont;
+  secondaryFont: fonts.$secondaryFont;
+}

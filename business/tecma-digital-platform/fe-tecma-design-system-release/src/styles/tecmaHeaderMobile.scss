@@ -1,0 +1,195 @@
+@use "theme/utils/variables.scss" as *;
+@use "theme/utils/colors.scss" as *;
+
+// Mobile Header Styles
+.header-mobile {
+  background-color: #ffffff;
+  height: 60px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 999;
+  border-top: 1px solid #ffffff;
+  border-bottom: 1px solid #D3D4DA;
+
+  .header-mobile-content {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+  }
+
+  .header-mobile-logo {
+    width: 100%;
+    
+    .logo-text {
+      font-size: 18px;
+      font-weight: 600;
+      color: $gray-900;
+      letter-spacing: 0.5px;
+    }
+    
+    .header-mobile-logo-image {
+      height: auto;
+      max-height: 40px;
+      width: auto;
+      max-width: 100%;
+    }
+  }
+
+  .header-mobile-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  // Override NavigationItem styles for header mobile buttons
+  .navigation-item {
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  .header-mobile-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background-color: transparent;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background-color: transparent;
+    }
+
+    &:active {
+      background-color: transparent;
+    }
+
+    .MuiSvgIcon-root {
+      color: $gray-800;
+    }
+
+    &.active {
+      background: transparent;
+      box-shadow: none;
+    }
+  }
+}
+
+// Drawer specific styles for mobile header
+.tecma-drawer.header-mobile-drawer .MuiPaper-root,
+.tecma-drawer.header-mobile-drawer .tecma-drawer-nested-content {
+  width: 100% !important; 
+  top: 60px;
+  height: calc(100vh - 60px - 80px);
+  box-shadow: none !important;
+}
+.header-mobile-drawer {
+
+  .drawer-profile-section {
+    padding: 16px;
+    border-bottom: 1px solid $gray-200;
+
+    .profile-title {
+      font-size: $defaultFont;
+      font-weight: 600;
+      line-height: 20px;
+      margin-bottom: 12px;
+    }
+
+    .profile-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+
+      .profile-text {
+        font-size: $smallFont;
+        font-weight: 500;
+        line-height: 17px;
+        color: $gray-800;
+      }
+
+      .MuiSvgIcon-root {
+        color: $gray-600;
+        cursor: pointer;
+        
+        &:hover {
+          color: $gray-800;
+        }
+      }
+    }
+  }
+}
+.drawer-avatar-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  
+  .drawer-avatar-extra-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: $defaultFont;
+  }
+}
+
+.item-text-container {
+  display: flex;
+  flex-direction: column;
+  align-items: baseline;
+  gap: 4px;
+
+  span:first-child {
+    font-weight: 700;
+    font-size: $mediumFont;
+    line-height: 22px;
+  }
+
+  span:nth-child(2) {
+    font-size: $smallFont;
+    line-height: 17px;
+    color: $gray-700;
+  }
+}
+
+// Language drawer specific styles
+.tecma-drawer.header-mobile-drawer {
+  .tecma-drawer-content {
+    .tecma-drawer-item {
+      &.language-item {
+        .item-text-container {
+          span:first-child {
+            font-weight: 600;
+            font-size: $mediumFont;
+            line-height: 22px;
+          }
+          span:nth-child(2) {
+            font-size: $smallFont;
+            line-height: 17px;
+            color: $gray-700;
+          }
+        }
+        &.selected {
+          .item-text-container {
+            span:first-child {
+              color: #585BD7;
+            }
+            span:nth-child(2) {
+              color: #585BD7;
+            }
+          }
+          .tecma-icon path {
+            fill: #585BD7;
+          }
+        }
+      }
+    }
+  }
+}

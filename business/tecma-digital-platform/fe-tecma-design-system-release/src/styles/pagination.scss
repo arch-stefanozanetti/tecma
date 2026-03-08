@@ -1,0 +1,61 @@
+@use "theme/utils/variables" as *;
+@use "theme/utils/mixins" as *;
+
+.tecma-pagination {
+  display: flex;
+  .tecma-button.transparent:not(.disabled) {
+    @include iconColor($primary);
+  }
+  .pagination-page {
+    &.is-selected:not(.disabled):not(.outlined) {
+      background-color: $primary;
+      color: $neutral-100;
+    }
+    &.is-not-page {
+      pointer-events: none;
+    }
+  }
+  .pagination-range {
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+
+  .pagination-range-container {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  
+  .pagination-arrow {
+    &--flat {
+      &.tecma-button.transparent {
+        background-color: transparent;
+        
+        .tecma-icon {
+          color: #363B4C !important;
+          
+          path {
+            fill: #363B4C !important;
+          }
+        }
+        
+        &:hover:not(.disabled) {
+          background-color: rgba(54, 59, 76, 0.1);
+        }
+        
+        &.disabled {
+          .tecma-icon {
+            color: rgba(54, 59, 76, 0.4) !important;
+            
+            path {
+              fill: rgba(54, 59, 76, 0.4) !important;
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "accent": "#AD78B0",
+  "accent-light": "#CAA8CC",
+  "accent-dark": "#87518A",
+  "accent-elements": "#FFFFFF",
+  "accent-alt-elements": "#FFFFFF",
+  "accent-alternative": "#0DB392",
+  "accent-alternative-light": "#20EFC6",
+  "accent-alternative-dark": "#086D59",
+  "background-color-1": "#DBE1E1",
+  "background-color-2": "#F4F4F5",
+  "background-color-3": "#212631",
+  "background-1-elements": "#1A1A1A",
+  "background-2-elements": "#1A1A1A",
+  "background-3-elements": "#F2F2F2",
+  "background-alternative": "#FFFFFF",
+  "background-alt-elements": "#AD78B0"
+}

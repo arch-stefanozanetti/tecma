@@ -1,0 +1,47 @@
+@use "theme/utils/colors.scss" as *;
+
+.tecma-phoneInput {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  &.horizontal {
+    .container {
+      display: flex;
+      align-items: flex-end;
+      .tecma-select {
+        width: 7rem;
+        .tecma-select-box {
+          width: 100%;
+          .select__control {
+            min-width: none;
+          }
+        }
+      }
+      .tecma-input {
+        .input-container {
+          border-top-left-radius: 0;
+          border-bottom-left-radius: 0;
+        }
+      }
+    }
+  }
+  .tecma-phoneInput-label {
+    font-size: 0.875rem;
+    font-family: Lato, sans-serif;
+    color: $on-general;
+    display: flex;
+    gap: 0.25rem;
+  }
+  .help-text {
+    font-size: 0.75rem;
+    color: $on-general;
+  }
+  .help-text-errored {
+    font-size: 0.75rem;
+    color: $danger;
+  }
+
+  ::-webkit-inner-spin-button {
+    display: none;
+  }
+}

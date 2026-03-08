@@ -1,0 +1,54 @@
+// font size 1rem === 16px
+$extraSmallFont: 0.625rem; //10px
+$smallFont: 0.76rem; //12px
+$defaultFont: 0.875rem; // 14px
+$mediumFont: 1rem; //16px
+$largeFont: 1.25rem; //20px
+$extraLargeFont: 1.5rem; //24px
+
+$primaryFont: var(--primaryFont, "Lato");
+$secondaryFont: var(--secondaryFont, "Ivy Journal");
+
+////////////////////////////////////
+/// IVY JOURNAL
+////////////////////////////////////
+
+@font-face {
+  font-family: "Ivy Journal";
+  src: url("../assets/fonts/IvyJournal/IvyJournal-Regular.ttf");
+  src: local("Ivy Journal Regular") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Ivy Journal";
+  src: url("../assets/fonts/IvyJournal/IvyJournal-SemiBold.ttf");
+  src: local("Ivy Journal SemiBold") format("truetype");
+  font-weight: 700;
+}
+
+////////////////////////////////////
+/// LATO
+////////////////////////////////////
+@font-face {
+  font-family: "Lato";
+  src: url("../assets/fonts/Lato/Lato-Regular.ttf");
+  src: local("Lato Regular") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Lato";
+  src: url("../assets/fonts/Lato/Lato-Light.ttf");
+  src: local("Lato Light") format("truetype");
+  font-weight: 300;
+}
+
+@font-face {
+  font-family: "Lato";
+  src: url("../assets/fonts/Lato/Lato-Bold.ttf");
+  src: local("Lato Bold") format("truetype");
+  font-weight: 700;
+}

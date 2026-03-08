@@ -1,0 +1,133 @@
+@use "theme/utils/colors.scss" as *;
+@use "theme/utils/fonts" as *;
+@use "theme/utils/dimensions" as *;
+@use "theme/utils/mixins" as *;
+
+@mixin alertColor($title, $description) {
+  .alert-container {
+    .alert-title {
+      color: $title;
+    }
+    .alert-description {
+      color: $description;
+    }
+  }
+}
+
+.tecma-alert {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  border: 1px solid;
+  border-radius: $border-radius-external;
+  padding: 1rem;
+  gap: 1rem;
+  min-width: 23.5rem;
+  box-sizing: border-box;
+  font-family: $primaryFont;
+  .alert-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    flex: 1;
+    font-size: 0.875rem;
+    .alert-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      position: relative;
+      .alert-title {
+        margin: 0;
+        line-height: 1.5rem;
+        font-weight: 600;
+        color: $on-general;
+        &.with-action {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          width: 100%;
+          gap: 0.5rem;
+          &.with-dismissable {
+            width: calc(100% - 1.5rem);
+            &.with-icon {
+              width: calc(100% - 4rem);
+            }
+          }
+        }
+        .alert-header-action {
+          height: 2rem;
+          font-weight: 600;
+        }
+      }
+      .alert-dismiss-button {
+        position: absolute;
+        right: 0;
+      }
+    }
+    .alert-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      &.horizontal {
+        flex-direction: row;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 2rem;
+      }
+      .alert-description {
+        margin: 0;
+        margin-bottom: 0.25rem;
+        font-weight: 400;
+        color: $on-general-sub;
+      }
+    }
+  }
+  &.default {
+    border-color: $general-border;
+    background-color: $general;
+    @include iconColor($on-general);
+    @include alertColor($on-general, $on-general-sub);
+  }
+  &.primary {
+    border-color: $accent-border;
+    background-color: $accent-light;
+    @include iconColor($accent);
+    @include alertColor($on-accent-light, $on-accent-light);
+  }
+  &.success {
+    border-color: $success;
+    background-color: $success-light;
+    @include iconColor($success);
+    @include alertColor($on-success-light, $on-success-light-sub);
+  }
+  &.warning {
+    border-color: $warning;
+    background-color: $warning-light;
+    @include iconColor($warning);
+    @include alertColor($on-warning-light, $on-warning-light-sub);
+  }
+  &.error {
+    border-color: $danger;
+    background-color: $danger-light;
+    @include iconColor($danger);
+    @include alertColor($on-danger-light, $on-danger-light-sub);
+  }
+  &.informative {
+    border-color: $info;
+    background-color: $info-light;
+    @include iconColor($info);
+    @include alertColor($on-info-light, $on-info-light-sub);
+  }
+  .tecma-button.medium.icon-only {
+    width: 2rem;
+    height: 2rem;
+    min-height: 2rem;
+    outline: none;
+    padding: 0;
+    .tecma-icon {
+      path {
+        fill: $on-general;
+      }
+    }
+  }
+}

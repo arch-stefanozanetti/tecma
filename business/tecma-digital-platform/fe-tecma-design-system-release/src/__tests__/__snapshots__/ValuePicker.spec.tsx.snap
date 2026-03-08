@@ -1,0 +1,49 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ValuePicker Component should render without exploding 1`] = `
+<div
+  class="tecma-valuePicker"
+  data-testid="tecma-valuePicker"
+>
+  <button
+    class="tecma-button disabled primary large icon-only prev-button"
+    data-testid="tecma-button"
+    disabled=""
+    type="button"
+  >
+    <svg
+      aria-label="arrow-left"
+      class="tecma-icon medium"
+    />
+  </button>
+  <div
+    class="valuePicker-container"
+  >
+    <p
+      style="transform: translateX(0%);"
+    >
+      Bilocale
+    </p>
+    <p
+      style="transform: translateX(100%);"
+    >
+      Trilocale
+    </p>
+    <p
+      style="transform: translateX(200%);"
+    >
+      Quadrilocale
+    </p>
+  </div>
+  <button
+    class="tecma-button primary large icon-only next-button"
+    data-testid="tecma-button"
+    type="button"
+  >
+    <svg
+      aria-label="arrow-right"
+      class="tecma-icon medium"
+    />
+  </button>
+</div>
+`;

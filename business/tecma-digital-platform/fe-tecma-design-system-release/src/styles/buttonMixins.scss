@@ -1,0 +1,97 @@
+@use "theme/utils/mixins" as *;
+
+@mixin borderColor($color) {
+  color: $color;
+  border-color: $color;
+
+  @include iconColor($color);
+}
+
+@mixin button-with-color($name, $backgroundColor, $color, $hoverColor, $activeColor) {
+  &.#{$name}:not(.outlined):not(.disabled) {
+    &:not(.link) {
+      background-color: #{$backgroundColor};
+      color: $color;
+      transition: background-color 0.25s ease;
+      @include iconColor($color);
+      @media (pointer: fine) {
+        &:hover {
+          background-color: $hoverColor;
+        }
+      }
+      &:active {
+        background-color: $activeColor;
+      }
+    }
+    &:focus {
+      outline: 0.188rem solid opaqueColor($backgroundColor, 0.3);
+    }
+
+    &.link {
+      color: $backgroundColor;
+      transition: text-decoration-color 0.25s ease;
+      .tecma-icon path {
+        fill: $backgroundColor;
+      }
+      &:active {
+        text-decoration-color: $activeColor;
+      }
+      @media (pointer: fine) {
+        &:hover {
+          text-decoration-color: $hoverColor;
+          @include iconColor($hoverColor);
+        }
+      }
+    }
+  }
+}
+
+@mixin button-outlined($name, $color, $borderColor, $hoverColor, $activeColor) {
+  &.#{$name}.outlined {
+    color: $color;
+    border-color: $borderColor;
+    transition: color 0.25s ease, border-color 0.25s ease;
+    .tecma-icon path {
+      fill: $color;
+      transition: fill 0.25s ease;
+    }
+    @media (pointer: fine) {
+      &:hover {
+        color: $hoverColor;
+        border-color: $hoverColor;
+        @include iconColor($hoverColor);
+        .tecma-icon path {
+          fill: $hoverColor;
+        }
+      }
+    }
+    &:active {
+      color: $activeColor;
+      border-color: $activeColor;
+      .tecma-icon path {
+        fill: $activeColor;
+      }
+    }
+    &:focus {
+      outline: 0.188rem solid opaqueColor($borderColor, 0.3);
+    }
+  }
+}
+
+@mixin button-link($name, $color) {
+  &.#{$name}.link {
+    &:not(.disabled):not(.outlined) {
+      color: $color;
+      transition: text-decoration-color 0.25s ease;
+      background-color: transparent;
+      @include iconColor($color);
+    }
+    &:hover,
+    &:active {
+      text-decoration: underline;
+    }
+    &.disabled {
+      background-color: unset;
+    }
+  }
+}

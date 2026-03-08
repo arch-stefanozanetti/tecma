@@ -1,0 +1,20 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`LanguageSelector should render LanguageSelector component with default props and styles 1`] = `
+<button
+  aria-haspopup="true"
+  class="tecma-button primary medium language-selector popover-trigger"
+  data-testid="tecma-languageSelector-button"
+  id="language-selector-button"
+  type="button"
+>
+  <svg
+    aria-label="globe-alt"
+    class="tecma-icon medium"
+  />
+  English
+  <svg
+    class="tecma-icon medium language-selector__chevron  "
+  />
+</button>
+`;

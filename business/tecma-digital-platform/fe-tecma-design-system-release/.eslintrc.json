@@ -1,0 +1,120 @@
+{
+  "env": {
+    "browser": true,
+    "es2021": true,
+    "jest": true
+  },
+  "ignorePatterns": [".eslintrc.js"],
+  "parser": "@typescript-eslint/parser",
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:react-hooks/recommended",
+    "plugin:import/errors",
+    "plugin:react/recommended",
+    "plugin:import/typescript",
+    "airbnb",
+    "airbnb-typescript",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:prettier/recommended",
+    "plugin:storybook/recommended"
+  ],
+  "plugins": ["import", "react", "react-hooks", "@typescript-eslint", "prettier", "testing-library"],
+  "parserOptions": {
+    "ecmaFeatures": {
+      "jsx": true
+    },
+    "ecmaVersion": 12,
+    "sourceType": "module",
+    "createDefaultProgram": true,
+    "project": "./tsconfig.json"
+  },
+  "rules": {
+    "react/destructuring-assignment": "warn",
+    "@typescript-eslint/ban-ts-comment": "warn",
+    "no-console": "warn",
+    "@typescript-eslint/no-unused-vars": "error",
+    "no-self-assign": "error",
+    "no-undef": "error",
+    "curly": ["off", "multi-line"],
+    "import/no-unresolved": "error",
+    "prefer-const": "error",
+    "import/no-extraneous-dependencies": [0],
+    "@typescript-eslint/no-empty-interface": [0],
+    "no-bitwise": 0,
+    "no-param-reassign": 0,
+    "react/require-default-props": 0,
+    "react/jsx-props-no-spreading": 0,
+    "react/function-component-definition": [
+      "warn",
+      {
+        "namedComponents": ["arrow-function"],
+        "unnamedComponents": ["arrow-function"]
+      }
+    ],
+    "prettier/prettier": ["error", { "endOfLine": "auto" }],
+    "import/prefer-default-export": 0,
+    "testing-library/no-debugging-utils": "error",
+    "import/order": [
+      "warn",
+      {
+        "groups": [["builtin", "external"], ["internal"], ["parent", "sibling", "index"], ["object"], ["type"], ["unknown"]],
+        "pathGroups": [
+          {
+            "pattern": "react",
+            "group": "builtin",
+            "position": "before"
+          },
+          {
+            "pattern": "assets/**",
+            "group": "internal",
+            "position": "after"
+          },
+          {
+            "pattern": "components/**",
+            "group": "internal",
+            "position": "after"
+          },
+          {
+            "pattern": "declarations/**",
+            "group": "internal",
+            "position": "after"
+          },
+          {
+            "pattern": "helpers/**",
+            "group": "internal",
+            "position": "after"
+          }
+        ],
+        "pathGroupsExcludedImportTypes": ["builtin"],
+        "newlines-between": "always",
+        "alphabetize": {
+          "order": "asc",
+          "caseInsensitive": true
+        }
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["**/*.stories.*"],
+      "rules": {
+        "import/no-anonymous-default-export": "off"
+      }
+    }
+  ],
+  "settings": {
+    "react": {
+      "version": "detect"
+    },
+    "import/parsers": {
+      "@typescript-eslint/parser": [".ts", ".tsx"]
+    },
+    "import/resolver": {
+      "node": {
+        "paths": ["src"],
+        "extensions": [".js", ".jsx", ".ts", ".tsx"]
+      }
+    }
+  }
+}

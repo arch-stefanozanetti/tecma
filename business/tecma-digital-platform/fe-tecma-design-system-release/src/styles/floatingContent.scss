@@ -1,0 +1,73 @@
+@use "theme/utils/variables" as *;
+
+#tecma-floatingContent {
+  position: relative;
+  z-index: 99999;
+  &.fixed {
+    position: fixed;
+    width: 100%;
+  }
+  .tecma-floatingContent-container {
+    position: absolute;
+    .floatingContent-arrow {
+      width: 0;
+      height: 0;
+      border-bottom: 0.5rem solid $primary;
+      border-right: 0.5rem solid transparent;
+      border-left: 0.5rem solid transparent;
+      position: absolute;
+      z-index: 9;
+    }
+    &.bottom-center,
+    &.bottom-right,
+    &.bottom-left {
+      .floatingContent-arrow {
+        top: -0.5rem;
+        transform: translate(-50%, 0);
+      }
+    }
+    &.bottom-center {
+      .floatingContent-arrow {
+        left: 50%;
+      }
+    }
+
+    &.top-center,
+    &.top-left,
+    &.top-right {
+      .floatingContent-arrow {
+        bottom: -0.5rem;
+        transform: translate(-50%, 0) rotate(-180deg);
+      }
+    }
+
+    &.top-center {
+      .floatingContent-arrow {
+        left: 50%;
+      }
+    }
+
+    &.left,
+    &.right {
+      .floatingContent-arrow {
+        top: 50%;
+      }
+    }
+
+    &.left {
+      .floatingContent-arrow {
+        transform: translate(0, -50%) rotate(90deg);
+      }
+    }
+
+    &.right {
+      .floatingContent-arrow {
+        transform: translate(0, -50%) rotate(-90deg);
+      }
+    }
+  }
+}
+
+.floatingContent-trigger {
+  display: inline-block;
+}

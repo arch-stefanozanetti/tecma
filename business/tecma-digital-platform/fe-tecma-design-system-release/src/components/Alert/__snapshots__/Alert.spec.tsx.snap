@@ -1,0 +1,16 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Alert Component should render without exploding 1`] = `
+<div
+  class="tecma-alert default"
+  data-testid="tecma-alert"
+>
+  <div
+    class="alert-container"
+  >
+    <h4
+      class="alert-title"
+    />
+  </div>
+</div>
+`;

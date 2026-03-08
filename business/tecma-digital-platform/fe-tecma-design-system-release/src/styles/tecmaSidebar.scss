@@ -1,0 +1,250 @@
+@use "theme/utils/colors.scss" as *;
+@use "theme/utils/fonts.scss" as *;
+
+.sidebar {
+  width: 208px; // 256px - 48px (padding)
+  max-width: 208px; // 256px - 48px (padding)
+  background: linear-gradient(180deg, #e0e3f5 7.81%, #fceded 95.85%);
+  box-shadow: 4px 0 12px 0 rgba(100, 100, 100, 0.15);
+  z-index: 1000;
+  padding: 40px 24px;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.5s ease-in-out, padding 0.5s ease-in-out;
+  will-change: width, padding;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  // position: relative;
+
+  &.collapsed {
+    width: 96px;
+    padding: 40px 0px;
+  }
+
+  &-logo {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 96px; // max height of the logo
+    max-height: 96px; // max height of the logo
+    transition: padding 0.5s ease-in-out, min-height 0.5s ease-in-out, max-height 0.5s ease-in-out;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    
+    svg {
+      max-width: 208px; // max width of the logo
+      max-height: 96px; // max height of the logo
+      width: auto;
+      height: auto;
+      transition: max-width 0.5s ease-in-out, max-height 0.5s ease-in-out;
+      transform: translateZ(0);
+    }
+    
+    .sidebar-logo-image {
+      max-width: 208px; // max width of the logo
+      max-height: 96px; // max height of the logo
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      transition: max-width 0.5s ease-in-out, max-height 0.5s ease-in-out;
+      transform: translateZ(0);
+    }
+    
+    .sidebar.collapsed & {
+      min-height: 96px; // same height as the logo when collapsed
+      max-height: 96px;
+      
+      svg {
+        max-width: 96px; // reduced width when collapsed
+        max-height: 96px;
+      }
+      
+      .sidebar-logo-image {
+        max-width: 96px;
+        max-height: 96px;
+        object-fit: contain;
+      }
+    }
+  }
+
+  // &-logo {
+  //   display: flex;
+  //   justify-content: center;
+  //   align-items: center;
+  //   min-height: calc(24px + 48px + 24px);
+  //   transition: padding 0.5s ease-in-out;
+  //   transform: translateZ(0);
+  //   backface-visibility: hidden;
+  //   svg {
+  //     height: 100%;
+  //     transition: width 0.5s ease-in-out, height 0.5s ease-in-out;
+  //     transform: translateZ(0);
+  //   }
+    
+  //   .sidebar-logo-image {
+  //     height: 100%;
+  //     width: auto;
+  //     max-width: 100%;
+  //     transition: width 0.5s ease-in-out, height 0.5s ease-in-out;
+  //     transform: translateZ(0);
+  //   }
+    
+  //   .sidebar.collapsed & {
+  //     min-height: calc(24px + 48px + 24px);
+  //     svg {
+  //       width: 48px;
+  //       height: 48px;
+  //     }
+      
+  //     .sidebar-logo-image {
+  //       width: 48px;
+  //       height: 48px;
+  //       object-fit: contain;
+  //     }
+  //   }
+  // }
+
+  &-menu {
+    display: flex;
+    justify-content: end;
+    align-items: center;
+    margin-top: 56px;
+    margin-bottom: 32px;
+    height: 40px;
+    transition: margin-top 0.5s ease-in-out;
+    svg {
+      height: 100%;
+    }
+    
+    .sidebar.collapsed & {
+      justify-content: center;
+      margin-top: 56px;
+      margin-bottom: 32px;
+      height: 40px;
+    }
+    
+    .sidebar-collapse-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      
+      .sidebar-collapse-button-icon {
+        width: 24px;
+        height: 24px;
+      }
+    }
+  }
+
+  &-divider {
+    margin: 16px 0;
+    background-color: #B1B9CD;
+    height: 1px;
+    width: 100%;
+  }
+
+  &-items-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+    padding-left: 16px;
+    padding-right: 0;
+    transition: padding-left 0.5s ease-in-out;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+
+    &.scrollable {
+      overflow-y: auto;
+      overflow-x: visible;
+      min-height: 0;
+      padding-left: 0;
+      padding-right: 24px;
+      margin-right: -24px;
+      // Scrollbar esterna - posizionata sul bordo destro della sidebar
+      // Padding-right per permettere all'ombra dei button di essere visibile (box-shadow: 9px)
+      
+      // Stile scrollbar personalizzato per posizionarla all'esterno
+      &::-webkit-scrollbar {
+        width: 8px;
+      }
+      
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      
+      &::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 4px;
+      }
+      
+      &::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 0, 0, 0.3);
+      }
+    }
+    
+    // when the sidebar is collapsed, adjust padding and margin for scrollbar
+    .sidebar.collapsed &.scrollable {
+      margin-right: 0;
+      padding-right: 0;
+    }
+  }
+
+  &-items {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-left: 16px;
+    padding-right: 0;
+    transition: gap 0.5s ease-in-out, padding-left 0.5s ease-in-out;
+    
+    .sidebar.collapsed & {
+      gap: 8px;
+      padding-left: 0;
+    }
+    
+    // when the container is scrollable, the padding is handled here
+    .sidebar-items-container.scrollable & {
+      padding-left: 16px;
+      padding-right: 0;
+    }
+    
+    // when the sidebar is collapsed and the container is scrollable
+    .sidebar.collapsed .sidebar-items-container.scrollable & {
+      padding-left: 0;
+    }
+  }
+
+  &-wrapper-footer {
+    display: flex;
+    justify-content: center;
+    align-items: end;
+    flex: 1;
+    transition: opacity 0.5s ease-in-out, visibility 0.5s ease-in-out, max-height 0.5s ease-in-out;
+    max-height: 40px;
+    overflow: hidden;
+    
+    .sidebar.collapsed & {
+      opacity: 0;
+      visibility: hidden;
+      max-height: 0;
+    }
+  }
+
+  &-footer {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-direction: row;
+
+    &-powered {
+      font-size: 11px;
+      font-weight: 500;
+      font-family: $primaryFont;
+      line-height: 13px;
+      color: #5C5E62;
+    }
+  }
+}

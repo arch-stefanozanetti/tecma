@@ -1,0 +1,13 @@
+@use "theme/utils/colors.scss" as *;
+
+.tecma-sidebarItem {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  &:hover {
+    background-color: $general;
+    border-radius: 0.125rem;
+    box-shadow: inset 0.125rem 0rem $accent;
+  }
+}

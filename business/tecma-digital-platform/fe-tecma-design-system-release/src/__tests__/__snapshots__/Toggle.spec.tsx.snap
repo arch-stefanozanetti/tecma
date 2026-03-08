@@ -1,0 +1,15 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Toggle Component should render without exploding 1`] = `
+<div
+  class="tecma-toggle primary size medium"
+  data-testid="tecma-toggle"
+>
+  <div
+    aria-label="toggle-button"
+    class="toggle-element"
+    role="button"
+    tabindex="0"
+  />
+</div>
+`;

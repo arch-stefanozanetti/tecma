@@ -1,0 +1,16 @@
+// Tecma Design System - Dimensions Export
+// Import all dimension variables for external use
+
+@use './theme/utils/dimensions.scss' as *;
+
+:export {
+  spacingXxs: $spacing-xxs;
+  spacingXs: $spacing-xs;
+  spacingS: $spacing-s;
+  spacingM: $spacing-m;
+  spacingL: $spacing-l;
+  borderRadiusElement: $border-radius-element;
+  borderRadiusExternal: $border-radius-external;
+  borderRadiusInternal: $border-radius-internal;
+  borderRadiusStandard: $border-radius-standard;
+}
