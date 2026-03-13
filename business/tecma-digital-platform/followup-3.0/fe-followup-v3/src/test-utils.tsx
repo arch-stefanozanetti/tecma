@@ -1,24 +1,15 @@
-/**
- * Utilità condivise per i test (DRY).
- * Re-export di Vitest e Testing Library; estendere customRender con wrapper (es. ThemeProvider) se necessario.
- */
 import * as React from "react";
-import {
-  render as rtlRender,
-  screen,
-  fireEvent,
-  within,
-  type RenderOptions,
-} from "@testing-library/react";
+import { render as rtlRender, screen, fireEvent, within, type RenderOptions } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 
 export { describe, it, expect, vi, screen, fireEvent, within, userEvent };
 
 type WrapperProps = { children: React.ReactNode };
 
 function defaultWrapper({ children }: WrapperProps) {
-  return <>{children}</>;
+  return <MemoryRouter>{children}</MemoryRouter>;
 }
 
 export interface CustomRenderOptions extends Omit<RenderOptions, "wrapper"> {
