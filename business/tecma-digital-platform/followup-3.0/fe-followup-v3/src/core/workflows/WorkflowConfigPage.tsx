@@ -49,6 +49,7 @@ export const WorkflowConfigPage = () => {
   const [error, setError] = useState<string | null>(null);
   /** Id del workflow aperto nel drawer Stati/Transizioni. */
   const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [detail, setDetail] = useState<{
     workflow: WorkflowRow;
     states: WorkflowStateRow[];
@@ -80,8 +81,17 @@ export const WorkflowConfigPage = () => {
   }, []);
 
   useEffect(() => {
-    setSelectedWorkspaceForConfig((prev) => (workspaceId && prev === "" ? workspaceId : prev));
+    setSelectedWorkspaceForConfig((prev) => {
+      if (prev) return prev;
+      if (workspaceId) return workspaceId;
+      return "";
+    });
   }, [workspaceId]);
+
+  useEffect(() => {
+    if (workspaces.length === 0 || selectedWorkspaceForConfig) return;
+    setSelectedWorkspaceForConfig(workspaces[0]._id);
+  }, [workspaces, selectedWorkspaceForConfig]);
 
   const loadWorkflows = useCallback(() => {
     if (!effectiveWorkspaceId) return;
@@ -99,7 +109,14 @@ export const WorkflowConfigPage = () => {
   }, [effectiveWorkspaceId, loadWorkflows]);
 
   const loadDetail = useCallback((workflowId: string) => {
-    followupApi.getWorkflowWithStatesAndTransitions(workflowId).then((d) => setDetail(d));
+    setDetailLoading(true);
+    followupApi
+      .getWorkflowWithStatesAndTransitions(workflowId)
+      .then((d) => {
+        setDetail(d);
+        setDetailLoading(false);
+      })
+      .catch(() => setDetailLoading(false));
   }, []);
 
   const handleCreateWorkflow = useCallback(() => {
@@ -119,6 +136,7 @@ export const WorkflowConfigPage = () => {
   const openDetail = useCallback((wfId: string) => {
     setEditingWorkflowId(wfId);
     setDetailTab("stati");
+    setDetail(null);
     loadDetail(wfId);
   }, [loadDetail]);
 
@@ -172,7 +190,7 @@ export const WorkflowConfigPage = () => {
   }, [detail, newStateCode, newStateLabel, newStateOrder, newStateTerminal, newStateReversible, newStateLock, loadDetail]);
 
   const handleAddTransition = useCallback(() => {
-    if (!detail || !newTransFrom || !newTransTo) return;
+    if (!detail || !newTransFrom || !newTransTo || newTransFrom === newTransTo) return;
     setAddingTrans(true);
     followupApi
       .createWorkflowTransition({
@@ -189,14 +207,6 @@ export const WorkflowConfigPage = () => {
       .catch((e) => window.alert(e instanceof Error ? e.message : "Errore aggiunta transizione"))
       .finally(() => setAddingTrans(false));
   }, [detail, newTransFrom, newTransTo, loadDetail]);
-
-  if (!workspaceId) {
-    return (
-      <div className="p-4">
-        <p className="text-sm text-muted-foreground">Seleziona un workspace per configurare i workflow.</p>
-      </div>
-    );
-  }
 
   if (!isAdmin) {
     return (
@@ -216,9 +226,12 @@ export const WorkflowConfigPage = () => {
       </div>
 
       <section className="rounded-lg border border-border bg-card p-4">
+        {workspaces.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nessun workspace disponibile. Crea un workspace dalla pagina Workspaces.</p>
+        ) : (
         <div className="flex flex-wrap items-center gap-3 mb-3">
           <span className="text-sm font-medium text-foreground">Workspace:</span>
-          <span className="text-sm text-muted-foreground">{currentWorkspaceName}</span>
+          <span className="text-sm text-muted-foreground">{currentWorkspaceName || "—"}</span>
           {isAdmin && workspaces.length > 0 && (
             <>
               <span className="text-xs text-muted-foreground">|</span>
@@ -241,8 +254,11 @@ export const WorkflowConfigPage = () => {
             </>
           )}
         </div>
+        )}
       </section>
 
+      {workspaces.length > 0 && effectiveWorkspaceId && (
+      <>
       <section className="rounded-lg border border-border bg-card p-4">
         <h2 className="text-sm font-semibold text-foreground mb-3">Nuovo workflow</h2>
         <p className="text-xs text-muted-foreground mb-2">Creato per: {selectedWorkspaceName}</p>
@@ -304,13 +320,19 @@ export const WorkflowConfigPage = () => {
           </ul>
         )}
       </section>
+      </>
+      )}
 
       <Sheet open={!!editingWorkflowId} onOpenChange={(open) => !open && closeDetail()}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+        <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Dettaglio workflow {detail?.workflow.name ?? ""}</SheetTitle>
+            <SheetTitle>
+              {detailLoading ? "Caricamento..." : detail ? `Dettaglio workflow ${detail.workflow.name}` : "Workflow"}
+            </SheetTitle>
           </SheetHeader>
-          {detail && (
+          {detailLoading && !detail ? (
+            <p className="mt-4 text-sm text-muted-foreground">Caricamento dettaglio workflow...</p>
+          ) : detail ? (
             <Tabs value={detailTab} onValueChange={(v) => setDetailTab(v as "stati" | "transizioni")} className="mt-4">
               <TabsList>
                 <TabsTrigger value="stati">Stati ({detail.states.length})</TabsTrigger>
@@ -320,40 +342,70 @@ export const WorkflowConfigPage = () => {
                 {detail.states.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nessuno stato. Aggiungine uno.</p>
                 ) : (
-                  <ul className="flex flex-wrap gap-2">
-                    {[...detail.states].sort((a, b) => a.order - b.order).map((s) => (
-                      <li key={s._id} className="rounded-md border border-border px-2 py-1 text-xs bg-muted/30">
-                        {s.label} ({s.code}) {s.terminal && "· terminale"} {s.apartmentLock !== "none" && `· lock ${s.apartmentLock}`}
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="rounded-lg border border-border overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50 border-b border-border">
+                        <tr>
+                          <th className="text-left font-semibold p-2">Ordine</th>
+                          <th className="text-left font-semibold p-2">Code</th>
+                          <th className="text-left font-semibold p-2">Label</th>
+                          <th className="text-left font-semibold p-2">Terminale</th>
+                          <th className="text-left font-semibold p-2">Reversibile</th>
+                          <th className="text-left font-semibold p-2">Lock</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...detail.states].sort((a, b) => a.order - b.order).map((s) => (
+                          <tr key={s._id} className="border-b border-border last:border-0">
+                            <td className="p-2">{s.order}</td>
+                            <td className="p-2 font-medium">{s.code}</td>
+                            <td className="p-2">{s.label}</td>
+                            <td className="p-2">{s.terminal ? "Sì" : "—"}</td>
+                            <td className="p-2">{s.reversible ? "Sì" : "—"}</td>
+                            <td className="p-2">{s.apartmentLock !== "none" ? LOCK_LABEL[s.apartmentLock] : "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
-                <Button type="button" variant="outline" size="sm" onClick={openAddStateModal}>
-                  Aggiungi stato
+                <Button type="button" variant="outline" size="sm" onClick={openAddStateModal} disabled={detailLoading}>
+                  {detailLoading ? "Aggiornamento..." : "Aggiungi stato"}
                 </Button>
               </TabsContent>
               <TabsContent value="transizioni" className="mt-4 space-y-3">
                 {detail.transitions.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nessuna transizione. Aggiungine una (dopo almeno due stati).</p>
                 ) : (
-                  <ul className="flex flex-wrap gap-2">
-                    {detail.transitions.map((t) => {
-                      const from = detail.states.find((s) => s._id === t.fromStateId);
-                      const to = detail.states.find((s) => s._id === t.toStateId);
-                      return (
-                        <li key={t._id} className="text-sm text-muted-foreground">
-                          {from?.code} → {to?.code}
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  <div className="rounded-lg border border-border overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50 border-b border-border">
+                        <tr>
+                          <th className="text-left font-semibold p-2">Da stato</th>
+                          <th className="text-left font-semibold p-2">A stato</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {detail.transitions.map((t) => {
+                          const from = detail.states.find((s) => s._id === t.fromStateId);
+                          const to = detail.states.find((s) => s._id === t.toStateId);
+                          return (
+                            <tr key={t._id} className="border-b border-border last:border-0">
+                              <td className="p-2">{from?.code ?? t.fromStateId}</td>
+                              <td className="p-2">{to?.code ?? t.toStateId}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
-                <Button type="button" variant="outline" size="sm" onClick={openAddTransModal} disabled={detail.states.length < 2}>
-                  Aggiungi transizione
+                <Button type="button" variant="outline" size="sm" onClick={openAddTransModal} disabled={detail.states.length < 2 || detailLoading}>
+                  {detailLoading ? "Aggiornamento..." : "Aggiungi transizione"}
                 </Button>
               </TabsContent>
             </Tabs>
-          )}
+          ) : null}
         </SheetContent>
       </Sheet>
 
@@ -441,9 +493,19 @@ export const WorkflowConfigPage = () => {
               </div>
             </div>
           )}
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" size="sm" onClick={() => setAddTransOpen(false)}>Annulla</Button>
-            <Button size="sm" onClick={handleAddTransition} disabled={addingTrans || !newTransFrom || !newTransTo}>
+            <Button
+              size="sm"
+              onClick={handleAddTransition}
+              disabled={
+                addingTrans ||
+                !newTransFrom ||
+                !newTransTo ||
+                newTransFrom === newTransTo ||
+                (!!detail && detail.transitions.some((t) => t.fromStateId === newTransFrom && t.toStateId === newTransTo))
+              }
+            >
               {addingTrans ? "..." : "Aggiungi"}
             </Button>
           </div>

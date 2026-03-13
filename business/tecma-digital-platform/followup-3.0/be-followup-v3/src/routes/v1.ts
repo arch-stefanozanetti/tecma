@@ -64,6 +64,11 @@ import {
   updateWorkspaceUser,
   removeWorkspaceUser,
 } from "../core/workspaces/workspace-users.service.js";
+import {
+  listWorkspaceUserProjects,
+  addWorkspaceUserProject,
+  removeWorkspaceUserProject,
+} from "../core/workspaces/workspace-user-projects.service.js";
 import { listUsersWithVisibility } from "../core/users/users-admin.service.js";
 import { createProject } from "../core/projects/projects.service.js";
 import {
@@ -595,6 +600,21 @@ v1Router.patch("/workspaces/:id/users/:userId", requireAdmin, handleAsync(async 
 v1Router.delete("/workspaces/:id/users/:userId", requireAdmin, handleAsync(async (req) => {
   const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
   return removeWorkspaceUser(req.params.id, userId);
+}));
+v1Router.get("/workspaces/:id/users/:userId/projects", handleAsync(async (req) => {
+  const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
+  return listWorkspaceUserProjects(req.params.id, userId);
+}));
+v1Router.post("/workspaces/:id/users/:userId/projects", requireAdmin, handleAsync(async (req) => {
+  const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
+  const body = req.body as { projectId?: string };
+  const projectId = typeof body.projectId === "string" ? body.projectId : "";
+  return addWorkspaceUserProject(req.params.id, userId, projectId);
+}));
+v1Router.delete("/workspaces/:id/users/:userId/projects/:projectId", requireAdmin, handleAsync(async (req) => {
+  const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
+  const projectId = typeof req.params.projectId === "string" ? decodeURIComponent(req.params.projectId) : "";
+  return removeWorkspaceUserProject(req.params.id, userId, projectId);
 }));
 v1Router.get("/workspaces/:id/projects", handleAsync((req) =>
   listWorkspaceProjects(req.params.id).then((rows) => ({ data: rows }))

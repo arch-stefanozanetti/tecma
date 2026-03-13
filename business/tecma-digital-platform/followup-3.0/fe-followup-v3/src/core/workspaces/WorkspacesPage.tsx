@@ -156,6 +156,7 @@ export const WorkspacesPage = () => {
   const [userDrawerOpen, setUserDrawerOpen] = useState(false);
   const [userFormEmail, setUserFormEmail] = useState("");
   const [userFormRole, setUserFormRole] = useState<WorkspaceUserRole>("vendor");
+  const [userFormProjectIds, setUserFormProjectIds] = useState<string[]>([]);
 
   useEffect(() => {
     const t = setTimeout(() => setAssociateSearchDebounced(associateSearch), 300);
@@ -334,6 +335,7 @@ export const WorkspacesPage = () => {
   const openAddUser = () => {
     setUserFormEmail("");
     setUserFormRole("vendor");
+    setUserFormProjectIds([]);
     setUserDrawerOpen(true);
   };
 
@@ -347,6 +349,11 @@ export const WorkspacesPage = () => {
     setSaving(true);
     try {
       await followupApi.addWorkspaceUser(selectedWs._id, { userId: email, role: userFormRole });
+      if (userFormProjectIds.length > 0) {
+        for (const projectId of userFormProjectIds) {
+          await followupApi.addWorkspaceUserProject(selectedWs._id, email, projectId);
+        }
+      }
       setUserDrawerOpen(false);
       openProjectList(selectedWs);
     } catch (e) {
@@ -899,6 +906,36 @@ export const WorkspacesPage = () => {
                 </SelectContent>
               </Select>
             </Field>
+            {selectedWs && projects.length > 0 && (
+              <div className="space-y-2">
+                <Field label="Progetti visibili nel workspace" hint="Se nessuno selezionato, l'utente vedrà tutti i progetti del workspace.">
+                  <div className="flex flex-col gap-2 max-h-48 overflow-y-auto rounded-md border border-border p-2">
+                    {projects.map((wp) => {
+                      const proj = allProjects.find((p) => p.id === wp.projectId);
+                      const label = proj?.displayName ?? proj?.name ?? wp.projectId;
+                      const checked = userFormProjectIds.includes(wp.projectId);
+                      return (
+                        <label key={wp.projectId} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setUserFormProjectIds((prev) => [...prev, wp.projectId]);
+                              } else {
+                                setUserFormProjectIds((prev) => prev.filter((id) => id !== wp.projectId));
+                              }
+                            }}
+                            disabled={saving}
+                          />
+                          <span>{label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </Field>
+              </div>
+            )}
           </DrawerBody>
           <DrawerFooter>
             <Button onClick={handleAddWorkspaceUser} disabled={saving || !userFormEmail.trim()}>
