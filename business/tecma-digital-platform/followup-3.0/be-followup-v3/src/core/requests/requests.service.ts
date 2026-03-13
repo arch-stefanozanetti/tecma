@@ -557,7 +557,8 @@ export const listRequestTransitions = async (
     .find({ requestId })
     .sort({ createdAt: -1 });
   const docs = await cursor.toArray();
-  const transitions: RequestTransitionRow[] = docs.map((d: { _id?: unknown; requestId?: string; fromState?: string; toState?: string; event?: string; reason?: string; userId?: string; createdAt?: string }) => ({
+  type TransitionDoc = { _id?: unknown; requestId?: string; fromState?: string; toState?: string; event?: string; reason?: string; userId?: string; createdAt?: Date | string };
+  const transitions: RequestTransitionRow[] = (docs as TransitionDoc[]).map((d) => ({
     _id: d._id instanceof ObjectId ? d._id.toHexString() : String(d._id),
     requestId: d.requestId ?? requestId,
     fromState: (d.fromState ?? "new") as RequestStatus,

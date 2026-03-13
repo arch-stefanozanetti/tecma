@@ -212,8 +212,8 @@ const seed = async () => {
     const aptIndex = 2 + i;
     const clientDef = allClients[clientIndex];
     const aptDef = allApartments[aptIndex];
-    const clientDbId = String(clientsResult.insertedIds[String(clientIndex)]);
-    const aptDbId = String(apartmentsResult.insertedIds[String(aptIndex)]);
+    const clientDbId = String((clientsResult.insertedIds as Record<number, unknown>)[clientIndex]);
+    const aptDbId = String((apartmentsResult.insertedIds as Record<number, unknown>)[aptIndex]);
     const isRent = clientDef.projectId === "fake-rent-01";
     const statusCycle = ["new", "contacted", "viewing", "quote", "offer", "won", "lost"] as const;
     const status = statusCycle[i % statusCycle.length];

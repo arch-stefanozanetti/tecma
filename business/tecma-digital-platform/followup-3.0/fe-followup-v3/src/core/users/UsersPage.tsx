@@ -44,7 +44,6 @@ export const UsersPage = () => {
   const [addSelectValueByWorkspace, setAddSelectValueByWorkspace] = useState<Record<string, string>>({});
   const [entityAssignmentsByWorkspace, setEntityAssignmentsByWorkspace] = useState<Record<string, EntityAssignmentRow[]>>({});
   const [savingAssignment, setSavingAssignment] = useState<string | null>(null);
-  const [addEntityByWorkspace, setAddEntityByWorkspace] = useState<Record<string, { type: "client" | "apartment"; id: string }>>({});
 
   const load = () => {
     setLoading(true);
@@ -64,6 +63,7 @@ export const UsersPage = () => {
     if (!user.workspaces.length) {
       setUserProjectIdsByWorkspace({});
       setWorkspaceProjectsByWorkspace({});
+      setEntityAssignmentsByWorkspace({});
       return;
     }
     setDetailLoading(true);
@@ -83,17 +83,25 @@ export const UsersPage = () => {
               })),
             };
           }),
+          followupApi.listEntityAssignmentsByUser(w.workspaceId, userId).then((r) => ({
+            wsId: w.workspaceId,
+            assignments: (r.data ?? []) as EntityAssignmentRow[],
+          })),
         ])
       )
-    ).then((pairs) => {
+    ).then((triples) => {
       const idsByWs: Record<string, string[]> = {};
       const projsByWs: Record<string, WorkspaceProjectOption[]> = {};
-      pairs.forEach(([userProjs, wsProjs]) => {
+      const assignmentsByWs: Record<string, EntityAssignmentRow[]> = {};
+      triples.forEach(([userProjs, wsProjs, assignRes]) => {
         idsByWs[(userProjs as { wsId: string; ids: string[] }).wsId] = (userProjs as { wsId: string; ids: string[] }).ids;
         projsByWs[(wsProjs as { wsId: string; projects: WorkspaceProjectOption[] }).wsId] = (wsProjs as { wsId: string; projects: WorkspaceProjectOption[] }).projects;
+        const a = assignRes as { wsId: string; assignments: EntityAssignmentRow[] };
+        assignmentsByWs[a.wsId] = a.assignments;
       });
       setUserProjectIdsByWorkspace(idsByWs);
       setWorkspaceProjectsByWorkspace(projsByWs);
+      setEntityAssignmentsByWorkspace(assignmentsByWs);
     }).finally(() => setDetailLoading(false));
   }, []);
 
@@ -134,6 +142,51 @@ export const UsersPage = () => {
       window.alert(e instanceof Error ? e.message : "Errore rimozione progetto");
     } finally {
       setSavingProject(null);
+    }
+  };
+
+  const removeAssignment = async (workspaceId: string, entityType: "client" | "apartment", entityId: string) => {
+    if (!selectedUser) return;
+    const key = `${workspaceId}-${entityType}-${entityId}`;
+    setSavingAssignment(key);
+    try {
+      await followupApi.unassignEntity(workspaceId, entityType, entityId, selectedUser.email);
+      setEntityAssignmentsByWorkspace((prev) => ({
+        ...prev,
+        [workspaceId]: (prev[workspaceId] ?? []).filter(
+          (a) => !(a.entityType === entityType && a.entityId === entityId)
+        ),
+      }));
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "Errore rimozione assegnazione");
+    } finally {
+      setSavingAssignment(null);
+    }
+  };
+
+  const addAssignment = async (workspaceId: string, entityType: "client" | "apartment", entityId: string) => {
+    if (!selectedUser || !entityId.trim()) return;
+    const key = `${workspaceId}-${entityType}-${entityId}`;
+    setSavingAssignment(key);
+    try {
+      await followupApi.assignEntity(workspaceId, entityType, entityId.trim(), selectedUser.email);
+      setEntityAssignmentsByWorkspace((prev) => ({
+        ...prev,
+        [workspaceId]: [
+          ...(prev[workspaceId] ?? []),
+          {
+            _id: "",
+            workspaceId,
+            entityType,
+            entityId: entityId.trim(),
+            userId: selectedUser.email,
+          },
+        ],
+      }));
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "Errore aggiunta assegnazione");
+    } finally {
+      setSavingAssignment(null);
     }
   };
 
@@ -307,6 +360,56 @@ export const UsersPage = () => {
                               </SelectContent>
                             </Select>
                           </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-2">Clienti / Appartamenti assegnati</h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Assegnazioni per workspace. Per assegnare altri clienti o appartamenti usa la scheda Cliente o Appartamento.
+                </p>
+                {detailLoading ? (
+                  <p className="text-sm text-muted-foreground">Caricamento...</p>
+                ) : (
+                  selectedUser.workspaces.map((w) => {
+                    const assignments = entityAssignmentsByWorkspace[w.workspaceId] ?? [];
+                    return (
+                      <div key={w.workspaceId} className="mb-4">
+                        <h4 className="text-sm font-medium text-foreground mb-1.5">{w.workspaceName}</h4>
+                        {assignments.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">Nessuna assegnazione</p>
+                        ) : (
+                          <ul className="space-y-1">
+                            {assignments.map((a) => (
+                              <li
+                                key={a._id || `${a.entityType}-${a.entityId}`}
+                                className="flex items-center justify-between rounded-md bg-muted/50 px-2 py-1.5 text-sm"
+                              >
+                                <span>
+                                  {a.entityType === "client" ? "Cliente" : "Appartamento"}: {a.entityId}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-muted-foreground hover:text-destructive"
+                                  disabled={savingAssignment !== null}
+                                  onClick={() =>
+                                    removeAssignment(
+                                      w.workspaceId,
+                                      a.entityType as "client" | "apartment",
+                                      a.entityId
+                                    )
+                                  }
+                                >
+                                  Rimuovi
+                                </Button>
+                              </li>
+                            ))}
+                          </ul>
                         )}
                       </div>
                     );

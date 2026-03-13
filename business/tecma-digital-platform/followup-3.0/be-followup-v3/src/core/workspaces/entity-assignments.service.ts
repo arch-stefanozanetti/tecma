@@ -48,7 +48,7 @@ export const listEntityAssignments = async (
     .collection(COLLECTION)
     .find({ workspaceId, entityType: type, entityId: eid })
     .toArray();
-  const data = (docs as (EntityAssignmentRow & { _id?: unknown })[]).map((d) => ({
+  const data = (docs as unknown as (EntityAssignmentRow & { _id?: unknown })[]).map((d) => ({
     _id: String(d._id ?? ""),
     workspaceId: d.workspaceId,
     entityType: d.entityType,
@@ -71,7 +71,7 @@ export const listEntityAssignmentsByUser = async (
     .collection(COLLECTION)
     .find({ workspaceId, userId: uid })
     .toArray();
-  const data = (docs as (EntityAssignmentRow & { _id?: unknown })[]).map((d) => ({
+  const data = (docs as unknown as (EntityAssignmentRow & { _id?: unknown })[]).map((d) => ({
     _id: String(d._id ?? ""),
     workspaceId: d.workspaceId,
     entityType: d.entityType,

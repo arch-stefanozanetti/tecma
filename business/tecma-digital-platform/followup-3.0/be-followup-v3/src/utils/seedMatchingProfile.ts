@@ -69,7 +69,7 @@ async function seedMatchingProfile() {
       };
     }
     if (Object.keys(updates).length > 1) {
-      await clientsColl.updateOne({ _id: c._id }, { $set: updates });
+      await clientsColl.updateOne({ _id: c._id as import("mongodb").ObjectId }, { $set: updates });
     }
   }
 
@@ -107,7 +107,7 @@ async function seedMatchingProfile() {
       updates.mode = mode;
     }
     if (Object.keys(updates).length > 1) {
-      await aptColl.updateOne({ _id: a._id }, { $set: updates });
+      await aptColl.updateOne({ _id: a._id as import("mongodb").ObjectId }, { $set: updates });
     }
   }
 

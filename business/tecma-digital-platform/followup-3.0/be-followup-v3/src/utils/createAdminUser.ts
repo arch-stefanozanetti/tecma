@@ -36,7 +36,7 @@ const main = async () => {
 
   if (existing) {
     await users.updateOne(
-      { _id: (existing as { _id: unknown })._id },
+      { _id: (existing as { _id: unknown })._id as import("mongodb").ObjectId },
       {
         $set: {
           email,

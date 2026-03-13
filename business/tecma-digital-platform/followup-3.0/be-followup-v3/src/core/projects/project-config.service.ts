@@ -59,7 +59,8 @@ export const getProjectDetail = async (
 ): Promise<ProjectDetailRow> => {
   await ensureProjectInWorkspace(projectId, workspaceId, isAdmin);
   const db = getDb();
-  const tzDoc = await db.collection(COLLECTION_TZ_PROJECTS).findOne({ _id: projectId });
+  const idFilter = ObjectId.isValid(projectId) ? new ObjectId(projectId) : (projectId as unknown as ObjectId);
+  const tzDoc = await db.collection(COLLECTION_TZ_PROJECTS).findOne({ _id: idFilter });
   if (!tzDoc) {
     throw new HttpError("Project not found", 404);
   }
@@ -299,8 +300,9 @@ export const getProjectEmailTemplate = async (
 ): Promise<ProjectEmailTemplateRow> => {
   await ensureProjectInWorkspace(projectId, workspaceId, isAdmin);
   const db = getDb();
+  const templateIdFilter = ObjectId.isValid(templateId) ? new ObjectId(templateId) : (templateId as unknown as ObjectId);
   const doc = await db.collection(COLLECTION_EMAIL_TEMPLATES).findOne({
-    _id: ObjectId.isValid(templateId) ? new ObjectId(templateId) : templateId,
+    _id: templateIdFilter,
     projectId,
   });
   if (!doc) {
@@ -329,7 +331,7 @@ export const patchProjectEmailTemplate = async (
   const input = EmailTemplatePatchSchema.parse(rawInput);
   const db = getDb();
   const coll = db.collection(COLLECTION_EMAIL_TEMPLATES);
-  const id = ObjectId.isValid(templateId) ? new ObjectId(templateId) : templateId;
+  const id = ObjectId.isValid(templateId) ? new ObjectId(templateId) : (templateId as unknown as ObjectId);
   const existing = await coll.findOne({ _id: id, projectId });
   if (!existing) {
     throw new HttpError("Email template not found", 404);
@@ -357,7 +359,7 @@ export const deleteProjectEmailTemplate = async (
 ): Promise<{ deleted: true }> => {
   await ensureProjectInWorkspace(projectId, workspaceId, isAdmin);
   const db = getDb();
-  const id = ObjectId.isValid(templateId) ? new ObjectId(templateId) : templateId;
+  const id = ObjectId.isValid(templateId) ? new ObjectId(templateId) : (templateId as unknown as ObjectId);
   const result = await db.collection(COLLECTION_EMAIL_TEMPLATES).deleteOne({ _id: id, projectId });
   if (result.deletedCount === 0) {
     throw new HttpError("Email template not found", 404);
@@ -452,8 +454,9 @@ export const getProjectPdfTemplate = async (
 ): Promise<ProjectPdfTemplateRow> => {
   await ensureProjectInWorkspace(projectId, workspaceId, isAdmin);
   const db = getDb();
+  const pdfTemplateIdFilter = ObjectId.isValid(templateId) ? new ObjectId(templateId) : (templateId as unknown as ObjectId);
   const doc = await db.collection(COLLECTION_PDF_TEMPLATES).findOne({
-    _id: ObjectId.isValid(templateId) ? new ObjectId(templateId) : templateId,
+    _id: pdfTemplateIdFilter,
     projectId,
   });
   if (!doc) {
@@ -480,7 +483,7 @@ export const patchProjectPdfTemplate = async (
   const input = PdfTemplatePatchSchema.parse(rawInput);
   const db = getDb();
   const coll = db.collection(COLLECTION_PDF_TEMPLATES);
-  const id = ObjectId.isValid(templateId) ? new ObjectId(templateId) : templateId;
+  const id = ObjectId.isValid(templateId) ? new ObjectId(templateId) : (templateId as unknown as ObjectId);
   const existing = await coll.findOne({ _id: id, projectId });
   if (!existing) {
     throw new HttpError("PDF template not found", 404);
@@ -502,7 +505,7 @@ export const deleteProjectPdfTemplate = async (
 ): Promise<{ deleted: true }> => {
   await ensureProjectInWorkspace(projectId, workspaceId, isAdmin);
   const db = getDb();
-  const id = ObjectId.isValid(templateId) ? new ObjectId(templateId) : templateId;
+  const id = ObjectId.isValid(templateId) ? new ObjectId(templateId) : (templateId as unknown as ObjectId);
   const result = await db.collection(COLLECTION_PDF_TEMPLATES).deleteOne({ _id: id, projectId });
   if (result.deletedCount === 0) {
     throw new HttpError("PDF template not found", 404);

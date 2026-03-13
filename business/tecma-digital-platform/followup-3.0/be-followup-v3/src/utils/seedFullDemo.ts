@@ -73,10 +73,11 @@ async function seed() {
     { _id: "fake-rent-01", name: "Appartamenti Nord", displayName: "Appartamenti Nord (Affitto)", mode: "rent" },
   ];
   for (const p of fakeProjects) {
-    const exists = await projectsColl.findOne({ _id: p._id });
+    const projectIdFilter = p._id as unknown as import("mongodb").ObjectId;
+    const exists = await projectsColl.findOne({ _id: projectIdFilter });
     if (!exists) {
       await projectsColl.insertOne({
-        _id: p._id,
+        _id: projectIdFilter,
         name: p.name,
         displayName: p.displayName,
         mode: p.mode,

@@ -4,7 +4,7 @@ import { ENV } from "../config/env.js";
 type Pair = { legacy: string; tz: string };
 
 const PAIRS: Pair[] = [
-  { legacy: "clients", legacy: "clients", tz: "tz_clients" } as never
+  { legacy: "clients", tz: "tz_clients" },
 ];
 
 const run = async () => {

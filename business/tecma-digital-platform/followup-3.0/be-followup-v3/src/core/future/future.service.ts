@@ -773,7 +773,8 @@ export const queryClientsLite = async (workspaceId: string, projectIds: string[]
     .project({ _id: 1, fullName: 1, email: 1, projectId: 1 })
     .limit(3000)
     .toArray();
-  return clients.map((item: { _id: unknown; fullName?: string; email?: string; projectId?: string }) => ({
+  type ClientDoc = { _id?: unknown; fullName?: string; email?: string; projectId?: string };
+  return (clients as ClientDoc[]).map((item) => ({
     _id: String(item._id),
     workspaceId,
     projectId: typeof item.projectId === "string" ? item.projectId : "",

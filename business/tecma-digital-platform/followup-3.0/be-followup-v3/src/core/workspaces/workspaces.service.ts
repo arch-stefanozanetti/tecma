@@ -210,18 +210,16 @@ export const listWorkspaceProjects = async (
     try {
       const projQuery =
         ObjectId.isValid(projectId) && projectId.length === 24
-          ? { $or: [{ _id: projectId }, { _id: new ObjectId(projectId) }] }
-          : { _id: projectId };
+          ? { $or: [{ _id: new ObjectId(projectId) }, { _id: projectId as unknown as ObjectId }] }
+          : { _id: projectId as unknown as ObjectId };
       const proj = await projColl.findOne(projQuery, {
         projection: { name: 1, displayName: 1, mode: 1 },
       });
       if (proj) {
-        base.name = typeof (proj as { name?: unknown }).name === "string" ? (proj as { name: string }).name : undefined;
-        base.displayName =
-          typeof (proj as { displayName?: unknown }).displayName === "string"
-            ? (proj as { displayName: string }).displayName
-            : base.name;
-        const mode = (proj as { mode?: string }).mode;
+        const p = proj as { name?: string; displayName?: string; mode?: string };
+        base.name = typeof p.name === "string" ? p.name : undefined;
+        base.displayName = typeof p.displayName === "string" ? p.displayName : base.name;
+        const mode = p.mode;
         base.mode = mode === "rent" || mode === "sell" ? mode : undefined;
       }
     } catch {
