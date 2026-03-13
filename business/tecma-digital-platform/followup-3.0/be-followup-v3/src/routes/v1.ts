@@ -412,7 +412,7 @@ v1Router.post("/associations/apartment-client", handleAsync(async (req) => {
       workspaceId: req.body.workspaceId,
       projectId: req.body.projectId,
       entityType: "association",
-      entityId: result.association._id,
+      entityId: String(result.association._id),
       actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
       payload: { apartmentId: req.body.apartmentId, clientId: req.body.clientId },
     }).catch(() => {});
