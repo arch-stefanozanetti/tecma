@@ -1,3 +1,4 @@
+import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "../../test-utils";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -29,13 +30,15 @@ describe("ProjectDetailPage", () => {
     vi.clearAllMocks();
   });
 
+  const NoExtraRouter = ({ children }: { children: React.ReactNode }) => <>{children}</>;
   it("con projectId carica e mostra il progetto", async () => {
     render(
       <MemoryRouter initialEntries={["/projects/p1"]}>
         <Routes>
           <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
         </Routes>
-      </MemoryRouter>
+      </MemoryRouter>,
+      { wrapper: NoExtraRouter }
     );
     expect(await screen.findByRole("heading", { name: /p1/i })).toBeInTheDocument();
   });

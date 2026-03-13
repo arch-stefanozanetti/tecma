@@ -1,3 +1,4 @@
+import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "../../test-utils";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -26,6 +27,7 @@ vi.mock("../../api/followupApi", () => ({
     listEntityAssignments: vi.fn().mockResolvedValue({ data: [] }),
     listWorkspaceUsers: vi.fn().mockResolvedValue({ data: [] }),
     getApartmentCandidates: vi.fn().mockResolvedValue({ data: [] }),
+    listWorkflowsByWorkspace: vi.fn().mockResolvedValue({ data: [] }),
   },
 }));
 
@@ -43,13 +45,15 @@ describe("ApartmentDetailPage", () => {
     vi.clearAllMocks();
   });
 
+  const NoExtraRouter = ({ children }: { children: React.ReactNode }) => <>{children}</>;
   it("con apartmentId carica e mostra l'appartamento", async () => {
     render(
       <MemoryRouter initialEntries={["/apartments/a1"]}>
         <Routes>
           <Route path="/apartments/:apartmentId" element={<ApartmentDetailPage />} />
         </Routes>
-      </MemoryRouter>
+      </MemoryRouter>,
+      { wrapper: NoExtraRouter }
     );
     expect(await screen.findByRole("heading", { level: 1, name: "Appartamento 1" })).toBeInTheDocument();
   });

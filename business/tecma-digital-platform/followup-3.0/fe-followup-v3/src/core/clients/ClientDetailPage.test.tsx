@@ -1,3 +1,4 @@
+import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "../../test-utils";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -27,6 +28,8 @@ vi.mock("../../api/followupApi", () => ({
     listEntityAssignments: vi.fn().mockResolvedValue({ data: [] }),
     listWorkspaceUsers: vi.fn().mockResolvedValue({ data: [] }),
     getClientCandidates: vi.fn().mockResolvedValue({ data: [] }),
+    listWorkflowsByWorkspace: vi.fn().mockResolvedValue({ data: [] }),
+    getRequestActions: vi.fn().mockResolvedValue({ actions: [] }),
   },
 }));
 
@@ -44,13 +47,15 @@ describe("ClientDetailPage", () => {
     vi.clearAllMocks();
   });
 
+  const NoExtraRouter = ({ children }: { children: React.ReactNode }) => <>{children}</>;
   it("con clientId carica e mostra il cliente", async () => {
     render(
       <MemoryRouter initialEntries={["/clients/c1"]}>
         <Routes>
           <Route path="/clients/:clientId" element={<ClientDetailPage />} />
         </Routes>
-      </MemoryRouter>
+      </MemoryRouter>,
+      { wrapper: NoExtraRouter }
     );
     expect(await screen.findByText("Mario Rossi")).toBeInTheDocument();
   });
@@ -61,7 +66,8 @@ describe("ClientDetailPage", () => {
         <Routes>
           <Route path="/clients/:clientId" element={<ClientDetailPage />} />
         </Routes>
-      </MemoryRouter>
+      </MemoryRouter>,
+      { wrapper: NoExtraRouter }
     );
     expect(await screen.findByText("Mario Rossi")).toBeInTheDocument();
     expect(screen.getByText("mario@test.com")).toBeInTheDocument();

@@ -1,3 +1,4 @@
+import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "../../test-utils";
 import { MemoryRouter } from "react-router-dom";
@@ -25,11 +26,13 @@ describe("WorkspacesPage", () => {
     vi.clearAllMocks();
   });
 
+  const NoExtraRouter = ({ children }: { children: React.ReactNode }) => <>{children}</>;
   const renderWithRouter = () =>
     render(
       <MemoryRouter>
         <WorkspacesPage />
-      </MemoryRouter>
+      </MemoryRouter>,
+      { wrapper: NoExtraRouter }
     );
 
   it("rende la pagina con titolo Workspaces", async () => {

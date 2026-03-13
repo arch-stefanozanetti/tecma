@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "../../test-utils";
 import { RequestsPage } from "./RequestsPage";
 
-vi.mock("react-router-dom", () => ({ useNavigate: () => vi.fn() }));
+vi.mock("react-router-dom", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-router-dom")>();
+  return { ...actual, useNavigate: () => vi.fn() };
+});
 
 vi.mock("../../api/followupApi", () => ({
   followupApi: {
@@ -10,6 +13,7 @@ vi.mock("../../api/followupApi", () => ({
     queryClientsLite: vi.fn().mockResolvedValue({ data: [] }),
     createRequest: vi.fn().mockResolvedValue({ request: {} }),
     updateRequestStatus: vi.fn().mockResolvedValue({ request: {} }),
+    getRequestActions: vi.fn().mockResolvedValue({ actions: [] }),
   },
 }));
 

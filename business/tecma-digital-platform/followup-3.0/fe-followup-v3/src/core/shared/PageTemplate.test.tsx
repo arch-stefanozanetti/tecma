@@ -49,8 +49,9 @@ describe("PageTemplate", () => {
     expect(clienti).toBeInTheDocument();
   });
 
-  it("con isAdmin mostra voce Workspaces in nav", () => {
+  it("con isAdmin mostra voce Workspaces in nav", async () => {
     render(<PageTemplate {...defaultProps} isAdmin={true} />);
+    await userEvent.click(screen.getByRole("button", { name: /strumenti/i }));
     expect(screen.getByRole("button", { name: /workspaces/i })).toBeInTheDocument();
   });
 

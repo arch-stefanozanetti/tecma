@@ -1,3 +1,4 @@
+import * as React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "./test-utils";
 import { MemoryRouter } from "react-router-dom";
@@ -57,10 +58,12 @@ describe("App", () => {
   });
 
   it("con token e projectScope rende il layout principale", async () => {
+    const NoExtraRouter = ({ children }: { children: React.ReactNode }) => <>{children}</>;
     render(
       <MemoryRouter initialEntries={["/"]}>
         <App />
-      </MemoryRouter>
+      </MemoryRouter>,
+      { wrapper: NoExtraRouter }
     );
     expect(await screen.findByRole("button", { name: /home/i })).toBeInTheDocument();
   });
