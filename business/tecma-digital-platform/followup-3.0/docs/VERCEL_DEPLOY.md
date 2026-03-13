@@ -4,6 +4,14 @@ Guida per avere **frontend** e **backend** funzionanti su Vercel (due progetti s
 
 ---
 
+## Checklist rapida (dopo push su GitHub)
+
+1. **Backend:** Vercel → Add New Project → Import `arch-stefanozanetti/tecma` → **Root Directory** = `business/tecma-digital-platform/followup-3.0/be-followup-v3` → aggiungi env (MONGO_URI, AUTH_JWT_SECRET, ecc.) → Deploy. Verifica `https://<progetto-be>.vercel.app/v1/health`.
+2. **Frontend:** Vercel → Add New Project → stesso repo → **Root Directory** = `business/tecma-digital-platform/followup-3.0/fe-followup-v3` → **Install Command** = `npm ci --omit=optional` → **Build** = `npm run build`, **Output** = `dist` → env `VITE_API_BASE_URL` = URL del progetto BE → Deploy.
+3. Verifica login e chiamate API dal FE; se serve, aggiorna `VITE_API_BASE_URL` e rifai deploy FE.
+
+---
+
 ## 1. Frontend (fe-followup-v3)
 
 ### Configurazione progetto Vercel
