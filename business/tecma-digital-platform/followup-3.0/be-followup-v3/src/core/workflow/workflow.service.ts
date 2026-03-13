@@ -1,7 +1,6 @@
-import { getDb, getDbByName } from "../../config/db.js";
+import { getDb } from "../../config/db.js";
 
 const TZ_WORKFLOW_COLLECTION = "tz_workflow_configs";
-const STATUS_AUTOMATA_DB = "status-automata";
 const AUTOMATA_COLLECTION = "automata_configurations";
 
 export interface WorkflowState {
@@ -52,7 +51,7 @@ export const getWorkflowConfig = async (
   }
 
   const area = flowType === "rent" ? "RENT" : "SELL";
-  const automataDb = getDbByName(STATUS_AUTOMATA_DB);
+  const automataDb = getDb();
   const automataColl = automataDb.collection(AUTOMATA_COLLECTION);
   const automataDoc = await automataColl.findOne({
     flow: "REQUEST",

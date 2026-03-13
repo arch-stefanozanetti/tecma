@@ -1,7 +1,6 @@
 import { ObjectId } from "mongodb";
 import { z } from "zod";
-import { getDb, getDbByName } from "../../config/db.js";
-import { ENV } from "../../config/env.js";
+import { getDb } from "../../config/db.js";
 import { ListQuerySchema, type ListQueryInput, buildPagination } from "../shared/list-query.js";
 import { PaginatedResponse } from "../../types/http.js";
 
@@ -45,6 +44,7 @@ export interface ClientAction {
 
 export interface ClientRow {
   _id: string;
+  workspaceId?: string;
   projectId: string;
   fullName: string;
   email?: string;
@@ -129,155 +129,9 @@ const sortable: Record<string, 1> = {
   projectId: 1
 };
 
-type LegacyClientDoc = {
-  _id?: ObjectId | string;
-  project_id?: ObjectId | string;
-  firstName?: string;
-  lastName?: string;
-  fullName?: string;
-  email?: string;
-  tel?: string;
-  status?: string;
-  source?: string;
-  city?: string;
-  myhome_version?: string;
-  createdBy?: string;
-  updatedOn?: Date | string;
-  createdOn?: Date | string;
-  coniuge?: ClientConiuge;
-  family?: ClientFamily;
-  budget?: number | string | null;
-  motivazione?: string;
-  note?: string;
-  profilazione?: boolean;
-  trattamento?: boolean;
-  marketing?: boolean;
-  selected_appartments?: ClientSelectedApartment[];
-  interested_appartments?: ClientSelectedApartment[];
-  actions?: ClientAction[];
-  activityState?: string;
-  activityStateHistory?: Array<{ date?: Date | string; activityState?: string; reason?: string; movement?: ObjectId | string | null }>;
-  additionalInfo?: Record<string, unknown>;
-  nProposals?: number;
-  nReserved?: number;
-};
-
-const parseProjectIdsForLegacy = (projectIds: string[]) => {
-  const objectIds: ObjectId[] = [];
-  const asStrings = new Set<string>();
-  for (const projectId of projectIds) {
-    asStrings.add(projectId);
-    if (ObjectId.isValid(projectId)) objectIds.push(new ObjectId(projectId));
-  }
-  return { objectIds, asStrings: [...asStrings] };
-};
-
-const buildLegacyMatch = (q: ListQueryInput) => {
-  const { objectIds, asStrings } = parseProjectIdsForLegacy(q.projectIds);
-  const projectConditionValues: Array<ObjectId | string> = [...objectIds, ...asStrings];
-  const conditions: Record<string, unknown>[] = [{ project_id: { $in: projectConditionValues } }];
-
-  const status = q.filters?.status;
-  if (Array.isArray(status) && status.length > 0) {
-    conditions.push({ status: { $in: status } });
-  }
-
-  const source = q.filters?.source;
-  if (Array.isArray(source) && source.length > 0) {
-    conditions.push({ source: { $in: source } });
-  }
-
-  const city = q.filters?.city;
-  if (Array.isArray(city) && city.length > 0) {
-    conditions.push({ city: { $in: city } });
-  }
-
-  const dateFrom = q.filters?.dateFrom;
-  const dateTo = q.filters?.dateTo;
-  if (typeof dateFrom === "string" || typeof dateTo === "string") {
-    const range: Record<string, unknown> = {};
-    if (typeof dateFrom === "string" && dateFrom) range.$gte = new Date(dateFrom);
-    if (typeof dateTo === "string" && dateTo) range.$lte = new Date(dateTo);
-    conditions.push({ updatedOn: range });
-  }
-
-  if (q.searchText && q.searchText.trim()) {
-    const safe = q.searchText.trim();
-    conditions.push({
-      $or: [
-        { firstName: { $regex: safe, $options: "i" } },
-        { lastName: { $regex: safe, $options: "i" } },
-        { fullName: { $regex: safe, $options: "i" } },
-        { email: { $regex: safe, $options: "i" } },
-        { tel: { $regex: safe, $options: "i" } }
-      ]
-    });
-  }
-
-  if (conditions.length === 1) return conditions[0];
-  return { $and: conditions };
-};
-
-const legacySortFieldByInput: Record<string, string> = {
-  fullName: "lastName",
-  status: "status",
-  updatedAt: "updatedOn",
-  projectId: "project_id"
-};
-
-const toIsoDate = (value: unknown): string => {
-  if (value instanceof Date) return value.toISOString();
-  if (typeof value === "string" && value) {
-    const parsed = new Date(value);
-    if (!Number.isNaN(parsed.valueOf())) return parsed.toISOString();
-  }
-  return new Date(0).toISOString();
-};
-
-const mapLegacyClientToRow = (item: LegacyClientDoc): ClientRow => {
-  const nameParts = [item.firstName, item.lastName].filter((part): part is string => typeof part === "string" && part.trim().length > 0);
-  const fullName = typeof item.fullName === "string" && item.fullName.trim() ? item.fullName : nameParts.join(" ").trim() || "-";
-  const projectId = item.project_id instanceof ObjectId ? item.project_id.toHexString() : typeof item.project_id === "string" ? item.project_id : "";
-  const updatedAt = toIsoDate(item.updatedOn ?? item.createdOn);
-
-  const row: ClientRow = {
-    _id: String(item._id ?? ""),
-    projectId,
-    fullName,
-    email: typeof item.email === "string" ? item.email : undefined,
-    phone: typeof item.tel === "string" ? item.tel : undefined,
-    status: typeof item.status === "string" ? item.status : "lead",
-    createdAt: item.createdOn ? toIsoDate(item.createdOn) : undefined,
-    updatedAt,
-    source: typeof item.source === "string" ? item.source : undefined,
-    city: typeof item.city === "string" ? item.city : undefined,
-    myhomeVersion: typeof item.myhome_version === "string" ? item.myhome_version : undefined,
-    createdBy: typeof item.createdBy === "string" ? item.createdBy : undefined
-  };
-
-  if (item.coniuge && typeof item.coniuge === "object") row.coniuge = item.coniuge;
-  if (item.family && typeof item.family === "object") row.family = item.family;
-  if (item.budget !== undefined) row.budget = item.budget;
-  if (typeof item.motivazione === "string") row.motivazione = item.motivazione;
-  if (typeof item.note === "string") row.note = item.note;
-  if (typeof item.profilazione === "boolean") row.profilazione = item.profilazione;
-  if (typeof item.trattamento === "boolean") row.trattamento = item.trattamento;
-  if (typeof item.marketing === "boolean") row.marketing = item.marketing;
-  if (Array.isArray(item.selected_appartments)) row.selectedAppartments = item.selected_appartments;
-  if (Array.isArray(item.interested_appartments)) row.interestedAppartments = item.interested_appartments;
-  if (Array.isArray(item.actions)) row.actions = item.actions;
-  if (typeof item.activityState === "string") row.activityState = item.activityState;
-  if (Array.isArray(item.activityStateHistory)) row.activityStateHistory = item.activityStateHistory;
-  if (item.additionalInfo && typeof item.additionalInfo === "object") row.additionalInfo = item.additionalInfo;
-  if (typeof item.nProposals === "number") row.nProposals = item.nProposals;
-  if (typeof item.nReserved === "number") row.nReserved = item.nReserved;
-
-  return row;
-};
-
 const queryPrimaryClients = async (input: ListQueryInput): Promise<PaginatedResponse<ClientRow>> => {
   const db = getDb();
-  const collection = db.collection("clients");
+  const collection = db.collection("tz_clients");
 
   const match = buildMatch(input);
   const { page, perPage } = input;
@@ -336,62 +190,14 @@ const queryPrimaryClients = async (input: ListQueryInput): Promise<PaginatedResp
   };
 };
 
-const queryLegacyClients = async (input: ListQueryInput): Promise<PaginatedResponse<ClientRow>> => {
-  const db = getDbByName(ENV.MONGO_CLIENT_DB_NAME);
-  const collection = db.collection<LegacyClientDoc>("clients");
-
-  const match = buildLegacyMatch(input);
-  const { page, perPage } = input;
-  const { skip, limit } = buildPagination(page, perPage);
-  const sortField = input.sort?.field && sortable[input.sort.field] ? legacySortFieldByInput[input.sort.field] : "updatedOn";
-  const sortDirection = input.sort?.direction ?? -1;
-
-  const [rawData, total] = await Promise.all([
-    collection
-      .find(match)
-      .sort({ [sortField]: sortDirection })
-      .skip(skip)
-      .limit(limit)
-      .project({
-        _id: 1,
-        project_id: 1,
-        firstName: 1,
-        lastName: 1,
-        fullName: 1,
-        email: 1,
-        tel: 1,
-        status: 1,
-        source: 1,
-        city: 1,
-        myhome_version: 1,
-        createdBy: 1,
-        updatedOn: 1,
-        createdOn: 1
-      })
-      .toArray(),
-    collection.countDocuments(match)
-  ]);
-
-  return {
-    data: rawData.map(mapLegacyClientToRow),
-    pagination: {
-      page,
-      perPage,
-      total,
-      totalPages: Math.ceil(total / perPage)
-    }
-  };
-};
-
 export const queryClients = async (rawInput: unknown): Promise<PaginatedResponse<ClientRow>> => {
   const input = ListQuerySchema.parse(rawInput);
-  const primary = await queryPrimaryClients(input);
-  if (primary.pagination.total > 0) return primary;
-  return queryLegacyClients(input);
+  return queryPrimaryClients(input);
 };
 
 const mapDocToClientRow = (item: Record<string, unknown>): ClientRow => ({
   _id: String(item._id ?? ""),
+  workspaceId: typeof item.workspaceId === "string" ? item.workspaceId : undefined,
   projectId: typeof item.projectId === "string" ? item.projectId : "",
   fullName: typeof item.fullName === "string" && item.fullName.trim() ? item.fullName : "-",
   email: typeof item.email === "string" ? item.email : undefined,
@@ -413,20 +219,14 @@ export const getClientById = async (rawId: unknown): Promise<{ client: ClientRow
     (err as Error & { statusCode?: number }).statusCode = 404;
     throw err;
   }
-  const primaryDb = getDb();
-  const doc = await primaryDb.collection("clients").findOne({ _id });
-  if (doc) {
-    const client = mapDocToClientRow(doc as Record<string, unknown>);
-    return { client };
-  }
-  const legacyDb = getDbByName(ENV.MONGO_CLIENT_DB_NAME);
-  const legacyDoc = await legacyDb.collection<LegacyClientDoc>("clients").findOne({ _id });
-  if (!legacyDoc) {
+  const db = getDb();
+  const doc = await db.collection("tz_clients").findOne({ _id });
+  if (!doc) {
     const err = new Error("Client not found");
     (err as Error & { statusCode?: number }).statusCode = 404;
     throw err;
   }
-  const client = mapLegacyClientToRow(legacyDoc);
+  const client = mapDocToClientRow(doc as Record<string, unknown>);
   return { client };
 };
 
@@ -471,7 +271,7 @@ const ClientUpdateSchema = z.object({
 export const createClient = async (rawInput: unknown): Promise<{ client: ClientRow }> => {
   const input = ClientCreateSchema.parse(rawInput) as ClientCreateInput;
   const db = getDb();
-  const collection = db.collection("clients");
+  const collection = db.collection("tz_clients");
   const now = new Date().toISOString();
   const doc = {
     workspaceId: input.workspaceId,
@@ -506,7 +306,7 @@ export const updateClient = async (
 ): Promise<{ client: ClientRow; workspaceId?: string }> => {
   const input = ClientUpdateSchema.parse(rawInput) as ClientUpdateInput;
   const db = getDb();
-  const collection = db.collection("clients");
+  const collection = db.collection("tz_clients");
   const _id = ObjectId.isValid(clientId) ? new ObjectId(clientId) : null;
   if (!_id) {
     const err = new Error("Client not found");

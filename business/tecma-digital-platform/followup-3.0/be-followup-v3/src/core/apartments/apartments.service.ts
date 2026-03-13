@@ -1,5 +1,5 @@
 import { ObjectId } from "mongodb";
-import { getDb, getDbByName } from "../../config/db.js";
+import { getDb } from "../../config/db.js";
 import { ListQuerySchema, type ListQueryInput, buildPagination } from "../shared/list-query.js";
 import { normalizePrice, type RawPrice } from "../pricing/price-normalizer.js";
 import { PaginatedResponse } from "../../types/http.js";
@@ -203,9 +203,11 @@ const mapLegacyToListRow = (doc: LegacyApartmentDoc): ApartmentListRow => {
   };
 };
 
+const TZ_APARTMENTS_COLLECTION = "tz_apartments";
+
 const queryPrimaryApartments = async (input: ListQueryInput): Promise<PaginatedResponse<ApartmentListRow>> => {
   const db = getDb();
-  const collection = db.collection<ApartmentRow>("apartments");
+  const collection = db.collection<ApartmentRow>(TZ_APARTMENTS_COLLECTION);
 
   const match = buildMatch(input);
   const { page, perPage } = input;
@@ -241,7 +243,7 @@ const queryPrimaryApartments = async (input: ListQueryInput): Promise<PaginatedR
 };
 
 const queryLegacyApartments = async (input: ListQueryInput): Promise<PaginatedResponse<ApartmentListRow>> => {
-  const db = getDbByName("asset");
+  const db = getDb();
   const collection = db.collection<LegacyApartmentDoc>("apartments_view");
 
   const match = buildLegacyMatch(input);

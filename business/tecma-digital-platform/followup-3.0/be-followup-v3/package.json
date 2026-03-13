@@ -16,7 +16,10 @@
     "test:integration": "vitest run -c vitest.integration.config.ts",
     "test:lint": "eslint src",
     "seed": "tsx src/utils/seed.ts",
+    "seed:apartments-requests": "tsx src/utils/seedApartmentsAndRequests.ts",
     "seed:fake-projects": "tsx src/utils/seedFakeProjects.ts",
+    "seed:full-demo": "tsx src/utils/seedFullDemo.ts",
+    "seed:matching-profile": "tsx src/utils/seedMatchingProfile.ts",
     "db:list-collections": "tsx src/utils/listCollections.ts",
     "db:copy-test": "tsx src/utils/copyCollections.ts"
   },

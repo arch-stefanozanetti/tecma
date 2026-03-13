@@ -1,10 +1,8 @@
 import { ObjectId } from "mongodb";
 import { z } from "zod";
-import { getDb, getDbByName } from "../../config/db.js";
-import { ENV } from "../../config/env.js";
+import { getDb } from "../../config/db.js";
 
 const SAMPLE_SIZE = 2;
-const LEGACY_DB_ASSET = "asset";
 
 function anonymizeClientDoc(doc: Record<string, unknown>, index: number): Record<string, unknown> {
   const out = { ...doc };
@@ -47,10 +45,10 @@ export async function getModelSample(raw: unknown): Promise<{
   const apartmentsPrimary: Record<string, unknown>[] = [];
   const apartmentsLegacy: Record<string, unknown>[] = [];
 
+  const db = getDb();
   if (workspaceId) {
-    const primaryDb = getDb();
-    const primaryClients = await primaryDb
-      .collection("clients")
+    const primaryClients = await db
+      .collection("tz_clients")
       .find({ workspaceId, projectId })
       .limit(SAMPLE_SIZE)
       .toArray();
@@ -58,8 +56,8 @@ export async function getModelSample(raw: unknown): Promise<{
       ...primaryClients.map((d, i) => anonymizeClientDoc(d as Record<string, unknown>, i))
     );
 
-    const primaryApts = await primaryDb
-      .collection("apartments")
+    const primaryApts = await db
+      .collection("tz_apartments")
       .find({ workspaceId, projectId })
       .limit(SAMPLE_SIZE)
       .toArray();
@@ -68,42 +66,25 @@ export async function getModelSample(raw: unknown): Promise<{
     );
   }
 
-  try {
-    const legacyClientDb = getDbByName(ENV.MONGO_CLIENT_DB_NAME);
-    const projectIdObj = ObjectId.isValid(projectId) ? new ObjectId(projectId) : null;
-    const legacyClientMatch =
-      projectIdObj != null
-        ? { project_id: { $in: [projectId, projectIdObj] } }
-        : { project_id: projectId };
-    const legacyClients = await legacyClientDb
-      .collection("clients")
-      .find(legacyClientMatch)
+  if (clientsPrimary.length === 0 && clientsLegacy.length === 0) {
+    const fallbackClients = await db
+      .collection("tz_clients")
+      .find({ projectId })
       .limit(SAMPLE_SIZE)
       .toArray();
     clientsLegacy.push(
-      ...legacyClients.map((d, i) => anonymizeClientDoc(d as Record<string, unknown>, i))
+      ...fallbackClients.map((d, i) => anonymizeClientDoc(d as Record<string, unknown>, i))
     );
-  } catch {
-    // Legacy client DB may not exist or be configured
   }
-
-  try {
-    const assetDb = getDbByName(LEGACY_DB_ASSET);
-    const projectIdObj = ObjectId.isValid(projectId) ? new ObjectId(projectId) : null;
-    const legacyAptMatch =
-      projectIdObj != null
-        ? { project_id: { $in: [projectId, projectIdObj] } }
-        : { project_id: projectId };
-    const legacyApts = await assetDb
-      .collection("apartments_view")
-      .find(legacyAptMatch)
+  if (apartmentsPrimary.length === 0 && apartmentsLegacy.length === 0) {
+    const fallbackApts = await db
+      .collection("tz_apartments")
+      .find({ projectId })
       .limit(SAMPLE_SIZE)
       .toArray();
     apartmentsLegacy.push(
-      ...legacyApts.map((d, i) => anonymizeApartmentDoc(d as Record<string, unknown>, i))
+      ...fallbackApts.map((d, i) => anonymizeApartmentDoc(d as Record<string, unknown>, i))
     );
-  } catch {
-    // Legacy asset DB may not exist
   }
 
   return {

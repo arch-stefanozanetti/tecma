@@ -4,8 +4,7 @@
  */
 import { ObjectId } from "mongodb";
 import { z } from "zod";
-import { getDb, getDbByName } from "../../config/db.js";
-import { ENV } from "../../config/env.js";
+import { getDb } from "../../config/db.js";
 import { HttpError } from "../../types/http.js";
 
 const COLLECTION_TZ_PROJECTS = "tz_projects";
@@ -43,7 +42,7 @@ export const ensureProjectInWorkspace = async (
   }
 };
 
-/** Dettaglio progetto: merge tz_projects + project DB legacy se ObjectId. */
+/** Dettaglio progetto da tz_projects (solo test-zanetti). */
 export interface ProjectDetailRow {
   id: string;
   name: string;
@@ -61,32 +60,16 @@ export const getProjectDetail = async (
   await ensureProjectInWorkspace(projectId, workspaceId, isAdmin);
   const db = getDb();
   const tzDoc = await db.collection(COLLECTION_TZ_PROJECTS).findOne({ _id: projectId });
-  if (tzDoc) {
-    return {
-      id: String(tzDoc._id ?? projectId),
-      name: typeof tzDoc.name === "string" ? tzDoc.name : projectId,
-      displayName: typeof tzDoc.displayName === "string" ? tzDoc.displayName : tzDoc.name ?? projectId,
-      mode: tzDoc.mode === "rent" ? "rent" : "sell",
-      city: typeof tzDoc.city === "string" ? tzDoc.city : undefined,
-      payoff: typeof tzDoc.payoff === "string" ? tzDoc.payoff : undefined,
-    };
-  }
-  const projectsDb = getDbByName(ENV.MONGO_PROJECT_DB_NAME);
-  const projectsColl = projectsDb.collection("projects");
-  const legacyQuery = ObjectId.isValid(projectId) && projectId.length === 24
-    ? { _id: new ObjectId(projectId) }
-    : { _id: projectId };
-  const legacyDoc = await projectsColl.findOne(legacyQuery);
-  if (!legacyDoc) {
+  if (!tzDoc) {
     throw new HttpError("Project not found", 404);
   }
   return {
-    id: String(legacyDoc._id ?? projectId),
-    name: typeof legacyDoc.name === "string" ? legacyDoc.name : projectId,
-    displayName: typeof legacyDoc.displayName === "string" ? legacyDoc.displayName : legacyDoc.name ?? projectId,
-    mode: legacyDoc.mode === "rent" ? "rent" : "sell",
-    city: typeof legacyDoc.city === "string" ? legacyDoc.city : undefined,
-    payoff: typeof legacyDoc.payoff === "string" ? legacyDoc.payoff : undefined,
+    id: String(tzDoc._id ?? projectId),
+    name: typeof tzDoc.name === "string" ? tzDoc.name : projectId,
+    displayName: typeof tzDoc.displayName === "string" ? tzDoc.displayName : tzDoc.name ?? projectId,
+    mode: tzDoc.mode === "rent" ? "rent" : "sell",
+    city: typeof tzDoc.city === "string" ? tzDoc.city : undefined,
+    payoff: typeof tzDoc.payoff === "string" ? tzDoc.payoff : undefined,
   };
 };
 

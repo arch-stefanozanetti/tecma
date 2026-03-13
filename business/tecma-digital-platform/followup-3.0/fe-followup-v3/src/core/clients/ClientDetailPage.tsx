@@ -1,9 +1,17 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Home, Calendar, FileText, User, ClipboardList, Pencil, History, UserPlus, Trash2, Mail, Phone, CalendarCheck } from "lucide-react";
+import { ArrowLeft, Home, Calendar, FileText, User, ClipboardList, Pencil, History, UserPlus, Trash2, Mail, Phone, CalendarCheck, ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
 import { followupApi } from "../../api/followupApi";
 import { useWorkspace } from "../../auth/projectScope";
-import type { AdditionalInfoRow, ClientRow, RequestRow, RequestStatus } from "../../types/domain";
+import type {
+  AdditionalInfoRow,
+  ClientRow,
+  RequestRow,
+  RequestStatus,
+  RequestTransitionRow,
+  RequestActionRow,
+  RequestActionType,
+} from "../../types/domain";
 import { Button } from "../../components/ui/button";
 import { Progress } from "../../components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
@@ -26,6 +34,15 @@ import {
 } from "../../components/ui/select";
 import { cn } from "../../lib/utils";
 import { STATUS_FILTER_OPTIONS } from "./constants";
+import { Textarea } from "../../components/ui/textarea";
+
+const ACTION_TYPE_LABEL: Record<RequestActionType, string> = {
+  note: "Nota",
+  call: "Chiamata",
+  email: "Email",
+  meeting: "Incontro",
+  other: "Altro",
+};
 
 const STATUS_LABEL: Record<string, string> = {
   lead: "Lead",
@@ -48,6 +65,16 @@ const REQUEST_STATUS_LABEL: Record<RequestStatus, string> = {
   offer: "Offerta",
   won: "Vinto",
   lost: "Perso",
+};
+
+const REQUEST_ALLOWED_TRANSITIONS: Record<RequestStatus, RequestStatus[]> = {
+  new: ["contacted", "viewing", "lost"],
+  contacted: ["viewing", "quote", "offer", "lost"],
+  viewing: ["quote", "offer", "contacted", "lost"],
+  quote: ["offer", "viewing", "lost"],
+  offer: ["won", "lost", "viewing", "quote"],
+  won: [],
+  lost: [],
 };
 
 const statusLabel = (raw: string) => STATUS_LABEL[raw] ?? raw;
@@ -109,6 +136,24 @@ export const ClientDetailPage = () => {
   const [actionLogging, setActionLogging] = useState<string | null>(null);
   const [matchCandidates, setMatchCandidates] = useState<Array<{ item: { _id: string; code: string; name?: string; status: string; mode: string; surfaceMq: number }; score: number; reasons: string[] }>>([]);
   const [matchLoading, setMatchLoading] = useState(false);
+  const [requestStatusChangingId, setRequestStatusChangingId] = useState<string | null>(null);
+  const [transitionsByRequestId, setTransitionsByRequestId] = useState<Record<string, RequestTransitionRow[]>>({});
+  const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
+  const [transitionsLoadingId, setTransitionsLoadingId] = useState<string | null>(null);
+  const requestedTransitionsRef = useRef<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState("profilo");
+  const [timelineActions, setTimelineActions] = useState<RequestActionRow[]>([]);
+  const [timelineActionsLoading, setTimelineActionsLoading] = useState(false);
+  const [actionDrawerOpen, setActionDrawerOpen] = useState(false);
+  const [actionDrawerMode, setActionDrawerMode] = useState<"create" | "edit">("create");
+  const [editingAction, setEditingAction] = useState<RequestActionRow | null>(null);
+  const [actionFormType, setActionFormType] = useState<RequestActionType>("note");
+  const [actionFormTitle, setActionFormTitle] = useState("");
+  const [actionFormDescription, setActionFormDescription] = useState("");
+  const [actionFormRequestIds, setActionFormRequestIds] = useState<string[]>([]);
+  const [actionFormSaving, setActionFormSaving] = useState(false);
+  const [actionFormError, setActionFormError] = useState<string | null>(null);
+  const [deletingActionId, setDeletingActionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!clientId || !client || !workspaceId || selectedProjectIds.length === 0) return;
@@ -154,13 +199,14 @@ export const ClientDetailPage = () => {
       .finally(() => setLoading(false));
   }, [clientId]);
 
-  useEffect(() => {
+  const reloadRequests = useCallback(() => {
     if (!clientId || !client || !workspaceId || selectedProjectIds.length === 0) return;
+    const projectIds = client.projectId ? [client.projectId] : selectedProjectIds;
     setRequestsLoading(true);
     followupApi
       .queryRequests({
         workspaceId,
-        projectIds: [client.projectId],
+        projectIds,
         page: 1,
         perPage: 50,
         filters: { clientId },
@@ -170,7 +216,51 @@ export const ClientDetailPage = () => {
       })
       .catch(() => setRequests([]))
       .finally(() => setRequestsLoading(false));
-  }, [clientId, client?.projectId, workspaceId, selectedProjectIds.length]);
+  }, [clientId, client, workspaceId, selectedProjectIds.length]);
+
+  useEffect(() => {
+    reloadRequests();
+  }, [reloadRequests]);
+
+  // Carica transizioni quando si espande "Storia" per una trattativa
+  useEffect(() => {
+    if (!expandedRequestId) return;
+    if (requestedTransitionsRef.current.has(expandedRequestId)) return;
+    requestedTransitionsRef.current.add(expandedRequestId);
+    setTransitionsLoadingId(expandedRequestId);
+    followupApi
+      .getRequestTransitions(expandedRequestId)
+      .then((r) => {
+        setTransitionsByRequestId((prev) => ({ ...prev, [expandedRequestId]: r.transitions ?? [] }));
+      })
+      .catch(() => setTransitionsByRequestId((prev) => ({ ...prev, [expandedRequestId]: [] })))
+      .finally(() => setTransitionsLoadingId(null));
+  }, [expandedRequestId]);
+
+  // Tab Timeline: carica azioni e transizioni quando si apre il tab
+  useEffect(() => {
+    if (activeTab !== "timeline" || !workspaceId) return;
+    setTimelineActionsLoading(true);
+    followupApi
+      .getRequestActions(workspaceId)
+      .then((r) => setTimelineActions(r.actions ?? []))
+      .catch(() => setTimelineActions([]))
+      .finally(() => setTimelineActionsLoading(false));
+  }, [activeTab, workspaceId]);
+
+  useEffect(() => {
+    if (activeTab !== "timeline" || requests.length === 0) return;
+    const toLoad = requests.filter((r) => transitionsByRequestId[r._id] === undefined);
+    if (toLoad.length === 0) return;
+    Promise.all(toLoad.map((r) => followupApi.getRequestTransitions(r._id).then((res) => ({ requestId: r._id, transitions: res.transitions ?? [] }))))
+      .then((arr) => {
+        setTransitionsByRequestId((prev) => ({
+          ...prev,
+          ...Object.fromEntries(arr.map(({ requestId, transitions }) => [requestId, transitions])),
+        }));
+      })
+      .catch(() => {});
+  }, [activeTab, requests, transitionsByRequestId]);
 
   const profilationPercent = useMemo(
     () => (client ? getProfilationPercent(client) : 0),
@@ -184,6 +274,133 @@ export const ClientDetailPage = () => {
       ),
     [requests]
   );
+
+  const requestIdsSet = useMemo(() => new Set(requests.map((r) => r._id)), [requests]);
+  const timelineActionsFiltered = useMemo(
+    () => timelineActions.filter((a) => a.requestIds.some((id) => requestIdsSet.has(id))),
+    [timelineActions, requestIdsSet]
+  );
+  type TimelineItem =
+    | { kind: "transition"; id: string; createdAt: string; requestId: string; request: RequestRow; transition: RequestTransitionRow }
+    | { kind: "action"; id: string; createdAt: string; action: RequestActionRow };
+  const timelineUnified = useMemo(() => {
+    const items: TimelineItem[] = [];
+    requests.forEach((req) => {
+      const transitions = transitionsByRequestId[req._id] ?? [];
+      transitions.forEach((t) => {
+        items.push({ kind: "transition", id: `t-${t._id}`, createdAt: t.createdAt, requestId: req._id, request: req, transition: t });
+      });
+    });
+    timelineActionsFiltered.forEach((a) => {
+      items.push({ kind: "action", id: `a-${a._id}`, createdAt: a.createdAt, action: a });
+    });
+    items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return items;
+  }, [requests, transitionsByRequestId, timelineActionsFiltered]);
+
+  const openActionDrawerCreate = useCallback(() => {
+    setEditingAction(null);
+    setActionDrawerMode("create");
+    setActionFormType("note");
+    setActionFormTitle("");
+    setActionFormDescription("");
+    setActionFormRequestIds(requests.length > 0 ? [requests[0]._id] : []);
+    setActionFormError(null);
+    setActionDrawerOpen(true);
+  }, [requests]);
+
+  const openActionDrawerEdit = useCallback((action: RequestActionRow) => {
+    setEditingAction(action);
+    setActionDrawerMode("edit");
+    setActionFormType(action.type);
+    setActionFormTitle(action.title ?? "");
+    setActionFormDescription(action.description ?? "");
+    setActionFormRequestIds([...action.requestIds].filter((id) => requestIdsSet.has(id)));
+    setActionFormError(null);
+    setActionDrawerOpen(true);
+  }, [requestIdsSet]);
+
+  const handleActionFormSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!workspaceId) return;
+      if (actionFormRequestIds.length === 0) {
+        setActionFormError("Seleziona almeno una trattativa.");
+        return;
+      }
+      setActionFormError(null);
+      setActionFormSaving(true);
+      try {
+        if (actionDrawerMode === "edit" && editingAction) {
+          await followupApi.updateRequestAction(editingAction._id, {
+            type: actionFormType,
+            title: actionFormTitle.trim() || undefined,
+            description: actionFormDescription.trim() || undefined,
+            requestIds: actionFormRequestIds,
+          });
+        } else {
+          await followupApi.createRequestAction({
+            workspaceId,
+            requestIds: actionFormRequestIds,
+            type: actionFormType,
+            title: actionFormTitle.trim() || undefined,
+            description: actionFormDescription.trim() || undefined,
+          });
+        }
+        setActionDrawerOpen(false);
+        const { actions } = await followupApi.getRequestActions(workspaceId);
+        setTimelineActions(actions ?? []);
+      } catch (err) {
+        setActionFormError(err instanceof Error ? err.message : "Errore nel salvataggio.");
+      } finally {
+        setActionFormSaving(false);
+      }
+    },
+    [
+      workspaceId,
+      actionDrawerMode,
+      editingAction,
+      actionFormType,
+      actionFormTitle,
+      actionFormDescription,
+      actionFormRequestIds,
+    ]
+  );
+
+  const handleDeleteAction = useCallback(async (actionId: string) => {
+    if (!window.confirm("Eliminare questa azione?")) return;
+    setDeletingActionId(actionId);
+    try {
+      await followupApi.deleteRequestAction(actionId);
+      setTimelineActions((prev) => prev.filter((a) => a._id !== actionId));
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "Errore durante l'eliminazione.");
+    } finally {
+      setDeletingActionId(null);
+    }
+  }, []);
+
+  const addRequestIdToActionForm = useCallback((requestId: string) => {
+    if (!actionFormRequestIds.includes(requestId)) {
+      setActionFormRequestIds((prev) => [...prev, requestId]);
+    }
+  }, [actionFormRequestIds]);
+
+  const removeRequestIdFromActionForm = useCallback((requestId: string) => {
+    setActionFormRequestIds((prev) => (prev.length <= 1 ? prev : prev.filter((id) => id !== requestId)));
+  }, []);
+
+  const handleRequestStatusChange = async (requestId: string, newStatus: RequestStatus) => {
+    setRequestStatusChangingId(requestId);
+    try {
+      await followupApi.updateRequestStatus(requestId, { status: newStatus });
+      reloadRequests();
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "Errore durante l'aggiornamento dello stato della trattativa.");
+    } finally {
+      setRequestStatusChangingId(null);
+    }
+  };
 
   useEffect(() => {
     if (!workspaceId) return;
@@ -460,7 +677,7 @@ export const ClientDetailPage = () => {
         </DrawerContent>
       </Drawer>
 
-      <Tabs defaultValue="profilo" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="w-full flex flex-wrap border-b border-border bg-transparent p-0">
           <TabsTrigger value="profilo" icon={<User className="h-4 w-4" />}>
             Profilo
@@ -763,41 +980,110 @@ export const ClientDetailPage = () => {
               </p>
             ) : (
               <ul className="space-y-0">
-                {timelineSorted.map((req) => (
-                  <li key={req._id} className="flex gap-3 py-3">
-                    <div
-                      className={cn(
-                        "mt-1.5 h-2 w-2 shrink-0 rounded-full",
-                        req.status === "won"
-                          ? "bg-green-500"
-                          : req.status === "lost"
-                            ? "bg-muted-foreground/50"
-                            : "bg-primary"
-                      )}
-                    />
-                    <div className="min-w-0 flex-1 text-sm">
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span className="font-medium text-foreground">
-                          {REQUEST_STATUS_LABEL[req.status]}
-                        </span>
-                        <span className="text-muted-foreground">
-                          {req.type === "sell" ? "Vendita" : "Affitto"}
-                        </span>
-                        {req.apartmentId && (
-                          <Link
-                            to={`/apartments/${req.apartmentId}`}
-                            className="text-primary hover:underline font-medium"
-                          >
-                            {req.apartmentCode ?? req.apartmentId}
-                          </Link>
-                        )}
+                {timelineSorted.map((req) => {
+                  const nextStatuses = REQUEST_ALLOWED_TRANSITIONS[req.status] ?? [];
+                  const isExpanded = expandedRequestId === req._id;
+                  const transitions = transitionsByRequestId[req._id] ?? [];
+                  const loadingTransitions = transitionsLoadingId === req._id;
+                  return (
+                    <li key={req._id} className="border-b border-border last:border-b-0">
+                      <div className="flex gap-3 py-3">
+                        <div
+                          className={cn(
+                            "mt-1.5 h-2 w-2 shrink-0 rounded-full",
+                            req.status === "won"
+                              ? "bg-green-500"
+                              : req.status === "lost"
+                                ? "bg-muted-foreground/50"
+                                : "bg-primary"
+                          )}
+                        />
+                        <div className="min-w-0 flex-1 text-sm">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className="font-medium text-foreground">
+                              {REQUEST_STATUS_LABEL[req.status]}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {req.type === "sell" ? "Vendita" : "Affitto"}
+                            </span>
+                            {req.apartmentId && (
+                              <Link
+                                to={`/apartments/${req.apartmentId}`}
+                                className="text-primary hover:underline font-medium"
+                              >
+                                {req.apartmentCode ?? req.apartmentId}
+                              </Link>
+                            )}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="xs"
+                              className="h-6 px-2 text-[11px] text-primary gap-1"
+                              onClick={() => navigate("/requests", { state: { openRequestId: req._id } })}
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              Dettaglio
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {formatDate(req.updatedAt)}
+                          </p>
+                          {nextStatuses.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {nextStatuses.map((st) => (
+                                <Button
+                                  key={st}
+                                  type="button"
+                                  variant="outline"
+                                  size="xs"
+                                  className="h-6 px-2 text-[11px]"
+                                  disabled={requestStatusChangingId === req._id}
+                                  onClick={() => handleRequestStatusChange(req._id, st)}
+                                >
+                                  {REQUEST_STATUS_LABEL[st]}
+                                </Button>
+                              ))}
+                            </div>
+                          )}
+                          <div className="mt-2">
+                            <button
+                              type="button"
+                              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                              onClick={() => setExpandedRequestId(isExpanded ? null : req._id)}
+                            >
+                              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                              Mostra storia
+                            </button>
+                            {isExpanded && (
+                              <div className="mt-2 pl-4 border-l-2 border-border space-y-2">
+                                {loadingTransitions ? (
+                                  <p className="text-xs text-muted-foreground">Caricamento...</p>
+                                ) : transitions.length === 0 ? (
+                                  <p className="text-xs text-muted-foreground">Nessuna transizione.</p>
+                                ) : (
+                                  transitions
+                                    .slice()
+                                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                                    .map((t) => (
+                                      <div key={t._id} className="text-xs">
+                                        <span className="text-foreground">
+                                          {REQUEST_STATUS_LABEL[t.fromState]} → {REQUEST_STATUS_LABEL[t.toState]}
+                                        </span>
+                                        <span className="text-muted-foreground ml-1">
+                                          {formatDate(t.createdAt)}
+                                          {t.reason ? ` · ${t.reason}` : ""}
+                                        </span>
+                                      </div>
+                                    ))
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {formatDate(req.updatedAt)}
-                      </p>
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
@@ -894,26 +1180,104 @@ export const ClientDetailPage = () => {
           </section>
         </TabsContent>
 
-        {/* Tab Timeline — audit log per cliente */}
+        {/* Tab Timeline — timeline unificata (trattative + azioni) con CRUD azioni */}
         <TabsContent value="timeline" className="space-y-4 mt-4">
           <section className="rounded-lg border border-border bg-card p-4">
-            <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-              <History className="h-4 w-4" />
-              Ultime attività
-            </h2>
-            {auditEvents.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nessun evento registrato.</p>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <History className="h-4 w-4" />
+                Timeline
+              </h2>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1"
+                onClick={openActionDrawerCreate}
+                disabled={requests.length === 0}
+              >
+                <CalendarCheck className="h-3.5 w-3.5" />
+                Nuova azione
+              </Button>
+            </div>
+            {timelineActionsLoading && timelineUnified.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Caricamento...</p>
+            ) : timelineUnified.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nessun evento. Le transizioni delle trattative e le azioni collegate al cliente appariranno qui.
+              </p>
             ) : (
-              <ul className="space-y-2">
-                {auditEvents.map((ev) => (
-                  <li key={ev._id} className="flex gap-3 py-2 border-b border-border/50 last:border-0 text-sm">
-                    <span className="text-muted-foreground shrink-0">{formatDate(ev.at)}</span>
-                    <span className="font-medium text-foreground">
-                      {ev.action.replace(/\./g, " ")}
-                      {ev.actor?.email && (
-                        <span className="text-muted-foreground font-normal ml-1">— {ev.actor.email}</span>
+              <ul className="space-y-0">
+                {timelineUnified.map((item) => (
+                  <li key={item.id} className="flex gap-3 py-3 border-b border-border last:border-b-0">
+                    <span className="text-muted-foreground shrink-0 text-xs w-24">{formatDate(item.createdAt)}</span>
+                    <div className="min-w-0 flex-1 text-sm">
+                      {item.kind === "transition" ? (
+                        <>
+                          <span className="font-medium text-foreground">Trattativa: </span>
+                          <span>
+                            {REQUEST_STATUS_LABEL[item.transition.fromState]} → {REQUEST_STATUS_LABEL[item.transition.toState]}
+                            {item.transition.reason && (
+                              <span className="text-muted-foreground"> · {item.transition.reason}</span>
+                            )}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="xs"
+                            className="h-6 ml-2 text-[11px] text-primary gap-1"
+                            onClick={() => navigate("/requests", { state: { openRequestId: item.requestId } })}
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            Dettaglio
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="font-medium text-foreground">{ACTION_TYPE_LABEL[item.action.type]}: </span>
+                          {item.action.title && <span>{item.action.title}</span>}
+                          {item.action.description && (
+                            <p className="text-muted-foreground mt-0.5">{item.action.description}</p>
+                          )}
+                          {item.action.requestIds.length > 0 && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Trattative collegate:{" "}
+                              {item.action.requestIds
+                                .filter((id) => requestIdsSet.has(id))
+                                .map((id, i) => {
+                                  const req = requests.find((r) => r._id === id);
+                                  return req ? (
+                                    <span key={id}>
+                                      {i > 0 && ", "}
+                                      <button
+                                        type="button"
+                                        className="text-primary hover:underline"
+                                        onClick={() => navigate("/requests", { state: { openRequestId: id } })}
+                                      >
+                                        {req.apartmentCode ?? id.slice(0, 8)}
+                                      </button>
+                                    </span>
+                                  ) : null;
+                                })}
+                            </p>
+                          )}
+                          <div className="mt-2 flex gap-2">
+                            <Button type="button" variant="outline" size="xs" className="h-6 text-[11px]" onClick={() => openActionDrawerEdit(item.action)}>
+                              Modifica
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="xs"
+                              className="h-6 text-[11px] text-destructive hover:text-destructive"
+                              disabled={deletingActionId === item.action._id}
+                              onClick={() => handleDeleteAction(item.action._id)}
+                            >
+                              {deletingActionId === item.action._id ? "Eliminazione..." : "Elimina"}
+                            </Button>
+                          </div>
+                        </>
                       )}
-                    </span>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -921,6 +1285,115 @@ export const ClientDetailPage = () => {
           </section>
         </TabsContent>
       </Tabs>
+
+      {/* Drawer Nuova / Modifica azione (tab Timeline) */}
+      <Drawer open={actionDrawerOpen} onOpenChange={setActionDrawerOpen}>
+        <DrawerContent side="right" className="sm:max-w-md">
+          <DrawerHeader actions={<DrawerCloseButton />}>
+            <DrawerTitle>{actionDrawerMode === "edit" ? "Modifica azione" : "Nuova azione"}</DrawerTitle>
+          </DrawerHeader>
+          <form onSubmit={handleActionFormSubmit} id="timeline-action-form">
+            <DrawerBody className="space-y-4">
+              {actionFormError && (
+                <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{actionFormError}</p>
+              )}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Tipo</label>
+                <Select value={actionFormType} onValueChange={(v) => setActionFormType(v as RequestActionType)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.entries(ACTION_TYPE_LABEL) as [RequestActionType, string][]).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Titolo (opzionale)</label>
+                <Input
+                  className="w-full"
+                  value={actionFormTitle}
+                  onChange={(e) => setActionFormTitle(e.target.value)}
+                  placeholder="Es. Chiamata di follow-up"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Descrizione (opzionale)</label>
+                <Textarea
+                  className="min-h-[80px] w-full"
+                  value={actionFormDescription}
+                  onChange={(e) => setActionFormDescription(e.target.value)}
+                  placeholder="Note..."
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Trattative collegate</label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {actionFormRequestIds.map((rid) => {
+                    const req = requests.find((r) => r._id === rid);
+                    return (
+                      <span
+                        key={rid}
+                        className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-0.5 text-xs"
+                      >
+                        {req?.apartmentCode ?? req?.clientName ?? rid.slice(0, 8)}
+                        <button
+                          type="button"
+                          className="rounded hover:bg-muted"
+                          onClick={() => removeRequestIdFromActionForm(rid)}
+                          disabled={actionFormRequestIds.length <= 1}
+                          aria-label="Rimuovi"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+                <Select
+                  value="_add"
+                  onValueChange={(v) => {
+                    if (v && v !== "_add") addRequestIdToActionForm(v);
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Aggiungi trattativa..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_add" disabled>
+                      Aggiungi trattativa...
+                    </SelectItem>
+                    {requests
+                      .filter((r) => !actionFormRequestIds.includes(r._id))
+                      .map((r) => (
+                        <SelectItem key={r._id} value={r._id}>
+                          {r.apartmentCode ?? r.clientId ?? r._id.slice(0, 8)}
+                        </SelectItem>
+                      ))}
+                    {requests.filter((r) => !actionFormRequestIds.includes(r._id)).length === 0 && (
+                      <SelectItem value="_none" disabled>
+                        Tutte le trattative già collegate
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </DrawerBody>
+            <DrawerFooter>
+              <Button type="button" variant="outline" onClick={() => setActionDrawerOpen(false)}>
+                Annulla
+              </Button>
+              <Button type="submit" form="timeline-action-form" disabled={actionFormSaving}>
+                {actionFormSaving ? "Salvataggio..." : actionDrawerMode === "edit" ? "Salva" : "Crea azione"}
+              </Button>
+            </DrawerFooter>
+          </form>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 };

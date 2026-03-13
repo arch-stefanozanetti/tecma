@@ -81,13 +81,11 @@ const navItems: NavItem[] = [
   { id: "apartments", label: "Appartamenti", icon: Building2 },
   { id: "clients", label: "Clienti", icon: Users },
   { id: "requests", label: "Trattative", icon: Handshake },
-  { id: "associateAptClient", label: "Associa Apt/Cliente", icon: Link2 },
   { id: "calendar", label: "Calendario", icon: CalendarDays },
   { id: "projects", label: "Progetti", icon: Building2 },
-  { id: "integrations", label: "Integrazioni", icon: Plug },
-  { id: "workspaces", label: "Workspaces", icon: FolderKanban, adminOnly: true },
-  { id: "audit", label: "Audit log", icon: FileText, adminOnly: true },
-  { id: "reports", label: "Report", icon: BarChart2 },
+  { id: "integrations", label: "Integrazioni", icon: Plug, compact: true },
+  { id: "workspaces", label: "Workspaces", icon: FolderKanban, adminOnly: true, compact: true },
+  { id: "reports", label: "Report", icon: BarChart2, compact: true },
 ];
 
 const mainNav = navItems.filter((item) => !item.compact);
@@ -635,6 +633,13 @@ export const PageTemplate = ({
         </main>
 
         <footer className="flex shrink-0 items-center justify-end gap-4 border-t border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+          <button
+            type="button"
+            onClick={() => onSectionChange("audit")}
+            className="hover:text-foreground hover:underline"
+          >
+            Audit log
+          </button>
           <button
             type="button"
             onClick={() => onSectionChange("releases")}

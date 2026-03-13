@@ -17,8 +17,3 @@ export const getDb = (): Db => {
   if (!db) throw new Error("Database not initialized");
   return db;
 };
-
-export const getDbByName = (dbName: string): Db => {
-  if (!client) throw new Error("Database not initialized");
-  return client.db(dbName);
-};

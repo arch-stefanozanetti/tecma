@@ -22,6 +22,9 @@ import type {
   PaginatedResponse,
   ProjectAccessResponse,
   RequestRow,
+  RequestTransitionRow,
+  RequestActionRow,
+  RequestActionType,
   RequestCreateInput,
   UserPreferences,
   WorkspaceProjectRow,
@@ -84,6 +87,27 @@ export const followupApi = {
   queryApartments: (query: ListQuery) => postJson<PaginatedResponse<ApartmentRow>>("/apartments/query", query),
   queryRequests: (query: ListQuery) => postJson<PaginatedResponse<RequestRow>>("/requests/query", query),
   getRequestById: (id: string) => getJson<{ request: RequestRow }>(`/requests/${id}`),
+  getRequestTransitions: (requestId: string) =>
+    getJson<{ transitions: RequestTransitionRow[] }>(`/requests/${requestId}/transitions`),
+  revertRequestStatus: (requestId: string, transitionId: string) =>
+    postJson<{ request: RequestRow }>(`/requests/${requestId}/revert`, { transitionId }),
+  getRequestActions: (workspaceId: string, requestId?: string) =>
+    getJson<{ actions: RequestActionRow[] }>(
+      `/requests/actions?workspaceId=${encodeURIComponent(workspaceId)}${requestId ? `&requestId=${encodeURIComponent(requestId)}` : ""}`
+    ),
+  createRequestAction: (payload: {
+    workspaceId: string;
+    requestIds: string[];
+    type: RequestActionType;
+    title?: string;
+    description?: string;
+  }) => postJson<{ action: RequestActionRow }>("/requests/actions", payload),
+  updateRequestAction: (
+    actionId: string,
+    payload: { requestIds?: string[]; type?: RequestActionType; title?: string; description?: string }
+  ) => patchJson<{ action: RequestActionRow }>(`/requests/actions/${actionId}`, payload),
+  deleteRequestAction: (actionId: string) =>
+    deleteJson<{ deleted: boolean }>(`/requests/actions/${actionId}`),
   // Projects (admin)
   createProject: (payload: {
     name: string;

@@ -2,8 +2,8 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { ObjectId } from "mongodb";
 import { z } from "zod";
-import { getDbByName } from "../../config/db.js";
 import { ENV } from "../../config/env.js";
+import { getDb } from "../../config/db.js";
 import { HttpError } from "../../types/http.js";
 import { logAuthEvent } from "./authAudit.service.js";
 import { createSession, deleteSession, getSession } from "./refreshSession.service.js";
@@ -22,10 +22,10 @@ type LegacyUserDoc = {
   password?: string;
 };
 
-const USER_COLLECTION_CANDIDATES = ["users", "Users", "user", "User", "backoffice_users"];
+const USER_COLLECTION_CANDIDATES = ["tz_users", "users", "Users", "user", "User", "backoffice_users"];
 
 const detectUserCollectionName = async (): Promise<string> => {
-  const db = getDbByName(ENV.MONGO_USER_DB_NAME);
+  const db = getDb();
   for (const name of USER_COLLECTION_CANDIDATES) {
     const exists = await db.listCollections({ name }, { nameOnly: true }).hasNext();
     if (exists) return name;
@@ -37,7 +37,7 @@ const detectUserCollectionName = async (): Promise<string> => {
 };
 
 const findLegacyUserByEmail = async (email: string): Promise<LegacyUserDoc | null> => {
-  const db = getDbByName(ENV.MONGO_USER_DB_NAME);
+  const db = getDb();
   const collectionName = await detectUserCollectionName();
   const users = db.collection<LegacyUserDoc>(collectionName);
 
@@ -49,7 +49,7 @@ const findLegacyUserByEmail = async (email: string): Promise<LegacyUserDoc | nul
 
 const findLegacyUserById = async (userId: string): Promise<LegacyUserDoc | null> => {
   if (!ObjectId.isValid(userId)) return null;
-  const db = getDbByName(ENV.MONGO_USER_DB_NAME);
+  const db = getDb();
   const collectionName = await detectUserCollectionName();
   const users = db.collection<LegacyUserDoc>(collectionName);
   return users.findOne({ _id: new ObjectId(userId) });

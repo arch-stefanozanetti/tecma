@@ -218,6 +218,24 @@ const SECTIONS: Section[] = [
   "completeFlow", "catalogHC", "templateConfig", "aiApprovals", "workspaces", "audit", "reports", "releases", "integrations",
 ];
 
+/** Path puliti per le sezioni principali; le altre restano ?section=X */
+const SECTION_TO_PATH: Partial<Record<Section, string>> = {
+  cockpit: "/",
+  calendar: "/calendar",
+  clients: "/clients",
+  apartments: "/apartments",
+  requests: "/requests",
+  projects: "/projects",
+  workspaces: "/workspace",
+  audit: "/audit",
+  reports: "/reports",
+  releases: "/releases",
+  integrations: "/integrations",
+};
+const PATH_TO_SECTION: Record<string, Section> = Object.fromEntries(
+  (Object.entries(SECTION_TO_PATH) as [Section, string][]).map(([s, p]) => [p, s])
+);
+
 const isLegacyWorkspace = (id: string) => id === "dev-1" || id === "demo" || id === "prod";
 
 export const App = () => {
@@ -258,16 +276,67 @@ export const App = () => {
     : section;
 
   useEffect(() => {
-    if (pathname === "/") {
+    if (pathname.startsWith("/clients")) {
+      setSection("clients");
+      return;
+    }
+    if (pathname.startsWith("/apartments")) {
+      setSection("apartments");
+      return;
+    }
+    if (pathname.startsWith("/projects")) {
+      setSection("projects");
+      return;
+    }
+    const fromPath = PATH_TO_SECTION[pathname];
+    if (fromPath) {
+      setSection(fromPath);
+      return;
+    }
+    if (pathname === "/" || pathname === "") {
       const q = searchParams.get("section");
       if (q && SECTIONS.includes(q as Section)) setSection(q as Section);
     }
   }, [pathname, searchParams]);
 
-  // Click su voce di menu: vai sempre a /?section=X così la navbar funziona anche da scheda cliente/appartamento
+  // Se tz_workspace e nessun progetto selezionato ma ci sono progetti nel workspace, seleziona tutti.
+  // Eseguito sempre (stesso numero di hook) ma con early return interno per evitare "Rendered more hooks".
+  const projectScopeRef = useMemo(() => projectScope, [projectScope]);
+  const isTzWorkspaceRef = useMemo(
+    () => !!(projectScope?.workspaceId && !isLegacyWorkspace(projectScope.workspaceId)),
+    [projectScope?.workspaceId]
+  );
+  const filteredProjectsRef = useMemo(() => {
+    if (!projectScopeRef) return [];
+    const wsIds = workspaceProjectIds;
+    const isTz = isTzWorkspaceRef;
+    const allProjects = projectScopeRef.projects ?? [];
+    if (!isTz || wsIds === null || (Array.isArray(wsIds) && wsIds.length === 0)) return allProjects;
+    return allProjects.filter((p) => wsIds.includes(p.id));
+  }, [projectScopeRef, workspaceProjectIds, isTzWorkspaceRef]);
+  const filteredSelectedRef = useMemo(
+    () =>
+      projectScopeRef?.selectedProjectIds?.filter((id) => filteredProjectsRef.some((p) => p.id === id)) ?? [],
+    [projectScopeRef?.selectedProjectIds, filteredProjectsRef]
+  );
+  useEffect(() => {
+    const scope = projectScopeRef;
+    const isTz = isTzWorkspaceRef;
+    const filtered = filteredProjectsRef;
+    const selected = filteredSelectedRef;
+    if (!isTz || selected.length > 0 || filtered.length === 0 || !scope) return;
+    const allIds = filtered.map((p) => p.id);
+    updateSelectedProjectIds(allIds);
+    void followupApi.saveUserPreferences(scope.email ?? "", scope.workspaceId ?? "", allIds).catch(() => {});
+    setAccessVersion((v) => v + 1);
+  }, [isTzWorkspaceRef, filteredSelectedRef.length, filteredProjectsRef, projectScopeRef?.email, projectScopeRef?.workspaceId]);
+
+  // Click su voce di menu: path pulito quando esiste, altrimenti ?section=X
   const onSectionChange = (s: Section) => {
     setSection(s);
-    navigate(`/?section=${s}`);
+    const path = SECTION_TO_PATH[s];
+    if (path) navigate(path);
+    else navigate(`/?section=${s}`);
   };
 
   if (pathname.includes("/login")) {
@@ -296,15 +365,6 @@ export const App = () => {
   const filteredSelected = projectScope.selectedProjectIds?.filter((id) =>
     filteredProjects.some((p) => p.id === id)
   ) ?? [];
-
-  // Se tz_workspace e nessun progetto selezionato ma ci sono progetti nel workspace, seleziona tutti
-  useEffect(() => {
-    if (!isTzWorkspace || filteredSelected.length > 0 || filteredProjects.length === 0 || !projectScope) return;
-    const allIds = filteredProjects.map((p) => p.id);
-    updateSelectedProjectIds(allIds);
-    void followupApi.saveUserPreferences(projectScope.email ?? "", projectScope.workspaceId ?? "", allIds).catch(() => {});
-    setAccessVersion((v) => v + 1);
-  }, [isTzWorkspace, filteredSelected.length, filteredProjects, projectScope?.email, projectScope?.workspaceId]);
 
   const templateProps = {
     section: effectiveSection,

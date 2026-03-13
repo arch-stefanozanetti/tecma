@@ -1,7 +1,6 @@
 import { ObjectId } from "mongodb";
 import { z } from "zod";
-import { getDb, getDbByName } from "../../config/db.js";
-import { ENV } from "../../config/env.js";
+import { getDb } from "../../config/db.js";
 
 const InputSchema = z.object({
   email: z.string().email()
@@ -27,14 +26,9 @@ const normalizeId = (id: string | ObjectId): string => {
   return id.toHexString();
 };
 
-const detectCollectionName = async (dbName: string, candidates: string[]): Promise<string | null> => {
-  const db = getDbByName(dbName);
-  for (const name of candidates) {
-    const exists = await db.listCollections({ name }, { nameOnly: true }).hasNext();
-    if (exists) return name;
-  }
-  return null;
-};
+/** Solo collection presenti in test-zanetti. */
+const USERS_COLLECTION = "tz_users";
+const PROJECTS_COLLECTION = "tz_projects";
 
 const buildProjectOutput = (project: ProjectDoc) => {
   const rawId = project._id || "";
@@ -63,30 +57,10 @@ const fetchTzProjects = async (filterIds?: string[]): Promise<ProjectDoc[]> => {
 
 export const getProjectAccessByEmail = async (rawInput: unknown) => {
   const { email } = InputSchema.parse(rawInput);
-  const usersDb = getDbByName(ENV.MONGO_USER_DB_NAME);
-  const projectsDb = getDbByName(ENV.MONGO_PROJECT_DB_NAME);
+  const db = getDb();
 
-  const usersCollectionName = await detectCollectionName(ENV.MONGO_USER_DB_NAME, [
-    "users",
-    "Users",
-    "user",
-    "User",
-    "backoffice_users"
-  ]);
-  const projectsCollectionName = await detectCollectionName(ENV.MONGO_PROJECT_DB_NAME, ["projects", "Projects", "project", "Project"]);
-
-  if (!usersCollectionName || !projectsCollectionName) {
-    const availableUserCollections = (await usersDb.listCollections({}, { nameOnly: true }).toArray()).map((c) => c.name);
-    const availableProjectCollections = (await projectsDb.listCollections({}, { nameOnly: true }).toArray()).map((c) => c.name);
-    throw new Error(
-      `Required collections not found. userDb="${usersDb.databaseName}" available=[${availableUserCollections.join(
-        ", "
-      )}] projectDb="${projectsDb.databaseName}" available=[${availableProjectCollections.join(", ")}]`
-    );
-  }
-
-  const usersCollection = usersDb.collection<UserDoc>(usersCollectionName);
-  const projectsCollection = projectsDb.collection<ProjectDoc>(projectsCollectionName);
+  const usersCollection = db.collection<UserDoc>(USERS_COLLECTION);
+  const projectsCollection = db.collection<ProjectDoc>(PROJECTS_COLLECTION);
 
   const user = await usersCollection.findOne({
     email: { $regex: `^${email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" }

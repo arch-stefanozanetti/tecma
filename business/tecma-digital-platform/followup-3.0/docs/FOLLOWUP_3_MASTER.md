@@ -1,7 +1,8 @@
-# Followup 3.0 — Documento maestro (prodotto e piano)
+# Followup 3.0 — Documento maestro (prodotto e wave)
 
 **Ultimo aggiornamento:** 2026-03-07  
-**Uso:** questo file è il **piano di riferimento unico** per visione, principi e wave. Aggiornarlo quando una wave viene chiusa o si aggiunge un task concordato.
+**Piano operativo completo (utenti workspace, progetti, segregazione view, test 100%, prossimi passi):** [PLAN_UNIFICATO_FOLLOWUP_3.md](PLAN_UNIFICATO_FOLLOWUP_3.md).  
+**Uso di questo file:** visione, principi e wave; per dettagli implementativi e priorità usare il piano unificato.
 
 ---
 

@@ -44,19 +44,19 @@ export const generateAiSuggestions = async (rawInput: unknown) => {
 
   const [clients, apartments, associations] = await Promise.all([
     db
-      .collection("clients")
-      .find({ project_id: { $in: input.projectIds } })
-      .project({ _id: 1, firstName: 1, lastName: 1, email: 1, updatedAt: 1, updateAt: 1 })
+      .collection("tz_clients")
+      .find({ projectId: { $in: input.projectIds } })
+      .project({ _id: 1, fullName: 1, email: 1, updatedAt: 1 })
       .limit(400)
       .toArray(),
     db
-      .collection("apartments")
+      .collection("tz_apartments")
       .find({ workspaceId: input.workspaceId, projectId: { $in: input.projectIds } })
       .project({ _id: 1, name: 1, code: 1, status: 1, updatedAt: 1 })
       .limit(400)
       .toArray(),
     db
-      .collection("apartment_client_associations")
+      .collection("tz_apartment_client_associations")
       .find({ workspaceId: input.workspaceId, projectId: { $in: input.projectIds }, active: true })
       .project({ _id: 1, apartmentId: 1, clientId: 1, status: 1, updatedAt: 1 })
       .limit(400)
@@ -85,10 +85,10 @@ export const generateAiSuggestions = async (rawInput: unknown) => {
     }
   });
 
-  clients.forEach((row) => {
-    const updated = String(row.updatedAt || row.updateAt || "");
+  clients.forEach((row: { updatedAt?: unknown; fullName?: string; email?: string; _id?: unknown }) => {
+    const updated = String(row.updatedAt ?? "");
     if (staleDays(updated) >= 20) {
-      const fullName = `${String(row.firstName ?? "")} ${String(row.lastName ?? "")}`.trim() || String(row.email ?? row._id);
+      const fullName = (typeof row.fullName === "string" && row.fullName.trim() ? row.fullName : null) || String(row.email ?? row._id ?? "");
       suggestions.push({
         workspaceId: input.workspaceId,
         projectIds: input.projectIds,
@@ -136,7 +136,7 @@ export const generateAiSuggestions = async (rawInput: unknown) => {
       createdAt: now
     });
   }
-  const insertResult = ranked.length > 0 ? await db.collection("ai_suggestions").insertMany(ranked) : null;
+  const insertResult = ranked.length > 0 ? await db.collection("tz_ai_suggestions").insertMany(ranked) : null;
 
   const mapped = ranked.map((row, index) => ({
     ...row,
@@ -158,18 +158,18 @@ export const decideAiSuggestion = async (rawInput: unknown) => {
   const suggestionId = new ObjectId(input.suggestionId);
   const now = new Date().toISOString();
 
-  const existing = await db.collection<SuggestionDoc>("ai_suggestions").findOne({ _id: suggestionId });
+  const existing = await db.collection<SuggestionDoc>("tz_ai_suggestions").findOne({ _id: suggestionId });
   if (!existing) {
     const error = new Error("Suggestion not found");
     (error as Error & { statusCode?: number }).statusCode = 404;
     throw error;
   }
 
-  await db.collection("ai_suggestions").updateOne(
+  await db.collection("tz_ai_suggestions").updateOne(
     { _id: suggestionId },
     { $set: { status: input.decision, decidedAt: now, decidedBy: input.actorEmail, decisionNote: input.note } }
   );
-  await db.collection("ai_suggestion_approvals").insertOne({
+  await db.collection("tz_ai_suggestion_approvals").insertOne({
     suggestionId: input.suggestionId,
     decision: input.decision,
     actorEmail: input.actorEmail,

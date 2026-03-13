@@ -75,7 +75,7 @@ export const runPipelineReport = async (rawInput: unknown): Promise<{ data: Pipe
 export const runClientsByStatusReport = async (rawInput: unknown): Promise<{ data: ClientsByStatusRow[] }> => {
   const input = ReportInputSchema.parse(rawInput);
   const db = getDb();
-  const coll = db.collection("clients");
+  const coll = db.collection("tz_clients");
 
   const match: Record<string, unknown> = {
     workspaceId: input.workspaceId,
@@ -102,7 +102,7 @@ export const runClientsByStatusReport = async (rawInput: unknown): Promise<{ dat
 export const runApartmentsByAvailabilityReport = async (rawInput: unknown): Promise<{ data: ApartmentsByAvailabilityRow[] }> => {
   const input = ReportInputSchema.parse(rawInput);
   const db = getDb();
-  const coll = db.collection("apartments");
+  const coll = db.collection("tz_apartments");
 
   const match: Record<string, unknown> = {
     workspaceId: input.workspaceId,

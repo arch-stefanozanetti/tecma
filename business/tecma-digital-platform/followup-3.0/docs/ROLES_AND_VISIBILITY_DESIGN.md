@@ -51,13 +51,13 @@ flowchart TB
 
 ## 4. Modello dati proposto
 
-### 4.1 Livello 1 — Utenti nel workspace
+### 4.1 Livello 1 — Associazione utente ↔ workspace (user-centric)
 
 | Collection | Scopo | Schema chiave |
 |------------|-------|---------------|
-| `tz_workspace_users` | Utenti per workspace con ruolo | `workspaceId`, `userId` (email o ObjectId), `role` (vendor \| vendor_manager \| admin) |
+| `tz_user_workspaces` | Un **utente** è associato a **uno o più workspace** (non “workspace_users”). Per “utenti del workspace W” si interroga per workspaceId. | `userId`, `workspaceId`, `role` (vendor \| vendor_manager \| admin), createdAt, updatedAt |
 
-**Indici:** compound unique `(workspaceId, userId)`
+**Indici:** compound unique `(userId, workspaceId)`
 
 ### 4.2 Livello 2 — Progetti visibili per utente
 
@@ -90,12 +90,12 @@ flowchart TB
 ### 6.1 Invito utente al workspace
 
 - Admin/vendor_manager invita un utente (email) al workspace con ruolo (vendor, vendor_manager, admin).
-- Inserimento in `tz_workspace_users`.
+- Inserimento in `tz_user_workspaces` (associazione utente–workspace).
 - Se vendor: opzionalmente associazione a progetti specifici in `tz_workspace_user_projects`.
 
 ### 6.2 Vendor accede all'app
 
-- Sistema carica `tz_workspace_users` per workspace + email utente → ottiene `role`.
+- Sistema carica `tz_user_workspaces` per workspace + email utente → ottiene `role`.
 - Se vendor: carica `tz_workspace_user_projects` → ottiene `projectIds` visibili.
 - Query clienti/appartamenti/requests filtrano per `projectIds` e, se vendor, per `tz_entity_assignments` con `userId`.
 
@@ -110,22 +110,22 @@ flowchart TB
 
 Il legacy usa `user.project_ids` per limitare i progetti visibili. Con il nuovo modello:
 
-- **Opzione A:** Mantenere `user.project_ids` come fallback per utenti non ancora in `tz_workspace_users`.
-- **Opzione B:** Migrare tutti gli utenti in `tz_workspace_users` e deprecare `user.project_ids`.
+- **Opzione A:** Mantenere `user.project_ids` come fallback per utenti non ancora in `tz_user_workspaces`.
+- **Opzione B:** Migrare tutti gli utenti in `tz_user_workspaces` e deprecare `user.project_ids`.
 
 ### 7.2 Admin globale
 
-L'admin è attualmente determinato da `user.role === "admin"` nel users DB. Con `tz_workspace_users`:
+L'admin è attualmente determinato da `user.role === "admin"` nel users DB. Con `tz_user_workspaces`:
 
 - Un utente può essere admin in un workspace ma non in un altro.
-- Per retrocompatibilità: se `user.role === "admin"` nel users DB, trattare come admin in tutti i workspace (o solo in quelli dove è presente in `tz_workspace_users`).
+- Per retrocompatibilità: se `user.role === "admin"` nel users DB, trattare come admin in tutti i workspace (o solo in quelli dove è presente in `tz_user_workspaces`).
 
 ## 8. Fasi di implementazione
 
 | Fase | Contenuto |
 |------|-----------|
 | **Fase 0 (studio)** | Questo documento. Validazione con il team. |
-| **Fase 1** | `tz_workspace_users` + UI per invitare/gestire utenti nel workspace |
+| **Fase 1** | `tz_user_workspaces` (user → workspace) + UI per invitare/gestire utenti nel workspace |
 | **Fase 2** | `tz_workspace_user_projects` + filtri nelle query (clients, apartments, requests) per `projectIds` dell'utente |
 | **Fase 3** | `tz_entity_assignments` + UI per assegnare clienti/appartamenti a utenti + filtri nelle query |
 

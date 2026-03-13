@@ -467,28 +467,19 @@ export const ClientsPage = () => {
                         role="button"
                         tabIndex={0}
                         className="group cursor-pointer border-b border-border text-sm text-foreground hover:bg-muted"
-                        onClick={() => setSelectedClient(client)}
-                        onKeyDown={(e) => e.key === "Enter" && setSelectedClient(client)}
+                        onClick={() => navigate(`/clients/${client._id}`)}
+                        onKeyDown={(e) => e.key === "Enter" && navigate(`/clients/${client._id}`)}
                       >
                         <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            className="inline-flex h-6 w-6 items-center justify-center text-primary opacity-50 transition-opacity hover:opacity-100"
-                            aria-label="Apri scheda cliente"
-                            onClick={() => navigate(`/clients/${client._id}`)}
-                          >
+                          <span className="inline-flex h-6 w-6 items-center justify-center text-muted-foreground opacity-40">
                             <ExternalLink className="h-3.5 w-3.5" />
-                          </button>
+                          </span>
                         </td>
 
                         <td className="px-4 py-4">
-                          <button
-                            type="button"
-                            className="text-left font-medium text-primary hover:underline"
-                            onClick={(e) => { e.stopPropagation(); setSelectedClient(client); }}
-                          >
+                          <span className="text-left font-medium text-primary group-hover:underline">
                             {client.fullName}
-                          </button>
+                          </span>
                           {client.city && (
                             <div className="text-xs text-muted-foreground">{client.city}</div>
                           )}

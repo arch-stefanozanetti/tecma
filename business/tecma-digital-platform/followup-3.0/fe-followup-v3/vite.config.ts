@@ -23,7 +23,7 @@ export default defineConfig({
     port: 5177,
     proxy: {
       "/v1": {
-        target: "http://localhost:5060",
+        target: "http://localhost:8080",
         changeOrigin: true
       }
     }

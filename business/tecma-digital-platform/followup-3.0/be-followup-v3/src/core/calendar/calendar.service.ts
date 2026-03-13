@@ -1,7 +1,6 @@
 import { ObjectId } from "mongodb";
 import { z } from "zod";
-import { getDb, getDbByName } from "../../config/db.js";
-import { ENV } from "../../config/env.js";
+import { getDb } from "../../config/db.js";
 import { ListQuerySchema, type ListQueryInput, buildPagination } from "../shared/list-query.js";
 import { PaginatedResponse } from "../../types/http.js";
 
@@ -170,7 +169,7 @@ const queryPrimaryCalendarEvents = async (input: ListQueryInput): Promise<Pagina
 };
 
 const queryLegacyCalendarEvents = async (input: ListQueryInput): Promise<PaginatedResponse<CalendarEvent>> => {
-  const db = getDbByName(ENV.MONGO_CLIENT_DB_NAME);
+  const db = getDb();
   const collection = db.collection<LegacyCalendarDoc>("calendars");
 
   const match = buildLegacyMatch(input);

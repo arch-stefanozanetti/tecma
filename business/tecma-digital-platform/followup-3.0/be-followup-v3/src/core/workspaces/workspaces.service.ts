@@ -24,6 +24,14 @@ export interface WorkspaceProjectRow {
   createdAt: string;
 }
 
+/** Riga arricchita con dettagli da tz_projects per la pagina Progetti. */
+export interface WorkspaceProjectEnrichedRow extends WorkspaceProjectRow {
+  id?: string;
+  name?: string;
+  displayName?: string;
+  mode?: string;
+}
+
 const WorkspaceCreateSchema = z.object({
   name: z.string().min(1).max(200),
 });
@@ -46,10 +54,33 @@ const toIsoDate = (value: unknown): string => {
   return new Date(0).toISOString();
 };
 
-/** Lista tutti i workspace (admin). */
+const DEFAULT_WORKSPACES = [
+  { name: "Dev-1" },
+  { name: "Demo" },
+  { name: "Production" },
+];
+
+/** Se la collection è vuota, crea i workspace di default (Dev-1, Demo, Production). */
+async function ensureDefaultWorkspaces(): Promise<void> {
+  const db = getDb();
+  const coll = db.collection(COLLECTION_WORKSPACES);
+  const count = await coll.countDocuments();
+  if (count > 0) return;
+  const now = new Date().toISOString();
+  await coll.insertMany(
+    DEFAULT_WORKSPACES.map((w) => ({
+      name: w.name,
+      createdAt: now,
+      updatedAt: now,
+    }))
+  );
+}
+
+/** Lista tutti i workspace (admin). Se non ce ne sono, crea i default e li restituisce. */
 export const listWorkspaces = async (): Promise<WorkspaceRow[]> => {
   const db = getDb();
   const coll = db.collection(COLLECTION_WORKSPACES);
+  await ensureDefaultWorkspaces();
   const docs = await coll.find({}).sort({ updatedAt: -1 }).toArray();
   return docs.map((d) => ({
     _id: String(d._id ?? ""),
@@ -153,25 +184,52 @@ export const deleteWorkspace = async (rawId: unknown): Promise<void> => {
   await wsColl.deleteOne({ _id: new ObjectId(id) });
 };
 
-/** Lista progetti associati a un workspace. */
+const COLLECTION_TZ_PROJECTS = "tz_projects";
+
+/** Lista progetti associati a un workspace, arricchiti con name/displayName/mode da tz_projects. */
 export const listWorkspaceProjects = async (
   rawWorkspaceId: unknown
-): Promise<WorkspaceProjectRow[]> => {
+): Promise<WorkspaceProjectEnrichedRow[]> => {
   const workspaceId = typeof rawWorkspaceId === "string" ? rawWorkspaceId : String(rawWorkspaceId);
   if (!workspaceId.trim()) {
     throw new HttpError("workspaceId required", 400);
   }
   const db = getDb();
-  const docs = await db
-    .collection(COLLECTION_WORKSPACE_PROJECTS)
-    .find({ workspaceId })
-    .sort({ createdAt: 1 })
-    .toArray();
-  return docs.map((d) => ({
-    workspaceId: String(d.workspaceId ?? ""),
-    projectId: String(d.projectId ?? ""),
-    createdAt: toIsoDate(d.createdAt),
-  }));
+  const wpColl = db.collection(COLLECTION_WORKSPACE_PROJECTS);
+  const projColl = db.collection(COLLECTION_TZ_PROJECTS);
+  const docs = await wpColl.find({ workspaceId }).sort({ createdAt: 1 }).toArray();
+  const rows: WorkspaceProjectEnrichedRow[] = [];
+  for (const d of docs) {
+    const projectId = String(d.projectId ?? "");
+    const base: WorkspaceProjectEnrichedRow = {
+      workspaceId: String(d.workspaceId ?? ""),
+      projectId,
+      createdAt: toIsoDate(d.createdAt),
+      id: projectId,
+    };
+    try {
+      const projQuery =
+        ObjectId.isValid(projectId) && projectId.length === 24
+          ? { $or: [{ _id: projectId }, { _id: new ObjectId(projectId) }] }
+          : { _id: projectId };
+      const proj = await projColl.findOne(projQuery, {
+        projection: { name: 1, displayName: 1, mode: 1 },
+      });
+      if (proj) {
+        base.name = typeof (proj as { name?: unknown }).name === "string" ? (proj as { name: string }).name : undefined;
+        base.displayName =
+          typeof (proj as { displayName?: unknown }).displayName === "string"
+            ? (proj as { displayName: string }).displayName
+            : base.name;
+        const mode = (proj as { mode?: string }).mode;
+        base.mode = mode === "rent" || mode === "sell" ? mode : undefined;
+      }
+    } catch {
+      // ignora errore lookup progetto
+    }
+    rows.push(base);
+  }
+  return rows;
 };
 
 /** Associa un progetto a un workspace (admin). */

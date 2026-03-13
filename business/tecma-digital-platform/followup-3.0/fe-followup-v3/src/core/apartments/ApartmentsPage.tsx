@@ -27,7 +27,15 @@ import {
 } from "../../components/ui/select";
 import { Sheet, SheetContent } from "../../components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerBody,
+  DrawerFooter,
+  DrawerCloseButton,
+} from "../../components/ui/drawer";
 import { FiltersDrawer } from "../../components/ui/filters-drawer";
 
 type ModeFilter = "all" | "SELL" | "RENT";
@@ -631,70 +639,72 @@ export const ApartmentsPage = () => {
         </SheetContent>
       </Sheet>
 
-      {/* Dialog Modifica appartamento */}
-      <Dialog open={editApartmentOpen} onOpenChange={setEditApartmentOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Modifica appartamento</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleEditApartmentSubmit} className="mt-4 space-y-4">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Codice</label>
-              <Input
-                className="h-10 rounded-lg border-border"
-                value={editCode}
-                onChange={(e) => setEditCode(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Nome</label>
-              <Input
-                className="h-10 rounded-lg border-border"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                placeholder="Nome appartamento"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Stato</label>
-              <Select value={editStatus} onValueChange={(v) => setEditStatus(v as ApartmentRow["status"])}>
-                <SelectTrigger className="h-10 rounded-lg border-border">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUS_FILTER_OPTIONS.filter((o) => o.value !== "all").map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Superficie (mq)</label>
-              <Input
-                type="number"
-                min={0}
-                step={1}
-                className="h-10 rounded-lg border-border"
-                value={editSurfaceMq}
-                onChange={(e) => setEditSurfaceMq(e.target.value)}
-                required
-              />
-            </div>
-            {editError && <p className="text-sm text-destructive">{editError}</p>}
-            <div className="flex gap-2 justify-end pt-2">
+      {/* Drawer Modifica appartamento */}
+      <Drawer open={editApartmentOpen} onOpenChange={setEditApartmentOpen}>
+        <DrawerContent side="right" className="sm:max-w-md">
+          <DrawerHeader actions={<DrawerCloseButton />}>
+            <DrawerTitle>Modifica appartamento</DrawerTitle>
+          </DrawerHeader>
+          <form onSubmit={handleEditApartmentSubmit} className="flex flex-col flex-1 min-h-0">
+            <DrawerBody className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Codice</label>
+                <Input
+                  className="h-10 rounded-lg border-border"
+                  value={editCode}
+                  onChange={(e) => setEditCode(e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Nome</label>
+                <Input
+                  className="h-10 rounded-lg border-border"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Nome appartamento"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Stato</label>
+                <Select value={editStatus} onValueChange={(v) => setEditStatus(v as ApartmentRow["status"])}>
+                  <SelectTrigger className="h-10 rounded-lg border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUS_FILTER_OPTIONS.filter((o) => o.value !== "all").map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Superficie (mq)</label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  className="h-10 rounded-lg border-border"
+                  value={editSurfaceMq}
+                  onChange={(e) => setEditSurfaceMq(e.target.value)}
+                  required
+                />
+              </div>
+              {editError && <p className="text-sm text-destructive">{editError}</p>}
+            </DrawerBody>
+            <DrawerFooter>
               <Button type="button" variant="outline" onClick={() => setEditApartmentOpen(false)}>
                 Annulla
               </Button>
               <Button type="submit" disabled={editSaving}>
                 {editSaving ? "Salvataggio..." : "Salva"}
               </Button>
-            </div>
+            </DrawerFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 };

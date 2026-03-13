@@ -94,7 +94,7 @@ const requestJson = async <T>(path: string, options: RequestInit, isRetry = fals
     const message = error instanceof Error ? error.message : "network error";
     const hint =
       API_BASE_URL.startsWith("http://localhost") || API_BASE_URL.startsWith("/")
-        ? " Verifica che il backend sia avviato (es. porta 5060)."
+        ? " Verifica che il backend sia avviato (es. porta 8080)."
         : " Verifica che VITE_API_BASE_URL sia corretto per l'ambiente (gateway o backend).";
     throw new Error(
       `Impossibile raggiungere le API (${API_BASE_URL}).${hint} Dettaglio: ${message}`

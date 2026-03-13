@@ -45,7 +45,7 @@ Se l’app è servita con **VITE_API_BASE_URL** verso il gateway (es. `https://a
 
 ## Avvio 100% in locale
 
-Tutto gira in locale: **nessun gateway né API remote**. Il frontend usa il proxy Vite che inoltra le chiamate `/v1` al backend su `localhost:5060`. **Non serve impostare `VITE_API_BASE_URL`** (il default `/v1` è corretto).
+Tutto gira in locale: **nessun gateway né API remote**. Il frontend usa il proxy Vite che inoltra le chiamate `/v1` al backend su `localhost:8080`. **Non serve impostare `VITE_API_BASE_URL`** (il default `/v1` è corretto).
 
 1. **Backend** (terminale 1):
    ```bash
@@ -61,7 +61,7 @@ Tutto gira in locale: **nessun gateway né API remote**. Il frontend usa il prox
    npm install && npm run dev
    ```
 3. **Verifica:**  
-   - `curl http://localhost:5060/v1/health` → risposta OK.  
+   - `curl http://localhost:8080/v1/health` → risposta OK.  
    - Apri **http://localhost:5177** (il FE è in ascolto sulla porta 5177).  
    - Login con le credenziali dell’ambiente (dev-1); la selezione progetti userà il backend locale.
 
@@ -76,15 +76,15 @@ npm run dev
 
 - **Prima volta:** dalla root esegui `npm install`, poi `cd be-followup-v3 && cp .env.example .env && npm install` e `cd fe-followup-v3 && cp .env.example .env && npm install`. Poi dalla root `npm run dev`.
 - **Backend non si avvia:** il backend ha bisogno di **MongoDB**. Se in `.env` hai `MONGO_URI=mongodb://localhost:27017`, avvia MongoDB in locale (es. `brew services start mongodb-community` su macOS) oppure usa l’URI di un cluster Atlas (dev-1). Se vedi errori di connessione, controlla che `MONGO_URI` e `MONGO_DB_NAME` in `be-followup-v3/.env` siano corretti.
-- **Porte occupate:** backend usa la **5060**, frontend la **5177**. Se qualcosa è già in ascolto, libera la porta o cambia `PORT` nel backend e, se serve, la porta del server in `fe-followup-v3/vite.config.ts`.
-- **Verifica:** `curl http://localhost:5060/v1/health` deve rispondere OK; il frontend è su **http://localhost:5177**.
+- **Porte occupate:** backend usa la **8080**, frontend la **5177**. Se qualcosa è già in ascolto, libera la porta o cambia `PORT` nel backend e, se serve, la porta del server in `fe-followup-v3/vite.config.ts`.
+- **Verifica:** `curl http://localhost:8080/v1/health` deve rispondere OK; il frontend è su **http://localhost:5177**.
 
 ### Backend (dettaglio)
 - Test: `cd be-followup-v3 && npm run test` (Vitest). Watch: `npm run test:watch`.
 - **API (supertest, senza server):** `npm run test:api` (route `/v1/*` con mock dei servizi).
 - **API su AWS API Gateway (smoke):** in produzione/staging le API sono esposte tramite **aws-api-gateway** (TECMA-BSS). Per validare il gateway: `API_GATEWAY_BASE_URL=https://api.tecmasolutions.com/biz-tecma-dev1/v1 npm run test:api:gateway` (dalla root: `npm run test:api:gateway` con la variabile impostata). Se `API_GATEWAY_BASE_URL` non è impostata i test vengono saltati.
 - **Integrazioni (DB reale in-memory):** `npm run test:integration` (MongoDB in-memory, servizi clients/requests senza mock).
-- Variabili obbligatorie in `.env`: `MONGO_URI` (e i nomi DB se diversi da example). Opzionale: `APP_ENV=dev-1`, `PORT=5060`, `AUTH_JWT_SECRET`, `AUTH_JWT_EXPIRES_IN` (es. `15m`), `AUTH_REFRESH_EXPIRES_DAYS` (default 7).
+- Variabili obbligatorie in `.env`: `MONGO_URI` (e i nomi DB se diversi da example). Opzionale: `APP_ENV=dev-1`, `PORT=8080`, `AUTH_JWT_SECRET`, `AUTH_JWT_EXPIRES_IN` (es. `15m`), `AUTH_REFRESH_EXPIRES_DAYS` (default 7).
 
 ### Frontend (dettaglio)
 - In locale **non** impostare `VITE_API_BASE_URL`: il proxy inoltra `/v1` al backend.

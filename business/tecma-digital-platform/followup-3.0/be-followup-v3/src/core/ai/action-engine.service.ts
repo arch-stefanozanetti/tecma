@@ -53,7 +53,7 @@ export const createAiActionDraft = async (rawInput: unknown) => {
     createdAt: now,
     updatedAt: now
   };
-  const inserted = await db.collection("ai_action_drafts").insertOne(doc);
+  const inserted = await db.collection("tz_ai_action_drafts").insertOne(doc);
 
   await emitDomainEvent({
     type: "ai.action_draft.created",
@@ -90,8 +90,8 @@ export const queryAiActionDrafts = async (rawInput: unknown) => {
   }
 
   const [data, total] = await Promise.all([
-    db.collection("ai_action_drafts").find(match).sort({ updatedAt: -1 }).skip(skip).limit(limit).toArray(),
-    db.collection("ai_action_drafts").countDocuments(match)
+    db.collection("tz_ai_action_drafts").find(match).sort({ updatedAt: -1 }).skip(skip).limit(limit).toArray(),
+    db.collection("tz_ai_action_drafts").countDocuments(match)
   ]);
 
   return {
@@ -114,7 +114,7 @@ export const decideAiActionDraft = async (rawDraftId: unknown, rawInput: unknown
   const now = new Date().toISOString();
   const db = getDb();
 
-  const existing = await db.collection("ai_action_drafts").findOne({ _id: draftId });
+  const existing = await db.collection("tz_ai_action_drafts").findOne({ _id: draftId });
   if (!existing) {
     const error = new Error("AI action draft not found");
     (error as Error & { statusCode?: number }).statusCode = 404;
@@ -122,7 +122,7 @@ export const decideAiActionDraft = async (rawDraftId: unknown, rawInput: unknown
   }
 
   const nextStatus = input.decision === "approved" ? "approved" : "rejected";
-  await db.collection("ai_action_drafts").updateOne(
+  await db.collection("tz_ai_action_drafts").updateOne(
     { _id: draftId },
     {
       $set: {
@@ -152,7 +152,7 @@ export const decideAiActionDraft = async (rawDraftId: unknown, rawInput: unknown
         createdAt: now,
         updatedAt: now
       };
-      const insertedTask = await db.collection("tasks").insertOne(taskDoc);
+      const insertedTask = await db.collection("tz_tasks").insertOne(taskDoc);
       executionResult = { taskId: insertedTask.insertedId.toHexString() };
     } else if (existing.actionType === "send_reminder") {
       const reminderDoc = {
@@ -166,7 +166,7 @@ export const decideAiActionDraft = async (rawDraftId: unknown, rawInput: unknown
         status: "queued",
         createdAt: now
       };
-      const insertedReminder = await db.collection("reminders_queue").insertOne(reminderDoc);
+      const insertedReminder = await db.collection("tz_reminders_queue").insertOne(reminderDoc);
       executionResult = { reminderId: insertedReminder.insertedId.toHexString() };
     }
   }

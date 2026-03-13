@@ -1,8 +1,7 @@
 import { ObjectId } from "mongodb";
 import { z } from "zod";
-import { getDb, getDbByName } from "../../config/db.js";
+import { getDb } from "../../config/db.js";
 
-const LEGACY_DB_ASSET = "asset";
 import { ListQuerySchema, type ListQueryInput, buildPagination } from "../shared/list-query.js";
 import { HttpError, PaginatedResponse } from "../../types/http.js";
 
@@ -139,8 +138,8 @@ const fetchQuoteFromLegacy = async (quoteId: string): Promise<{
 } | null> => {
   if (!ObjectId.isValid(quoteId)) return null;
   try {
-    const assetDb = getDbByName(LEGACY_DB_ASSET);
-    const quote = await assetDb.collection("quotes").findOne(
+    const db = getDb();
+    const quote = await db.collection("tz_quotes").findOne(
       { _id: new ObjectId(quoteId) },
       { projection: { status: 1, quoteNumber: 1, expiryOn: 1, "customQuote.totalPrice": 1 } }
     );
@@ -222,7 +221,7 @@ export const queryRequests = async (
   const apartmentIdToCode: Record<string, string> = {};
 
   if (clientIds.length > 0) {
-    const clientsColl = db.collection("clients");
+    const clientsColl = db.collection("tz_clients");
     const clientObjectIds = clientIds.filter((id) => ObjectId.isValid(id)).map((id) => new ObjectId(id));
     if (clientObjectIds.length > 0) {
       const clients = await clientsColl
@@ -242,7 +241,7 @@ export const queryRequests = async (
   if (apartmentIds.length > 0) {
     const aptObjectIds = apartmentIds.filter((id) => ObjectId.isValid(id)).map((id) => new ObjectId(id));
     if (aptObjectIds.length > 0) {
-      const apartmentsColl = db.collection("apartments");
+      const apartmentsColl = db.collection("tz_apartments");
       const apartments = await apartmentsColl
         .find({ _id: { $in: aptObjectIds } })
         .project({ _id: 1, code: 1 })
@@ -293,7 +292,7 @@ export const getRequestById = async (rawId: unknown): Promise<{ request: Request
   let clientName: string | undefined;
   let apartmentCode: string | undefined;
   if (row.clientId && ObjectId.isValid(row.clientId)) {
-    const client = await db.collection("clients").findOne(
+    const client = await db.collection("tz_clients").findOne(
       { _id: new ObjectId(row.clientId) },
       { projection: { fullName: 1 } }
     );
@@ -302,7 +301,7 @@ export const getRequestById = async (rawId: unknown): Promise<{ request: Request
     }
   }
   if (row.apartmentId && ObjectId.isValid(row.apartmentId)) {
-    const apt = await db.collection("apartments").findOne(
+    const apt = await db.collection("tz_apartments").findOne(
       { _id: new ObjectId(row.apartmentId) },
       { projection: { code: 1 } }
     );
@@ -452,4 +451,110 @@ export const updateRequestStatus = async (
   });
 
   return getRequestById(id);
+};
+
+/** Singola transizione di stato (record in tz_request_transitions). */
+export interface RequestTransitionRow {
+  _id: string;
+  requestId: string;
+  fromState: RequestStatus;
+  toState: RequestStatus;
+  event: string;
+  reason?: string;
+  userId?: string;
+  createdAt: string;
+}
+
+/**
+ * Lista le transizioni di stato di una trattativa (per timeline).
+ * Ordine: dalla più recente alla più vecchia.
+ */
+export const listRequestTransitions = async (
+  rawRequestId: unknown
+): Promise<{ transitions: RequestTransitionRow[] }> => {
+  const requestId = typeof rawRequestId === "string" ? rawRequestId : String(rawRequestId);
+  if (!ObjectId.isValid(requestId)) {
+    throw new HttpError("Request not found", 404);
+  }
+  const db = getDb();
+  const coll = db.collection(TRANSITIONS_COLLECTION);
+  const cursor = coll
+    .find({ requestId })
+    .sort({ createdAt: -1 });
+  const docs = await cursor.toArray();
+  const transitions: RequestTransitionRow[] = docs.map((d: { _id?: unknown; requestId?: string; fromState?: string; toState?: string; event?: string; reason?: string; userId?: string; createdAt?: string }) => ({
+    _id: d._id instanceof ObjectId ? d._id.toHexString() : String(d._id),
+    requestId: d.requestId ?? requestId,
+    fromState: (d.fromState ?? "new") as RequestStatus,
+    toState: (d.toState ?? "new") as RequestStatus,
+    event: d.event ?? "",
+    reason: d.reason,
+    userId: d.userId,
+    createdAt: typeof d.createdAt === "string" ? d.createdAt : (d.createdAt instanceof Date ? d.createdAt.toISOString() : ""),
+  }));
+  return { transitions };
+};
+
+/**
+ * Revert dello stato di una trattativa allo stato precedente (fromState della transizione indicata).
+ * Consentito solo se lo stato attuale della richiesta coincide con toState della transizione.
+ */
+export const revertRequestStatus = async (
+  rawRequestId: unknown,
+  rawTransitionId: unknown,
+  options?: { userId?: string }
+): Promise<{ request: RequestRow }> => {
+  const requestId = typeof rawRequestId === "string" ? rawRequestId : String(rawRequestId);
+  const transitionId = typeof rawTransitionId === "string" ? rawTransitionId : String(rawTransitionId);
+  if (!ObjectId.isValid(requestId)) {
+    throw new HttpError("Request not found", 404);
+  }
+  if (!ObjectId.isValid(transitionId)) {
+    throw new HttpError("Transition not found", 404);
+  }
+  const db = getDb();
+  const requestsColl = db.collection(COLLECTION_NAME);
+  const transitionsColl = db.collection(TRANSITIONS_COLLECTION);
+
+  const requestDoc = await requestsColl.findOne({ _id: new ObjectId(requestId) });
+  if (!requestDoc) {
+    throw new HttpError("Request not found", 404);
+  }
+  const currentStatus = (typeof requestDoc.status === "string" && requestDoc.status
+    ? requestDoc.status
+    : "new") as RequestStatus;
+
+  const transitionDoc = await transitionsColl.findOne({
+    _id: new ObjectId(transitionId),
+    requestId,
+  });
+  if (!transitionDoc) {
+    throw new HttpError("Transizione non trovata", 404);
+  }
+  const fromState = (transitionDoc.fromState ?? "new") as RequestStatus;
+  const toState = (transitionDoc.toState ?? "new") as RequestStatus;
+
+  if (toState !== currentStatus) {
+    throw new HttpError(
+      `Revert non consentito: lo stato attuale è "${currentStatus}", la transizione selezionata porta a "${toState}".`,
+      400
+    );
+  }
+
+  const now = new Date().toISOString();
+  await requestsColl.updateOne(
+    { _id: new ObjectId(requestId) },
+    { $set: { status: fromState, updatedAt: now } }
+  );
+  await transitionsColl.insertOne({
+    requestId,
+    fromState: currentStatus,
+    toState: fromState,
+    event: "REVERT",
+    reason: `Ripristino a stato "${fromState}"`,
+    userId: options?.userId,
+    createdAt: now,
+  });
+
+  return getRequestById(requestId);
 };

@@ -79,7 +79,7 @@ Documentazione dello schema del database principale Followup 3.0. Tutte le colle
 
 | Collection | Scopo | Schema chiave |
 |------------|-------|---------------|
-| `tz_workspace_users` | Utenti per workspace con ruolo | `workspaceId`, `userId`, `role` (vendor \| vendor_manager \| admin) |
+| `tz_user_workspaces` | Associazione utente → uno o più workspace (user-centric). Per “utenti del workspace” si interroga per workspaceId. | `userId`, `workspaceId`, `role` (vendor \| vendor_manager \| admin), createdAt, updatedAt |
 | `tz_workspace_user_projects` | Progetti visibili per utente | `workspaceId`, `userId`, `projectId` (compound unique) |
 | `tz_entity_assignments` | Assegnazione cliente/appartamento a utenti | `workspaceId`, `entityType`, `entityId`, `userId` |
 

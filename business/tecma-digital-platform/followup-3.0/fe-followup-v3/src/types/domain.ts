@@ -129,6 +129,7 @@ export interface ClientAction {
 
 export interface ClientRow {
   _id: string;
+  workspaceId?: string;
   projectId: string;
   fullName: string;
   email?: string;
@@ -140,7 +141,7 @@ export interface ClientRow {
   city?: string;
   myhomeVersion?: string;
   createdBy?: string;
-  /** Dati enterprise (da legacy). */
+  /** Dati enterprise (opzionali). */
   coniuge?: ClientConiuge;
   family?: ClientFamily;
   budget?: number | string | null;
@@ -244,7 +245,7 @@ export interface ApartmentRow {
   };
   rawPrice?: { mode: "RENT" | "SELL"; amount: number };
   updatedAt: string;
-  /** Dati enterprise (da legacy apartments_view). */
+  /** Dati enterprise (opzionali). */
   plan?: ApartmentPlan;
   building?: ApartmentBuilding;
   sides?: ApartmentSide[];
@@ -280,12 +281,40 @@ export interface RequestRow {
   updatedAt: string;
   clientName?: string;
   apartmentCode?: string;
-  /** Riferimento a asset.quotes (legacy). */
+  /** Riferimento a tz_quotes (quote). */
   quoteId?: string;
   quoteStatus?: string;
   quoteNumber?: string;
   quoteExpiryOn?: string;
   quoteTotalPrice?: number;
+}
+
+/** Transizione di stato di una trattativa (timeline). */
+export interface RequestTransitionRow {
+  _id: string;
+  requestId: string;
+  fromState: RequestStatus;
+  toState: RequestStatus;
+  event: string;
+  reason?: string;
+  userId?: string;
+  createdAt: string;
+}
+
+/** Tipo azione in timeline trattative. */
+export type RequestActionType = "note" | "call" | "email" | "meeting" | "other";
+
+/** Azione associata a una o più trattative. */
+export interface RequestActionRow {
+  _id: string;
+  workspaceId: string;
+  requestIds: string[];
+  type: RequestActionType;
+  title?: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+  userId?: string;
 }
 
 export interface RequestCreateInput {

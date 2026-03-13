@@ -1,13 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ExternalLink, Filter, Link2, MoreHorizontal, Plus, RefreshCcw, RotateCcw, Search } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { ExternalLink, Filter, Link2, MoreHorizontal, Pencil, Plus, RefreshCcw, RotateCcw, Search, Trash2 } from "lucide-react";
 import { followupApi } from "../../api/followupApi";
-import type { RequestRow, RequestStatus, RequestType, ClientRole } from "../../types/domain";
+import type {
+  RequestRow,
+  RequestStatus,
+  RequestType,
+  ClientRole,
+  RequestTransitionRow,
+  RequestActionRow,
+  RequestActionType,
+} from "../../types/domain";
 import { useWorkspace } from "../../auth/projectScope";
 import { usePaginatedList } from "../shared/usePaginatedList";
 import { cn } from "../../lib/utils";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { Textarea } from "../../components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -15,8 +24,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
-import { Sheet, SheetContent } from "../../components/ui/sheet";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerBody,
+  DrawerFooter,
+  DrawerCloseButton,
+} from "../../components/ui/drawer";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { FiltersDrawer } from "../../components/ui/filters-drawer";
 
@@ -75,6 +91,14 @@ const STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
   ...(Object.entries(STATUS_LABEL).map(([v, label]) => ({ value: v, label }))),
 ];
 
+const ACTION_TYPE_LABEL: Record<RequestActionType, string> = {
+  note: "Nota",
+  call: "Chiamata",
+  email: "Email",
+  meeting: "Incontro",
+  other: "Altro",
+};
+
 const formatDate = (iso?: string) => {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -92,6 +116,7 @@ const REQUESTS_PER_PAGE = 25;
 
 export const RequestsPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { workspaceId, selectedProjectIds } = useWorkspace();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -114,6 +139,21 @@ export const RequestsPage = () => {
   const [clientsLite, setClientsLite] = useState<{ _id: string; fullName: string; email: string; projectId: string }[]>([]);
   const [apartmentsList, setApartmentsList] = useState<{ _id: string; code: string; name: string }[]>([]);
   const [statusChangingId, setStatusChangingId] = useState<string | null>(null);
+  const [requestTransitions, setRequestTransitions] = useState<RequestTransitionRow[]>([]);
+  const [transitionsLoading, setTransitionsLoading] = useState(false);
+  const [revertingTransitionId, setRevertingTransitionId] = useState<string | null>(null);
+  const [requestActions, setRequestActions] = useState<RequestActionRow[]>([]);
+  const [actionsLoading, setActionsLoading] = useState(false);
+  const [actionDrawerOpen, setActionDrawerOpen] = useState(false);
+  const [actionDrawerMode, setActionDrawerMode] = useState<"create" | "edit">("create");
+  const [editingAction, setEditingAction] = useState<RequestActionRow | null>(null);
+  const [actionFormType, setActionFormType] = useState<RequestActionType>("note");
+  const [actionFormTitle, setActionFormTitle] = useState("");
+  const [actionFormDescription, setActionFormDescription] = useState("");
+  const [actionFormRequestIds, setActionFormRequestIds] = useState<string[]>([]);
+  const [actionFormSaving, setActionFormSaving] = useState(false);
+  const [actionFormError, setActionFormError] = useState<string | null>(null);
+  const [deletingActionId, setDeletingActionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (filtersDrawerOpen) {
@@ -121,6 +161,48 @@ export const RequestsPage = () => {
       setTypeDraft(typeFilter);
     }
   }, [filtersDrawerOpen, statusFilter, typeFilter]);
+
+  useEffect(() => {
+    if (!selectedRequest?._id) {
+      setRequestTransitions([]);
+      setRequestActions([]);
+      return;
+    }
+    setTransitionsLoading(true);
+    followupApi
+      .getRequestTransitions(selectedRequest._id)
+      .then((r) => setRequestTransitions(r.transitions ?? []))
+      .catch(() => setRequestTransitions([]))
+      .finally(() => setTransitionsLoading(false));
+  }, [selectedRequest?._id]);
+
+  useEffect(() => {
+    if (!workspaceId) {
+      setRequestActions([]);
+      return;
+    }
+    setActionsLoading(true);
+    followupApi
+      .getRequestActions(workspaceId, selectedRequest?._id)
+      .then((r) => setRequestActions(r.actions ?? []))
+      .catch(() => setRequestActions([]))
+      .finally(() => setActionsLoading(false));
+  }, [workspaceId, selectedRequest?._id]);
+
+  // Apri drawer dettaglio se arriviamo da scheda cliente con openRequestId
+  useEffect(() => {
+    const openRequestId = (location.state as { openRequestId?: string } | null)?.openRequestId;
+    if (!openRequestId) return;
+    followupApi
+      .getRequestById(openRequestId)
+      .then((r) => {
+        setSelectedRequest(r.request);
+        navigate(location.pathname, { replace: true, state: {} });
+      })
+      .catch(() => {
+        navigate(location.pathname, { replace: true, state: {} });
+      });
+  }, [location.state, location.pathname, navigate]);
 
   useEffect(() => {
     if (!newRequestOpen || !workspaceId || selectedProjectIds.length === 0) return;
@@ -258,6 +340,130 @@ export const RequestsPage = () => {
     } finally {
       setStatusChangingId(null);
     }
+  };
+
+  const handleRevert = async (transitionId: string) => {
+    if (!selectedRequest) return;
+    setRevertingTransitionId(transitionId);
+    try {
+      const { request } = await followupApi.revertRequestStatus(selectedRequest._id, transitionId);
+      setSelectedRequest(request);
+      refetch();
+      const { transitions } = await followupApi.getRequestTransitions(selectedRequest._id);
+      setRequestTransitions(transitions ?? []);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "Errore durante il ripristino dello stato.");
+    } finally {
+      setRevertingTransitionId(null);
+    }
+  };
+
+  const formatDateTime = (iso?: string) => {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "—";
+    return new Intl.DateTimeFormat("it-IT", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(d);
+  };
+
+  type TimelineItem =
+    | { kind: "transition"; id: string; createdAt: string; data: RequestTransitionRow }
+    | { kind: "action"; id: string; createdAt: string; data: RequestActionRow };
+
+  const timelineItems = useMemo((): TimelineItem[] => {
+    const items: TimelineItem[] = [
+      ...requestTransitions.map((t) => ({ kind: "transition" as const, id: `t-${t._id}`, createdAt: t.createdAt, data: t })),
+      ...requestActions.map((a) => ({ kind: "action" as const, id: `a-${a._id}`, createdAt: a.createdAt, data: a })),
+    ];
+    items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return items;
+  }, [requestTransitions, requestActions]);
+
+  const openActionDrawerCreate = () => {
+    setEditingAction(null);
+    setActionDrawerMode("create");
+    setActionFormType("note");
+    setActionFormTitle("");
+    setActionFormDescription("");
+    setActionFormRequestIds(selectedRequest ? [selectedRequest._id] : []);
+    setActionFormError(null);
+    setActionDrawerOpen(true);
+  };
+
+  const openActionDrawerEdit = (action: RequestActionRow) => {
+    setEditingAction(action);
+    setActionDrawerMode("edit");
+    setActionFormType(action.type);
+    setActionFormTitle(action.title ?? "");
+    setActionFormDescription(action.description ?? "");
+    setActionFormRequestIds([...action.requestIds]);
+    setActionFormError(null);
+    setActionDrawerOpen(true);
+  };
+
+  const handleActionFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!workspaceId) return;
+    if (actionFormRequestIds.length === 0) {
+      setActionFormError("Seleziona almeno una trattativa.");
+      return;
+    }
+    setActionFormError(null);
+    setActionFormSaving(true);
+    try {
+      if (actionDrawerMode === "edit" && editingAction) {
+        await followupApi.updateRequestAction(editingAction._id, {
+          type: actionFormType,
+          title: actionFormTitle.trim() || undefined,
+          description: actionFormDescription.trim() || undefined,
+          requestIds: actionFormRequestIds,
+        });
+      } else {
+        await followupApi.createRequestAction({
+          workspaceId,
+          requestIds: actionFormRequestIds,
+          type: actionFormType,
+          title: actionFormTitle.trim() || undefined,
+          description: actionFormDescription.trim() || undefined,
+        });
+      }
+      setActionDrawerOpen(false);
+      const { actions } = await followupApi.getRequestActions(workspaceId, selectedRequest?._id);
+      setRequestActions(actions ?? []);
+    } catch (err) {
+      setActionFormError(err instanceof Error ? err.message : "Errore nel salvataggio.");
+    } finally {
+      setActionFormSaving(false);
+    }
+  };
+
+  const handleDeleteAction = async (actionId: string) => {
+    if (!window.confirm("Eliminare questa azione?")) return;
+    setDeletingActionId(actionId);
+    try {
+      await followupApi.deleteRequestAction(actionId);
+      setRequestActions((prev) => prev.filter((a) => a._id !== actionId));
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "Errore durante l'eliminazione.");
+    } finally {
+      setDeletingActionId(null);
+    }
+  };
+
+  const addRequestIdToActionForm = (requestId: string) => {
+    if (!actionFormRequestIds.includes(requestId)) {
+      setActionFormRequestIds((prev) => [...prev, requestId]);
+    }
+  };
+
+  const removeRequestIdFromActionForm = (requestId: string) => {
+    if (actionFormRequestIds.length <= 1) return;
+    setActionFormRequestIds((prev) => prev.filter((id) => id !== requestId));
   };
 
   return (
@@ -590,7 +796,7 @@ export const RequestsPage = () => {
         </div>
       </FiltersDrawer>
 
-      <Sheet
+      <Drawer
         open={selectedRequest !== null}
         onOpenChange={(open) => {
           if (!open) {
@@ -599,66 +805,204 @@ export const RequestsPage = () => {
           }
         }}
       >
-        <SheetContent side="right" className="sm:max-w-md flex flex-col">
+        <DrawerContent side="right" className="sm:max-w-md flex flex-col">
           {selectedRequest && (
             <>
-              <h2 className="text-lg font-semibold text-foreground border-b border-border pb-3">
-                Dettaglio trattativa
-              </h2>
-              <p className="mt-1 text-xs text-muted-foreground border-b border-border pb-3">
-                {TYPE_LABEL[selectedRequest.type]} · {STATUS_LABEL[selectedRequest.status]}
-              </p>
-              <div className="mt-4 space-y-3 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Tipo</span>
-                  <p className="font-medium text-foreground">{TYPE_LABEL[selectedRequest.type]}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Stato</span>
-                  <p className="font-medium text-foreground">{STATUS_LABEL[selectedRequest.status]}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Cliente</span>
-                  <p className="font-medium text-foreground">{selectedRequest.clientName ?? selectedRequest.clientId}</p>
-                </div>
-                {selectedRequest.clientRole && (
-                  <div>
-                    <span className="text-muted-foreground">Ruolo</span>
-                    <p className="font-medium text-foreground">{CLIENT_ROLE_LABEL[selectedRequest.clientRole]}</p>
+              <DrawerHeader actions={<DrawerCloseButton />}>
+                <DrawerTitle>Dettaglio trattativa</DrawerTitle>
+                <p className="mt-0.5 text-sm font-normal text-muted-foreground">
+                  {TYPE_LABEL[selectedRequest.type]} · {STATUS_LABEL[selectedRequest.status]}
+                </p>
+              </DrawerHeader>
+              <DrawerBody className="space-y-6">
+                {/* Blocco 1 – Dati trattativa */}
+                <section className="space-y-3">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dati trattativa</h3>
+                  <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3 text-sm">
+                    <div>
+                      <span className="block text-xs text-muted-foreground mb-0.5">Cliente</span>
+                      {selectedRequest.clientId ? (
+                        <Link
+                          to={`/clients/${selectedRequest.clientId}`}
+                          className="font-medium text-primary hover:underline"
+                          onClick={() => setSelectedRequest(null)}
+                        >
+                          {selectedRequest.clientName ?? selectedRequest.clientId}
+                        </Link>
+                      ) : (
+                        <p className="font-medium text-foreground">{selectedRequest.clientName ?? "—"}</p>
+                      )}
+                    </div>
+                    {selectedRequest.clientRole && (
+                      <div>
+                        <span className="block text-xs text-muted-foreground mb-0.5">Ruolo</span>
+                        <p className="font-medium text-foreground">{CLIENT_ROLE_LABEL[selectedRequest.clientRole]}</p>
+                      </div>
+                    )}
+                    <div>
+                      <span className="block text-xs text-muted-foreground mb-0.5">Appartamento</span>
+                      {selectedRequest.apartmentId ? (
+                        <Link
+                          to={`/apartments/${selectedRequest.apartmentId}`}
+                          className="font-medium text-primary hover:underline"
+                          onClick={() => setSelectedRequest(null)}
+                        >
+                          {selectedRequest.apartmentCode ?? selectedRequest.apartmentId}
+                        </Link>
+                      ) : (
+                        <p className="text-foreground">—</p>
+                      )}
+                    </div>
+                    <div>
+                      <span className="block text-xs text-muted-foreground mb-0.5">Progetto</span>
+                      <p className="font-mono text-xs text-foreground">{selectedRequest.projectId}</p>
+                    </div>
+                    {(selectedRequest.quoteNumber ?? selectedRequest.quoteStatus ?? selectedRequest.quoteTotalPrice != null) && (
+                      <div className="rounded-md border border-border bg-background p-3 space-y-1 mt-2">
+                        <span className="text-xs font-medium text-muted-foreground">Preventivo</span>
+                        {selectedRequest.quoteNumber && (
+                          <p className="font-medium text-foreground">N° {selectedRequest.quoteNumber}</p>
+                        )}
+                        {selectedRequest.quoteStatus && (
+                          <p className="text-sm text-muted-foreground">Stato: {selectedRequest.quoteStatus}</p>
+                        )}
+                        {selectedRequest.quoteTotalPrice != null && (
+                          <p className="text-sm font-medium text-foreground">
+                            {new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(selectedRequest.quoteTotalPrice)}
+                          </p>
+                        )}
+                        {selectedRequest.quoteExpiryOn && (
+                          <p className="text-xs text-muted-foreground">Scadenza: {formatDate(selectedRequest.quoteExpiryOn)}</p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                )}
-                <div>
-                  <span className="text-muted-foreground">Appartamento</span>
-                  <p className="text-foreground">{selectedRequest.apartmentCode ?? selectedRequest.apartmentId ?? "—"}</p>
-                </div>
-                {(selectedRequest.quoteNumber ?? selectedRequest.quoteStatus ?? selectedRequest.quoteTotalPrice != null) && (
-                  <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
-                    <span className="text-muted-foreground text-xs">Preventivo</span>
-                    {selectedRequest.quoteNumber && (
-                      <p className="font-medium text-foreground">N° {selectedRequest.quoteNumber}</p>
-                    )}
-                    {selectedRequest.quoteStatus && (
-                      <p className="text-sm text-muted-foreground">Stato: {selectedRequest.quoteStatus}</p>
-                    )}
-                    {selectedRequest.quoteTotalPrice != null && (
-                      <p className="text-sm font-medium text-foreground">
-                        {new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(selectedRequest.quoteTotalPrice)}
-                      </p>
-                    )}
-                    {selectedRequest.quoteExpiryOn && (
-                      <p className="text-xs text-muted-foreground">Scadenza: {formatDate(selectedRequest.quoteExpiryOn)}</p>
-                    )}
+                </section>
+
+                {/* Blocco 2 – Cronologia stati */}
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Storia stati</h3>
+                  {transitionsLoading ? (
+                    <p className="text-xs text-muted-foreground">Caricamento...</p>
+                  ) : requestTransitions.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Nessun cambio stato registrato.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {requestTransitions.map((t) => {
+                        const isLatestToCurrent =
+                          requestTransitions[0]?._id === t._id && t.toState === selectedRequest.status;
+                        const canRevert = isLatestToCurrent && t.event !== "REVERT";
+                        return (
+                          <li key={t._id} className="flex flex-col gap-0.5 text-sm border-l-2 border-muted pl-3 py-1">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <span className="font-medium text-foreground">
+                                {STATUS_LABEL[t.fromState]} → {STATUS_LABEL[t.toState]}
+                              </span>
+                              {canRevert && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="shrink-0 gap-1 h-6 text-xs"
+                                  disabled={revertingTransitionId === t._id}
+                                  onClick={() => handleRevert(t._id)}
+                                >
+                                  <RotateCcw className="h-3 w-3" />
+                                  {revertingTransitionId === t._id ? "..." : `Reverti a ${STATUS_LABEL[t.fromState]}`}
+                                </Button>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">{formatDateTime(t.createdAt)}</p>
+                            {t.reason && (
+                              <p className="text-xs text-muted-foreground italic">&quot;{t.reason}&quot;</p>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </section>
+
+                {/* Blocco 3 – Timeline azioni */}
+                <section>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Azioni</h3>
+                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={openActionDrawerCreate}>
+                      <Plus className="h-3 w-3" />
+                      Nuova azione
+                    </Button>
                   </div>
-                )}
-                <div>
-                  <span className="text-muted-foreground">Progetto</span>
-                  <p className="font-mono text-xs text-foreground">{selectedRequest.projectId}</p>
+                  {actionsLoading ? (
+                    <p className="text-xs text-muted-foreground">Caricamento...</p>
+                  ) : requestActions.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Nessuna azione. Aggiungine una dalla sezione sopra.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {requestActions.map((a) => (
+                        <li key={a._id} className="flex flex-col gap-0.5 text-sm border-l-2 border-primary/40 pl-3 py-1">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span className="font-medium text-foreground">
+                              {ACTION_TYPE_LABEL[a.type]}
+                              {a.title ? `: ${a.title}` : ""}
+                            </span>
+                            <span className="flex gap-1 shrink-0">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => openActionDrawerEdit(a)}
+                                aria-label="Modifica azione"
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                disabled={deletingActionId === a._id}
+                                onClick={() => handleDeleteAction(a._id)}
+                                aria-label="Elimina azione"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </span>
+                          </div>
+                          {a.description && (
+                            <p className="text-xs text-muted-foreground">{a.description}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground">{formatDateTime(a.createdAt)}</p>
+                          {a.requestIds.length > 1 && (
+                            <p className="text-xs text-muted-foreground">
+                              Trattative collegate: {a.requestIds.length}
+                            </p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+
+                <div className="border-t border-border pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowDetailMore((v) => !v)}
+                    className="text-sm text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded"
+                  >
+                    {showDetailMore ? "Mostra meno" : "Mostra altro"}
+                  </button>
+                  {showDetailMore && (
+                    <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                      <p><span className="font-medium text-foreground">ID:</span> <span className="font-mono text-xs">{selectedRequest._id}</span></p>
+                      <p><span className="font-medium text-foreground">Creato il:</span> {formatDate(selectedRequest.createdAt)}</p>
+                      <p><span className="font-medium text-foreground">Aggiornato il:</span> {formatDate(selectedRequest.updatedAt)}</p>
+                      <p><span className="font-medium text-foreground">Workspace:</span> {selectedRequest.workspaceId}</p>
+                    </div>
+                  )}
                 </div>
-              </div>
-              {selectedRequest.status === "won" &&
-                selectedRequest.clientId &&
-                selectedRequest.apartmentId && (
-                  <div className="mt-4 pt-3 border-t border-border">
+              </DrawerBody>
+              <DrawerFooter>
+                {selectedRequest.status === "won" &&
+                  selectedRequest.clientId &&
+                  selectedRequest.apartmentId && (
                     <Button
                       variant="default"
                       size="sm"
@@ -677,140 +1021,231 @@ export const RequestsPage = () => {
                       <Link2 className="h-4 w-4" />
                       Crea associazione proposta
                     </Button>
-                    <p className="mt-1.5 text-xs text-muted-foreground">
-                      Trattativa vinta. Crea l&apos;associazione per avviare il flusso proposta → compromesso → rogito.
-                    </p>
-                  </div>
-                )}
-              <div className="mt-4 pt-3 border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => setShowDetailMore((v) => !v)}
-                  className="text-sm text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded"
-                >
-                  {showDetailMore ? "Mostra meno" : "Mostra altro"}
-                </button>
-                {showDetailMore && (
-                  <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-                    <p><span className="font-medium text-foreground">ID:</span> <span className="font-mono text-xs">{selectedRequest._id}</span></p>
-                    <p><span className="font-medium text-foreground">Creato il:</span> {formatDate(selectedRequest.createdAt)}</p>
-                    <p><span className="font-medium text-foreground">Aggiornato il:</span> {formatDate(selectedRequest.updatedAt)}</p>
-                    <p><span className="font-medium text-foreground">Workspace:</span> {selectedRequest.workspaceId}</p>
-                  </div>
-                )}
-              </div>
+                  )}
+              </DrawerFooter>
             </>
           )}
-        </SheetContent>
-      </Sheet>
+        </DrawerContent>
+      </Drawer>
 
-      <Dialog open={newRequestOpen} onOpenChange={(o) => !o && setNewRequestOpen(false)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Nuova trattativa</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleNewRequestSubmit} className="flex flex-col gap-4">
-            {formError && (
-              <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{formError}</p>
-            )}
-            <div>
-              <label className="mb-1 block text-sm font-medium text-foreground">Progetto</label>
-              <Select value={formProjectId} onValueChange={setFormProjectId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Seleziona progetto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {selectedProjectIds.map((id) => (
-                    <SelectItem key={id} value={id}>
-                      {id}
+      {/* Drawer Nuova / Modifica azione timeline */}
+      <Drawer open={actionDrawerOpen} onOpenChange={setActionDrawerOpen}>
+        <DrawerContent side="right" className="sm:max-w-md">
+          <DrawerHeader actions={<DrawerCloseButton />}>
+            <DrawerTitle>{actionDrawerMode === "edit" ? "Modifica azione" : "Nuova azione"}</DrawerTitle>
+          </DrawerHeader>
+          <form onSubmit={handleActionFormSubmit} id="action-form">
+            <DrawerBody className="space-y-4">
+              {actionFormError && (
+                <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{actionFormError}</p>
+              )}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Tipo</label>
+                <Select value={actionFormType} onValueChange={(v) => setActionFormType(v as RequestActionType)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.entries(ACTION_TYPE_LABEL) as [RequestActionType, string][]).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Titolo (opzionale)</label>
+                <Input
+                  className="w-full"
+                  value={actionFormTitle}
+                  onChange={(e) => setActionFormTitle(e.target.value)}
+                  placeholder="Es. Chiamata di follow-up"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Descrizione (opzionale)</label>
+                <Textarea
+                  className="min-h-[80px] w-full"
+                  value={actionFormDescription}
+                  onChange={(e) => setActionFormDescription(e.target.value)}
+                  placeholder="Note..."
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Trattative collegate</label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {actionFormRequestIds.map((rid) => {
+                    const req = requests.find((r) => r._id === rid);
+                    return (
+                      <span
+                        key={rid}
+                        className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-0.5 text-xs"
+                      >
+                        {req?.clientName ?? req?.clientId ?? rid.slice(0, 8)}
+                        <button
+                          type="button"
+                          className="rounded hover:bg-muted"
+                          onClick={() => removeRequestIdFromActionForm(rid)}
+                          disabled={actionFormRequestIds.length <= 1}
+                          aria-label="Rimuovi"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+                <Select
+                  value="_add"
+                  onValueChange={(v) => {
+                    if (v && v !== "_add") addRequestIdToActionForm(v);
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Aggiungi trattativa..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_add" disabled>
+                      Aggiungi trattativa...
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-foreground">Cliente *</label>
-              <Select value={formClientId} onValueChange={setFormClientId} required>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Seleziona cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clientsLite.map((c) => (
-                    <SelectItem key={c._id} value={c._id}>
-                      {c.fullName} {c.email ? `(${c.email})` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-muted-foreground">Appartamento (opzionale)</label>
-              <Select value={formApartmentId || "_none"} onValueChange={(v) => setFormApartmentId(v === "_none" ? "" : v)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Nessuno" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none">Nessuno</SelectItem>
-                  {apartmentsList.map((a) => (
-                    <SelectItem key={a._id} value={a._id}>
-                      {a.code} {a.name ? `— ${a.name}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-foreground">Tipo</label>
-              <Select value={formType} onValueChange={(v) => setFormType(v as RequestType)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="rent">{TYPE_LABEL.rent}</SelectItem>
-                  <SelectItem value="sell">{TYPE_LABEL.sell}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-muted-foreground">Ruolo cliente (opzionale)</label>
-              <Select value={formClientRole || "_none"} onValueChange={(v) => setFormClientRole(v === "_none" ? "" : (v as ClientRole))}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Nessuno" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none">Nessuno</SelectItem>
-                  {(Object.entries(CLIENT_ROLE_LABEL) as [ClientRole, string][]).map(([v, label]) => (
-                    <SelectItem key={v} value={v}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-foreground">Stato</label>
-              <Select value={formStatus} onValueChange={(v) => setFormStatus(v as RequestStatus)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(STATUS_LABEL).map(([v, label]) => (
-                    <SelectItem key={v} value={v}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
+                    {requests
+                      .filter((r) => !actionFormRequestIds.includes(r._id))
+                      .map((r) => (
+                        <SelectItem key={r._id} value={r._id}>
+                          {r.clientName ?? r.clientId} — {r.apartmentCode ?? "—"}
+                        </SelectItem>
+                      ))}
+                    {requests.filter((r) => !actionFormRequestIds.includes(r._id)).length === 0 && (
+                      <SelectItem value="_none" disabled>
+                        Tutte le trattative della pagina già collegate
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </DrawerBody>
+            <DrawerFooter>
+              <Button type="button" variant="outline" onClick={() => setActionDrawerOpen(false)}>
+                Annulla
+              </Button>
+              <Button type="submit" form="action-form" disabled={actionFormSaving}>
+                {actionFormSaving ? "Salvataggio..." : actionDrawerMode === "edit" ? "Salva" : "Crea azione"}
+              </Button>
+            </DrawerFooter>
+          </form>
+        </DrawerContent>
+      </Drawer>
+
+      <Drawer open={newRequestOpen} onOpenChange={(o) => !o && setNewRequestOpen(false)}>
+        <DrawerContent side="right" className="sm:max-w-md">
+          <DrawerHeader actions={<DrawerCloseButton />}>
+            <DrawerTitle>Nuova trattativa</DrawerTitle>
+          </DrawerHeader>
+          <form onSubmit={handleNewRequestSubmit} className="flex flex-col flex-1 min-h-0">
+            <DrawerBody className="flex flex-col gap-4">
+              {formError && (
+                <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{formError}</p>
+              )}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-foreground">Progetto</label>
+                <Select value={formProjectId} onValueChange={setFormProjectId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Seleziona progetto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {selectedProjectIds.map((id) => (
+                      <SelectItem key={id} value={id}>
+                        {id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-foreground">Cliente *</label>
+                <Select value={formClientId} onValueChange={setFormClientId} required>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Seleziona cliente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clientsLite.map((c) => (
+                      <SelectItem key={c._id} value={c._id}>
+                        {c.fullName} {c.email ? `(${c.email})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-muted-foreground">Appartamento (opzionale)</label>
+                <Select value={formApartmentId || "_none"} onValueChange={(v) => setFormApartmentId(v === "_none" ? "" : v)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Nessuno" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">Nessuno</SelectItem>
+                    {apartmentsList.map((a) => (
+                      <SelectItem key={a._id} value={a._id}>
+                        {a.code} {a.name ? `— ${a.name}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-foreground">Tipo</label>
+                <Select value={formType} onValueChange={(v) => setFormType(v as RequestType)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="rent">{TYPE_LABEL.rent}</SelectItem>
+                    <SelectItem value="sell">{TYPE_LABEL.sell}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-muted-foreground">Ruolo cliente (opzionale)</label>
+                <Select value={formClientRole || "_none"} onValueChange={(v) => setFormClientRole(v === "_none" ? "" : (v as ClientRole))}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Nessuno" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">Nessuno</SelectItem>
+                    {(Object.entries(CLIENT_ROLE_LABEL) as [ClientRole, string][]).map(([v, label]) => (
+                      <SelectItem key={v} value={v}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-foreground">Stato</label>
+                <Select value={formStatus} onValueChange={(v) => setFormStatus(v as RequestStatus)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(STATUS_LABEL).map(([v, label]) => (
+                      <SelectItem key={v} value={v}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </DrawerBody>
+            <DrawerFooter>
               <Button type="button" variant="outline" onClick={() => setNewRequestOpen(false)}>
                 Annulla
               </Button>
               <Button type="submit" disabled={formSaving}>
                 {formSaving ? "Creazione..." : "Crea trattativa"}
               </Button>
-            </div>
+            </DrawerFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 };

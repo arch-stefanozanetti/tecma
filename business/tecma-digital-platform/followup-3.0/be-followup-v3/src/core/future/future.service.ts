@@ -1,7 +1,6 @@
 import { ObjectId } from "mongodb";
 import { z } from "zod";
-import { ENV } from "../../config/env.js";
-import { getDb, getDbByName } from "../../config/db.js";
+import { getDb } from "../../config/db.js";
 import { ListQuerySchema, buildPagination } from "../shared/list-query.js";
 import { emitDomainEvent } from "../events/event-log.service.js";
 
@@ -106,13 +105,13 @@ type RawApartment = {
   createdAt: string;
 };
 
-const getAssociationsCollection = () => getDb().collection("apartment_client_associations");
-const getHCApartmentsCollection = () => getDb().collection("hc_apartments");
-const getTemplatesCollection = () => getDb().collection("configuration_templates");
-const getWorkflowsCollection = () => getDb().collection("complete_flow_runs");
+const getAssociationsCollection = () => getDb().collection("tz_apartment_client_associations");
+const getHCApartmentsCollection = () => getDb().collection("tz_hc_apartments");
+const getTemplatesCollection = () => getDb().collection("tz_configuration_templates");
+const getWorkflowsCollection = () => getDb().collection("tz_complete_flow_runs");
 
 const getHCMasterCollection = (entity: z.infer<typeof HCMasterEntitySchema>) =>
-  getDb().collection(`hc_master_${entity}s`);
+  getDb().collection(`tz_hc_master_${entity}s`);
 
 const toObjectId = (value: string): ObjectId => {
   if (!ObjectId.isValid(value)) {
@@ -264,7 +263,7 @@ const mapLegacyApartmentToDetail = (doc: LegacyApartmentDoc): ReturnType<typeof 
 export const createApartment = async (rawInput: unknown) => {
   const input = ApartmentCreateSchema.parse(rawInput);
   const db = getDb();
-  const collection = db.collection<RawApartment>("apartments");
+  const collection = db.collection<RawApartment>(TZ_APARTMENTS_COLLECTION);
 
   const duplicate = await collection.findOne({
     workspaceId: input.workspaceId,
@@ -306,7 +305,7 @@ export const createApartment = async (rawInput: unknown) => {
 
 export const updateApartment = async (rawInput: unknown) => {
   const input = ApartmentUpdateSchema.parse(rawInput);
-  const collection = getDb().collection<RawApartment>("apartments");
+  const collection = getDb().collection<RawApartment>(TZ_APARTMENTS_COLLECTION);
   const apartmentId = toObjectId(input.apartmentId);
 
   const updateDoc: Record<string, unknown> = {
@@ -354,12 +353,34 @@ export const updateApartment = async (rawInput: unknown) => {
   return { apartment: mapApartment(updated) };
 };
 
+const TZ_APARTMENTS_COLLECTION = "tz_apartments";
+
 export const getApartmentById = async (rawApartmentId: unknown) => {
   const apartmentId = toObjectId(z.string().parse(rawApartmentId));
-  const primary = await getDb().collection<RawApartment>("apartments").findOne({ _id: apartmentId });
+  const db = getDb();
+  const tzDoc = await db.collection(TZ_APARTMENTS_COLLECTION).findOne({ _id: apartmentId });
+  if (tzDoc) {
+    const d = tzDoc as Record<string, unknown>;
+    const rawPrice = (d.rawPrice as { mode?: string; amount?: number }) ?? {};
+    const apartment = mapApartment({
+      _id: apartmentId,
+      workspaceId: String(d.workspaceId ?? ""),
+      projectId: String(d.projectId ?? ""),
+      code: String(d.code ?? ""),
+      name: String(d.name ?? ""),
+      status: (d.status as RawApartment["status"]) ?? "AVAILABLE",
+      mode: (d.mode as RawApartment["mode"]) ?? "SELL",
+      surfaceMq: Number(d.surfaceMq) || 0,
+      rawPrice: { mode: (rawPrice.mode as "RENT" | "SELL") ?? "SELL", amount: Number(rawPrice.amount) || 0 },
+      planimetryUrl: String(d.planimetryUrl ?? ""),
+      updatedAt: String(d.updatedAt ?? ""),
+      createdAt: String(d.createdAt ?? d.updatedAt ?? "")
+    });
+    return { apartment };
+  }
+  const primary = await db.collection<RawApartment>("apartments").findOne({ _id: apartmentId });
   if (primary) return { apartment: mapApartment(primary) };
-  const legacyDb = getDbByName(LEGACY_DB_ASSET);
-  const legacyDoc = await legacyDb.collection<LegacyApartmentDoc>(LEGACY_APARTMENTS_VIEW).findOne({ _id: apartmentId });
+  const legacyDoc = await db.collection<LegacyApartmentDoc>(LEGACY_APARTMENTS_VIEW).findOne({ _id: apartmentId });
   if (!legacyDoc) {
     const notFoundError = new Error("Apartment not found");
     (notFoundError as Error & { statusCode?: number }).statusCode = 404;
@@ -745,21 +766,18 @@ export const saveTemplateConfiguration = async (rawProjectId: unknown, rawInput:
 };
 
 export const queryClientsLite = async (workspaceId: string, projectIds: string[]) => {
-  const db = getDbByName(ENV.MONGO_CLIENT_DB_NAME);
-  const objectProjectIds = projectIds.filter((id) => ObjectId.isValid(id)).map((id) => new ObjectId(id));
+  const db = getDb();
   const clients = await db
-    .collection("clients")
-    .find({
-      $or: [{ project_id: { $in: projectIds } }, { project_id: { $in: objectProjectIds } }]
-    })
-    .project({ _id: 1, firstName: 1, lastName: 1, email: 1, project_id: 1 })
+    .collection("tz_clients")
+    .find({ projectId: { $in: projectIds } })
+    .project({ _id: 1, fullName: 1, email: 1, projectId: 1 })
     .limit(3000)
     .toArray();
-  return clients.map((item) => ({
+  return clients.map((item: { _id: unknown; fullName?: string; email?: string; projectId?: string }) => ({
     _id: String(item._id),
     workspaceId,
-    projectId: item.project_id instanceof ObjectId ? item.project_id.toHexString() : String(item.project_id ?? ""),
-    fullName: `${String(item.firstName ?? "")} ${String(item.lastName ?? "")}`.trim() || "-",
+    projectId: typeof item.projectId === "string" ? item.projectId : "",
+    fullName: typeof item.fullName === "string" && item.fullName.trim() ? item.fullName.trim() : "-",
     email: typeof item.email === "string" ? item.email : ""
   }));
 };

@@ -31,14 +31,20 @@ export const ProjectsPage = () => {
   const [error, setError] = useState<string | null>(null);
 
   const load = async () => {
-    if (!workspaceId) return;
+    if (!workspaceId) {
+      setLoading(false);
+      setProjects([]);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const res = await followupApi.listWorkspaceProjects(workspaceId);
-      setProjects((res.data ?? []) as unknown as ProjectItem[]);
+      const list = Array.isArray(res?.data) ? res.data : [];
+      setProjects(list as unknown as ProjectItem[]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Errore caricamento");
+      setProjects([]);
     } finally {
       setLoading(false);
     }

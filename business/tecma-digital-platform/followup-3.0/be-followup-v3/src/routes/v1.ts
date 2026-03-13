@@ -3,7 +3,8 @@ import { z } from "zod";
 import { queryCalendarEvents, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from "../core/calendar/calendar.service.js";
 import { queryClients, createClient, updateClient, getClientById } from "../core/clients/clients.service.js";
 import { queryApartments } from "../core/apartments/apartments.service.js";
-import { queryRequests, getRequestById, createRequest, updateRequestStatus } from "../core/requests/requests.service.js";
+import { queryRequests, getRequestById, createRequest, updateRequestStatus, listRequestTransitions, revertRequestStatus } from "../core/requests/requests.service.js";
+import { listRequestActions, createRequestAction, updateRequestAction, deleteRequestAction } from "../core/requests/request-actions.service.js";
 import { getProjectAccessByEmail } from "../core/auth/projectAccess.service.js";
 import { getUserPreferences, upsertUserPreferences } from "../core/auth/userPreferences.service.js";
 import {
@@ -37,6 +38,7 @@ import {
   queryClientsLite
 } from "../core/future/future.service.js";
 import { getModelSample } from "../core/inspect/inspect.service.js";
+import { getClientCandidates, getApartmentCandidates } from "../core/matching/matching.service.js";
 import { getWorkflowConfig } from "../core/workflow/workflow.service.js";
 import {
   listWorkspaces,
@@ -88,6 +90,37 @@ v1Router.get("/health", (_req, res) => {
 
 v1Router.get("/openapi.json", (_req, res) => {
   res.json(openApiV1);
+});
+
+const SWAGGER_UI_HTML = `<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <title>Followup 3.0 API - Swagger UI</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css" />
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js" crossorigin></script>
+  <script>
+    window.onload = function() {
+      window.ui = SwaggerUIBundle({
+        url: "/v1/openapi.json",
+        dom_id: "#swagger-ui",
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIBundle.SwaggerUIStandalonePreset
+        ],
+        layout: "BaseLayout"
+      });
+    };
+  </script>
+</body>
+</html>
+`;
+
+v1Router.get("/docs", (_req, res) => {
+  res.type("html").send(SWAGGER_UI_HTML);
 });
 
 v1Router.post("/auth/login", authRateLimiter, handleAsync((req) => loginWithCredentials(req.body)));
@@ -171,8 +204,50 @@ v1Router.patch("/clients/:id", handleAsync(async (req) => {
   }
   return { client: result.client };
 }));
+
+// POST /clients/:clientId/actions — registra azione (mail_received, mail_sent, call_completed, meeting_scheduled) per tab Profilo/Timeline
+v1Router.post("/clients/:clientId/actions", handleAsync(async (req) => {
+  const clientId = req.params.clientId;
+  const body = z.object({ type: z.enum(["mail_received", "mail_sent", "call_completed", "meeting_scheduled"]) }).parse(req.body);
+  const clientRes = await getClientById(clientId).catch(() => null);
+  const workspaceId = clientRes?.client?.workspaceId ?? "";
+  const { getDb } = await import("../config/db.js");
+  const db = getDb();
+  const now = new Date();
+  const doc = {
+    at: now,
+    action: `client.${body.type}`,
+    workspaceId,
+    projectId: clientRes?.client?.projectId,
+    entityType: "client",
+    entityId: clientId,
+    actor: { type: "user" as const, userId: req.user?.sub, email: req.user?.email },
+  };
+  const res = await db.collection("tz_audit_log").insertOne(doc);
+  return {
+    action: {
+      _id: res.insertedId.toHexString(),
+      type: body.type,
+      at: now.toISOString(),
+    },
+  };
+}));
+
 v1Router.post("/apartments/query", handleAsync((req) => queryApartments(req.body)));
 v1Router.post("/requests/query", handleAsync((req) => queryRequests(req.body)));
+v1Router.get("/requests/actions", handleAsync((req) => {
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";
+  const requestId = typeof req.query.requestId === "string" ? req.query.requestId : undefined;
+  if (!workspaceId) throw new HttpError("workspaceId query required", 400);
+  return listRequestActions(workspaceId, requestId);
+}));
+v1Router.post("/requests/actions", handleAsync((req) =>
+  createRequestAction(req.body, { userId: req.user?.sub })
+));
+v1Router.patch("/requests/actions/:id", handleAsync((req) =>
+  updateRequestAction(req.params.id, req.body, { userId: req.user?.sub })
+));
+v1Router.delete("/requests/actions/:id", handleAsync((req) => deleteRequestAction(req.params.id)));
 v1Router.get("/requests/:id", handleAsync((req) => getRequestById(req.params.id)));
 v1Router.post("/requests", handleAsync(async (req) => {
   const result = await createRequest(req.body);
@@ -206,6 +281,11 @@ v1Router.patch("/requests/:id/status", handleAsync(async (req) => {
     }
   }
   return result;
+}));
+v1Router.get("/requests/:id/transitions", handleAsync((req) => listRequestTransitions(req.params.id)));
+v1Router.post("/requests/:id/revert", handleAsync(async (req) => {
+  const body = z.object({ transitionId: z.string().min(1) }).parse(req.body);
+  return revertRequestStatus(req.params.id, body.transitionId, { userId: req.user?.sub });
 }));
 v1Router.post("/session/projects-by-email", handleAsync((req) => getProjectAccessByEmail(req.body)));
 
@@ -457,12 +537,31 @@ v1Router.delete("/projects/:projectId/pdf-templates/:templateId", handleAsync(as
   return deleteProjectPdfTemplate(projectId, templateId, workspaceId, isAdmin);
 }));
 
+// ─── Matching (candidati stesso progetto) ──────────────────────────────────
+v1Router.get("/matching/clients/:id/candidates", handleAsync(async (req) => {
+  const clientId = req.params.id;
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";
+  const projectIds = typeof req.query.projectIds === "string"
+    ? req.query.projectIds.split(",").map((p) => p.trim()).filter(Boolean)
+    : [];
+  return getClientCandidates(clientId, workspaceId, projectIds);
+}));
+v1Router.get("/matching/apartments/:id/candidates", handleAsync(async (req) => {
+  const apartmentId = req.params.id;
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";
+  const projectIds = typeof req.query.projectIds === "string"
+    ? req.query.projectIds.split(",").map((p) => p.trim()).filter(Boolean)
+    : [];
+  return getApartmentCandidates(apartmentId, workspaceId, projectIds);
+}));
+
 // ─── Workspaces ──────────────────────────────────────────────────────────────
 v1Router.get("/workspaces", handleAsync(() => listWorkspaces()));
-v1Router.get("/workspaces/:id", handleAsync((req) => getWorkspaceById(req.params.id)));
+v1Router.get("/workspaces/:id/users", handleAsync(async (_req) => ({ data: [] })));
 v1Router.get("/workspaces/:id/projects", handleAsync((req) =>
   listWorkspaceProjects(req.params.id).then((rows) => ({ data: rows }))
 ));
+v1Router.get("/workspaces/:workspaceId/entities/:entityType/:entityId/assignments", handleAsync(async (_req) => ({ data: [] })));
 v1Router.post("/workspaces", requireAdmin, handleAsync((req) => createWorkspace(req.body)));
 v1Router.patch("/workspaces/:id", requireAdmin, handleAsync((req) => updateWorkspace(req.params.id, req.body)));
 v1Router.delete("/workspaces/:id", requireAdmin, handleAsync(async (req) => {
@@ -481,6 +580,8 @@ v1Router.delete("/workspaces/:workspaceId/projects/:projectId", requireAdmin, ha
 v1Router.get("/workspaces/:workspaceId/additional-infos", handleAsync((req) =>
   listAdditionalInfos(req.params.workspaceId).then((rows) => ({ data: rows }))
 ));
+// GET /workspaces/:id per dettaglio workspace (dopo tutte le route più specifiche)
+v1Router.get("/workspaces/:id", handleAsync((req) => getWorkspaceById(req.params.id)));
 v1Router.post("/additional-infos", requireAdmin, handleAsync((req) => createAdditionalInfo(req.body)));
 v1Router.patch("/additional-infos/:id", requireAdmin, handleAsync((req) =>
   updateAdditionalInfo(req.params.id, req.body)
@@ -530,6 +631,21 @@ v1Router.post("/audit/query", handleAsync(async (req) => {
     dateTo: typeof body.dateTo === "string" ? body.dateTo : undefined,
     page: typeof body.page === "number" ? body.page : 1,
     perPage: typeof body.perPage === "number" ? body.perPage : 25,
+  });
+}));
+
+// GET /audit/entity/:entityType/:entityId — per tab Timeline in scheda cliente/appartamento
+v1Router.get("/audit/entity/:entityType/:entityId", handleAsync(async (req) => {
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";
+  if (!workspaceId) throw new HttpError("workspaceId query required", 400);
+  const limit = typeof req.query.limit === "string" ? parseInt(req.query.limit, 10) : 25;
+  const perPage = Number.isNaN(limit) || limit < 1 ? 25 : Math.min(100, limit);
+  return queryAuditLog({
+    workspaceId,
+    entityType: req.params.entityType,
+    entityId: req.params.entityId,
+    page: 1,
+    perPage,
   });
 }));
 

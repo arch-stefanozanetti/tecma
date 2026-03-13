@@ -345,6 +345,9 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
                           {ws.name ?? ws._id}
                         </option>
                       ))}
+                      {workspaces.length > 0 && (
+                        <option disabled>———</option>
+                      )}
                       <option value="dev-1">{LEGACY_WORKSPACE_LABELS["dev-1"]}</option>
                       <option value="demo">{LEGACY_WORKSPACE_LABELS.demo}</option>
                       <option value="prod">{LEGACY_WORKSPACE_LABELS.prod}</option>

@@ -7,7 +7,15 @@ import type { CalendarEvent } from "../../types/domain";
 import { useWorkspace } from "../../auth/projectScope";
 import { cn } from "../../lib/utils";
 import { Button } from "../../components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerBody,
+  DrawerFooter,
+  DrawerCloseButton,
+} from "../../components/ui/drawer";
 import { Input } from "../../components/ui/input";
 import { Sheet, SheetContent } from "../../components/ui/sheet";
 import {
@@ -50,11 +58,11 @@ interface CalendarPageProps {
   projectIds?: string[];
 }
 
-// ─── Event Form Dialog (nuovo / modifica) ─────────────────────────────────────
+// ─── Event Form Drawer (nuovo / modifica) ─────────────────────────────────────
 const toDatetimeLocal = (iso: string) => moment(iso).format("YYYY-MM-DDTHH:mm");
 const fromDatetimeLocal = (s: string) => moment(s).toISOString();
 
-const EventFormDialog = ({
+const EventFormDrawer = ({
   mode,
   event,
   defaultDate,
@@ -141,89 +149,91 @@ const EventFormDialog = ({
 
   if (!open) return null;
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{mode === "edit" ? "Modifica evento" : "Nuovo evento"}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-foreground">Titolo *</label>
-            <Input
-              className="h-10 rounded-lg border-border"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              placeholder="Titolo evento"
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-foreground">Inizio</label>
-            <Input
-              type="datetime-local"
-              className="h-10 rounded-lg border-border"
-              value={startsAt}
-              onChange={(e) => setStartsAt(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-foreground">Fine</label>
-            <Input
-              type="datetime-local"
-              className="h-10 rounded-lg border-border"
-              value={endsAt}
-              onChange={(e) => setEndsAt(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-foreground">Progetto</label>
-            <Select value={projectId} onValueChange={setProjectId} required>
-              <SelectTrigger className="h-10 rounded-lg border-border">
-                <SelectValue placeholder="Seleziona progetto" />
-              </SelectTrigger>
-              <SelectContent>
-                {projects.filter((p) => projectIds.includes(p.id)).map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.displayName || p.name || p.id}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-foreground">Tipo</label>
-            <Select value={source} onValueChange={(v) => setSource(v as CalendarEvent["source"])}>
-              <SelectTrigger className="h-10 rounded-lg border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SOURCE_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {formError && <p className="text-sm text-destructive">{formError}</p>}
-          <div className="flex gap-2 justify-end pt-2">
+    <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
+      <DrawerContent side="right" className="sm:max-w-md">
+        <DrawerHeader actions={<DrawerCloseButton />}>
+          <DrawerTitle>{mode === "edit" ? "Modifica evento" : "Nuovo evento"}</DrawerTitle>
+        </DrawerHeader>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <DrawerBody className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Titolo *</label>
+              <Input
+                className="h-10 rounded-lg border-border"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+                placeholder="Titolo evento"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Inizio</label>
+              <Input
+                type="datetime-local"
+                className="h-10 rounded-lg border-border"
+                value={startsAt}
+                onChange={(e) => setStartsAt(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Fine</label>
+              <Input
+                type="datetime-local"
+                className="h-10 rounded-lg border-border"
+                value={endsAt}
+                onChange={(e) => setEndsAt(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Progetto</label>
+              <Select value={projectId} onValueChange={setProjectId} required>
+                <SelectTrigger className="h-10 rounded-lg border-border">
+                  <SelectValue placeholder="Seleziona progetto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.filter((p) => projectIds.includes(p.id)).map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.displayName || p.name || p.id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Tipo</label>
+              <Select value={source} onValueChange={(v) => setSource(v as CalendarEvent["source"])}>
+                <SelectTrigger className="h-10 rounded-lg border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SOURCE_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {formError && <p className="text-sm text-destructive">{formError}</p>}
+          </DrawerBody>
+          <DrawerFooter>
             <Button type="button" variant="outline" onClick={onClose}>
               Annulla
             </Button>
             <Button type="submit" disabled={saving}>
               {saving ? "Salvataggio..." : mode === "edit" ? "Salva" : "Crea"}
             </Button>
-          </div>
+          </DrawerFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </DrawerContent>
+    </Drawer>
   );
 };
 
-// ─── Event Popover Dialog (solo lettura + Modifica + Elimina) ─────────────────
-const EventDialog = ({
+// ─── Event Drawer (solo lettura + Modifica + Elimina) ─────────────────────────
+const EventDrawer = ({
   event,
   open,
   onClose,
@@ -259,15 +269,15 @@ const EventDialog = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
+      <DrawerContent side="right" className="sm:max-w-md">
+        <DrawerHeader actions={<DrawerCloseButton />}>
+          <DrawerTitle className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-full flex-shrink-0" style={{ background: border }} />
             {event.title}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3">
+          </DrawerTitle>
+        </DrawerHeader>
+        <DrawerBody className="space-y-3">
           <div className="flex items-center gap-3 text-sm">
             <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <span className="capitalize">{startM.format("dddd D MMMM YYYY")}</span>
@@ -288,21 +298,21 @@ const EventDialog = ({
               {sourceLabel[event.source]}
             </span>
           </div>
-          <div className="flex gap-2 pt-3 border-t border-border">
-            {onEdit && (
-              <Button variant="outline" size="sm" className="flex-1" onClick={() => { onClose(); onEdit(); }}>
-                Modifica
-              </Button>
-            )}
-            {canDelete && onDelete && (
-              <Button variant="outline" size="sm" className="flex-1 text-destructive hover:bg-destructive/10" onClick={handleDelete} disabled={deleting}>
-                {deleting ? "Eliminazione..." : "Elimina"}
-              </Button>
-            )}
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DrawerBody>
+        <DrawerFooter>
+          {onEdit && (
+            <Button variant="outline" size="sm" className="flex-1" onClick={() => { onClose(); onEdit(); }}>
+              Modifica
+            </Button>
+          )}
+          {canDelete && onDelete && (
+            <Button variant="outline" size="sm" className="flex-1 text-destructive hover:bg-destructive/10" onClick={handleDelete} disabled={deleting}>
+              {deleting ? "Eliminazione..." : "Elimina"}
+            </Button>
+          )}
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   );
 };
 
@@ -749,14 +759,14 @@ export const CalendarPage = (_props: CalendarPageProps) => {
         </SheetContent>
       </Sheet>
 
-      <EventDialog
+      <EventDrawer
         event={selectedEvent}
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         onEdit={handleOpenEditEvent}
         onDelete={handleEventFormSaved}
       />
-      <EventFormDialog
+      <EventFormDrawer
         mode={eventFormMode}
         event={eventToEdit}
         defaultDate={currentDate}

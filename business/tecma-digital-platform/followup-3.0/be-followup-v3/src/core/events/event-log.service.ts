@@ -10,7 +10,7 @@ export type DomainEventInput = {
 };
 
 export const emitDomainEvent = async (input: DomainEventInput) => {
-  const collection = getDb().collection("domain_events");
+  const collection = getDb().collection("tz_domain_events");
   const now = new Date().toISOString();
   await collection.insertOne({
     type: input.type,
