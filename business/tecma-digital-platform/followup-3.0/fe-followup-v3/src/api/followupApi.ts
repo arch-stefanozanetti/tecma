@@ -27,10 +27,17 @@ import type {
   RequestActionType,
   RequestCreateInput,
   UserPreferences,
+  WorkflowRow,
+  WorkflowStateRow,
+  WorkflowTransitionRow,
+  WorkflowWithDetail,
+  WorkflowType,
+  ApartmentLockType,
   WorkspaceProjectRow,
   WorkspaceRow,
   WorkspaceUserRow,
   WorkspaceUserRole,
+  UserWithVisibilityRow,
 } from "../types/domain";
 
 export const followupApi = {
@@ -299,6 +306,7 @@ export const followupApi = {
       pagination: { page: number; perPage: number; total: number; totalPages: number };
     }>("/audit/query", query),
   // Workspaces (tz_workspaces)
+  listUsersWithVisibility: () => getJson<{ users: UserWithVisibilityRow[] }>("/users"),
   listWorkspaces: () => getJson<WorkspaceRow[]>("/workspaces"),
   getWorkspaceById: (id: string) => getJson<{ workspace: WorkspaceRow }>(`/workspaces/${id}`),
   createWorkspace: (payload: { name: string }) => postJson<{ workspace: WorkspaceRow }>("/workspaces", payload),
@@ -359,6 +367,23 @@ export const followupApi = {
     getJson<{ flowType: "rent" | "sell"; states: Array<{ id: string; label?: string; isTerminal?: boolean }>; transitions: Array<{ fromState: string; toState: string; event: string }>; version?: number }>(
       `/workflow/config?workspaceId=${encodeURIComponent(workspaceId)}&projectId=${encodeURIComponent(projectId)}&flowType=${flowType}`
     ),
+  listWorkflowsByWorkspace: (workspaceId: string) =>
+    getJson<{ workflows: WorkflowRow[] }>(`/workspaces/${encodeURIComponent(workspaceId)}/workflows`),
+  getWorkflowWithStatesAndTransitions: (workflowId: string) =>
+    getJson<WorkflowWithDetail>(`/workflows/${encodeURIComponent(workflowId)}`),
+  createWorkflow: (payload: { workspaceId: string; name: string; type: WorkflowType }) =>
+    postJson<{ workflow: WorkflowRow }>("/workflows", payload),
+  createWorkflowState: (payload: {
+    workflowId: string;
+    code: string;
+    label: string;
+    order: number;
+    terminal?: boolean;
+    reversible?: boolean;
+    apartmentLock?: ApartmentLockType;
+  }) => postJson<{ state: WorkflowStateRow }>("/workflows/states", payload),
+  createWorkflowTransition: (payload: { workflowId: string; fromStateId: string; toStateId: string }) =>
+    postJson<{ transition: WorkflowTransitionRow }>("/workflows/transitions", payload),
   createRequest: (payload: RequestCreateInput) => postJson<{ request: RequestRow }>("/requests", payload),
   updateRequestStatus: (requestId: string, payload: { status: string; reason?: string; quoteId?: string }) =>
     patchJson<{ request: RequestRow }>(`/requests/${requestId}/status`, payload),

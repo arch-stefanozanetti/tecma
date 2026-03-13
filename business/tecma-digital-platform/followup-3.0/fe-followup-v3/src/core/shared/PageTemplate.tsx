@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   FileText,
   FolderKanban,
+  GitBranch,
   Handshake,
   Home,
   Layers,
@@ -44,7 +45,9 @@ type Section =
   | "templateConfig"
   | "aiApprovals"
   | "projects"
+  | "workflowConfig"
   | "workspaces"
+  | "users"
   | "audit"
   | "reports"
   | "releases"
@@ -84,7 +87,9 @@ const navItems: NavItem[] = [
   { id: "calendar", label: "Calendario", icon: CalendarDays },
   { id: "projects", label: "Progetti", icon: Building2 },
   { id: "integrations", label: "Integrazioni", icon: Plug, compact: true },
+  { id: "workflowConfig", label: "Config. workflow", icon: GitBranch, adminOnly: true, compact: true },
   { id: "workspaces", label: "Workspaces", icon: FolderKanban, adminOnly: true, compact: true },
+  { id: "users", label: "User", icon: UserCircle, adminOnly: true, compact: true },
   { id: "reports", label: "Report", icon: BarChart2, compact: true },
 ];
 

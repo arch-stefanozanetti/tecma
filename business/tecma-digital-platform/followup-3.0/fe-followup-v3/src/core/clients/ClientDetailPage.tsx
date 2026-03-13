@@ -37,6 +37,7 @@ import { STATUS_FILTER_OPTIONS } from "./constants";
 import { Textarea } from "../../components/ui/textarea";
 import { MatchingCandidatesList } from "../../components/MatchingCandidatesList";
 import { RequestStatusRoadmap } from "../../components/RequestStatusRoadmap";
+import { useWorkflowConfig } from "../../hooks/useWorkflowConfig";
 
 const ACTION_TYPE_LABEL: Record<RequestActionType, string> = {
   note: "Nota",
@@ -57,26 +58,6 @@ const STATUS_LABEL: Record<string, string> = {
   negotiation: "Negotiation",
   won: "Won",
   lost: "Lost",
-};
-
-const REQUEST_STATUS_LABEL: Record<RequestStatus, string> = {
-  new: "Nuova",
-  contacted: "Contattato",
-  viewing: "Visita",
-  quote: "Preventivo",
-  offer: "Offerta",
-  won: "Vinto",
-  lost: "Perso",
-};
-
-const REQUEST_ALLOWED_TRANSITIONS: Record<RequestStatus, RequestStatus[]> = {
-  new: ["contacted", "viewing", "lost"],
-  contacted: ["viewing", "quote", "offer", "lost"],
-  viewing: ["quote", "offer", "contacted", "lost"],
-  quote: ["offer", "viewing", "lost"],
-  offer: ["won", "lost", "viewing", "quote"],
-  won: [],
-  lost: [],
 };
 
 const statusLabel = (raw: string) => STATUS_LABEL[raw] ?? raw;
@@ -116,6 +97,9 @@ export const ClientDetailPage = () => {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
   const { workspaceId, selectedProjectIds, isAdmin } = useWorkspace();
+  const workflowConfigRent = useWorkflowConfig(workspaceId, "rent");
+  const workflowConfigSell = useWorkflowConfig(workspaceId, "sell");
+  const getWorkflowConfig = (type: "rent" | "sell") => (type === "rent" ? workflowConfigRent : workflowConfigSell);
   const [client, setClient] = useState<ClientRow | null>(null);
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -381,7 +365,17 @@ export const ClientDetailPage = () => {
       await followupApi.updateRequestStatus(requestId, { status: newStatus });
       reloadRequests();
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Errore durante l'aggiornamento dello stato della trattativa.");
+      let msg = err instanceof Error ? err.message : "Errore durante l'aggiornamento dello stato della trattativa.";
+      try {
+        const parsed = JSON.parse(msg) as { error?: string };
+        if (typeof parsed?.error === "string") msg = parsed.error;
+      } catch {
+        // msg resta invariato
+      }
+      if (msg.includes("già in uso") || msg.includes("altra trattativa")) {
+        msg = "Appartamento già in uso da un'altra trattativa. Sblocca o porta a conclusione quella trattativa prima di cambiare stato.";
+      }
+      window.alert(msg);
     } finally {
       setRequestStatusChangingId(null);
     }
@@ -966,7 +960,7 @@ export const ClientDetailPage = () => {
             ) : (
               <ul className="space-y-0">
                 {timelineSorted.map((req) => {
-                  const nextStatuses = REQUEST_ALLOWED_TRANSITIONS[req.status] ?? [];
+                  const nextStatuses = getWorkflowConfig(req.type).allowedNextStatuses(req.status) ?? [];
                   const transitions = transitionsByRequestId[req._id] ?? [];
                   const loadingTransitions = transitionsLoadingId === req._id;
                   return (
@@ -985,7 +979,7 @@ export const ClientDetailPage = () => {
                         <div className="min-w-0 flex-1 text-sm">
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                             <span className="font-medium text-foreground">
-                              {REQUEST_STATUS_LABEL[req.status]}
+                              {getWorkflowConfig(req.type).statusLabelByCode[req.status] ?? req.status}
                             </span>
                             <span className="text-muted-foreground">
                               {req.type === "sell" ? "Vendita" : "Affitto"}
@@ -1001,7 +995,7 @@ export const ClientDetailPage = () => {
                             <Button
                               type="button"
                               variant="ghost"
-                              size="xs"
+                              size="sm"
                               className="h-6 px-2 text-[11px] text-primary gap-1"
                               onClick={() => navigate("/requests", { state: { openRequestId: req._id } })}
                             >
@@ -1019,12 +1013,12 @@ export const ClientDetailPage = () => {
                                   key={st}
                                   type="button"
                                   variant="outline"
-                                  size="xs"
+                                  size="sm"
                                   className="h-6 px-2 text-[11px]"
                                   disabled={requestStatusChangingId === req._id}
                                   onClick={() => handleRequestStatusChange(req._id, st)}
                                 >
-                                  {REQUEST_STATUS_LABEL[st]}
+                                  {getWorkflowConfig(req.type).statusLabelByCode[st] ?? st}
                                 </Button>
                               ))}
                             </div>
@@ -1032,7 +1026,12 @@ export const ClientDetailPage = () => {
                           {loadingTransitions ? (
                             <p className="mt-4 pt-4 border-t border-border text-xs text-muted-foreground">Caricamento percorso...</p>
                           ) : (
-                            <RequestStatusRoadmap currentStatus={req.status} transitions={transitions} />
+                            <RequestStatusRoadmap
+                              currentStatus={req.status}
+                              transitions={transitions}
+                              statusLabelByCode={getWorkflowConfig(req.type).statusLabelByCode}
+                              statusOrder={getWorkflowConfig(req.type).statusOrder}
+                            />
                           )}
                         </div>
                       </div>
@@ -1083,7 +1082,7 @@ export const ClientDetailPage = () => {
                           {req.apartmentCode ?? req.apartmentId}
                         </Link>
                         <span className="text-muted-foreground text-sm ml-2">
-                          — {REQUEST_STATUS_LABEL[req.status]}
+                          — {getWorkflowConfig(req.type).statusLabelByCode[req.status] ?? req.status}
                         </span>
                       </li>
                     ))}
@@ -1170,7 +1169,7 @@ export const ClientDetailPage = () => {
                           {item.kind === "transition" ? (
                             <>
                               <p className="font-medium text-foreground">
-                                Trattativa: {REQUEST_STATUS_LABEL[item.transition.fromState]} → {REQUEST_STATUS_LABEL[item.transition.toState]}
+                                Trattativa: {getWorkflowConfig(item.request.type).statusLabelByCode[item.transition.fromState] ?? item.transition.fromState} → {getWorkflowConfig(item.request.type).statusLabelByCode[item.transition.toState] ?? item.transition.toState}
                               </p>
                               {item.transition.reason && (
                                 <p className="text-xs text-muted-foreground mt-0.5">{item.transition.reason}</p>
@@ -1178,7 +1177,7 @@ export const ClientDetailPage = () => {
                               <Button
                                 type="button"
                                 variant="ghost"
-                                size="xs"
+                                size="sm"
                                 className="mt-2 h-6 text-[11px] text-primary gap-1"
                                 onClick={() => navigate("/requests", { state: { openRequestId: item.requestId } })}
                               >
@@ -1218,13 +1217,13 @@ export const ClientDetailPage = () => {
                                 </p>
                               )}
                               <div className="mt-2 flex gap-2">
-                                <Button type="button" variant="outline" size="xs" className="h-6 text-[11px]" onClick={() => openActionDrawerEdit(item.action)}>
+                                <Button type="button" variant="outline" size="sm" className="h-6 text-[11px]" onClick={() => openActionDrawerEdit(item.action)}>
                                   Modifica
                                 </Button>
                                 <Button
                                   type="button"
                                   variant="outline"
-                                  size="xs"
+                                  size="sm"
                                   className="h-6 text-[11px] text-destructive hover:text-destructive"
                                   disabled={deletingActionId === item.action._id}
                                   onClick={() => handleDeleteAction(item.action._id)}

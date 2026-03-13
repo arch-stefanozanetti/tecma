@@ -46,6 +46,22 @@ export interface WorkspaceUserRow {
   updatedAt: string;
 }
 
+/** Membership workspace per utente (pagina User admin). */
+export interface UserWorkspaceMembership {
+  workspaceId: string;
+  workspaceName: string;
+  role: string;
+}
+
+/** Utente con visibilità e associazioni (pagina User admin). */
+export interface UserWithVisibilityRow {
+  email: string;
+  role: string | null;
+  isAdmin: boolean;
+  projectIds: string[];
+  workspaces: UserWorkspaceMembership[];
+}
+
 export type AdditionalInfoType = "text" | "radio" | "slider" | "number" | "checkbox";
 
 export interface AdditionalInfoRow {
@@ -251,6 +267,46 @@ export interface ApartmentRow {
   sides?: ApartmentSide[];
   floor?: number;
   extraInfo?: Record<string, unknown>;
+}
+
+/** Workflow engine (configurabile per workspace). */
+export type WorkflowType = "sell" | "rent" | "custom";
+export type ApartmentLockType = "none" | "soft" | "hard";
+
+export interface WorkflowRow {
+  _id: string;
+  workspaceId: string;
+  name: string;
+  type: WorkflowType;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkflowStateRow {
+  _id: string;
+  workflowId: string;
+  code: string;
+  label: string;
+  order: number;
+  terminal: boolean;
+  reversible: boolean;
+  apartmentLock: ApartmentLockType;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkflowTransitionRow {
+  _id: string;
+  workflowId: string;
+  fromStateId: string;
+  toStateId: string;
+  createdAt: string;
+}
+
+export interface WorkflowWithDetail {
+  workflow: WorkflowRow;
+  states: WorkflowStateRow[];
+  transitions: WorkflowTransitionRow[];
 }
 
 /** Richiesta/trattativa unificata rent + sell (Wave 4). */

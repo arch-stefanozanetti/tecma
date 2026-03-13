@@ -19,6 +19,7 @@ import {
 } from "../../components/ui/drawer";
 import { cn } from "../../lib/utils";
 import { MatchingCandidatesList } from "../../components/MatchingCandidatesList";
+import { useWorkflowConfig } from "../../hooks/useWorkflowConfig";
 
 const STATUS_FILTER_OPTIONS: { value: ApartmentRow["status"]; label: string }[] = [
   { value: "AVAILABLE", label: "Disponibile" },
@@ -39,16 +40,6 @@ const MODE_LABEL: Record<ApartmentRow["mode"], string> = {
   SELL: "Vendita",
 };
 
-const REQUEST_STATUS_LABEL: Record<RequestStatus, string> = {
-  new: "Nuova",
-  contacted: "Contattato",
-  viewing: "Visita",
-  quote: "Preventivo",
-  offer: "Offerta",
-  won: "Vinto",
-  lost: "Perso",
-};
-
 const formatDate = (iso?: string) => {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -64,6 +55,9 @@ export const ApartmentDetailPage = () => {
   const { apartmentId } = useParams<{ apartmentId: string }>();
   const navigate = useNavigate();
   const { workspaceId, selectedProjectIds, isAdmin } = useWorkspace();
+  const workflowConfigRent = useWorkflowConfig(workspaceId, "rent");
+  const workflowConfigSell = useWorkflowConfig(workspaceId, "sell");
+  const getWorkflowConfig = (type: "rent" | "sell") => (type === "rent" ? workflowConfigRent : workflowConfigSell);
   const [apartment, setApartment] = useState<ApartmentRow | null>(null);
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -471,7 +465,7 @@ export const ApartmentDetailPage = () => {
                           </span>
                         )}
                         <span className="text-muted-foreground">
-                          {REQUEST_STATUS_LABEL[req.status]}
+                          {getWorkflowConfig(req.type).statusLabelByCode[req.status] ?? req.status}
                         </span>
                         <span className="text-muted-foreground">
                           — {req.type === "sell" ? "Vendita" : "Affitto"}

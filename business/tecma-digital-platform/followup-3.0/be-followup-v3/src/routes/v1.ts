@@ -57,6 +57,14 @@ import {
   associateProjectToWorkspace,
   dissociateProjectFromWorkspace,
 } from "../core/workspaces/workspaces.service.js";
+import {
+  listWorkspaceUsers,
+  listWorkspaceIdsForUser,
+  addWorkspaceUser,
+  updateWorkspaceUser,
+  removeWorkspaceUser,
+} from "../core/workspaces/workspace-users.service.js";
+import { listUsersWithVisibility } from "../core/users/users-admin.service.js";
 import { createProject } from "../core/projects/projects.service.js";
 import {
   getProjectDetail,
@@ -562,9 +570,32 @@ v1Router.get("/matching/apartments/:id/candidates", handleAsync(async (req) => {
   return getApartmentCandidates(apartmentId, workspaceId, projectIds);
 }));
 
+// ─── Users (admin: lista utenti e visibilità) ─────────────────────────────────
+v1Router.get("/users", requireAdmin, handleAsync(() => listUsersWithVisibility()));
+
 // ─── Workspaces ──────────────────────────────────────────────────────────────
-v1Router.get("/workspaces", handleAsync(() => listWorkspaces()));
-v1Router.get("/workspaces/:id/users", handleAsync(async (_req) => ({ data: [] })));
+v1Router.get("/workspaces", handleAsync(async (req) => {
+  const all = await listWorkspaces();
+  const isAdmin = req.user?.isAdmin === true;
+  const email = typeof req.user?.email === "string" ? req.user.email : "";
+  if (isAdmin || !email) return all;
+  const allowedIds = await listWorkspaceIdsForUser(email);
+  const set = new Set(allowedIds);
+  return all.filter((w) => set.has(w._id));
+}));
+v1Router.get("/workspaces/:id/users", handleAsync(async (req) => listWorkspaceUsers(req.params.id)));
+v1Router.post("/workspaces/:id/users", requireAdmin, handleAsync(async (req) => {
+  const body = req.body as { userId?: string; role?: "vendor" | "vendor_manager" | "admin" };
+  return addWorkspaceUser(req.params.id, { userId: body.userId ?? "", role: body.role ?? "vendor" });
+}));
+v1Router.patch("/workspaces/:id/users/:userId", requireAdmin, handleAsync(async (req) => {
+  const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
+  return updateWorkspaceUser(req.params.id, userId, req.body as { role?: "vendor" | "vendor_manager" | "admin" });
+}));
+v1Router.delete("/workspaces/:id/users/:userId", requireAdmin, handleAsync(async (req) => {
+  const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
+  return removeWorkspaceUser(req.params.id, userId);
+}));
 v1Router.get("/workspaces/:id/projects", handleAsync((req) =>
   listWorkspaceProjects(req.params.id).then((rows) => ({ data: rows }))
 ));

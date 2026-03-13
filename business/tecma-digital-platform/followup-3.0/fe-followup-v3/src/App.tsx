@@ -15,6 +15,7 @@ import { CreateApartmentHCPage } from "./core/hc/CreateApartmentHCPage";
 import { EditApartmentHCPage } from "./core/hc/EditApartmentHCPage";
 import { AssociateAptClientPage } from "./core/associations/AssociateAptClientPage";
 import { CompleteFlowPage } from "./core/workflows/CompleteFlowPage";
+import { WorkflowConfigPage } from "./core/workflows/WorkflowConfigPage";
 import { HCMasterCatalogPage } from "./core/hc/HCMasterCatalogPage";
 import { TemplateConfigPage } from "./core/templates/TemplateConfigPage";
 import { LoginPage } from "./core/auth/LoginPage";
@@ -22,6 +23,7 @@ import { ProjectAccessPage } from "./core/auth/ProjectAccessPage";
 import { ApprovalsPage } from "./core/ai/ApprovalsPage";
 import { RequestsPage } from "./core/requests/RequestsPage";
 import { WorkspacesPage } from "./core/workspaces/WorkspacesPage";
+import { UsersPage } from "./core/users/UsersPage";
 import { ProjectDetailPage } from "./core/projects/ProjectDetailPage";
 import { AuditLogPage } from "./core/audit/AuditLogPage";
 import { ReportsPage } from "./core/reports/ReportsPage";
@@ -46,7 +48,9 @@ type Section =
   | "catalogHC"
   | "templateConfig"
   | "aiApprovals"
+  | "workflowConfig"
   | "workspaces"
+  | "users"
   | "audit"
   | "reports"
   | "releases"
@@ -166,10 +170,26 @@ const renderSection = (
     );
   }
 
+  if (section === "workflowConfig") {
+    return (
+      <PageSimple title="Configurazione workflow" description="Workflow, stati e transizioni per le trattative (solo admin).">
+        <WorkflowConfigPage />
+      </PageSimple>
+    );
+  }
+
   if (section === "workspaces") {
     return (
       <PageSimple title="Workspaces" description="Gestione workspace e associazioni progetti (solo admin).">
         <WorkspacesPage />
+      </PageSimple>
+    );
+  }
+
+  if (section === "users") {
+    return (
+      <PageSimple title="Utenti" description="Elenco utenti con visibilità e associazioni (solo admin).">
+        <UsersPage />
       </PageSimple>
     );
   }
@@ -215,7 +235,7 @@ const renderSection = (
 const SECTIONS: Section[] = [
   "cockpit", "calendar", "clients", "apartments", "requests", "projects",
   "createApartment", "createApartmentHC", "editApartmentHC", "associateAptClient",
-  "completeFlow", "catalogHC", "templateConfig", "aiApprovals", "workspaces", "audit", "reports", "releases", "integrations",
+  "completeFlow", "catalogHC", "templateConfig", "aiApprovals", "workflowConfig", "workspaces", "users", "audit", "reports", "releases", "integrations",
 ];
 
 /** Path puliti per le sezioni principali; le altre restano ?section=X */
@@ -226,7 +246,9 @@ const SECTION_TO_PATH: Partial<Record<Section, string>> = {
   apartments: "/apartments",
   requests: "/requests",
   projects: "/projects",
+  workflowConfig: "/workflow-config",
   workspaces: "/workspace",
+  users: "/users",
   audit: "/audit",
   reports: "/reports",
   releases: "/releases",

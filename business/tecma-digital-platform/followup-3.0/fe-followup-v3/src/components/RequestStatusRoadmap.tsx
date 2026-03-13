@@ -35,6 +35,10 @@ function formatDate(iso?: string) {
 interface RequestStatusRoadmapProps {
   currentStatus: RequestStatus;
   transitions: RequestTransitionRow[];
+  /** Label per stato (da API workflow se disponibile). */
+  statusLabelByCode?: Record<string, string>;
+  /** Ordine stati per stepper (da API workflow se disponibile). */
+  statusOrder?: RequestStatus[];
 }
 
 /** Mappa toState -> { createdAt, reason } dalla prima transizione che raggiunge quello stato */
@@ -55,18 +59,25 @@ function wasReached(status: RequestStatus, reachedAt: Map<RequestStatus, { creat
   return reachedAt.has(status);
 }
 
-export function RequestStatusRoadmap({ currentStatus, transitions }: RequestStatusRoadmapProps) {
+export function RequestStatusRoadmap({
+  currentStatus,
+  transitions,
+  statusLabelByCode,
+  statusOrder,
+}: RequestStatusRoadmapProps) {
   const reachedAt = buildReachedAt(transitions);
+  const order = statusOrder ?? ROADMAP_ORDER;
+  const label = (code: string) => (statusLabelByCode && statusLabelByCode[code]) ?? STATUS_LABEL[code as RequestStatus] ?? code;
 
   return (
     <div className="mt-4 pt-4 border-t border-border">
       <p className="text-xs font-medium text-muted-foreground mb-3">Percorso della trattativa</p>
       <div className="flex flex-wrap items-center gap-0">
-        {ROADMAP_ORDER.map((status, i) => {
+        {order.map((status, i) => {
           const reached = wasReached(status, reachedAt);
           const isCurrent = currentStatus === status;
           const info = reachedAt.get(status);
-          const isLast = i === ROADMAP_ORDER.length - 1;
+          const isLast = i === order.length - 1;
 
           return (
             <div key={status} className="flex items-center gap-0">
@@ -92,7 +103,7 @@ export function RequestStatusRoadmap({ currentStatus, transitions }: RequestStat
                     <span className="text-[10px] font-medium">{i + 1}</span>
                   )}
                 </div>
-                <span className="mt-1.5 text-[11px] text-center leading-tight">{STATUS_LABEL[status]}</span>
+                <span className="mt-1.5 text-[11px] text-center leading-tight">{label(status)}</span>
                 {info && (
                   <span className="mt-0.5 text-[10px] text-muted-foreground text-center">
                     {formatDate(info.createdAt)}

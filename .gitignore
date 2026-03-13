@@ -17,3 +17,7 @@ coverage/
 
 # OS
 .DS_Store
+.vercel
+
+# Archives (non necessari in repo per deploy)
+*.zip

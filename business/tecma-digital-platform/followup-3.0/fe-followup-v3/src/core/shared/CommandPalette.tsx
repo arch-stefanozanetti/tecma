@@ -9,6 +9,7 @@ type Section =
   | "apartments"
   | "requests"
   | "workspaces"
+  | "users"
   | "audit"
   | "reports"
   | "releases";
@@ -28,6 +29,7 @@ const commands: Array<{ id: Section; label: string; hint: string }> = [
   { id: "requests", label: "Trattative", hint: "Pipeline vendita/affitto" },
   { id: "calendar", label: "Calendario", hint: "Agenda" },
   { id: "workspaces", label: "Workspaces", hint: "Gestione workspace (admin)" },
+  { id: "users", label: "User", hint: "Utenti e visibilità (admin)" },
   { id: "audit", label: "Audit log", hint: "Tracciamento CRUD (admin)" },
   { id: "reports", label: "Report", hint: "Pipeline, clienti, appartamenti" },
   { id: "releases", label: "Release", hint: "Novità e cronologia release" },

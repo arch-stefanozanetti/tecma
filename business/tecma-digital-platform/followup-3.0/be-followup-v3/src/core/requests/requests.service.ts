@@ -620,6 +620,12 @@ export const revertRequestStatus = async (
   const requestType = (requestDoc.type === "rent" || requestDoc.type === "sell" ? requestDoc.type : "sell") as "rent" | "sell";
   const workflowDetail = await getWorkflowForWorkspaceAndType(workspaceId, requestType);
   const fromStateRow = workflowDetail ? getStateByCode(workflowDetail, fromState) : null;
+  if (workflowDetail && fromStateRow && !fromStateRow.reversible) {
+    throw new HttpError(
+      "Revert non consentito: lo stato di destinazione non è reversibile.",
+      400
+    );
+  }
   const now = new Date().toISOString();
   const revertUpdate: Record<string, unknown> = { status: fromState, updatedAt: now };
   if (workflowDetail && fromStateRow) {

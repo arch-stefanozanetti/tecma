@@ -336,7 +336,17 @@ export const RequestsPage = () => {
       refetch();
       setSelectedRequest((prev) => (prev?._id === requestId ? { ...prev, status: newStatus } : prev));
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Errore durante l'aggiornamento dello stato.");
+      let msg = err instanceof Error ? err.message : "Errore durante l'aggiornamento dello stato.";
+      try {
+        const parsed = JSON.parse(msg) as { error?: string };
+        if (typeof parsed?.error === "string") msg = parsed.error;
+      } catch {
+        /* ignore */
+      }
+      if (msg.includes("già in uso") || msg.includes("altra trattativa")) {
+        msg = "Appartamento già in uso da un'altra trattativa. Sblocca o porta a conclusione quella trattativa prima di cambiare stato.";
+      }
+      window.alert(msg);
     } finally {
       setStatusChangingId(null);
     }
