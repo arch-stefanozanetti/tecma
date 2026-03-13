@@ -69,6 +69,12 @@ import {
   addWorkspaceUserProject,
   removeWorkspaceUserProject,
 } from "../core/workspaces/workspace-user-projects.service.js";
+import {
+  listEntityAssignments,
+  listEntityAssignmentsByUser,
+  assignEntity,
+  unassignEntity,
+} from "../core/workspaces/entity-assignments.service.js";
 import { listUsersWithVisibility } from "../core/users/users-admin.service.js";
 import { createProject } from "../core/projects/projects.service.js";
 import {
@@ -619,7 +625,28 @@ v1Router.delete("/workspaces/:id/users/:userId/projects/:projectId", requireAdmi
 v1Router.get("/workspaces/:id/projects", handleAsync((req) =>
   listWorkspaceProjects(req.params.id).then((rows) => ({ data: rows }))
 ));
-v1Router.get("/workspaces/:workspaceId/entities/:entityType/:entityId/assignments", handleAsync(async (_req) => ({ data: [] })));
+v1Router.get("/workspaces/:workspaceId/entities/:entityType/:entityId/assignments", handleAsync(async (req) => {
+  const entityType = typeof req.params.entityType === "string" ? req.params.entityType : "";
+  const entityId = typeof req.params.entityId === "string" ? decodeURIComponent(req.params.entityId) : "";
+  return listEntityAssignments(req.params.workspaceId, entityType, entityId);
+}));
+v1Router.post("/workspaces/:workspaceId/entities/:entityType/:entityId/assignments", requireAdmin, handleAsync(async (req) => {
+  const entityType = typeof req.params.entityType === "string" ? req.params.entityType : "";
+  const entityId = typeof req.params.entityId === "string" ? decodeURIComponent(req.params.entityId) : "";
+  const body = req.body as { userId?: string };
+  const userId = typeof body.userId === "string" ? body.userId : "";
+  return assignEntity(req.params.workspaceId, entityType, entityId, userId);
+}));
+v1Router.delete("/workspaces/:workspaceId/entities/:entityType/:entityId/assignments/:userId", requireAdmin, handleAsync(async (req) => {
+  const entityType = typeof req.params.entityType === "string" ? req.params.entityType : "";
+  const entityId = typeof req.params.entityId === "string" ? decodeURIComponent(req.params.entityId) : "";
+  const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
+  return unassignEntity(req.params.workspaceId, entityType, entityId, userId);
+}));
+v1Router.get("/workspaces/:id/users/:userId/assignments", handleAsync(async (req) => {
+  const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
+  return listEntityAssignmentsByUser(req.params.id, userId);
+}));
 v1Router.post("/workspaces", requireAdmin, handleAsync((req) => createWorkspace(req.body)));
 v1Router.patch("/workspaces/:id", requireAdmin, handleAsync((req) => updateWorkspace(req.params.id, req.body)));
 v1Router.delete("/workspaces/:id", requireAdmin, handleAsync(async (req) => {

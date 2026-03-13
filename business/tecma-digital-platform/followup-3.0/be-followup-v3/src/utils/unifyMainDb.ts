@@ -9,6 +9,8 @@ const TZ_COLLECTIONS = [
   "tz_projects",
   "tz_workspaces",
   "tz_workspace_projects",
+  "tz_workspace_user_projects",
+  "tz_entity_assignments",
   "tz_additional_infos",
   "tz_requests",
   "tz_request_transitions",

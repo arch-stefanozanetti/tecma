@@ -344,6 +344,10 @@ export const followupApi = {
     getJson<{
       data: Array<{ _id: string; workspaceId: string; entityType: string; entityId: string; userId: string }>;
     }>(`/workspaces/${workspaceId}/entities/${entityType}/${encodeURIComponent(entityId)}/assignments`),
+  listEntityAssignmentsByUser: (workspaceId: string, userId: string) =>
+    getJson<{
+      data: Array<{ _id: string; workspaceId: string; entityType: string; entityId: string; userId: string }>;
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/users/${encodeURIComponent(userId)}/assignments`),
   assignEntity: (workspaceId: string, entityType: "client" | "apartment", entityId: string, userId: string) =>
     postJson<{ assignment: { _id: string } }>(
       `/workspaces/${workspaceId}/entities/${entityType}/${encodeURIComponent(entityId)}/assignments`,

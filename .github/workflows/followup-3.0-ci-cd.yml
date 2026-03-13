@@ -51,7 +51,9 @@ jobs:
           cache-dependency-path: business/tecma-digital-platform/followup-3.0/fe-followup-v3/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --include=optional
+        # In CI (Linux) rollup richiede @rollup/rollup-linux-x64-gnu (optional).
+        # Senza --include=optional npm può non installarla (bug/cache) → crash build/test.
 
       - name: Run tests
         run: npm run test:run

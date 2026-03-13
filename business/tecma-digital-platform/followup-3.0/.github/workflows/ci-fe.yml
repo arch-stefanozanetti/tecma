@@ -31,7 +31,8 @@ jobs:
           cache-dependency-path: fe-followup-v3/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --include=optional
+        # Rollup optional native binary (linux-x64) richiesta in CI; evita bug npm/cache.
 
       - name: Run tests
         run: npm run test:run

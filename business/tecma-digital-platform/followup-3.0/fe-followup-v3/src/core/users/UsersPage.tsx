@@ -23,6 +23,14 @@ interface WorkspaceProjectOption {
   name?: string;
 }
 
+interface EntityAssignmentRow {
+  _id: string;
+  workspaceId: string;
+  entityType: string;
+  entityId: string;
+  userId: string;
+}
+
 export const UsersPage = () => {
   const { isAdmin } = useWorkspace();
   const [users, setUsers] = useState<UserWithVisibilityRow[]>([]);
@@ -34,6 +42,9 @@ export const UsersPage = () => {
   const [detailLoading, setDetailLoading] = useState(false);
   const [savingProject, setSavingProject] = useState<string | null>(null);
   const [addSelectValueByWorkspace, setAddSelectValueByWorkspace] = useState<Record<string, string>>({});
+  const [entityAssignmentsByWorkspace, setEntityAssignmentsByWorkspace] = useState<Record<string, EntityAssignmentRow[]>>({});
+  const [savingAssignment, setSavingAssignment] = useState<string | null>(null);
+  const [addEntityByWorkspace, setAddEntityByWorkspace] = useState<Record<string, { type: "client" | "apartment"; id: string }>>({});
 
   const load = () => {
     setLoading(true);
