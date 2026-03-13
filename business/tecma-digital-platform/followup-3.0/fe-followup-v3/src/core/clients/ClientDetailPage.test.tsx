@@ -20,6 +20,8 @@ vi.mock("../../api/followupApi", () => ({
         updatedAt: new Date().toISOString(),
       },
     }),
+    listWorkflowsByWorkspace: vi.fn().mockResolvedValue({ workflows: [] }),
+    getWorkflowWithStatesAndTransitions: vi.fn(),
     getClientRequests: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),
     queryRequests: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),
     listAdditionalInfos: vi.fn().mockResolvedValue({ data: [] }),

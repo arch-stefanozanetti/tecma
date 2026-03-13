@@ -49,9 +49,9 @@ describe("PageTemplate", () => {
     expect(clienti).toBeInTheDocument();
   });
 
-  it("con isAdmin mostra voce Workspaces in nav", () => {
-    render(<PageTemplate {...defaultProps} isAdmin={true} />);
-    expect(screen.getByRole("button", { name: /workspaces/i })).toBeInTheDocument();
+  it("con isAdmin mostra voce Workspaces in nav", async () => {
+    render(<PageTemplate {...defaultProps} isAdmin={true} section="workspaces" />);
+    expect(await screen.findByRole("button", { name: /workspaces/i })).toBeInTheDocument();
   });
 
   it("con progetti multipli mostra selettore progetti", () => {
