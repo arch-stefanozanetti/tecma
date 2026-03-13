@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-import tecmaTheme from "@tecma/design-system-tokens/tailwind";
+import tecmaTheme from "../../design-system/tailwind.theme.ts";
 
 export default {
   darkMode: ["class"],
