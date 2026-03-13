@@ -41,6 +41,13 @@ import { getModelSample } from "../core/inspect/inspect.service.js";
 import { getClientCandidates, getApartmentCandidates } from "../core/matching/matching.service.js";
 import { getWorkflowConfig } from "../core/workflow/workflow.service.js";
 import {
+  listWorkflowsByWorkspace,
+  getWorkflowWithStatesAndTransitions,
+  createWorkflow,
+  createWorkflowState,
+  createWorkflowTransition,
+} from "../core/workflow/workflow-engine.service.js";
+import {
   listWorkspaces,
   createWorkspace,
   getWorkspaceById,
@@ -602,6 +609,19 @@ v1Router.get("/workflow/config", handleAsync(async (req) => {
     throw new HttpError("flowType must be rent or sell", 400);
   }
   return getWorkflowConfig(workspaceId, projectId, flowType);
+}));
+
+// Workflow engine (stati/transizioni configurabili per workspace)
+v1Router.get("/workspaces/:workspaceId/workflows", handleAsync((req) =>
+  listWorkflowsByWorkspace(req.params.workspaceId)
+));
+v1Router.post("/workflows", requireAdmin, handleAsync((req) => createWorkflow(req.body)));
+v1Router.post("/workflows/states", requireAdmin, handleAsync((req) => createWorkflowState(req.body)));
+v1Router.post("/workflows/transitions", requireAdmin, handleAsync((req) => createWorkflowTransition(req.body)));
+v1Router.get("/workflows/:workflowId", handleAsync(async (req) => {
+  const detail = await getWorkflowWithStatesAndTransitions(req.params.workflowId);
+  if (!detail) throw new HttpError("Workflow not found", 404);
+  return detail;
 }));
 
 v1Router.get("/inspect/model-sample", handleAsync(async (req) => {

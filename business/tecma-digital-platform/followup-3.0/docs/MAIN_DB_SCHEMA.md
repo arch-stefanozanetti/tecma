@@ -29,9 +29,13 @@ Documentazione dello schema del database principale Followup 3.0. Tutte le colle
 | `tz_additional_infos` | Campi custom clienti per workspace | `workspaceId`, `name`, `type`, `label` |
 | `tz_authEvents` | Eventi autenticazione (login, logout, sso) | `_id`, `at`, `event`, `email` |
 | `tz_authSessions` | Sessioni refresh token | `_id`, `refreshToken`, `userId`, `expiresAt` |
-| `tz_requests` | Richieste/trattative (main) | `workspaceId`, `projectId`, `clientId`, `type`, `status` |
+| `tz_requests` | Richieste/trattative (main) | `workspaceId`, `projectId`, `clientId`, `type`, `status`, `workflowId?`, `currentStateId?` |
 | `tz_request_transitions` | Storico transizioni richieste | `requestId`, `fromStatus`, `toStatus`, `at` |
-| `tz_workflow_configs` | Configurazioni workflow | `projectId`, `workspaceId`, config |
+| `tz_workflow_configs` | Configurazioni workflow (legacy/alternativa) | `projectId`, `workspaceId`, config |
+| `tz_workflows` | Workflow per workspace (engine normalizzato) | `_id`, `workspaceId`, `name`, `type` (sell \| rent \| custom), `createdAt`, `updatedAt` |
+| `tz_workflow_states` | Stati di un workflow | `_id`, `workflowId`, `code`, `label`, `order`, `terminal`, `reversible`, `apartmentLock` (none \| soft \| hard), `createdAt`, `updatedAt` |
+| `tz_workflow_transitions` | Transizioni consentite (fromStateId → toStateId) | `_id`, `workflowId`, `fromStateId`, `toStateId`, `createdAt` |
+| `tz_apartment_locks` | Lock appartamenti (una trattativa per apt in stato con lock) | `_id`, `workspaceId`, `apartmentId`, `requestId`, `type` (soft \| hard), `workflowStateId?`, `createdAt`, `expiresAt?` |
 
 ### 1.2 Collection dati (main DB)
 

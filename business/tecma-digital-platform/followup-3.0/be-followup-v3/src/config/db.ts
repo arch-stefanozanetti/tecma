@@ -17,3 +17,8 @@ export const getDb = (): Db => {
   if (!db) throw new Error("Database not initialized");
   return db;
 };
+
+export const getMongoClient = (): MongoClient => {
+  if (!client) throw new Error("Database not initialized");
+  return client;
+};

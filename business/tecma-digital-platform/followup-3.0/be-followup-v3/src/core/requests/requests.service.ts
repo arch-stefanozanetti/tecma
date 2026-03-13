@@ -1,9 +1,21 @@
 import { ObjectId } from "mongodb";
 import { z } from "zod";
-import { getDb } from "../../config/db.js";
+import { getDb, getMongoClient } from "../../config/db.js";
 
 import { ListQuerySchema, type ListQueryInput, buildPagination } from "../shared/list-query.js";
 import { HttpError, PaginatedResponse } from "../../types/http.js";
+import {
+  isTransitionAllowedForWorkspace,
+  getWorkflowForWorkspaceAndType,
+  getStateByCode,
+} from "../workflow/workflow-engine.service.js";
+import {
+  getActiveLockForApartment,
+  createLock,
+  removeLocksForRequest,
+  forceOtherRequestsOnApartmentToLost,
+  setApartmentStatus,
+} from "../workflow/apartment-lock.service.js";
 
 /** Ruolo del cliente rispetto all'immobile (compravendita: venditore vs acquirente). */
 export type ClientRole = "buyer" | "seller" | "tenant" | "landlord";
@@ -52,6 +64,10 @@ export interface RequestRow {
   apartmentId?: string;
   type: RequestType;
   status: RequestStatus;
+  /** Workflow usato (opzionale; da migrazione o creazione). */
+  workflowId?: string;
+  /** Stato corrente come riferimento a WorkflowState (opzionale). */
+  currentStateId?: string;
   /** Ruolo cliente: acquirente/venditore/affittuario/cedente (compravendita). */
   clientRole?: ClientRole;
   createdAt: string;
@@ -170,6 +186,8 @@ const mapDocToRow = (doc: Record<string, unknown>): RequestRow => ({
   ["new", "contacted", "viewing", "quote", "offer", "won", "lost"].includes(doc.status)
     ? doc.status
     : "new") as RequestStatus,
+  workflowId: doc.workflowId != null ? String(doc.workflowId) : undefined,
+  currentStateId: doc.currentStateId != null ? String(doc.currentStateId) : undefined,
   clientRole: typeof doc.clientRole === "string" && CLIENT_ROLES.includes(doc.clientRole as (typeof CLIENT_ROLES)[number])
     ? (doc.clientRole as ClientRole)
     : undefined,
@@ -411,18 +429,45 @@ export const updateRequestStatus = async (
   const currentStatus = (typeof doc.status === "string" && doc.status
     ? doc.status
     : "new") as RequestStatus;
-  const allowed = ALLOWED_TRANSITIONS[currentStatus];
-  if (!allowed || !allowed.includes(newStatus)) {
+  const workspaceId = typeof doc.workspaceId === "string" ? doc.workspaceId : "";
+  const requestType = (doc.type === "rent" || doc.type === "sell" ? doc.type : "sell") as "rent" | "sell";
+  const allowedByWorkflow = await isTransitionAllowedForWorkspace(workspaceId, requestType, currentStatus, newStatus);
+  if (allowedByWorkflow === false) {
     throw new HttpError(
       `Transizione non consentita: da "${currentStatus}" a "${newStatus}"`,
       400
     );
   }
+  if (allowedByWorkflow !== true) {
+    const allowed = ALLOWED_TRANSITIONS[currentStatus];
+    if (!allowed || !allowed.includes(newStatus)) {
+      throw new HttpError(
+        `Transizione non consentita: da "${currentStatus}" a "${newStatus}"`,
+        400
+      );
+    }
+  }
+
+  const workflowDetail = await getWorkflowForWorkspaceAndType(workspaceId, requestType);
+  const targetState = workflowDetail ? getStateByCode(workflowDetail, newStatus) : null;
+  const apartmentId = typeof doc.apartmentId === "string" && doc.apartmentId ? doc.apartmentId : undefined;
+
+  if (targetState && (targetState.apartmentLock === "soft" || targetState.apartmentLock === "hard") && apartmentId) {
+    const activeLock = await getActiveLockForApartment(apartmentId);
+    if (activeLock && activeLock.requestId !== id) {
+      throw new HttpError("Appartamento già in uso da un'altra trattativa", 409);
+    }
+  }
+
   const now = new Date().toISOString();
   const update: Record<string, unknown> = {
     status: newStatus,
     updatedAt: now,
   };
+  if (workflowDetail && targetState) {
+    update.workflowId = workflowDetail.workflow._id;
+    update.currentStateId = targetState._id;
+  }
   if (body.reason !== undefined && body.reason.trim() !== "") {
     update.statusChangeReason = body.reason.trim();
     update.statusChangedAt = now;
@@ -437,18 +482,48 @@ export const updateRequestStatus = async (
       update.quoteTotalPrice = legacy.totalPrice;
     }
   }
-  await collection.updateOne({ _id }, { $set: update });
 
-  const transitionsColl = db.collection(TRANSITIONS_COLLECTION);
-  await transitionsColl.insertOne({
-    requestId: id,
-    fromState: currentStatus,
-    toState: newStatus,
-    event: `TRANSITION_TO_${newStatus.toUpperCase()}`,
-    reason: body.reason?.trim() || undefined,
-    userId: options?.userId,
-    createdAt: now,
-  });
+  const client = getMongoClient();
+  const session = client.startSession();
+  try {
+    await session.withTransaction(async () => {
+      await collection.updateOne({ _id }, { $set: update }, { session });
+      const transitionsColl = db.collection(TRANSITIONS_COLLECTION);
+      await transitionsColl.insertOne(
+        {
+          requestId: id,
+          fromState: currentStatus,
+          toState: newStatus,
+          event: `TRANSITION_TO_${newStatus.toUpperCase()}`,
+          reason: body.reason?.trim() || undefined,
+          userId: options?.userId,
+          createdAt: now,
+        },
+        { session }
+      );
+      await removeLocksForRequest(session, id);
+      if (targetState && (targetState.apartmentLock === "soft" || targetState.apartmentLock === "hard") && apartmentId) {
+        if (targetState.apartmentLock === "hard") {
+          await forceOtherRequestsOnApartmentToLost(session, {
+            apartmentId,
+            excludingRequestId: id,
+            lostStatus: "lost",
+            now,
+          });
+          await setApartmentStatus(session, apartmentId, requestType === "sell" ? "SOLD" : "RENTED");
+        }
+        await createLock(session, {
+          workspaceId,
+          apartmentId,
+          requestId: id,
+          type: targetState.apartmentLock === "hard" ? "hard" : "soft",
+          workflowStateId: targetState._id,
+        });
+      }
+    });
+  } finally {
+    await session.endSession();
+  }
 
   return getRequestById(id);
 };
@@ -541,20 +616,42 @@ export const revertRequestStatus = async (
     );
   }
 
+  const workspaceId = typeof requestDoc.workspaceId === "string" ? requestDoc.workspaceId : "";
+  const requestType = (requestDoc.type === "rent" || requestDoc.type === "sell" ? requestDoc.type : "sell") as "rent" | "sell";
+  const workflowDetail = await getWorkflowForWorkspaceAndType(workspaceId, requestType);
+  const fromStateRow = workflowDetail ? getStateByCode(workflowDetail, fromState) : null;
   const now = new Date().toISOString();
-  await requestsColl.updateOne(
-    { _id: new ObjectId(requestId) },
-    { $set: { status: fromState, updatedAt: now } }
-  );
-  await transitionsColl.insertOne({
-    requestId,
-    fromState: currentStatus,
-    toState: fromState,
-    event: "REVERT",
-    reason: `Ripristino a stato "${fromState}"`,
-    userId: options?.userId,
-    createdAt: now,
-  });
+  const revertUpdate: Record<string, unknown> = { status: fromState, updatedAt: now };
+  if (workflowDetail && fromStateRow) {
+    revertUpdate.workflowId = workflowDetail.workflow._id;
+    revertUpdate.currentStateId = fromStateRow._id;
+  }
+  const client = getMongoClient();
+  const session = client.startSession();
+  try {
+    await session.withTransaction(async () => {
+      await requestsColl.updateOne(
+        { _id: new ObjectId(requestId) },
+        { $set: revertUpdate },
+        { session }
+      );
+      await transitionsColl.insertOne(
+        {
+          requestId,
+          fromState: currentStatus,
+          toState: fromState,
+          event: "REVERT",
+          reason: `Ripristino a stato "${fromState}"`,
+          userId: options?.userId,
+          createdAt: now,
+        },
+        { session }
+      );
+      await removeLocksForRequest(session, requestId);
+    });
+  } finally {
+    await session.endSession();
+  }
 
   return getRequestById(requestId);
 };

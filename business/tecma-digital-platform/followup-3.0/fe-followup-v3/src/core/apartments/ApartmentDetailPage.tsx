@@ -18,6 +18,7 @@ import {
   DrawerCloseButton,
 } from "../../components/ui/drawer";
 import { cn } from "../../lib/utils";
+import { MatchingCandidatesList } from "../../components/MatchingCandidatesList";
 
 const STATUS_FILTER_OPTIONS: { value: ApartmentRow["status"]; label: string }[] = [
   { value: "AVAILABLE", label: "Disponibile" },
@@ -489,44 +490,16 @@ export const ApartmentDetailPage = () => {
 
         {/* Tab Clienti papabili — matching */}
         <TabsContent value="matching" className="space-y-4 mt-4">
-          <section className="rounded-lg border border-border bg-card p-4">
-            <h2 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Clienti papabili (matching)
-            </h2>
-            <p className="text-xs text-muted-foreground mb-3">
-              Clienti il cui profilo (budget, zona) è più compatibile con questo appartamento. Score 0-100.
-            </p>
-            {matchLoading ? (
-              <p className="text-sm text-muted-foreground">Calcolo in corso...</p>
-            ) : matchCandidates.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Nessun cliente papabile trovato. Completa i profili clienti (budget, città) per migliorare il matching.
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {matchCandidates.map(({ item, score, reasons }) => (
-                  <li key={item._id} className="flex items-start gap-3 rounded-md border border-border px-3 py-2.5 text-sm">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                      {score}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <Link
-                        to={`/clients/${item._id}`}
-                        className="font-medium text-primary hover:underline"
-                      >
-                        {item.fullName}
-                      </Link>
-                      {item.email && <p className="text-xs text-muted-foreground">{item.email}</p>}
-                      {reasons.length > 0 && (
-                        <p className="mt-0.5 text-xs text-muted-foreground">{reasons.join(" · ")}</p>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          <MatchingCandidatesList
+            title="Clienti papabili (matching)"
+            introText="Clienti il cui profilo (budget, zona) è più compatibile con questo appartamento."
+            emptyMessage="Nessun cliente papabile trovato. Completa i profili clienti (budget, città) per migliorare il matching."
+            loading={matchLoading}
+            candidates={matchCandidates}
+            getItemLink={(item) => `/clients/${item._id}`}
+            renderItemTitle={(item) => item.fullName}
+            renderItemSubtitle={(item) => item.email ?? null}
+          />
         </TabsContent>
 
         {/* Tab Dettagli — extraInfo, date e ID */}

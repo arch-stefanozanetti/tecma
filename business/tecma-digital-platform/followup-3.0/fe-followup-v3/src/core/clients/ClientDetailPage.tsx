@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Home, Calendar, FileText, User, ClipboardList, Pencil, History, UserPlus, Trash2, Mail, Phone, CalendarCheck, ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
+import { ArrowLeft, Home, Calendar, FileText, User, ClipboardList, Pencil, History, UserPlus, Trash2, Mail, Phone, CalendarCheck, ExternalLink, TrendingUp } from "lucide-react";
 import { followupApi } from "../../api/followupApi";
 import { useWorkspace } from "../../auth/projectScope";
 import type {
@@ -35,6 +35,8 @@ import {
 import { cn } from "../../lib/utils";
 import { STATUS_FILTER_OPTIONS } from "./constants";
 import { Textarea } from "../../components/ui/textarea";
+import { MatchingCandidatesList } from "../../components/MatchingCandidatesList";
+import { RequestStatusRoadmap } from "../../components/RequestStatusRoadmap";
 
 const ACTION_TYPE_LABEL: Record<RequestActionType, string> = {
   note: "Nota",
@@ -138,9 +140,7 @@ export const ClientDetailPage = () => {
   const [matchLoading, setMatchLoading] = useState(false);
   const [requestStatusChangingId, setRequestStatusChangingId] = useState<string | null>(null);
   const [transitionsByRequestId, setTransitionsByRequestId] = useState<Record<string, RequestTransitionRow[]>>({});
-  const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
   const [transitionsLoadingId, setTransitionsLoadingId] = useState<string | null>(null);
-  const requestedTransitionsRef = useRef<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState("profilo");
   const [timelineActions, setTimelineActions] = useState<RequestActionRow[]>([]);
   const [timelineActionsLoading, setTimelineActionsLoading] = useState(false);
@@ -222,22 +222,7 @@ export const ClientDetailPage = () => {
     reloadRequests();
   }, [reloadRequests]);
 
-  // Carica transizioni quando si espande "Storia" per una trattativa
-  useEffect(() => {
-    if (!expandedRequestId) return;
-    if (requestedTransitionsRef.current.has(expandedRequestId)) return;
-    requestedTransitionsRef.current.add(expandedRequestId);
-    setTransitionsLoadingId(expandedRequestId);
-    followupApi
-      .getRequestTransitions(expandedRequestId)
-      .then((r) => {
-        setTransitionsByRequestId((prev) => ({ ...prev, [expandedRequestId]: r.transitions ?? [] }));
-      })
-      .catch(() => setTransitionsByRequestId((prev) => ({ ...prev, [expandedRequestId]: [] })))
-      .finally(() => setTransitionsLoadingId(null));
-  }, [expandedRequestId]);
-
-  // Tab Timeline: carica azioni e transizioni quando si apre il tab
+  // Tab Timeline: carica azioni
   useEffect(() => {
     if (activeTab !== "timeline" || !workspaceId) return;
     setTimelineActionsLoading(true);
@@ -249,7 +234,7 @@ export const ClientDetailPage = () => {
   }, [activeTab, workspaceId]);
 
   useEffect(() => {
-    if (activeTab !== "timeline" || requests.length === 0) return;
+    if ((activeTab !== "timeline" && activeTab !== "trattative") || requests.length === 0) return;
     const toLoad = requests.filter((r) => transitionsByRequestId[r._id] === undefined);
     if (toLoad.length === 0) return;
     Promise.all(toLoad.map((r) => followupApi.getRequestTransitions(r._id).then((res) => ({ requestId: r._id, transitions: res.transitions ?? [] }))))
@@ -982,7 +967,6 @@ export const ClientDetailPage = () => {
               <ul className="space-y-0">
                 {timelineSorted.map((req) => {
                   const nextStatuses = REQUEST_ALLOWED_TRANSITIONS[req.status] ?? [];
-                  const isExpanded = expandedRequestId === req._id;
                   const transitions = transitionsByRequestId[req._id] ?? [];
                   const loadingTransitions = transitionsLoadingId === req._id;
                   return (
@@ -1045,40 +1029,11 @@ export const ClientDetailPage = () => {
                               ))}
                             </div>
                           )}
-                          <div className="mt-2">
-                            <button
-                              type="button"
-                              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                              onClick={() => setExpandedRequestId(isExpanded ? null : req._id)}
-                            >
-                              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                              Mostra storia
-                            </button>
-                            {isExpanded && (
-                              <div className="mt-2 pl-4 border-l-2 border-border space-y-2">
-                                {loadingTransitions ? (
-                                  <p className="text-xs text-muted-foreground">Caricamento...</p>
-                                ) : transitions.length === 0 ? (
-                                  <p className="text-xs text-muted-foreground">Nessuna transizione.</p>
-                                ) : (
-                                  transitions
-                                    .slice()
-                                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                                    .map((t) => (
-                                      <div key={t._id} className="text-xs">
-                                        <span className="text-foreground">
-                                          {REQUEST_STATUS_LABEL[t.fromState]} → {REQUEST_STATUS_LABEL[t.toState]}
-                                        </span>
-                                        <span className="text-muted-foreground ml-1">
-                                          {formatDate(t.createdAt)}
-                                          {t.reason ? ` · ${t.reason}` : ""}
-                                        </span>
-                                      </div>
-                                    ))
-                                )}
-                              </div>
-                            )}
-                          </div>
+                          {loadingTransitions ? (
+                            <p className="mt-4 pt-4 border-t border-border text-xs text-muted-foreground">Caricamento percorso...</p>
+                          ) : (
+                            <RequestStatusRoadmap currentStatus={req.status} transitions={transitions} />
+                          )}
                         </div>
                       </div>
                     </li>
@@ -1138,46 +1093,16 @@ export const ClientDetailPage = () => {
             )}
           </section>
 
-          <section className="rounded-lg border border-border bg-card p-4">
-            <h2 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
-              <ClipboardList className="h-4 w-4" />
-              Appartamenti papabili (matching)
-            </h2>
-            <p className="text-xs text-muted-foreground mb-3">
-              Appartamenti disponibili compatibili con il profilo del cliente. Score 0-100.
-            </p>
-            {matchLoading ? (
-              <p className="text-sm text-muted-foreground">Calcolo in corso...</p>
-            ) : matchCandidates.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Nessun appartamento papabile trovato. Completa il profilo (budget, città) per migliorare il matching.
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {matchCandidates.map(({ item, score, reasons }) => (
-                  <li key={item._id} className="flex items-start gap-3 rounded-md border border-border px-3 py-2.5 text-sm">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                      {score}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <Link
-                        to={`/apartments/${item._id}`}
-                        className="font-medium text-primary hover:underline"
-                      >
-                        {item.code}{item.name ? ` — ${item.name}` : ""}
-                      </Link>
-                      <p className="text-xs text-muted-foreground">
-                        {item.mode === "SELL" ? "Vendita" : "Affitto"} · {item.surfaceMq} m²
-                      </p>
-                      {reasons.length > 0 && (
-                        <p className="mt-0.5 text-xs text-muted-foreground">{reasons.join(" · ")}</p>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          <MatchingCandidatesList
+            title="Appartamenti papabili (matching)"
+            introText="Appartamenti disponibili compatibili con il profilo del cliente."
+            emptyMessage="Nessun appartamento papabile trovato. Completa il profilo (budget, città) per migliorare il matching."
+            loading={matchLoading}
+            candidates={matchCandidates}
+            getItemLink={(item) => `/apartments/${item._id}`}
+            renderItemTitle={(item) => <>{item.code}{item.name ? ` — ${item.name}` : ""}</>}
+            renderItemSubtitle={(item) => `${item.mode === "SELL" ? "Vendita" : "Affitto"} · ${item.surfaceMq} m²`}
+          />
         </TabsContent>
 
         {/* Tab Timeline — timeline unificata (trattative + azioni) con CRUD azioni */}
@@ -1206,81 +1131,115 @@ export const ClientDetailPage = () => {
                 Nessun evento. Le transizioni delle trattative e le azioni collegate al cliente appariranno qui.
               </p>
             ) : (
-              <ul className="space-y-0">
-                {timelineUnified.map((item) => (
-                  <li key={item.id} className="flex gap-3 py-3 border-b border-border last:border-b-0">
-                    <span className="text-muted-foreground shrink-0 text-xs w-24">{formatDate(item.createdAt)}</span>
-                    <div className="min-w-0 flex-1 text-sm">
-                      {item.kind === "transition" ? (
-                        <>
-                          <span className="font-medium text-foreground">Trattativa: </span>
-                          <span>
-                            {REQUEST_STATUS_LABEL[item.transition.fromState]} → {REQUEST_STATUS_LABEL[item.transition.toState]}
-                            {item.transition.reason && (
-                              <span className="text-muted-foreground"> · {item.transition.reason}</span>
-                            )}
-                          </span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="xs"
-                            className="h-6 ml-2 text-[11px] text-primary gap-1"
-                            onClick={() => navigate("/requests", { state: { openRequestId: item.requestId } })}
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                            Dettaglio
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <span className="font-medium text-foreground">{ACTION_TYPE_LABEL[item.action.type]}: </span>
-                          {item.action.title && <span>{item.action.title}</span>}
-                          {item.action.description && (
-                            <p className="text-muted-foreground mt-0.5">{item.action.description}</p>
+              <div className="relative pl-10">
+                {/* Linea verticale */}
+                <div
+                  className="absolute left-[11px] top-3 bottom-3 w-0.5 bg-border rounded-full"
+                  aria-hidden
+                />
+                <ul className="space-y-0">
+                  {timelineUnified.map((item) => (
+                    <li key={item.id} className="relative flex gap-4 pb-6 last:pb-0">
+                      {/* Nodo sulla linea */}
+                      <div
+                        className={cn(
+                          "absolute left-0 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-background shadow-sm",
+                          item.kind === "transition"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        {item.kind === "transition" ? (
+                          <TrendingUp className="h-3.5 w-3.5" />
+                        ) : item.action.type === "call" ? (
+                          <Phone className="h-3.5 w-3.5" />
+                        ) : item.action.type === "email" ? (
+                          <Mail className="h-3.5 w-3.5" />
+                        ) : item.action.type === "meeting" ? (
+                          <CalendarCheck className="h-3.5 w-3.5" />
+                        ) : (
+                          <FileText className="h-3.5 w-3.5" />
+                        )}
+                      </div>
+                      {/* Data + card */}
+                      <div className="flex gap-3 min-w-0 flex-1 pl-8">
+                        <span className="text-muted-foreground shrink-0 text-xs w-20 pt-0.5">
+                          {formatDate(item.createdAt)}
+                        </span>
+                        <div className="min-w-0 flex-1 rounded-lg border border-border bg-card p-3 shadow-sm">
+                          {item.kind === "transition" ? (
+                            <>
+                              <p className="font-medium text-foreground">
+                                Trattativa: {REQUEST_STATUS_LABEL[item.transition.fromState]} → {REQUEST_STATUS_LABEL[item.transition.toState]}
+                              </p>
+                              {item.transition.reason && (
+                                <p className="text-xs text-muted-foreground mt-0.5">{item.transition.reason}</p>
+                              )}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="xs"
+                                className="mt-2 h-6 text-[11px] text-primary gap-1"
+                                onClick={() => navigate("/requests", { state: { openRequestId: item.requestId } })}
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                Dettaglio
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <p className="font-medium text-foreground">
+                                {ACTION_TYPE_LABEL[item.action.type]}
+                                {item.action.title && `: ${item.action.title}`}
+                              </p>
+                              {item.action.description && (
+                                <p className="text-sm text-muted-foreground mt-0.5">{item.action.description}</p>
+                              )}
+                              {item.action.requestIds.length > 0 && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Trattative collegate:{" "}
+                                  {item.action.requestIds
+                                    .filter((id) => requestIdsSet.has(id))
+                                    .map((id, i) => {
+                                      const req = requests.find((r) => r._id === id);
+                                      return req ? (
+                                        <span key={id}>
+                                          {i > 0 && ", "}
+                                          <button
+                                            type="button"
+                                            className="text-primary hover:underline"
+                                            onClick={() => navigate("/requests", { state: { openRequestId: id } })}
+                                          >
+                                            {req.apartmentCode ?? id.slice(0, 8)}
+                                          </button>
+                                        </span>
+                                      ) : null;
+                                    })}
+                                </p>
+                              )}
+                              <div className="mt-2 flex gap-2">
+                                <Button type="button" variant="outline" size="xs" className="h-6 text-[11px]" onClick={() => openActionDrawerEdit(item.action)}>
+                                  Modifica
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="xs"
+                                  className="h-6 text-[11px] text-destructive hover:text-destructive"
+                                  disabled={deletingActionId === item.action._id}
+                                  onClick={() => handleDeleteAction(item.action._id)}
+                                >
+                                  {deletingActionId === item.action._id ? "Eliminazione..." : "Elimina"}
+                                </Button>
+                              </div>
+                            </>
                           )}
-                          {item.action.requestIds.length > 0 && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Trattative collegate:{" "}
-                              {item.action.requestIds
-                                .filter((id) => requestIdsSet.has(id))
-                                .map((id, i) => {
-                                  const req = requests.find((r) => r._id === id);
-                                  return req ? (
-                                    <span key={id}>
-                                      {i > 0 && ", "}
-                                      <button
-                                        type="button"
-                                        className="text-primary hover:underline"
-                                        onClick={() => navigate("/requests", { state: { openRequestId: id } })}
-                                      >
-                                        {req.apartmentCode ?? id.slice(0, 8)}
-                                      </button>
-                                    </span>
-                                  ) : null;
-                                })}
-                            </p>
-                          )}
-                          <div className="mt-2 flex gap-2">
-                            <Button type="button" variant="outline" size="xs" className="h-6 text-[11px]" onClick={() => openActionDrawerEdit(item.action)}>
-                              Modifica
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="xs"
-                              className="h-6 text-[11px] text-destructive hover:text-destructive"
-                              disabled={deletingActionId === item.action._id}
-                              onClick={() => handleDeleteAction(item.action._id)}
-                            >
-                              {deletingActionId === item.action._id ? "Eliminazione..." : "Elimina"}
-                            </Button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </section>
         </TabsContent>
