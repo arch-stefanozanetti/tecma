@@ -13,7 +13,7 @@ moment.locale("it");
 
 const BUCKET_BASEURL = import.meta.env.VITE_BUCKET_BASEURL ?? "";
 
-type SectionId = "calendar" | "clients" | "apartments" | "associateAptClient" | "requests";
+type SectionId = "calendar" | "clients" | "apartments" | "createApartment" | "associateAptClient" | "requests";
 
 interface CockpitPageProps {
   workspaceId: string;
@@ -213,6 +213,10 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
               <Button variant="outline" size="sm" className="rounded-lg" onClick={() => onNavigateToSection("apartments")}>
                 <Home className="mr-1.5 h-3.5 w-3.5" />
                 Appartamenti
+              </Button>
+              <Button variant="outline" size="sm" className="rounded-lg" onClick={() => onNavigateToSection("createApartment")}>
+                <Building2 className="mr-1.5 h-3.5 w-3.5" />
+                Crea appartamento
               </Button>
             </div>
           )}

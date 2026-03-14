@@ -3,6 +3,17 @@ import { z } from "zod";
 import { queryCalendarEvents, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from "../core/calendar/calendar.service.js";
 import { queryClients, createClient, updateClient, getClientById } from "../core/clients/clients.service.js";
 import { queryApartments } from "../core/apartments/apartments.service.js";
+import { getCurrentPriceForUnit } from "../core/unit-pricing/unit-pricing.service.js";
+import { listSalePricesByUnitId, createSalePrice, updateSalePrice } from "../core/sale-prices/sale-prices.service.js";
+import { listMonthlyRentsByUnitId, createMonthlyRent, updateMonthlyRent } from "../core/monthly-rents/monthly-rents.service.js";
+import { getInventoryByUnitId } from "../core/inventory/inventory.service.js";
+import { getActiveLockForApartment } from "../core/workflow/apartment-lock.service.js";
+import {
+  parseExcelBuffer,
+  validateRows,
+  executeImport,
+  type OnDuplicate,
+} from "../core/units-import/units-import.service.js";
 import { queryRequests, getRequestById, createRequest, updateRequestStatus, listRequestTransitions, revertRequestStatus } from "../core/requests/requests.service.js";
 import { listRequestActions, createRequestAction, updateRequestAction, deleteRequestAction } from "../core/requests/request-actions.service.js";
 import { getProjectAccessByEmail } from "../core/auth/projectAccess.service.js";
@@ -377,6 +388,89 @@ v1Router.patch("/apartments/:id", handleAsync(async (req) => {
   return result;
 }));
 v1Router.get("/apartments/:id", handleAsync((req) => getApartmentById(req.params.id)));
+v1Router.get("/apartments/:id/prices", handleAsync(async (req) => {
+  const unitId = req.params.id;
+  const [current, salePrices, monthlyRents] = await Promise.all([
+    getCurrentPriceForUnit(unitId),
+    listSalePricesByUnitId(unitId),
+    listMonthlyRentsByUnitId(unitId),
+  ]);
+  return { current, salePrices, monthlyRents };
+}));
+v1Router.get("/apartments/:id/inventory", handleAsync(async (req) => {
+  const unitId = req.params.id;
+  const [inventory, lock] = await Promise.all([
+    getInventoryByUnitId(unitId),
+    getActiveLockForApartment(unitId),
+  ]);
+  const effectiveStatus = lock ? "locked" : (inventory?.inventoryStatus ?? "available");
+  return {
+    inventory: inventory ?? null,
+    lock: lock ? { requestId: lock.requestId, type: lock.type } : null,
+    effectiveStatus,
+  };
+}));
+v1Router.post("/apartments/:id/prices/sale", handleAsync(async (req) => {
+  const unitId = req.params.id;
+  const body = req.body as { workspaceId: string; price: number; currency?: string; validFrom?: string; validTo?: string };
+  if (!body.workspaceId) throw new HttpError("workspaceId required", 400);
+  return createSalePrice({
+    unitId,
+    workspaceId: body.workspaceId,
+    price: body.price,
+    currency: body.currency,
+    validFrom: body.validFrom,
+    validTo: body.validTo,
+  });
+}));
+v1Router.post("/apartments/:id/prices/monthly-rent", handleAsync(async (req) => {
+  const unitId = req.params.id;
+  const body = req.body as { workspaceId: string; pricePerMonth: number; deposit?: number; currency?: string; validFrom?: string; validTo?: string };
+  if (!body.workspaceId) throw new HttpError("workspaceId required", 400);
+  return createMonthlyRent({
+    unitId,
+    workspaceId: body.workspaceId,
+    pricePerMonth: body.pricePerMonth,
+    deposit: body.deposit,
+    currency: body.currency,
+    validFrom: body.validFrom,
+    validTo: body.validTo,
+  });
+}));
+v1Router.patch("/apartments/:id/prices/sale/:priceId", handleAsync(async (req) => {
+  const unitId = req.params.id;
+  const priceId = req.params.priceId;
+  const body = req.body as { validTo?: string; price?: number };
+  return updateSalePrice(unitId, priceId, { validTo: body.validTo, price: body.price });
+}));
+v1Router.patch("/apartments/:id/prices/monthly-rent/:rentId", handleAsync(async (req) => {
+  const unitId = req.params.id;
+  const rentId = req.params.rentId;
+  const body = req.body as { validTo?: string; pricePerMonth?: number; deposit?: number };
+  return updateMonthlyRent(unitId, rentId, {
+    validTo: body.validTo,
+    pricePerMonth: body.pricePerMonth,
+    deposit: body.deposit,
+  });
+}));
+v1Router.post("/workspaces/:workspaceId/projects/:projectId/units/import/preview", requireAdmin, handleAsync(async (req) => {
+  const workspaceId = req.params.workspaceId;
+  const projectId = req.params.projectId;
+  const body = req.body as { fileBase64?: string; fileName?: string };
+  const b64 = body.fileBase64;
+  if (typeof b64 !== "string" || !b64) throw new HttpError("fileBase64 obbligatorio", 400);
+  const buffer = Buffer.from(b64, "base64");
+  const rows = parseExcelBuffer(buffer);
+  return validateRows(rows, workspaceId, projectId);
+}));
+v1Router.post("/workspaces/:workspaceId/projects/:projectId/units/import/execute", requireAdmin, handleAsync(async (req) => {
+  const workspaceId = req.params.workspaceId;
+  const projectId = req.params.projectId;
+  const body = req.body as { validRows?: unknown[]; onDuplicate?: OnDuplicate };
+  const validRows = Array.isArray(body.validRows) ? body.validRows as Parameters<typeof executeImport>[2] : [];
+  const onDuplicate = (body.onDuplicate === "overwrite" || body.onDuplicate === "fail" ? body.onDuplicate : "skip") as OnDuplicate;
+  return executeImport(workspaceId, projectId, validRows, onDuplicate);
+}));
 v1Router.get(
   "/apartments/:id/requests",
   handleAsync(async (req) => {

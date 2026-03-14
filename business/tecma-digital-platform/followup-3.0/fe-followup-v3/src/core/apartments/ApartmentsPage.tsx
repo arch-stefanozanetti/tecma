@@ -37,6 +37,7 @@ import {
   DrawerCloseButton,
 } from "../../components/ui/drawer";
 import { FiltersDrawer } from "../../components/ui/filters-drawer";
+import { ImportExcelDrawer } from "./ImportExcelDrawer";
 
 type ModeFilter = "all" | "SELL" | "RENT";
 
@@ -112,6 +113,7 @@ export const ApartmentsPage = () => {
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [otherOptionsOpen, setOtherOptionsOpen] = useState(false);
+  const [importExcelOpen, setImportExcelOpen] = useState(false);
   const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false);
   const [statusDraft, setStatusDraft] = useState("all");
   const otherOptionsRef = useRef<HTMLDivElement>(null);
@@ -242,6 +244,12 @@ export const ApartmentsPage = () => {
 
           <div className="flex items-center gap-2">
             <Button
+              className="h-10 rounded-lg px-4 text-sm font-medium"
+              onClick={() => navigate("/?section=createApartment")}
+            >
+              Crea appartamento
+            </Button>
+            <Button
               variant="outline"
               className="h-10 rounded-lg border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-muted"
             >
@@ -269,6 +277,10 @@ export const ApartmentsPage = () => {
                       key={label}
                       type="button"
                       className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted"
+                      onClick={() => {
+                        setOtherOptionsOpen(false);
+                        if (label === "Importa Excel") setImportExcelOpen(true);
+                      }}
                     >
                       <Icon className="h-4 w-4 text-muted-foreground" />
                       {label}
@@ -705,6 +717,14 @@ export const ApartmentsPage = () => {
           </form>
         </DrawerContent>
       </Drawer>
+
+      <ImportExcelDrawer
+        open={importExcelOpen}
+        onOpenChange={setImportExcelOpen}
+        workspaceId={workspaceId ?? ""}
+        projectId={selectedProjectIds[0] ?? ""}
+        onImported={() => refetch()}
+      />
     </div>
   );
 };

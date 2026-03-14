@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, Home, Calendar, FileText, Users, Pencil, History, UserPlus, Trash2, Settings2 } from "lucide-react";
 import { followupApi } from "../../api/followupApi";
@@ -76,6 +76,40 @@ export const ApartmentDetailPage = () => {
   const [editSurfaceMq, setEditSurfaceMq] = useState("");
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [prices, setPrices] = useState<{
+    current: { source: string; amount: number; currency: string; mode: string; validFrom?: string; validTo?: string; deposit?: number } | null;
+    salePrices: Array<{ _id: string; price: number; currency: string; validFrom: string; validTo?: string }>;
+    monthlyRents: Array<{ _id: string; pricePerMonth: number; deposit?: number; currency: string; validFrom: string; validTo?: string }>;
+  } | null>(null);
+  const [inventory, setInventory] = useState<{
+    effectiveStatus: string;
+    lock: { requestId: string; type: string } | null;
+  } | null>(null);
+  const [addSalePriceOpen, setAddSalePriceOpen] = useState(false);
+  const [addMonthlyRentOpen, setAddMonthlyRentOpen] = useState(false);
+  const [addSalePriceForm, setAddSalePriceForm] = useState({ price: "", currency: "EUR", validFrom: "", validTo: "" });
+  const [addMonthlyRentForm, setAddMonthlyRentForm] = useState({
+    pricePerMonth: "",
+    deposit: "",
+    currency: "EUR",
+    validFrom: "",
+    validTo: "",
+  });
+  const [addPriceSaving, setAddPriceSaving] = useState(false);
+  const [addPriceError, setAddPriceError] = useState<string | null>(null);
+  const [editSalePriceOpen, setEditSalePriceOpen] = useState(false);
+  const [editSalePriceId, setEditSalePriceId] = useState<string | null>(null);
+  const [editSalePriceForm, setEditSalePriceForm] = useState({ price: "", validTo: "" });
+  const [editMonthlyRentOpen, setEditMonthlyRentOpen] = useState(false);
+  const [editMonthlyRentId, setEditMonthlyRentId] = useState<string | null>(null);
+  const [editMonthlyRentForm, setEditMonthlyRentForm] = useState({ pricePerMonth: "", deposit: "", validTo: "" });
+  const [editPriceSaving, setEditPriceSaving] = useState(false);
+  const [editPriceError, setEditPriceError] = useState<string | null>(null);
+
+  const refetchPrices = useCallback(() => {
+    if (!apartmentId) return;
+    followupApi.getApartmentPrices(apartmentId).then(setPrices).catch(() => setPrices(null));
+  }, [apartmentId]);
 
   useEffect(() => {
     if (!apartmentId) return;
@@ -96,6 +130,16 @@ export const ApartmentDetailPage = () => {
         setApartment(null);
       })
       .finally(() => setLoading(false));
+  }, [apartmentId]);
+
+  useEffect(() => {
+    if (!apartmentId) return;
+    followupApi.getApartmentPrices(apartmentId).then((r) => setPrices(r)).catch(() => setPrices(null));
+  }, [apartmentId]);
+
+  useEffect(() => {
+    if (!apartmentId) return;
+    followupApi.getApartmentInventory(apartmentId).then((r) => setInventory({ effectiveStatus: r.effectiveStatus, lock: r.lock })).catch(() => setInventory(null));
   }, [apartmentId]);
 
   useEffect(() => {
@@ -249,18 +293,40 @@ export const ApartmentDetailPage = () => {
   if (!apartment) return null;
 
   const priceDisplay =
-    apartment.normalizedPrice &&
-    typeof apartment.normalizedPrice === "object" &&
-    "display" in apartment.normalizedPrice
-      ? (apartment.normalizedPrice as { display: string }).display
-      : apartment.rawPrice != null && typeof apartment.rawPrice === "object" && "amount" in apartment.rawPrice
+    prices?.current != null
+      ? prices.current.mode === "RENT"
         ? new Intl.NumberFormat("it-IT", {
             style: "currency",
-            currency: "EUR",
+            currency: prices.current.currency,
             minimumFractionDigits: 0,
             maximumFractionDigits: 0,
-          }).format((apartment.rawPrice as { amount: number }).amount)
-        : "—";
+          }).format(prices.current.amount) + " / mese"
+        : new Intl.NumberFormat("it-IT", {
+            style: "currency",
+            currency: prices.current.currency,
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+          }).format(prices.current.amount)
+      : apartment.normalizedPrice &&
+          typeof apartment.normalizedPrice === "object" &&
+          "display" in apartment.normalizedPrice
+        ? (apartment.normalizedPrice as { display: string }).display
+        : apartment.rawPrice != null && typeof apartment.rawPrice === "object" && "amount" in apartment.rawPrice
+          ? new Intl.NumberFormat("it-IT", {
+              style: "currency",
+              currency: "EUR",
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            }).format((apartment.rawPrice as { amount: number }).amount)
+          : "—";
+  const inventoryStatusLabel =
+    inventory?.effectiveStatus === "locked"
+      ? "In trattativa (bloccato)"
+      : inventory?.effectiveStatus === "reserved"
+        ? "Riservato"
+        : inventory?.effectiveStatus === "sold"
+          ? "Venduto"
+          : "Disponibile";
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
@@ -353,6 +419,15 @@ export const ApartmentDetailPage = () => {
                   <span className="text-muted-foreground">Prezzo</span>
                   <p className="font-medium text-foreground">{priceDisplay}</p>
                 </div>
+                <div>
+                  <span className="text-muted-foreground">Disponibilità</span>
+                  <p className="font-medium text-foreground">{inventoryStatusLabel}</p>
+                  {inventory?.lock && (
+                    <Link to={`/requests/${inventory.lock.requestId}`} className="text-xs text-primary hover:underline">
+                      Trattativa #{inventory.lock.requestId.slice(-6)}
+                    </Link>
+                  )}
+                </div>
                 {apartment.floor != null && (
                   <div>
                     <span className="text-muted-foreground">Piano</span>
@@ -419,6 +494,482 @@ export const ApartmentDetailPage = () => {
                 </div>
               </div>
             </div>
+
+            <div className="space-y-4 rounded-lg border border-border bg-card p-4 sm:col-span-2">
+                <h2 className="text-sm font-semibold text-foreground">Storico prezzi</h2>
+                <div className="flex flex-wrap gap-4 mb-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setAddSalePriceOpen(true); setAddPriceError(null); setAddSalePriceForm({ price: "", currency: "EUR", validFrom: "", validTo: "" }); }}
+                  >
+                    Aggiungi prezzo vendita
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setAddMonthlyRentOpen(true); setAddPriceError(null); setAddMonthlyRentForm({ pricePerMonth: "", deposit: "", currency: "EUR", validFrom: "", validTo: "" }); }}
+                  >
+                    Aggiungi canone mensile
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-6">
+                  {prices?.salePrices && prices.salePrices.length > 0 ? (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground mb-1">Vendita</p>
+                      <ul className="space-y-1 text-sm">
+                        {prices.salePrices.slice(0, 10).map((s) => (
+                          <li key={s._id} className="flex flex-wrap items-center justify-between gap-2">
+                            <span>{formatDate(s.validFrom)} – {s.validTo ? formatDate(s.validTo) : "oggi"}</span>
+                            <span className="font-medium">
+                              {new Intl.NumberFormat("it-IT", { style: "currency", currency: s.currency, minimumFractionDigits: 0 }).format(s.price)}
+                            </span>
+                            <div className="flex gap-1">
+                              {!s.validTo && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                  onClick={async () => {
+                                    if (!apartmentId) return;
+                                    setEditPriceSaving(true);
+                                    setEditPriceError(null);
+                                    try {
+                                      await followupApi.updateApartmentSalePrice(apartmentId, s._id, {
+                                        validTo: new Date().toISOString().split("T")[0],
+                                      });
+                                      refetchPrices();
+                                    } catch (err) {
+                                      setEditPriceError(err instanceof Error ? err.message : "Errore");
+                                    } finally {
+                                      setEditPriceSaving(false);
+                                    }
+                                  }}
+                                  disabled={editPriceSaving}
+                                >
+                                  Chiudi periodo
+                                </Button>
+                              )}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => {
+                                  setEditSalePriceId(s._id);
+                                  setEditSalePriceForm({ price: String(s.price), validTo: s.validTo ? s.validTo.split("T")[0] : "" });
+                                  setEditSalePriceOpen(true);
+                                  setEditPriceError(null);
+                                }}
+                              >
+                                Modifica
+                              </Button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Nessun prezzo vendita.</p>
+                  )}
+                  {prices?.monthlyRents && prices.monthlyRents.length > 0 ? (
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground mb-1">Affitto</p>
+                      <ul className="space-y-1 text-sm">
+                        {prices.monthlyRents.slice(0, 10).map((r) => (
+                          <li key={r._id} className="flex flex-wrap items-center justify-between gap-2">
+                            <span>{formatDate(r.validFrom)} – {r.validTo ? formatDate(r.validTo) : "oggi"}</span>
+                            <span className="font-medium">
+                              {new Intl.NumberFormat("it-IT", { style: "currency", currency: r.currency, minimumFractionDigits: 0 }).format(r.pricePerMonth)}/mese
+                            </span>
+                            <div className="flex gap-1">
+                              {!r.validTo && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                  onClick={async () => {
+                                    if (!apartmentId) return;
+                                    setEditPriceSaving(true);
+                                    setEditPriceError(null);
+                                    try {
+                                      await followupApi.updateApartmentMonthlyRent(apartmentId, r._id, {
+                                        validTo: new Date().toISOString().split("T")[0],
+                                      });
+                                      refetchPrices();
+                                    } catch (err) {
+                                      setEditPriceError(err instanceof Error ? err.message : "Errore");
+                                    } finally {
+                                      setEditPriceSaving(false);
+                                    }
+                                  }}
+                                  disabled={editPriceSaving}
+                                >
+                                  Chiudi periodo
+                                </Button>
+                              )}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => {
+                                  setEditMonthlyRentId(r._id);
+                                  setEditMonthlyRentForm({
+                                    pricePerMonth: String(r.pricePerMonth),
+                                    deposit: r.deposit != null ? String(r.deposit) : "",
+                                    validTo: r.validTo ? r.validTo.split("T")[0] : "",
+                                  });
+                                  setEditMonthlyRentOpen(true);
+                                  setEditPriceError(null);
+                                }}
+                              >
+                                Modifica
+                              </Button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Nessun canone mensile.</p>
+                  )}
+                </div>
+              </div>
+
+            {/* Drawer Aggiungi prezzo vendita */}
+            <Drawer open={addSalePriceOpen} onOpenChange={setAddSalePriceOpen}>
+              <DrawerContent side="right" className="w-full sm:max-w-md">
+                <DrawerHeader>
+                  <DrawerTitle>Aggiungi prezzo vendita</DrawerTitle>
+                  <DrawerCloseButton />
+                </DrawerHeader>
+                <DrawerBody>
+                  <form
+                    id="add-sale-price-form"
+                    className="space-y-4"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!apartmentId || !workspaceId) return;
+                      const price = Number(addSalePriceForm.price);
+                      if (Number.isNaN(price) || price < 0) {
+                        setAddPriceError("Inserisci un prezzo valido.");
+                        return;
+                      }
+                      setAddPriceSaving(true);
+                      setAddPriceError(null);
+                      try {
+                        await followupApi.createApartmentSalePrice(apartmentId, {
+                          workspaceId,
+                          price,
+                          currency: addSalePriceForm.currency,
+                          validFrom: addSalePriceForm.validFrom || undefined,
+                          validTo: addSalePriceForm.validTo || undefined,
+                        });
+                        refetchPrices();
+                        setAddSalePriceOpen(false);
+                      } catch (err) {
+                        setAddPriceError(err instanceof Error ? err.message : "Errore aggiunta prezzo");
+                      } finally {
+                        setAddPriceSaving(false);
+                      }
+                    }}
+                  >
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Prezzo (€)</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        className="mt-1"
+                        value={addSalePriceForm.price}
+                        onChange={(e) => setAddSalePriceForm((f) => ({ ...f, price: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Valuta</label>
+                      <Input
+                        className="mt-1"
+                        value={addSalePriceForm.currency}
+                        onChange={(e) => setAddSalePriceForm((f) => ({ ...f, currency: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Data inizio (opzionale)</label>
+                      <Input
+                        type="date"
+                        className="mt-1"
+                        value={addSalePriceForm.validFrom}
+                        onChange={(e) => setAddSalePriceForm((f) => ({ ...f, validFrom: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Data fine (opzionale)</label>
+                      <Input
+                        type="date"
+                        className="mt-1"
+                        value={addSalePriceForm.validTo}
+                        onChange={(e) => setAddSalePriceForm((f) => ({ ...f, validTo: e.target.value }))}
+                      />
+                    </div>
+                    {addPriceError && <p className="text-sm text-destructive">{addPriceError}</p>}
+                  </form>
+                </DrawerBody>
+                <DrawerFooter>
+                  <Button type="submit" form="add-sale-price-form" disabled={addPriceSaving}>
+                    {addPriceSaving ? "Salvataggio..." : "Aggiungi"}
+                  </Button>
+                </DrawerFooter>
+              </DrawerContent>
+            </Drawer>
+
+            {/* Drawer Aggiungi canone mensile */}
+            <Drawer open={addMonthlyRentOpen} onOpenChange={setAddMonthlyRentOpen}>
+              <DrawerContent side="right" className="w-full sm:max-w-md">
+                <DrawerHeader>
+                  <DrawerTitle>Aggiungi canone mensile</DrawerTitle>
+                  <DrawerCloseButton />
+                </DrawerHeader>
+                <DrawerBody>
+                  <form
+                    id="add-monthly-rent-form"
+                    className="space-y-4"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!apartmentId || !workspaceId) return;
+                      const pricePerMonth = Number(addMonthlyRentForm.pricePerMonth);
+                      if (Number.isNaN(pricePerMonth) || pricePerMonth < 0) {
+                        setAddPriceError("Inserisci un canone valido.");
+                        return;
+                      }
+                      setAddPriceSaving(true);
+                      setAddPriceError(null);
+                      try {
+                        await followupApi.createApartmentMonthlyRent(apartmentId, {
+                          workspaceId,
+                          pricePerMonth,
+                          deposit: addMonthlyRentForm.deposit ? Number(addMonthlyRentForm.deposit) : undefined,
+                          currency: addMonthlyRentForm.currency,
+                          validFrom: addMonthlyRentForm.validFrom || undefined,
+                          validTo: addMonthlyRentForm.validTo || undefined,
+                        });
+                        refetchPrices();
+                        setAddMonthlyRentOpen(false);
+                      } catch (err) {
+                        setAddPriceError(err instanceof Error ? err.message : "Errore aggiunta canone");
+                      } finally {
+                        setAddPriceSaving(false);
+                      }
+                    }}
+                  >
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Canone mensile (€)</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        className="mt-1"
+                        value={addMonthlyRentForm.pricePerMonth}
+                        onChange={(e) => setAddMonthlyRentForm((f) => ({ ...f, pricePerMonth: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Deposito (€, opzionale)</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        className="mt-1"
+                        value={addMonthlyRentForm.deposit}
+                        onChange={(e) => setAddMonthlyRentForm((f) => ({ ...f, deposit: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Valuta</label>
+                      <Input
+                        className="mt-1"
+                        value={addMonthlyRentForm.currency}
+                        onChange={(e) => setAddMonthlyRentForm((f) => ({ ...f, currency: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Data inizio (opzionale)</label>
+                      <Input
+                        type="date"
+                        className="mt-1"
+                        value={addMonthlyRentForm.validFrom}
+                        onChange={(e) => setAddMonthlyRentForm((f) => ({ ...f, validFrom: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Data fine (opzionale)</label>
+                      <Input
+                        type="date"
+                        className="mt-1"
+                        value={addMonthlyRentForm.validTo}
+                        onChange={(e) => setAddMonthlyRentForm((f) => ({ ...f, validTo: e.target.value }))}
+                      />
+                    </div>
+                    {addPriceError && <p className="text-sm text-destructive">{addPriceError}</p>}
+                  </form>
+                </DrawerBody>
+                <DrawerFooter>
+                  <Button type="submit" form="add-monthly-rent-form" disabled={addPriceSaving}>
+                    {addPriceSaving ? "Salvataggio..." : "Aggiungi"}
+                  </Button>
+                </DrawerFooter>
+              </DrawerContent>
+            </Drawer>
+
+            {/* Drawer Modifica prezzo vendita */}
+            <Drawer open={editSalePriceOpen} onOpenChange={setEditSalePriceOpen}>
+              <DrawerContent side="right" className="w-full sm:max-w-md">
+                <DrawerHeader>
+                  <DrawerTitle>Modifica prezzo vendita</DrawerTitle>
+                  <DrawerCloseButton />
+                </DrawerHeader>
+                <DrawerBody>
+                  <form
+                    id="edit-sale-price-form"
+                    className="space-y-4"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!apartmentId || !editSalePriceId) return;
+                      const price = Number(editSalePriceForm.price);
+                      if (Number.isNaN(price) || price < 0) {
+                        setEditPriceError("Inserisci un prezzo valido.");
+                        return;
+                      }
+                      setEditPriceSaving(true);
+                      setEditPriceError(null);
+                      try {
+                        await followupApi.updateApartmentSalePrice(apartmentId, editSalePriceId, {
+                          price,
+                          validTo: editSalePriceForm.validTo || undefined,
+                        });
+                        refetchPrices();
+                        setEditSalePriceOpen(false);
+                        setEditSalePriceId(null);
+                      } catch (err) {
+                        setEditPriceError(err instanceof Error ? err.message : "Errore modifica");
+                      } finally {
+                        setEditPriceSaving(false);
+                      }
+                    }}
+                  >
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Prezzo (€)</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        className="mt-1"
+                        value={editSalePriceForm.price}
+                        onChange={(e) => setEditSalePriceForm((f) => ({ ...f, price: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Data fine (opzionale)</label>
+                      <Input
+                        type="date"
+                        className="mt-1"
+                        value={editSalePriceForm.validTo}
+                        onChange={(e) => setEditSalePriceForm((f) => ({ ...f, validTo: e.target.value }))}
+                      />
+                    </div>
+                    {editPriceError && <p className="text-sm text-destructive">{editPriceError}</p>}
+                  </form>
+                </DrawerBody>
+                <DrawerFooter>
+                  <Button type="submit" form="edit-sale-price-form" disabled={editPriceSaving}>
+                    {editPriceSaving ? "Salvataggio..." : "Salva"}
+                  </Button>
+                </DrawerFooter>
+              </DrawerContent>
+            </Drawer>
+
+            {/* Drawer Modifica canone mensile */}
+            <Drawer open={editMonthlyRentOpen} onOpenChange={setEditMonthlyRentOpen}>
+              <DrawerContent side="right" className="w-full sm:max-w-md">
+                <DrawerHeader>
+                  <DrawerTitle>Modifica canone mensile</DrawerTitle>
+                  <DrawerCloseButton />
+                </DrawerHeader>
+                <DrawerBody>
+                  <form
+                    id="edit-monthly-rent-form"
+                    className="space-y-4"
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!apartmentId || !editMonthlyRentId) return;
+                      const pricePerMonth = Number(editMonthlyRentForm.pricePerMonth);
+                      if (Number.isNaN(pricePerMonth) || pricePerMonth < 0) {
+                        setEditPriceError("Inserisci un canone valido.");
+                        return;
+                      }
+                      setEditPriceSaving(true);
+                      setEditPriceError(null);
+                      try {
+                        await followupApi.updateApartmentMonthlyRent(apartmentId, editMonthlyRentId, {
+                          pricePerMonth,
+                          deposit: editMonthlyRentForm.deposit ? Number(editMonthlyRentForm.deposit) : undefined,
+                          validTo: editMonthlyRentForm.validTo || undefined,
+                        });
+                        refetchPrices();
+                        setEditMonthlyRentOpen(false);
+                        setEditMonthlyRentId(null);
+                      } catch (err) {
+                        setEditPriceError(err instanceof Error ? err.message : "Errore modifica");
+                      } finally {
+                        setEditPriceSaving(false);
+                      }
+                    }}
+                  >
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Canone mensile (€)</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        className="mt-1"
+                        value={editMonthlyRentForm.pricePerMonth}
+                        onChange={(e) => setEditMonthlyRentForm((f) => ({ ...f, pricePerMonth: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Deposito (€, opzionale)</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={1}
+                        className="mt-1"
+                        value={editMonthlyRentForm.deposit}
+                        onChange={(e) => setEditMonthlyRentForm((f) => ({ ...f, deposit: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Data fine (opzionale)</label>
+                      <Input
+                        type="date"
+                        className="mt-1"
+                        value={editMonthlyRentForm.validTo}
+                        onChange={(e) => setEditMonthlyRentForm((f) => ({ ...f, validTo: e.target.value }))}
+                      />
+                    </div>
+                    {editPriceError && <p className="text-sm text-destructive">{editPriceError}</p>}
+                  </form>
+                </DrawerBody>
+                <DrawerFooter>
+                  <Button type="submit" form="edit-monthly-rent-form" disabled={editPriceSaving}>
+                    {editPriceSaving ? "Salvataggio..." : "Salva"}
+                  </Button>
+                </DrawerFooter>
+              </DrawerContent>
+            </Drawer>
           </section>
         </TabsContent>
 

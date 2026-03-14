@@ -418,6 +418,88 @@ export const followupApi = {
   updateApartment: (apartmentId: string, payload: Partial<ApartmentCreateInput>) =>
     patchJson<{ apartment: ApartmentRow }>(`/apartments/${apartmentId}`, payload),
   getApartmentById: (apartmentId: string) => getJson<{ apartment: ApartmentRow }>(`/apartments/${apartmentId}`),
+  getApartmentPrices: (apartmentId: string) =>
+    getJson<{
+      current: { source: string; amount: number; currency: string; mode: string; validFrom?: string; validTo?: string; deposit?: number } | null;
+      salePrices: Array<{ _id: string; price: number; currency: string; validFrom: string; validTo?: string }>;
+      monthlyRents: Array<{ _id: string; pricePerMonth: number; deposit?: number; currency: string; validFrom: string; validTo?: string }>;
+    }>(`/apartments/${apartmentId}/prices`),
+  getApartmentInventory: (apartmentId: string) =>
+    getJson<{
+      inventory: { _id: string; unitId: string; inventoryStatus: string; updatedAt: string } | null;
+      lock: { requestId: string; type: string } | null;
+      effectiveStatus: string;
+    }>(`/apartments/${apartmentId}/inventory`),
+  createApartmentSalePrice: (
+    apartmentId: string,
+    body: { workspaceId: string; price: number; currency?: string; validFrom?: string; validTo?: string }
+  ) =>
+    postJson<{ _id: string; unitId: string; price: number; currency: string; validFrom: string; validTo?: string }>(
+      `/apartments/${apartmentId}/prices/sale`,
+      body
+    ),
+  createApartmentMonthlyRent: (
+    apartmentId: string,
+    body: {
+      workspaceId: string;
+      pricePerMonth: number;
+      deposit?: number;
+      currency?: string;
+      validFrom?: string;
+      validTo?: string;
+    }
+  ) =>
+    postJson<{
+      _id: string;
+      unitId: string;
+      pricePerMonth: number;
+      deposit?: number;
+      currency: string;
+      validFrom: string;
+      validTo?: string;
+    }>(`/apartments/${apartmentId}/prices/monthly-rent`, body),
+  updateApartmentSalePrice: (
+    apartmentId: string,
+    priceId: string,
+    body: { validTo?: string; price?: number }
+  ) =>
+    patchJson<{ _id: string; unitId: string; price: number; currency: string; validFrom: string; validTo?: string }>(
+      `/apartments/${apartmentId}/prices/sale/${priceId}`,
+      body
+    ),
+  updateApartmentMonthlyRent: (
+    apartmentId: string,
+    rentId: string,
+    body: { validTo?: string; pricePerMonth?: number; deposit?: number }
+  ) =>
+    patchJson<{
+      _id: string;
+      unitId: string;
+      pricePerMonth: number;
+      deposit?: number;
+      currency: string;
+      validFrom: string;
+      validTo?: string;
+    }>(`/apartments/${apartmentId}/prices/monthly-rent/${rentId}`, body),
+  unitsImportPreview: (workspaceId: string, projectId: string, fileBase64: string) =>
+    postJson<{
+      validRows: Array<{ unit_code: string; name?: string; floor?: number; size_m2?: number; price?: number; status?: string }>;
+      errors: Array<{ rowIndex: number; message: string }>;
+      duplicates: Array<{ rowIndex: number; unit_code: string }>;
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/projects/${encodeURIComponent(projectId)}/units/import/preview`, {
+      fileBase64,
+      fileName: "import.xlsx",
+    }),
+  unitsImportExecute: (
+    workspaceId: string,
+    projectId: string,
+    validRows: Array<Record<string, unknown>>,
+    onDuplicate: "skip" | "overwrite" | "fail"
+  ) =>
+    postJson<{ created: number; skipped: number; errors: Array<{ rowIndex: number; unit_code: string; message: string }> }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/projects/${encodeURIComponent(projectId)}/units/import/execute`,
+      { validRows, onDuplicate }
+    ),
   getApartmentRequests: (
     apartmentId: string,
     workspaceId: string,
