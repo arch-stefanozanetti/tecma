@@ -1,10 +1,12 @@
-import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart2,
   Building2,
   CalendarDays,
   ChevronDown,
   ChevronLeft,
+  ChevronRight,
+  Euro,
   FileText,
   FolderKanban,
   GitBranch,
@@ -18,6 +20,7 @@ import {
   Settings,
   UserCircle,
   Users,
+  Zap,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Checkbox } from "../../components/ui/checkbox";
@@ -28,7 +31,8 @@ import type { ProjectAccessProject } from "../../types/domain";
 import { clearProjectScope, WorkspaceOverrideProvider } from "../../auth/projectScope";
 import { followupApi } from "../../api/followupApi";
 import { clearTokens, getRefreshToken } from "../../api/http";
-import { isSectionEnabledByFeature } from "../features";
+import { isSectionEnabledByFeature, isPriceAvailabilityRelevant } from "../features";
+import { Inbox } from "./Inbox";
 
 type Section =
   | "cockpit"
@@ -51,11 +55,12 @@ type Section =
   | "audit"
   | "reports"
   | "releases"
-  | "integrations";
+  | "integrations"
+  | "priceAvailability";
 
 interface PageTemplateProps {
   section: Section;
-  onSectionChange: (section: Section) => void;
+  onSectionChange: (section: Section, state?: object) => void;
   userEmail: string;
   workspaceId: string;
   /** Ambiente API (dev-1/demo/prod) per banner ambiente */
@@ -68,6 +73,8 @@ interface PageTemplateProps {
   onSelectedProjectIdsChange: (ids: string[]) => void;
   /** Feature abilitate per il workspace corrente (undefined = tutte). Usate per nascondere voci di menu. */
   enabledFeatures?: string[];
+  /** Per Inbox: navigazione a path (es. /clients/:id). Se assente, Inbox non è mostrato. */
+  navigate?: (path: string) => void;
   children: ReactNode;
 }
 
@@ -77,6 +84,8 @@ interface NavItem {
   icon: React.ElementType;
   compact?: boolean;
   adminOnly?: boolean;
+  /** Raggruppamento sotto "Strumenti" espanso: tools = operativo, admin = amministrazione */
+  group?: "tools" | "admin";
 }
 
 const navItems: NavItem[] = [
@@ -86,11 +95,12 @@ const navItems: NavItem[] = [
   { id: "requests", label: "Trattative", icon: Handshake },
   { id: "calendar", label: "Calendario", icon: CalendarDays },
   { id: "projects", label: "Progetti", icon: Building2 },
-  { id: "integrations", label: "Integrazioni", icon: Plug, compact: true },
-  { id: "workflowConfig", label: "Config. workflow", icon: GitBranch, adminOnly: true, compact: true },
-  { id: "workspaces", label: "Workspaces", icon: FolderKanban, adminOnly: true, compact: true },
-  { id: "users", label: "User", icon: UserCircle, adminOnly: true, compact: true },
-  { id: "reports", label: "Report", icon: BarChart2, compact: true },
+  { id: "priceAvailability", label: "Prezzi e disponibilità", icon: Euro, compact: true, group: "tools" },
+  { id: "integrations", label: "Integrazioni e automazioni", icon: Plug, compact: true, group: "tools" },
+  { id: "workflowConfig", label: "Config. workflow", icon: GitBranch, adminOnly: true, compact: true, group: "admin" },
+  { id: "workspaces", label: "Workspaces", icon: FolderKanban, adminOnly: true, compact: true, group: "admin" },
+  { id: "users", label: "User", icon: UserCircle, adminOnly: true, compact: true, group: "admin" },
+  { id: "reports", label: "Report", icon: BarChart2, compact: true, group: "tools" },
 ];
 
 const mainNav = navItems.filter((item) => !item.compact);
@@ -99,29 +109,49 @@ const getMainNav = (isAdmin: boolean, enabledFeatures?: string[]) =>
     (item) =>
       (!item.adminOnly || isAdmin) && isSectionEnabledByFeature(item.id, enabledFeatures)
   );
-const getSecondaryNav = (isAdmin: boolean, enabledFeatures?: string[]) =>
-  navItems.filter(
-    (item) =>
-      item.compact &&
-      (!item.adminOnly || isAdmin) &&
-      isSectionEnabledByFeature(item.id, enabledFeatures)
-  );
+const getSecondaryNav = (
+  isAdmin: boolean,
+  enabledFeatures?: string[],
+  priceAvailabilityContext?: { projects: ProjectAccessProject[]; selectedProjectIds: string[] }
+) =>
+  navItems.filter((item) => {
+    if (!item.compact || (item.adminOnly && !isAdmin)) return false;
+    if (!isSectionEnabledByFeature(item.id, enabledFeatures)) return false;
+    if (item.id === "priceAvailability" && priceAvailabilityContext) {
+      const { projects, selectedProjectIds } = priceAvailabilityContext;
+      if (!isPriceAvailabilityRelevant(projects, selectedProjectIds)) return false;
+    }
+    return true;
+  });
 
 const SideNav = ({
   section,
   onSectionChange,
   isAdmin = false,
   enabledFeatures,
+  projects,
+  selectedProjectIds,
+  collapsed = false,
+  onCollapseToggle,
+  touchFriendly = false,
   className,
 }: {
   section: Section;
-  onSectionChange: (section: Section) => void;
+  onSectionChange: (section: Section, state?: object) => void;
   isAdmin?: boolean;
   enabledFeatures?: string[];
+  projects: ProjectAccessProject[];
+  selectedProjectIds: string[];
+  collapsed?: boolean;
+  onCollapseToggle?: () => void;
+  touchFriendly?: boolean;
   className?: string;
 }) => {
   const [toolsOpen, setToolsOpen] = useState(false);
-  const secondaryNav = getSecondaryNav(isAdmin, enabledFeatures);
+  const secondaryNav = getSecondaryNav(isAdmin, enabledFeatures, {
+    projects,
+    selectedProjectIds,
+  });
   const isSecondaryActive = useMemo(
     () => secondaryNav.some((item) => item.id === section),
     [section, secondaryNav]
@@ -133,29 +163,43 @@ const SideNav = ({
     }
   }, [isSecondaryActive]);
 
+  const mainNavBtnCls = cn(
+    "relative flex w-full items-center gap-2 rounded-chrome border text-left text-sm font-semibold transition-colors",
+    touchFriendly ? "min-h-11 py-3" : "h-10",
+    collapsed ? "justify-center px-2" : "px-4"
+  );
+  const secondaryBtnCls = cn(
+    "flex w-full items-center gap-2 rounded-chrome text-left text-xs font-medium transition-colors",
+    touchFriendly ? "min-h-11 py-3" : "h-9",
+    collapsed ? "justify-center px-2" : "px-3"
+  );
+
   return (
     <aside
       className={cn(
-        "relative flex h-full w-64 flex-col border-r border-border bg-sidebar-nav shadow-sidebar",
+        "relative flex h-full w-full flex-col border-r border-border bg-sidebar-nav shadow-sidebar",
         className
       )}
     >
-      <div className="flex justify-center px-6 pb-6 pt-10">
-        <LogoTecma className="h-24 w-24 opacity-85" />
+      <div className={cn("flex justify-center pb-6 pt-10", collapsed ? "px-2" : "px-6")}>
+        <LogoTecma className={cn("opacity-85", collapsed ? "h-10 w-10" : "h-24 w-24")} />
       </div>
 
-      <div className="flex-1 px-6">
-        <div className="mb-8 flex justify-end">
-          <button
-            type="button"
-            aria-label="Collapse menu"
-            className="inline-flex h-6 w-6 items-center justify-center text-muted-foreground"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-        </div>
+      <div className={cn("flex-1 min-h-0 overflow-y-auto", collapsed ? "px-2" : "px-6")}>
+        {onCollapseToggle && (
+          <div className={cn("mb-8 flex justify-end", collapsed ? "mb-4" : "")}>
+            <button
+              type="button"
+              onClick={onCollapseToggle}
+              aria-label={collapsed ? "Expand menu" : "Collapse menu"}
+              className="inline-flex h-6 w-6 items-center justify-center text-muted-foreground hover:text-foreground"
+            >
+              {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+            </button>
+          </div>
+        )}
 
-        <nav className="space-y-4">
+        <nav className={cn("space-y-4", collapsed && "space-y-2")}>
           {getMainNav(isAdmin, enabledFeatures).map((item) => {
             const Icon = item.icon;
             const isActive = section === item.id;
@@ -164,16 +208,18 @@ const SideNav = ({
                 key={item.id}
                 type="button"
                 onClick={() => onSectionChange(item.id)}
+                title={collapsed ? item.label : undefined}
                 className={cn(
-                  "relative flex h-10 w-full items-center gap-2 rounded-chrome border px-4 text-left text-sm font-semibold transition-colors",
+                  mainNavBtnCls,
                   isActive
                     ? "border-transparent bg-background text-primary shadow-sidebar-nav-active"
                     : "border-transparent bg-white/15 text-muted-foreground shadow-sidebar-nav hover:bg-white/30"
                 )}
               >
-                {isActive && <span className="absolute -left-3 top-0 h-full w-0.5 bg-primary" />}
-                <Icon className="h-4 w-4" />
-                <span>{item.label}</span>
+                {isActive && !collapsed && <span className="absolute -left-3 top-0 h-full w-0.5 bg-primary" />}
+                <Icon className="h-4 w-4 flex-shrink-0" />
+                {!collapsed && <span>{item.label}</span>}
+                {collapsed && <span className="sr-only">{item.label}</span>}
               </button>
             );
           })}
@@ -183,41 +229,95 @@ const SideNav = ({
               <button
                 type="button"
                 onClick={() => setToolsOpen((value) => !value)}
+                title={collapsed ? "Strumenti" : undefined}
                 className={cn(
-                  "flex h-10 w-full items-center gap-2 rounded-chrome px-4 text-left text-sm font-semibold transition-colors",
+                  mainNavBtnCls,
+                  "border-0",
                   isSecondaryActive
                     ? "bg-white/25 text-muted-foreground shadow-sidebar-nav"
                     : "bg-white/15 text-muted-foreground shadow-sidebar-nav hover:bg-white/25"
                 )}
               >
-                <Settings className="h-4 w-4" />
-                <span className="flex-1">Strumenti</span>
-                <ChevronDown className={cn("h-4 w-4 transition-transform", toolsOpen && "rotate-180")} />
+                <Settings className="h-4 w-4 flex-shrink-0" />
+                {!collapsed && <span className="flex-1">Strumenti</span>}
+                <ChevronDown className={cn("h-4 w-4 flex-shrink-0 transition-transform", toolsOpen && "rotate-180")} />
+                {collapsed && <span className="sr-only">Strumenti</span>}
               </button>
 
-              {toolsOpen && (
-                <div className="space-y-2 pl-3">
+              {toolsOpen && collapsed && (
+                <div className="space-y-1">
                   {secondaryNav.map((item) => {
-                const Icon = item.icon;
-                const isActive = section === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => onSectionChange(item.id)}
-                    className={cn(
-                      "flex h-9 w-full items-center gap-2 rounded-chrome px-3 text-left text-xs font-medium transition-colors",
-                      isActive
-                        ? "bg-background text-primary shadow-sidebar-nav-active"
-                        : "bg-white/15 text-muted-foreground shadow-sidebar-nav hover:bg-white/30"
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span className="truncate">{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+                    const Icon = item.icon;
+                    const isActive = section === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => onSectionChange(item.id)}
+                        title={item.label}
+                        className={cn(
+                          "flex min-h-9 w-full items-center justify-center rounded-chrome transition-colors",
+                          isActive
+                            ? "bg-background text-primary shadow-sidebar-nav-active"
+                            : "bg-white/15 text-muted-foreground hover:bg-white/30"
+                        )}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span className="sr-only">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {toolsOpen && !collapsed && (
+                <div className="space-y-4 pl-3">
+                  {(() => {
+                    const toolsItems = secondaryNav.filter((item) => item.group !== "admin");
+                    const adminItems = secondaryNav.filter((item) => item.group === "admin");
+                    const renderNavList = (items: typeof secondaryNav) =>
+                      items.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = section === item.id;
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => onSectionChange(item.id)}
+                            className={cn(
+                              secondaryBtnCls,
+                              isActive
+                                ? "bg-background text-primary shadow-sidebar-nav-active"
+                                : "bg-white/15 text-muted-foreground shadow-sidebar-nav hover:bg-white/30"
+                            )}
+                          >
+                            <Icon className="h-4 w-4 flex-shrink-0" />
+                            <span className="truncate">{item.label}</span>
+                          </button>
+                        );
+                      });
+                    return (
+                      <>
+                        {toolsItems.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              Strumenti
+                            </p>
+                            {renderNavList(toolsItems)}
+                          </div>
+                        )}
+                        {adminItems.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              Amministrazione
+                            </p>
+                            {renderNavList(adminItems)}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
               )}
             </>
           )}
@@ -445,10 +545,34 @@ export const PageTemplate = ({
   selectedProjectIds,
   onSelectedProjectIdsChange,
   enabledFeatures,
+  navigate,
   children,
 }: PageTemplateProps) => {
+  const sidebarStorageKey = `followup.sidebarCollapsed${workspaceId ? `.${workspaceId}` : ""}`;
+  const [sidebarCollapsed, setSidebarCollapsedState] = useState(() => {
+    try {
+      return localStorage.getItem(sidebarStorageKey) === "true";
+    } catch {
+      return false;
+    }
+  });
+  const setSidebarCollapsed = useCallback(
+    (update: boolean | ((prev: boolean) => boolean)) => {
+      setSidebarCollapsedState((prev) => {
+        const next = typeof update === "function" ? update(prev) : update;
+        try {
+          localStorage.setItem(sidebarStorageKey, String(next));
+        } catch {
+          /* ignore */
+        }
+        return next;
+      });
+    },
+    [sidebarStorageKey]
+  );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const userName = userEmail?.split("@")[0]?.replace(/[._-]/g, " ") || "Mario Rossi";
@@ -485,24 +609,47 @@ export const PageTemplate = ({
     }
   };
 
+  const handleMobileSectionChange = (s: Section) => {
+    onSectionChange(s);
+    setMobileNavOpen(false);
+  };
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-app font-body text-foreground" data-testid="tecma-templatePage">
-      <div className="hidden lg:block">
-        <SideNav section={section} onSectionChange={onSectionChange} isAdmin={isAdmin} enabledFeatures={enabledFeatures} />
+      <div className={cn("hidden lg:block flex-shrink-0 transition-[width]", sidebarCollapsed ? "w-16" : "w-64")}>
+        <SideNav
+          section={section}
+          onSectionChange={onSectionChange}
+          isAdmin={isAdmin}
+          enabledFeatures={enabledFeatures}
+          projects={projects}
+          selectedProjectIds={selectedProjectIds}
+          collapsed={sidebarCollapsed}
+          onCollapseToggle={() => setSidebarCollapsed((v) => !v)}
+        />
       </div>
 
-      <Sheet>
+      <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
         <SheetTrigger asChild>
           <button
             type="button"
             className="fixed left-4 top-4 z-30 inline-flex h-10 w-10 items-center justify-center rounded-chrome border border-border bg-background text-foreground shadow-sm lg:hidden"
-            aria-label="Open navigation"
+            aria-label="Apri menu"
           >
             <Menu className="h-5 w-5" />
           </button>
         </SheetTrigger>
         <SheetContent side="left" className="w-[290px] border-none p-0">
-          <SideNav section={section} onSectionChange={onSectionChange} isAdmin={isAdmin} enabledFeatures={enabledFeatures} className="h-full" />
+          <SideNav
+            section={section}
+            onSectionChange={handleMobileSectionChange}
+            isAdmin={isAdmin}
+            enabledFeatures={enabledFeatures}
+            projects={projects}
+            selectedProjectIds={selectedProjectIds}
+            touchFriendly
+            className="h-full"
+          />
         </SheetContent>
       </Sheet>
 
@@ -521,6 +668,15 @@ export const PageTemplate = ({
                 projects={projects}
                 selectedProjectIds={selectedProjectIds}
                 onSelectedProjectIdsChange={onSelectedProjectIdsChange}
+              />
+            )}
+
+            {/* Inbox (notifiche) */}
+            {navigate && (
+              <Inbox
+                workspaceId={workspaceId}
+                onSectionChange={(section, state) => onSectionChange(section as Section, state)}
+                navigate={navigate}
               />
             )}
 

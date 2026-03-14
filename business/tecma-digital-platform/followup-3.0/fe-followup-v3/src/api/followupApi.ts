@@ -5,6 +5,7 @@ import type {
   ApartmentCreateInput,
   ApartmentRow,
   AssociationCreateInput,
+  AutomationRuleRow,
   CalendarEvent,
   CalendarEventCreateInput,
   CalendarEventUpdateInput,
@@ -19,6 +20,7 @@ import type {
   HCMasterEntity,
   HCMasterEntityRecord,
   ListQuery,
+  NotificationRow,
   PaginatedResponse,
   ProjectAccessResponse,
   RequestRow,
@@ -27,6 +29,7 @@ import type {
   RequestActionType,
   RequestCreateInput,
   UserPreferences,
+  WebhookConfigRow,
   WorkflowRow,
   WorkflowStateRow,
   WorkflowTransitionRow,
@@ -396,6 +399,33 @@ export const followupApi = {
     getJson<UserPreferences>(`/session/preferences?email=${encodeURIComponent(email)}`),
   saveUserPreferences: (email: string, workspaceId: string, selectedProjectIds: string[]) =>
     postJson<UserPreferences>("/session/preferences", { email, workspaceId, selectedProjectIds }),
+  getNotifications: (workspaceId: string, params?: { read?: boolean; page?: number; perPage?: number }) => {
+    const q = new URLSearchParams({ workspaceId });
+    if (params?.read !== undefined) q.set("read", String(params.read));
+    if (params?.page !== undefined) q.set("page", String(params.page));
+    if (params?.perPage !== undefined) q.set("perPage", String(params.perPage));
+    return getJson<PaginatedResponse<NotificationRow>>(`/notifications?${q.toString()}`);
+  },
+  markNotificationRead: (id: string) =>
+    patchJson<{ notification: NotificationRow }>(`/notifications/${id}`, { read: true }),
+  markAllNotificationsRead: (workspaceId: string) =>
+    postJson<{ count: number }>("/notifications/read-all", { workspaceId }),
+  listAutomationRules: (workspaceId: string) =>
+    getJson<{ data: AutomationRuleRow[] }>(`/workspaces/${encodeURIComponent(workspaceId)}/automation-rules`),
+  createAutomationRule: (workspaceId: string, payload: Omit<AutomationRuleRow, "_id" | "workspaceId" | "createdAt" | "updatedAt">) =>
+    postJson<{ rule: AutomationRuleRow }>(`/workspaces/${encodeURIComponent(workspaceId)}/automation-rules`, payload),
+  updateAutomationRule: (id: string, payload: Partial<Pick<AutomationRuleRow, "name" | "enabled" | "trigger" | "actions">>) =>
+    patchJson<{ rule: AutomationRuleRow }>(`/automation-rules/${encodeURIComponent(id)}`, payload),
+  deleteAutomationRule: (id: string) =>
+    deleteJson<{ deleted: boolean }>(`/automation-rules/${encodeURIComponent(id)}`),
+  listWebhookConfigs: (workspaceId: string) =>
+    getJson<{ data: WebhookConfigRow[] }>(`/workspaces/${encodeURIComponent(workspaceId)}/webhook-configs`),
+  createWebhookConfig: (workspaceId: string, payload: Omit<WebhookConfigRow, "_id" | "workspaceId" | "createdAt" | "updatedAt">) =>
+    postJson<{ config: WebhookConfigRow }>(`/workspaces/${encodeURIComponent(workspaceId)}/webhook-configs`, payload),
+  updateWebhookConfig: (id: string, payload: Partial<Pick<WebhookConfigRow, "url" | "secret" | "events" | "enabled">>) =>
+    patchJson<{ config: WebhookConfigRow }>(`/webhook-configs/${encodeURIComponent(id)}`, payload),
+  deleteWebhookConfig: (id: string) =>
+    deleteJson<{ deleted: boolean }>(`/webhook-configs/${encodeURIComponent(id)}`),
   login: (email: string, password: string) =>
     postJson<{
       accessToken: string;
@@ -481,6 +511,27 @@ export const followupApi = {
       validFrom: string;
       validTo?: string;
     }>(`/apartments/${apartmentId}/prices/monthly-rent/${rentId}`, body),
+  getApartmentPriceCalendar: (apartmentId: string, from: string, to: string) =>
+    getJson<Array<{ _id: string; unitId: string; date: string; price: number; minStay?: number; availability?: string }>>(
+      `/apartments/${apartmentId}/prices/calendar?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+    ),
+  upsertApartmentPriceCalendar: (
+    apartmentId: string,
+    body: { date: string; price: number; minStay?: number; availability?: "available" | "blocked" | "reserved" }
+  ) => putJson<{ ok: boolean }>(`/apartments/${apartmentId}/prices/calendar`, body),
+  getPriceAvailabilityMatrix: (workspaceId: string, projectIds: string[], from: string, to: string) =>
+    getJson<{
+      units: Array<{ unitId: string; code: string; name: string; mode?: string }>;
+      dates: string[];
+      cells: Record<string, Record<string, { price?: number; availability?: string; minStay?: number }>>;
+    }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/price-availability?projectIds=${projectIds.map((p) => encodeURIComponent(p)).join(",")}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+    ),
+  patchApartmentInventory: (apartmentId: string, body: { workspaceId: string; inventoryStatus?: "available" | "locked" | "reserved" | "sold" }) =>
+    patchJson<{ _id: string; unitId: string; workspaceId: string; inventoryStatus: string; updatedAt: string }>(
+      `/apartments/${apartmentId}/inventory`,
+      body
+    ),
   unitsImportPreview: (workspaceId: string, projectId: string, fileBase64: string) =>
     postJson<{
       validRows: Array<{ unit_code: string; name?: string; floor?: number; size_m2?: number; price?: number; status?: string }>;

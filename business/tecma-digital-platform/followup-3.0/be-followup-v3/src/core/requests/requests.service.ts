@@ -16,6 +16,8 @@ import {
   forceOtherRequestsOnApartmentToLost,
   setApartmentStatus,
 } from "../workflow/apartment-lock.service.js";
+import { createContract } from "../contracts/contracts.service.js";
+import { setInventoryStatus } from "../inventory/inventory.service.js";
 
 /** Ruolo del cliente rispetto all'immobile (compravendita: venditore vs acquirente). */
 export type ClientRole = "buyer" | "seller" | "tenant" | "landlord";
@@ -511,6 +513,8 @@ export const updateRequestStatus = async (
             now,
           });
           await setApartmentStatus(session, apartmentId, requestType === "sell" ? "SOLD" : "RENTED");
+          await createContract({ requestId: id, unitId: apartmentId, workspaceId, contractType: requestType });
+          await setInventoryStatus(apartmentId, workspaceId, requestType === "sell" ? "sold" : "reserved");
         }
         await createLock(session, {
           workspaceId,

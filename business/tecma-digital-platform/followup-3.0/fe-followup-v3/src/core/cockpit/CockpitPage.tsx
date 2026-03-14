@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, Clock, Euro, Building2, Users, CalendarDays, Home, Handshake } from "lucide-react";
+import { Calendar, Clock, Euro, Building2, Users, CalendarDays, Home, Handshake, UserPlus, CalendarPlus } from "lucide-react";
 import moment from "moment";
 import "moment/locale/it";
 import { followupApi } from "../../api/followupApi";
 import { useWorkspace } from "../../auth/projectScope";
+import { isPriceAvailabilityRelevant } from "../features";
 import type { CalendarEvent } from "../../types/domain";
 import type { AiSuggestion, ProjectAccessProject } from "../../types/domain";
 import { Button } from "../../components/ui/button";
@@ -13,14 +14,15 @@ moment.locale("it");
 
 const BUCKET_BASEURL = import.meta.env.VITE_BUCKET_BASEURL ?? "";
 
-type SectionId = "calendar" | "clients" | "apartments" | "createApartment" | "associateAptClient" | "requests";
+type SectionId = "calendar" | "clients" | "apartments" | "createApartment" | "associateAptClient" | "requests" | "users" | "priceAvailability";
 
 interface CockpitPageProps {
   workspaceId: string;
   projectIds: string[];
   /** Progetti filtrati per workspace (da App). Se non passati, usa useWorkspace().projects */
   projects?: ProjectAccessProject[];
-  onNavigateToSection?: (section: SectionId) => void;
+  onNavigateToSection?: (section: SectionId, state?: object) => void;
+  isAdmin?: boolean;
 }
 
 /** Mappa l'azione alla sezione di destinazione. */
@@ -74,7 +76,7 @@ const suggestionToCard = (s: AiSuggestion): ActionCard => ({
 
 const MAX_PRIORITY_TILES = 8;
 
-export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, onNavigateToSection }: CockpitPageProps) => {
+export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, onNavigateToSection, isAdmin }: CockpitPageProps) => {
   const { email: scopeEmail, projects: scopeProjects } = useWorkspace();
   /** Usa progetti passati da App (filtrati per workspace) se disponibili, altrimenti scope */
   const projects = projectsProp ?? scopeProjects ?? [];
@@ -193,32 +195,59 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
           </div>
         )}
 
-        {/* ── Welcome + link rapidi ─────────────────────────────────────────── */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        {/* ── Welcome + link rapidi e azioni di flusso ──────────────────────── */}
+        <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
             Bentornato, <span className="font-medium text-foreground">{scopeEmail || "Utente"}</span>
           </p>
           {onNavigateToSection && (
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" className="rounded-lg" onClick={() => onNavigateToSection("calendar")}>
-                <Calendar className="mr-1.5 h-3.5 w-3.5" />
-                Calendario
-              </Button>
-              <Button variant="outline" size="sm" className="rounded-lg" onClick={() => onNavigateToSection("requests")}>
-                Trattative
-              </Button>
-              <Button variant="outline" size="sm" className="rounded-lg" onClick={() => onNavigateToSection("clients")}>
-                Clienti
-              </Button>
-              <Button variant="outline" size="sm" className="rounded-lg" onClick={() => onNavigateToSection("apartments")}>
-                <Home className="mr-1.5 h-3.5 w-3.5" />
-                Appartamenti
-              </Button>
-              <Button variant="outline" size="sm" className="rounded-lg" onClick={() => onNavigateToSection("createApartment")}>
-                <Building2 className="mr-1.5 h-3.5 w-3.5" />
-                Crea appartamento
-              </Button>
-            </div>
+            <>
+              <div>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Link rapidi</h3>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" className="rounded-lg" onClick={() => onNavigateToSection("calendar")}>
+                    <Calendar className="mr-1.5 h-3.5 w-3.5" />
+                    Calendario
+                  </Button>
+                  <Button variant="outline" size="sm" className="rounded-lg" onClick={() => onNavigateToSection("requests")}>
+                    Trattative
+                  </Button>
+                  <Button variant="outline" size="sm" className="rounded-lg" onClick={() => onNavigateToSection("clients")}>
+                    Clienti
+                  </Button>
+                  <Button variant="outline" size="sm" className="rounded-lg" onClick={() => onNavigateToSection("apartments")}>
+                    <Home className="mr-1.5 h-3.5 w-3.5" />
+                    Appartamenti
+                  </Button>
+                  <Button variant="outline" size="sm" className="rounded-lg" onClick={() => onNavigateToSection("createApartment")}>
+                    <Building2 className="mr-1.5 h-3.5 w-3.5" />
+                    Crea appartamento
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-foreground">Azioni rapide</h3>
+                <p className="mb-2 text-xs text-muted-foreground">Avvia subito un flusso (form o pannello si apre in automatico).</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" className="rounded-lg" onClick={() => onNavigateToSection("calendar", { openNewEvent: true })}>
+                    <CalendarPlus className="mr-1.5 h-3.5 w-3.5" />
+                    Fissa appuntamento
+                  </Button>
+                  {isAdmin && (
+                    <Button size="sm" className="rounded-lg" onClick={() => onNavigateToSection("users", { openAddUser: true })}>
+                      <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+                      Aggiungi utente
+                    </Button>
+                  )}
+                  {isPriceAvailabilityRelevant(projects, projectIds) && (
+                    <Button size="sm" variant="secondary" className="rounded-lg" onClick={() => onNavigateToSection("priceAvailability")}>
+                      <Euro className="mr-1.5 h-3.5 w-3.5" />
+                      Prezzi e disponibilità
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </>
           )}
         </div>
 

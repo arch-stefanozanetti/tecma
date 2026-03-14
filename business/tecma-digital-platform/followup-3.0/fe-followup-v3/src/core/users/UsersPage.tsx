@@ -3,11 +3,13 @@
  * Sheet dettaglio utente: gestione progetti visibili per workspace.
  */
 import { useCallback, useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { followupApi } from "../../api/followupApi";
-import type { UserWithVisibilityRow } from "../../types/domain";
+import type { UserWithVisibilityRow, WorkspaceRow, WorkspaceUserRole } from "../../types/domain";
 import { useWorkspace } from "../../auth/projectScope";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
+import { Input } from "../../components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../../components/ui/sheet";
 import {
   Select,
@@ -32,6 +34,8 @@ interface EntityAssignmentRow {
 }
 
 export const UsersPage = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { isAdmin } = useWorkspace();
   const [users, setUsers] = useState<UserWithVisibilityRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,6 +48,14 @@ export const UsersPage = () => {
   const [addSelectValueByWorkspace, setAddSelectValueByWorkspace] = useState<Record<string, string>>({});
   const [entityAssignmentsByWorkspace, setEntityAssignmentsByWorkspace] = useState<Record<string, EntityAssignmentRow[]>>({});
   const [savingAssignment, setSavingAssignment] = useState<string | null>(null);
+  const [addUserOpen, setAddUserOpen] = useState(false);
+  const [workspaces, setWorkspaces] = useState<WorkspaceRow[]>([]);
+  const [addUserWorkspaceId, setAddUserWorkspaceId] = useState("");
+  const [addUserEmail, setAddUserEmail] = useState("");
+  const [addUserRole, setAddUserRole] = useState<WorkspaceUserRole>("vendor");
+  const [addUserSaving, setAddUserSaving] = useState(false);
+  const [addUserError, setAddUserError] = useState<string | null>(null);
+  const [savingRoleWorkspaceId, setSavingRoleWorkspaceId] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -57,6 +69,19 @@ export const UsersPage = () => {
 
   useEffect(() => {
     load();
+  }, []);
+
+  useEffect(() => {
+    const state = location.state as { openAddUser?: boolean } | null;
+    if (state?.openAddUser) {
+      setAddUserOpen(true);
+      setAddUserError(null);
+      setAddUserEmail("");
+      setAddUserWorkspaceId("");
+      setAddUserRole("vendor");
+      followupApi.listWorkspaces().then((list) => setWorkspaces(Array.isArray(list) ? list : [])).catch(() => setWorkspaces([]));
+      navigate(location.pathname + location.search, { replace: true, state: {} });
+    }
   }, []);
 
   const loadUserDetail = useCallback((user: UserWithVisibilityRow) => {
@@ -207,7 +232,10 @@ export const UsersPage = () => {
         </p>
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button size="sm" onClick={() => { setAddUserOpen(true); setAddUserError(null); setAddUserEmail(""); setAddUserWorkspaceId(""); setAddUserRole("vendor"); followupApi.listWorkspaces().then((list) => setWorkspaces(Array.isArray(list) ? list : [])).catch(() => setWorkspaces([])); }}>
+          Aggiungi utente (a workspace)
+        </Button>
         <Button variant="outline" size="sm" onClick={load} disabled={loading}>
           Ricarica
         </Button>
@@ -278,6 +306,78 @@ export const UsersPage = () => {
         </div>
       )}
 
+      <Sheet open={addUserOpen} onOpenChange={setAddUserOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Aggiungi utente a workspace</SheetTitle>
+          </SheetHeader>
+          <div className="mt-4 space-y-4">
+            <div>
+              <label className="text-sm font-medium text-foreground block mb-1">Workspace</label>
+              <Select value={addUserWorkspaceId} onValueChange={setAddUserWorkspaceId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Seleziona workspace" />
+                </SelectTrigger>
+                <SelectContent>
+                  {workspaces.map((w) => (
+                    <SelectItem key={w._id} value={w._id}>
+                      {w.name || w._id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground block mb-1">Email (userId)</label>
+              <Input
+                type="email"
+                value={addUserEmail}
+                onChange={(e) => setAddUserEmail(e.target.value.trim().toLowerCase())}
+                placeholder="es. mario.rossi@azienda.it"
+                className="w-full"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground block mb-1">Ruolo</label>
+              <Select value={addUserRole} onValueChange={(v) => setAddUserRole(v as WorkspaceUserRole)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="vendor">Vendor</SelectItem>
+                  <SelectItem value="vendor_manager">Vendor manager</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {addUserError && <p className="text-sm text-destructive">{addUserError}</p>}
+            <div className="flex gap-2">
+              <Button
+                disabled={!addUserWorkspaceId || !addUserEmail.trim() || addUserSaving}
+                onClick={async () => {
+                  setAddUserSaving(true);
+                  setAddUserError(null);
+                  try {
+                    await followupApi.addWorkspaceUser(addUserWorkspaceId, { userId: addUserEmail.trim(), role: addUserRole });
+                    load();
+                    setAddUserOpen(false);
+                  } catch (e) {
+                    setAddUserError(e instanceof Error ? e.message : "Errore aggiunta utente");
+                  } finally {
+                    setAddUserSaving(false);
+                  }
+                }}
+              >
+                {addUserSaving ? "Aggiunta..." : "Aggiungi"}
+              </Button>
+              <Button variant="outline" onClick={() => setAddUserOpen(false)}>
+                Annulla
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
       <Sheet open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
         <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
           <SheetHeader>
@@ -286,14 +386,39 @@ export const UsersPage = () => {
           {selectedUser && (
             <div className="mt-4 space-y-6">
               <div>
-                <h3 className="text-sm font-semibold text-foreground mb-2">Workspace e ruoli</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-2">Ruolo per workspace</h3>
                 {selectedUser.workspaces.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nessun workspace.</p>
                 ) : (
-                  <ul className="flex flex-wrap gap-1">
+                  <ul className="space-y-2">
                     {selectedUser.workspaces.map((w) => (
-                      <li key={w.workspaceId}>
-                        <Badge variant="outline">{w.workspaceName} ({w.role})</Badge>
+                      <li key={w.workspaceId} className="flex items-center justify-between gap-2 rounded-md bg-muted/50 px-3 py-2">
+                        <span className="text-sm font-medium text-foreground">{w.workspaceName}</span>
+                        <Select
+                          value={w.role}
+                          onValueChange={async (newRole) => {
+                            setSavingRoleWorkspaceId(w.workspaceId);
+                            try {
+                              await followupApi.updateWorkspaceUser(w.workspaceId, selectedUser.email, { role: newRole as WorkspaceUserRole });
+                              setSelectedUser((u) => (u ? { ...u, workspaces: u.workspaces.map((x) => (x.workspaceId === w.workspaceId ? { ...x, role: newRole } : x)) } : null));
+                              load();
+                            } catch {
+                              window.alert("Errore aggiornamento ruolo");
+                            } finally {
+                              setSavingRoleWorkspaceId(null);
+                            }
+                          }}
+                          disabled={savingRoleWorkspaceId !== null}
+                        >
+                          <SelectTrigger className="w-36 h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="vendor">Vendor</SelectItem>
+                            <SelectItem value="vendor_manager">Vendor manager</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </li>
                     ))}
                   </ul>

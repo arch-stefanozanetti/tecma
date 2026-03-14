@@ -1,5 +1,6 @@
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { Routes, Route, useLocation, useSearchParams, useNavigate } from "react-router-dom";
+import { Routes, Route, useLocation, useSearchParams, useNavigate, Navigate } from "react-router-dom";
 import { clearProjectScope, loadProjectScope, updateSelectedProjectIds, updateWorkspaceId } from "./auth/projectScope";
 import { followupApi } from "./api/followupApi";
 import { PageTemplate } from "./core/shared/PageTemplate";
@@ -27,10 +28,12 @@ import { UsersPage } from "./core/users/UsersPage";
 import { ProjectDetailPage } from "./core/projects/ProjectDetailPage";
 import { AuditLogPage } from "./core/audit/AuditLogPage";
 import { ReportsPage } from "./core/reports/ReportsPage";
+import { PriceAvailabilityPage } from "./core/prices/PriceAvailabilityPage";
 import { ReleasesPage } from "./core/releases/ReleasesPage";
 import { IntegrationsPage } from "./core/integrations/IntegrationsPage";
 import { ProjectsPage } from "./core/projects/ProjectsPage";
-import { isSectionEnabledByFeature } from "./core/features";
+import { isSectionEnabledByFeature, isPriceAvailabilityRelevant } from "./core/features";
+import { CommandPalette } from "./core/shared/CommandPalette";
 import type { ProjectAccessProject } from "./types/domain";
 
 type Section =
@@ -54,17 +57,19 @@ type Section =
   | "audit"
   | "reports"
   | "releases"
-  | "integrations";
+  | "integrations"
+  | "priceAvailability";
 
 const renderSection = (
   section: Section,
   workspaceId: string,
   projectIds: string[],
-  onSectionChange: (s: Section) => void,
+  onSectionChange: (s: Section, state?: object) => void,
   projectsForCockpit?: ProjectAccessProject[],
   enabledFeatures?: string[],
-  location?: { state?: unknown }
-) => {
+  location?: { state?: unknown },
+  isAdmin?: boolean
+): ReactNode => {
   if (!isSectionEnabledByFeature(section, enabledFeatures)) {
     return (
       <PageSimple title="Funzionalità non disponibile" description="Questa funzionalità non è abilitata per il workspace corrente.">
@@ -80,6 +85,7 @@ const renderSection = (
           projectIds={projectIds}
           projects={projectsForCockpit}
           onNavigateToSection={onSectionChange}
+          isAdmin={isAdmin ?? false}
         />
       </PageSimple>
     );
@@ -210,6 +216,26 @@ const renderSection = (
     );
   }
 
+  if (section === "priceAvailability") {
+    if (!isPriceAvailabilityRelevant(projectsForCockpit ?? [], projectIds)) {
+      return (
+        <PageSimple
+          title="Prezzi e disponibilità"
+          description="In contesto vendita questa vista non è disponibile. Usa il Calendario per appuntamenti e scadenze."
+        >
+          <p className="text-sm text-muted-foreground">
+            La matrice prezzi e disponibilità per data è pensata per l’affitto. Per le unità in vendita puoi usare il <strong>Calendario</strong> per gestire appuntamenti e scadenze.
+          </p>
+        </PageSimple>
+      );
+    }
+    return (
+      <PageSimple title="Prezzi e disponibilità" description="Calendario listini e disponibilità per data, stile backoffice. Clicca su una cella per modificare prezzo e disponibilità.">
+        <PriceAvailabilityPage />
+      </PageSimple>
+    );
+  }
+
   if (section === "releases") {
     return (
       <PageSimple title="Release e novità" description="Cronologia release con nuove funzionalità, correzioni e breaking change.">
@@ -219,7 +245,7 @@ const renderSection = (
   }
 
   if (section === "integrations") {
-    return <IntegrationsPage />;
+    return <IntegrationsPage workspaceId={workspaceId} />;
   }
 
   if (section === "projects") {
@@ -235,7 +261,7 @@ const renderSection = (
 const SECTIONS: Section[] = [
   "cockpit", "calendar", "clients", "apartments", "requests", "projects",
   "createApartment", "createApartmentHC", "editApartmentHC", "associateAptClient",
-  "completeFlow", "catalogHC", "templateConfig", "aiApprovals", "workflowConfig", "workspaces", "users", "audit", "reports", "releases", "integrations",
+  "completeFlow", "catalogHC", "templateConfig", "aiApprovals", "workflowConfig", "workspaces", "users", "audit", "reports", "releases", "integrations", "priceAvailability",
 ];
 
 /** Path puliti per le sezioni principali; le altre restano ?section=X */
@@ -253,6 +279,7 @@ const SECTION_TO_PATH: Partial<Record<Section, string>> = {
   reports: "/reports",
   releases: "/releases",
   integrations: "/integrations",
+  priceAvailability: "/prices",
 };
 const PATH_TO_SECTION: Record<string, Section> = Object.fromEntries(
   (Object.entries(SECTION_TO_PATH) as [Section, string][]).map(([s, p]) => [p, s])
@@ -265,11 +292,27 @@ export const App = () => {
   const [accessVersion, setAccessVersion] = useState(0);
   const [workspaceProjectIds, setWorkspaceProjectIds] = useState<string[] | null>(null);
   const [workspaceFeatures, setWorkspaceFeatures] = useState<string[] | undefined>(undefined);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const pathname = location.pathname;
   const projectScope = useMemo(() => loadProjectScope(), [accessVersion]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        if (pathname.includes("/login")) return;
+        if (typeof window !== "undefined" && window.sessionStorage.getItem("followup3.accessToken") == null) return;
+        const scope = loadProjectScope();
+        if (!scope || (scope.selectedProjectIds?.length ?? 0) === 0) return;
+        setCommandPaletteOpen(true);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [pathname]);
 
   // Carica progetti del workspace quando è un tz_workspace (per filtrare)
   useEffect(() => {
@@ -310,14 +353,17 @@ export const App = () => {
       setSection("projects");
       return;
     }
+    if (pathname === "/" || pathname === "") {
+      const q = searchParams.get("section");
+      if (q && SECTIONS.includes(q as Section)) {
+        setSection(q as Section);
+        return;
+      }
+    }
     const fromPath = PATH_TO_SECTION[pathname];
     if (fromPath) {
       setSection(fromPath);
       return;
-    }
-    if (pathname === "/" || pathname === "") {
-      const q = searchParams.get("section");
-      if (q && SECTIONS.includes(q as Section)) setSection(q as Section);
     }
   }, [pathname, searchParams]);
 
@@ -353,12 +399,13 @@ export const App = () => {
     setAccessVersion((v) => v + 1);
   }, [isTzWorkspaceRef, filteredSelectedRef.length, filteredProjectsRef, projectScopeRef?.email, projectScopeRef?.workspaceId]);
 
-  // Click su voce di menu: path pulito quando esiste, altrimenti ?section=X
-  const onSectionChange = (s: Section) => {
+  // Click su voce di menu: path pulito quando esiste, altrimenti ?section=X. state per shortcut di flusso (es. apri drawer).
+  const onSectionChange = (s: Section, state?: object) => {
     setSection(s);
     const path = SECTION_TO_PATH[s];
-    if (path) navigate(path);
-    else navigate(`/?section=${s}`);
+    const navState = state ?? {};
+    if (path) navigate(path, { state: navState });
+    else navigate(`/?section=${s}`, { state: navState });
   };
 
   if (pathname.includes("/login")) {
@@ -428,6 +475,7 @@ export const App = () => {
       updateSelectedProjectIds(ids);
       setAccessVersion((v) => v + 1);
     },
+    navigate,
   };
 
   // Wrapper con key per forzare unmount/remount al cambio sezione (evita "more hooks" su stesso componente).
@@ -439,14 +487,31 @@ export const App = () => {
     section,
     projectScope.workspaceId ?? "",
     effectiveProjectIds,
-    setSection,
+    onSectionChange,
     filteredProjects,
     workspaceFeatures,
-    location
+    location,
+    projectScope.isAdmin ?? false
   );
 
   return (
-    <Routes>
+    <>
+      <CommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        onSelectSection={(s) => {
+          onSectionChange(s);
+          setCommandPaletteOpen(false);
+        }}
+        navigate={navigate}
+        workspaceId={projectScope.workspaceId ?? ""}
+        projectIds={effectiveProjectIds}
+        enabledFeatures={workspaceFeatures}
+        isAdmin={projectScope.isAdmin ?? false}
+        projects={filteredProjects}
+        selectedProjectIds={filteredSelected}
+      />
+      <Routes>
       <Route
         path="/clients/:clientId"
         element={
@@ -471,6 +536,7 @@ export const App = () => {
           </PageTemplate>
         }
       />
+      <Route path="/automations" element={<Navigate to="/integrations?tab=regole" replace />} />
       <Route
         path="/*"
         element={
@@ -482,5 +548,6 @@ export const App = () => {
         }
       />
     </Routes>
+    </>
   );
 };

@@ -6,8 +6,10 @@ import { queryApartments } from "../core/apartments/apartments.service.js";
 import { getCurrentPriceForUnit } from "../core/unit-pricing/unit-pricing.service.js";
 import { listSalePricesByUnitId, createSalePrice, updateSalePrice } from "../core/sale-prices/sale-prices.service.js";
 import { listMonthlyRentsByUnitId, createMonthlyRent, updateMonthlyRent } from "../core/monthly-rents/monthly-rents.service.js";
-import { getInventoryByUnitId } from "../core/inventory/inventory.service.js";
+import { getInventoryByUnitId, setInventoryStatus } from "../core/inventory/inventory.service.js";
 import { getActiveLockForApartment } from "../core/workflow/apartment-lock.service.js";
+import { listPriceCalendarByUnitAndRange, upsertPriceCalendarEntry } from "../core/price-calendar/price-calendar.service.js";
+import { getPriceAvailabilityMatrix } from "../core/price-availability-matrix/price-availability-matrix.service.js";
 import {
   parseExcelBuffer,
   validateRows,
@@ -116,6 +118,26 @@ import { handleAsync, sendError } from "./asyncHandler.js";
 import { requireAuth, requireAdmin } from "./authMiddleware.js";
 import { authRateLimiter, publicApiRateLimiter } from "./rateLimitMiddleware.js";
 import { record as auditRecord, queryAuditLog } from "../core/audit/audit-log.service.js";
+import {
+  queryNotifications,
+  markRead as markNotificationRead,
+  markAllRead as markAllNotificationsRead,
+} from "../core/notifications/notifications.service.js";
+import { dispatchEvent } from "../core/automations/automation-events.service.js";
+import {
+  listByWorkspace as listAutomationRules,
+  create as createAutomationRule,
+  getById as getAutomationRuleById,
+  update as updateAutomationRule,
+  remove as removeAutomationRule,
+} from "../core/automations/automation-rules.service.js";
+import {
+  listByWorkspace as listWebhookConfigs,
+  create as createWebhookConfig,
+  getById as getWebhookConfigById,
+  update as updateWebhookConfig,
+  remove as removeWebhookConfig,
+} from "../core/automations/webhook-configs.service.js";
 import { runReport } from "../core/reports/reports.service.js";
 
 export const v1Router = Router();
@@ -214,14 +236,21 @@ v1Router.get(
 );
 v1Router.post("/clients", handleAsync(async (req) => {
   const result = await createClient(req.body);
+  const workspaceId = req.body.workspaceId as string;
   auditRecord({
     action: "client.created",
-    workspaceId: req.body.workspaceId,
+    workspaceId,
     projectId: req.body.projectId,
     entityType: "client",
     entityId: result.client._id,
     actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
     payload: { fullName: result.client.fullName },
+  }).catch(() => {});
+  dispatchEvent(workspaceId, "client.created", {
+    workspaceId,
+    projectId: req.body.projectId,
+    entityType: "client",
+    entityId: result.client._id,
   }).catch(() => {});
   return result;
 }));
@@ -288,15 +317,23 @@ v1Router.delete("/requests/actions/:id", handleAsync((req) => deleteRequestActio
 v1Router.get("/requests/:id", handleAsync((req) => getRequestById(req.params.id)));
 v1Router.post("/requests", handleAsync(async (req) => {
   const result = await createRequest(req.body);
-  if (result?.request?._id && req.body.workspaceId) {
+  const workspaceId = req.body.workspaceId as string | undefined;
+  if (result?.request?._id && workspaceId) {
     auditRecord({
       action: "request.created",
-      workspaceId: req.body.workspaceId,
+      workspaceId,
       projectId: req.body.projectId,
       entityType: "request",
       entityId: result.request._id,
       actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
       payload: { status: result.request.status },
+    }).catch(() => {});
+    dispatchEvent(workspaceId, "request.created", {
+      workspaceId,
+      projectId: req.body.projectId,
+      entityType: "request",
+      entityId: result.request._id,
+      toStatus: result.request.status,
     }).catch(() => {});
   }
   return result;
@@ -305,15 +342,23 @@ v1Router.patch("/requests/:id/status", handleAsync(async (req) => {
   const result = await updateRequestStatus(req.params.id, req.body, { userId: req.user?.sub });
   if (req.body.status) {
     const reqDoc = await getRequestById(req.params.id).catch(() => null);
-    if (reqDoc?.request?.workspaceId) {
+    const workspaceId = reqDoc?.request?.workspaceId;
+    if (workspaceId) {
       auditRecord({
         action: "request.status_changed",
-        workspaceId: reqDoc.request.workspaceId,
+        workspaceId,
         projectId: reqDoc.request.projectId,
         entityType: "request",
         entityId: req.params.id,
         actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
         payload: { toStatus: req.body.status, reason: req.body.reason },
+      }).catch(() => {});
+      dispatchEvent(workspaceId, "request.status_changed", {
+        workspaceId,
+        projectId: reqDoc.request.projectId,
+        entityType: "request",
+        entityId: req.params.id,
+        toStatus: req.body.status,
       }).catch(() => {});
     }
   }
@@ -355,6 +400,79 @@ v1Router.post("/session/preferences", handleAsync(async (req) => {
     selectedProjectIds: prefs.selectedProjectIds,
     updatedAt: prefs.updatedAt
   };
+}));
+
+v1Router.get("/notifications", handleAsync(async (req) => {
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";
+  if (!workspaceId) throw new HttpError("workspaceId query required", 400);
+  const read = req.query.read === "true" ? true : req.query.read === "false" ? false : undefined;
+  const page = typeof req.query.page === "string" ? parseInt(req.query.page, 10) : 1;
+  const perPage = typeof req.query.perPage === "string" ? parseInt(req.query.perPage, 10) : 25;
+  return queryNotifications(workspaceId, {
+    read,
+    page: Number.isNaN(page) ? 1 : page,
+    perPage: Number.isNaN(perPage) ? 25 : Math.min(200, perPage),
+  });
+}));
+v1Router.patch("/notifications/:id", handleAsync(async (req) => {
+  const notification = await markNotificationRead(req.params.id);
+  if (!notification) throw new HttpError("Notification not found", 404);
+  return { notification };
+}));
+v1Router.post("/notifications/read-all", handleAsync(async (req) => {
+  const body = z.object({ workspaceId: z.string().min(1) }).parse(req.body);
+  const count = await markAllNotificationsRead(body.workspaceId);
+  return { count };
+}));
+
+v1Router.get("/workspaces/:workspaceId/automation-rules", handleAsync(async (req) => {
+  const rules = await listAutomationRules(req.params.workspaceId);
+  return { data: rules };
+}));
+v1Router.post("/workspaces/:workspaceId/automation-rules", handleAsync(async (req) => {
+  const body = z.record(z.unknown()).parse(req.body);
+  const rule = await createAutomationRule({ ...body, workspaceId: req.params.workspaceId });
+  return { rule };
+}));
+v1Router.get("/automation-rules/:id", handleAsync(async (req) => {
+  const rule = await getAutomationRuleById(req.params.id);
+  if (!rule) throw new HttpError("Rule not found", 404);
+  return { rule };
+}));
+v1Router.patch("/automation-rules/:id", handleAsync(async (req) => {
+  const rule = await updateAutomationRule(req.params.id, req.body);
+  if (!rule) throw new HttpError("Rule not found", 404);
+  return { rule };
+}));
+v1Router.delete("/automation-rules/:id", handleAsync(async (req) => {
+  const ok = await removeAutomationRule(req.params.id);
+  if (!ok) throw new HttpError("Rule not found", 404);
+  return { deleted: true };
+}));
+
+v1Router.get("/workspaces/:workspaceId/webhook-configs", handleAsync(async (req) => {
+  const configs = await listWebhookConfigs(req.params.workspaceId);
+  return { data: configs };
+}));
+v1Router.post("/workspaces/:workspaceId/webhook-configs", handleAsync(async (req) => {
+  const body = z.record(z.unknown()).parse(req.body);
+  const config = await createWebhookConfig({ ...body, workspaceId: req.params.workspaceId });
+  return { config };
+}));
+v1Router.get("/webhook-configs/:id", handleAsync(async (req) => {
+  const config = await getWebhookConfigById(req.params.id);
+  if (!config) throw new HttpError("Webhook config not found", 404);
+  return { config };
+}));
+v1Router.patch("/webhook-configs/:id", handleAsync(async (req) => {
+  const config = await updateWebhookConfig(req.params.id, req.body);
+  if (!config) throw new HttpError("Webhook config not found", 404);
+  return { config };
+}));
+v1Router.delete("/webhook-configs/:id", handleAsync(async (req) => {
+  const ok = await removeWebhookConfig(req.params.id);
+  if (!ok) throw new HttpError("Webhook config not found", 404);
+  return { deleted: true };
 }));
 
 v1Router.post("/apartments", handleAsync(async (req) => {
@@ -410,6 +528,13 @@ v1Router.get("/apartments/:id/inventory", handleAsync(async (req) => {
     effectiveStatus,
   };
 }));
+v1Router.patch("/apartments/:id/inventory", handleAsync(async (req) => {
+  const unitId = req.params.id;
+  const body = req.body as { workspaceId?: string; inventoryStatus?: "available" | "locked" | "reserved" | "sold" };
+  if (!body.workspaceId) throw new HttpError("workspaceId required", 400);
+  const status = body.inventoryStatus ?? "available";
+  return setInventoryStatus(unitId, body.workspaceId, status);
+}));
 v1Router.post("/apartments/:id/prices/sale", handleAsync(async (req) => {
   const unitId = req.params.id;
   const body = req.body as { workspaceId: string; price: number; currency?: string; validFrom?: string; validTo?: string };
@@ -452,6 +577,26 @@ v1Router.patch("/apartments/:id/prices/monthly-rent/:rentId", handleAsync(async 
     pricePerMonth: body.pricePerMonth,
     deposit: body.deposit,
   });
+}));
+v1Router.get("/apartments/:id/prices/calendar", handleAsync(async (req) => {
+  const unitId = req.params.id;
+  const from = (req.query.from as string) ?? "";
+  const to = (req.query.to as string) ?? "";
+  if (!from || !to) throw new HttpError("query from and to (YYYY-MM-DD) required", 400);
+  return listPriceCalendarByUnitAndRange(unitId, from, to);
+}));
+v1Router.put("/apartments/:id/prices/calendar", handleAsync(async (req) => {
+  const unitId = req.params.id;
+  const body = req.body as { date: string; price: number; minStay?: number; availability?: "available" | "blocked" | "reserved" };
+  if (!body.date || typeof body.price !== "number") throw new HttpError("date and price required", 400);
+  await upsertPriceCalendarEntry({
+    unitId,
+    date: body.date,
+    price: body.price,
+    minStay: body.minStay,
+    availability: body.availability,
+  });
+  return { ok: true };
 }));
 v1Router.post("/workspaces/:workspaceId/projects/:projectId/units/import/preview", requireAdmin, handleAsync(async (req) => {
   const workspaceId = req.params.workspaceId;
@@ -719,6 +864,16 @@ v1Router.delete("/workspaces/:id/users/:userId/projects/:projectId", requireAdmi
 v1Router.get("/workspaces/:id/projects", handleAsync((req) =>
   listWorkspaceProjects(req.params.id).then((rows) => ({ data: rows }))
 ));
+v1Router.get("/workspaces/:workspaceId/price-availability", handleAsync(async (req) => {
+  const workspaceId = req.params.workspaceId;
+  const projectIdsRaw = req.query.projectIds;
+  const projectIds = typeof projectIdsRaw === "string" ? projectIdsRaw.split(",").map((p) => p.trim()).filter(Boolean) : [];
+  const from = (req.query.from as string) ?? "";
+  const to = (req.query.to as string) ?? "";
+  if (!from || !to) throw new HttpError("query from and to (YYYY-MM-DD) required", 400);
+  if (projectIds.length === 0) throw new HttpError("projectIds required (comma-separated)", 400);
+  return getPriceAvailabilityMatrix(workspaceId, projectIds, from, to);
+}));
 v1Router.get("/workspaces/:workspaceId/entities/:entityType/:entityId/assignments", handleAsync(async (req) => {
   const entityType = typeof req.params.entityType === "string" ? req.params.entityType : "";
   const entityId = typeof req.params.entityId === "string" ? decodeURIComponent(req.params.entityId) : "";

@@ -20,6 +20,7 @@ import {
 import { cn } from "../../lib/utils";
 import { MatchingCandidatesList } from "../../components/MatchingCandidatesList";
 import { useWorkflowConfig } from "../../hooks/useWorkflowConfig";
+import { PriceAvailabilityGrid, type MatrixUnit, type MatrixCell } from "../prices/PriceAvailabilityGrid";
 
 const STATUS_FILTER_OPTIONS: { value: ApartmentRow["status"]; label: string }[] = [
   { value: "AVAILABLE", label: "Disponibile" },
@@ -105,11 +106,85 @@ export const ApartmentDetailPage = () => {
   const [editMonthlyRentForm, setEditMonthlyRentForm] = useState({ pricePerMonth: "", deposit: "", validTo: "" });
   const [editPriceSaving, setEditPriceSaving] = useState(false);
   const [editPriceError, setEditPriceError] = useState<string | null>(null);
+  const [priceCalendarFrom, setPriceCalendarFrom] = useState(() => {
+    const d = new Date();
+    return d.toISOString().split("T")[0];
+  });
+  const [priceCalendarTo, setPriceCalendarTo] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().split("T")[0];
+  });
+  const [priceCalendarEntries, setPriceCalendarEntries] = useState<Array<{ _id: string; date: string; price: number; minStay?: number; availability?: string }>>([]);
+  const [priceCalendarLoading, setPriceCalendarLoading] = useState(false);
+  const [priceCalendarError, setPriceCalendarError] = useState<string | null>(null);
+  const [calendarEntryDate, setCalendarEntryDate] = useState("");
+  const [calendarEntryPrice, setCalendarEntryPrice] = useState("");
+  const [calendarEntrySaving, setCalendarEntrySaving] = useState(false);
+  const [matrixUnits, setMatrixUnits] = useState<MatrixUnit[]>([]);
+  const [matrixDates, setMatrixDates] = useState<string[]>([]);
+  const [matrixCells, setMatrixCells] = useState<Record<string, Record<string, MatrixCell>>>({});
 
   const refetchPrices = useCallback(() => {
     if (!apartmentId) return;
     followupApi.getApartmentPrices(apartmentId).then(setPrices).catch(() => setPrices(null));
   }, [apartmentId]);
+
+  const loadPriceCalendar = useCallback(() => {
+    if (!apartmentId || !priceCalendarFrom || !priceCalendarTo) return;
+    setPriceCalendarLoading(true);
+    setPriceCalendarError(null);
+    followupApi
+      .getApartmentPriceCalendar(apartmentId, priceCalendarFrom, priceCalendarTo)
+      .then((data) => setPriceCalendarEntries(Array.isArray(data) ? data : []))
+      .catch((err) => {
+        setPriceCalendarError(err instanceof Error ? err.message : "Errore caricamento calendario");
+        setPriceCalendarEntries([]);
+      })
+      .finally(() => setPriceCalendarLoading(false));
+  }, [apartmentId, priceCalendarFrom, priceCalendarTo]);
+
+  const loadPriceMatrix = useCallback(() => {
+    if (!workspaceId || !apartment?.projectId || !apartmentId || !priceCalendarFrom || !priceCalendarTo) return;
+    setPriceCalendarLoading(true);
+    setPriceCalendarError(null);
+    followupApi
+      .getPriceAvailabilityMatrix(workspaceId, [apartment.projectId], priceCalendarFrom, priceCalendarTo)
+      .then((res) => {
+        const units = (res.units ?? []).filter((u) => String(u.unitId) === String(apartmentId));
+        setMatrixUnits(units);
+        setMatrixDates(res.dates ?? []);
+        setMatrixCells(res.cells ?? {});
+      })
+      .catch((err) => {
+        setPriceCalendarError(err instanceof Error ? err.message : "Errore caricamento calendario");
+        setMatrixUnits([]);
+        setMatrixDates([]);
+        setMatrixCells({});
+      })
+      .finally(() => setPriceCalendarLoading(false));
+  }, [workspaceId, apartment?.projectId, apartmentId, priceCalendarFrom, priceCalendarTo]);
+
+  useEffect(() => {
+    if (
+      apartment?.mode !== "RENT" ||
+      !workspaceId ||
+      !apartment?.projectId ||
+      !apartmentId ||
+      !priceCalendarFrom ||
+      !priceCalendarTo
+    )
+      return;
+    loadPriceMatrix();
+  }, [
+    apartment?.mode,
+    workspaceId,
+    apartment?.projectId,
+    apartmentId,
+    priceCalendarFrom,
+    priceCalendarTo,
+    loadPriceMatrix,
+  ]);
 
   useEffect(() => {
     if (!apartmentId) return;
@@ -482,7 +557,10 @@ export const ApartmentDetailPage = () => {
             </div>
 
             <div className="space-y-4 rounded-lg border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-foreground">Stato e modalità</h2>
+              <h2 className="text-sm font-semibold text-foreground">Disponibilità</h2>
+              <p className="text-xs text-muted-foreground">
+                Stato dell’unità: Disponibile, Riservato, Venduto, Affittato. Puoi modificarlo per aggiornare la visibilità.
+              </p>
               <div className="space-y-3 text-sm">
                 <div>
                   <span className="text-muted-foreground">Stato</span>
@@ -492,7 +570,16 @@ export const ApartmentDetailPage = () => {
                   <span className="text-muted-foreground">Modalità</span>
                   <p className="font-medium text-foreground">{MODE_LABEL[apartment.mode]}</p>
                 </div>
+                {inventory && (
+                  <div>
+                    <span className="text-muted-foreground">Stato inventory</span>
+                    <p className="font-medium text-foreground">{inventoryStatusLabel}</p>
+                  </div>
+                )}
               </div>
+              <Button type="button" variant="outline" size="sm" onClick={() => setEditApartmentOpen(true)}>
+                Modifica stato
+              </Button>
             </div>
 
             <div className="space-y-4 rounded-lg border border-border bg-card p-4 sm:col-span-2">
@@ -640,6 +727,60 @@ export const ApartmentDetailPage = () => {
                   )}
                 </div>
               </div>
+
+            {apartment?.mode === "RENT" && (
+              <div className="space-y-4 rounded-lg border border-border bg-card p-4 sm:col-span-2">
+                <h2 className="text-sm font-semibold text-foreground">Prezzi per data</h2>
+                <p className="text-xs text-muted-foreground">
+                  Calendario prezzi e disponibilità (short stay). Scegli il periodo, carica la griglia e clicca su una cella per modificare prezzo e disponibilità.
+                </p>
+                <div className="flex flex-wrap items-end gap-2">
+                  <div>
+                    <label className="text-xs font-medium text-foreground block mb-1">Da</label>
+                    <Input
+                      type="date"
+                      className="h-8 w-36"
+                      value={priceCalendarFrom}
+                      onChange={(e) => setPriceCalendarFrom(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-foreground block mb-1">A</label>
+                    <Input
+                      type="date"
+                      className="h-8 w-36"
+                      value={priceCalendarTo}
+                      onChange={(e) => setPriceCalendarTo(e.target.value)}
+                    />
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={loadPriceMatrix} disabled={priceCalendarLoading}>
+                    {priceCalendarLoading ? "Caricamento..." : "Carica calendario"}
+                  </Button>
+                </div>
+                {priceCalendarError && <p className="text-sm text-destructive">{priceCalendarError}</p>}
+                {priceCalendarLoading && matrixUnits.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Caricamento calendario...</p>
+                ) : matrixUnits.length > 0 ? (
+                  <div className="space-y-3">
+                    <PriceAvailabilityGrid
+                      units={matrixUnits}
+                      dates={matrixDates}
+                      cells={matrixCells}
+                      onSave={async (unitId, date, payload) => {
+                        await followupApi.upsertApartmentPriceCalendar(unitId, { date, ...payload });
+                      }}
+                      onRefresh={loadPriceMatrix}
+                      showLegend
+                      compact={false}
+                    />
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Nessun dato calendario per questo periodo. Verifica le date o riprova.
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Drawer Aggiungi prezzo vendita */}
             <Drawer open={addSalePriceOpen} onOpenChange={setAddSalePriceOpen}>

@@ -34,6 +34,66 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.12.0",
+    date: "2026-03-10",
+    title: "Integrazioni e automazioni funzionanti — Notifiche, Regole, Webhook",
+    releaseType: "minor",
+    changes: [
+      {
+        type: "feature",
+        text: "Notifiche backend: collection tz_notifications, API GET/PATCH/POST notifiche; Inbox funziona end-to-end con dati reali.",
+      },
+      {
+        type: "feature",
+        text: "Regole di automazione: CRUD backend (tz_automation_rules), dispatch eventi su request.created, request.status_changed, client.created; azione crea notifica; tab Regole con lista e drawer crea/modifica.",
+      },
+      {
+        type: "feature",
+        text: "Webhook: CRUD backend (tz_webhook_configs), invio payload su eventi con retry e firma HMAC; tab Webhook con lista e drawer crea/modifica.",
+      },
+    ],
+  },
+  {
+    version: "0.11.0",
+    date: "2026-03-10",
+    title: "CRM nuovo millennio — Inbox, Customer 360, Automazioni",
+    releaseType: "minor",
+    changes: [
+      {
+        type: "feature",
+        text: "Inbox: icona campanella in header con badge non letti; drawer notifiche con lista, link e azione \"Segna tutti come letti\". API GET /notifications collegata (v. 0.12.0).",
+      },
+      {
+        type: "feature",
+        text: "Customer 360: nella scheda cliente nuova sezione Timeline unificata (richieste, azioni trattative, eventi calendario) ordinata per data.",
+      },
+      {
+        type: "feature",
+        text: "Automazioni e API: pagina placeholder in Strumenti per regole if/then e webhook; documentazione API pubbliche in docs.",
+      },
+      {
+        type: "improvement",
+        text: "Integrazioni e automazioni unificate: una sola voce di menu e route /integrations con tab Connettori | Regole | Webhook | API; redirect da /automations a /integrations?tab=regole.",
+      },
+    ],
+  },
+  {
+    version: "0.10.0",
+    date: "2026-03-09",
+    title: "CRM nuovo millennio Wave 1 — Ricerca globale e preferenze UX",
+    releaseType: "minor",
+    changes: [
+      {
+        type: "feature",
+        text: "Command palette (Cmd/Ctrl+K): ricerca su clienti, appartamenti e trattative oltre alla navigazione tra sezioni; navigazione diretta al dettaglio da risultato.",
+      },
+      {
+        type: "feature",
+        text: "Preferenze UX: stato sidebar collassata persistito in localStorage per workspace.",
+      },
+    ],
+  },
+  {
     version: "0.9.0",
     date: "2026-03-08",
     title: "Compravendita, Matching, Azioni, Integrazioni, Progetti",

@@ -12,6 +12,8 @@ const CalendarEventCreateSchema = z.object({
   startsAt: z.string().min(1, "Data inizio obbligatoria"),
   endsAt: z.string().min(1, "Data fine obbligatoria"),
   source: z.enum(SOURCES).default("CUSTOM_SERVICE"),
+  clientId: z.string().optional(),
+  apartmentId: z.string().optional(),
 });
 const CalendarEventUpdateSchema = z.object({
   title: z.string().min(1).optional(),
@@ -19,6 +21,8 @@ const CalendarEventUpdateSchema = z.object({
   endsAt: z.string().min(1).optional(),
   projectId: z.string().min(1).optional(),
   source: z.enum(SOURCES).optional(),
+  clientId: z.string().nullable().optional(),
+  apartmentId: z.string().nullable().optional(),
 });
 
 export interface CalendarEvent {
@@ -47,6 +51,11 @@ const buildMatch = (q: ListQueryInput) => {
 
   if (q.searchText && q.searchText.trim()) {
     conditions.push({ $or: [{ title: { $regex: q.searchText.trim(), $options: "i" } }] });
+  }
+
+  const clientId = q.filters?.clientId;
+  if (typeof clientId === "string" && clientId.trim()) {
+    conditions.push({ clientId: clientId.trim() });
   }
 
   if (conditions.length === 1) return conditions[0];
@@ -226,6 +235,8 @@ export const createCalendarEvent = async (rawInput: unknown): Promise<{ event: C
     startsAt: new Date(input.startsAt).toISOString(),
     endsAt: new Date(input.endsAt).toISOString(),
     source: input.source,
+    ...(input.clientId && input.clientId.trim() && { clientId: input.clientId.trim() }),
+    ...(input.apartmentId && input.apartmentId.trim() && { apartmentId: input.apartmentId.trim() }),
   };
   const result = await collection.insertOne(doc as never);
   const _id = result.insertedId.toHexString();
@@ -237,6 +248,8 @@ export const createCalendarEvent = async (rawInput: unknown): Promise<{ event: C
     startsAt: doc.startsAt,
     endsAt: doc.endsAt,
     source: doc.source,
+    ...(doc.clientId && { clientId: doc.clientId }),
+    ...(doc.apartmentId && { apartmentId: doc.apartmentId }),
   };
   return { event };
 };
@@ -261,13 +274,23 @@ export const updateCalendarEvent = async (
     throw err;
   }
   const update: Record<string, unknown> = {};
+  const unset: Record<string, 1> = {};
   if (input.title !== undefined) update.title = input.title.trim();
   if (input.startsAt !== undefined) update.startsAt = new Date(input.startsAt).toISOString();
   if (input.endsAt !== undefined) update.endsAt = new Date(input.endsAt).toISOString();
   if (input.projectId !== undefined) update.projectId = input.projectId;
   if (input.source !== undefined) update.source = input.source;
-  if (Object.keys(update).length === 0) return { event: existing as CalendarEvent };
-  await collection.updateOne({ _id } as never, { $set: update });
+  if (input.clientId !== undefined) {
+    if (input.clientId === null || input.clientId === "") unset.clientId = 1;
+    else update.clientId = input.clientId.trim();
+  }
+  if (input.apartmentId !== undefined) {
+    if (input.apartmentId === null || input.apartmentId === "") unset.apartmentId = 1;
+    else update.apartmentId = input.apartmentId.trim();
+  }
+  if (Object.keys(update).length === 0 && Object.keys(unset).length === 0) return { event: existing as CalendarEvent };
+  const updateOp = Object.keys(unset).length > 0 ? { $set: update, $unset: unset } : { $set: update };
+  await collection.updateOne({ _id } as never, updateOp);
   const updated = await collection.findOne({ _id } as never);
   const event: CalendarEvent = {
     _id: String(updated!._id),
@@ -277,6 +300,8 @@ export const updateCalendarEvent = async (
     startsAt: String(updated!.startsAt ?? existing.startsAt),
     endsAt: String(updated!.endsAt ?? existing.endsAt),
     source: (updated!.source ?? existing.source) as CalendarEvent["source"],
+    ...(updated!.clientId != null && { clientId: String(updated!.clientId) }),
+    ...(updated!.apartmentId != null && { apartmentId: String(updated!.apartmentId) }),
   };
   return { event };
 };

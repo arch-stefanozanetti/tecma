@@ -107,6 +107,8 @@ export interface CalendarEvent {
   startsAt: string;
   endsAt: string;
   source: "FOLLOWUP_SELL" | "FOLLOWUP_RENT" | "CUSTOM_SERVICE";
+  clientId?: string;
+  apartmentId?: string;
 }
 
 export interface ClientConiuge {
@@ -203,6 +205,8 @@ export interface CalendarEventCreateInput {
   startsAt: string;
   endsAt: string;
   source?: CalendarEvent["source"];
+  clientId?: string;
+  apartmentId?: string;
 }
 
 export interface CalendarEventUpdateInput {
@@ -211,6 +215,8 @@ export interface CalendarEventUpdateInput {
   endsAt?: string;
   projectId?: string;
   source?: CalendarEvent["source"];
+  clientId?: string | null;
+  apartmentId?: string | null;
 }
 
 export interface ApartmentPlan {
@@ -406,6 +412,77 @@ export interface UserPreferences {
   updatedAt?: string;
 }
 
+/** Tipo notifica per Inbox (Wave 2). */
+export type NotificationType =
+  | "request_action_due"
+  | "calendar_reminder"
+  | "assignment"
+  | "mention"
+  | "other";
+
+export interface NotificationRow {
+  _id: string;
+  workspaceId: string;
+  /** Email utente destinatario. */
+  userId?: string;
+  type: NotificationType;
+  title: string;
+  body?: string;
+  /** Path o payload per navigazione (es. { section, state }). */
+  link?: string | { section: string; state?: Record<string, unknown> };
+  read: boolean;
+  createdAt: string;
+  entityType?: string;
+  entityId?: string;
+}
+
+/** Eventi supportati per regole e webhook (Integrazioni e automazioni). */
+export type AutomationEventType =
+  | "request.created"
+  | "request.status_changed"
+  | "client.created";
+
+export interface AutomationRuleTrigger {
+  event_type: AutomationEventType;
+  toStatus?: string;
+}
+
+export interface CreateNotificationAction {
+  type: "create_notification";
+  title: string;
+  body?: string;
+  link?: string | { section: string; state?: Record<string, unknown> };
+}
+
+export interface WebhookCallAction {
+  type: "webhook_call";
+  useWorkspaceWebhooks?: boolean;
+}
+
+export type AutomationRuleAction = CreateNotificationAction | WebhookCallAction;
+
+export interface AutomationRuleRow {
+  _id: string;
+  workspaceId: string;
+  name: string;
+  enabled: boolean;
+  trigger: AutomationRuleTrigger;
+  actions: AutomationRuleAction[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WebhookConfigRow {
+  _id: string;
+  workspaceId: string;
+  url: string;
+  secret?: string;
+  events: AutomationEventType[];
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ApartmentCreateInput {
   workspaceId: string;
   projectId: string;
@@ -417,6 +494,7 @@ export interface ApartmentCreateInput {
   status: "AVAILABLE" | "RESERVED" | "SOLD" | "RENTED";
   surfaceMq: number;
   planimetryUrl: string;
+  deposit?: number;
 }
 
 export interface HCApartmentConfig {

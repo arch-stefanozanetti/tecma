@@ -1,3 +1,5 @@
+import type { ProjectAccessProject } from "../types/domain";
+
 /**
  * Feature flag per workspace: mappatura section -> chiave feature.
  * Se una section ha featureKey, è visibile solo se enabledFeatures include quella chiave.
@@ -30,4 +32,23 @@ export function isSectionEnabledByFeature(
   if (!key) return true;
   if (enabledFeatures === undefined) return true;
   return enabledFeatures.includes(key);
+}
+
+/** True se il progetto è considerato "affitto" (id/name/displayName contengono "rent"). */
+function isProjectRentMode(project: ProjectAccessProject): boolean {
+  const s = `${project.id} ${project.name ?? ""} ${project.displayName ?? ""}`.toLowerCase();
+  return s.includes("rent");
+}
+
+/**
+ * True se la sezione "Prezzi e disponibilità" è rilevante per il contesto corrente.
+ * In contesto solo vendita (tutti i progetti selezionati sono sell) non serve la matrice prezzi/disponibilità per data.
+ */
+export function isPriceAvailabilityRelevant(
+  projects: ProjectAccessProject[],
+  selectedProjectIds: string[]
+): boolean {
+  if (selectedProjectIds.length === 0) return true;
+  const selected = projects.filter((p) => selectedProjectIds.includes(p.id));
+  return selected.some(isProjectRentMode);
 }

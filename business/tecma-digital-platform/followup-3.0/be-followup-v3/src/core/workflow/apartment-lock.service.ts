@@ -68,6 +68,7 @@ export const getActiveLockForApartment = async (apartmentId: string): Promise<{ 
 
 /**
  * Crea un lock su un appartamento (da chiamare dentro transazione).
+ * Aggiorna anche tz_inventory a "locked".
  */
 export const createLock = async (
   session: ClientSession | null,
@@ -93,15 +94,27 @@ export const createLock = async (
     expiresAt: params.expiresAt,
   };
   await coll.insertOne(doc, sessionOpts(session));
+  const { setInventoryStatus } = await import("../inventory/inventory.service.js");
+  await setInventoryStatus(params.apartmentId, params.workspaceId, "locked", params.requestId);
 }
 
 /**
  * Rimuove tutti i lock associati a una request (revert o uscita da stato con lock).
+ * Riporta inventory delle unità coinvolte a "available".
  */
 export const removeLocksForRequest = async (session: ClientSession | null, requestId: string): Promise<number> => {
   const db = getDb();
   const coll = db.collection(COLLECTION);
+  const locks = await coll.find({ requestId }).toArray();
   const result = await coll.deleteMany({ requestId }, sessionOpts(session));
+  const { setInventoryStatus } = await import("../inventory/inventory.service.js");
+  for (const lock of locks) {
+    const apartmentId = lock.apartmentId ?? "";
+    const workspaceId = lock.workspaceId ?? "";
+    if (apartmentId && workspaceId) {
+      await setInventoryStatus(apartmentId, workspaceId, "available");
+    }
+  }
   return result.deletedCount ?? 0;
 }
 

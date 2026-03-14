@@ -23,6 +23,7 @@ type CreateApartmentForm = {
   name: string;
   code: string;
   price: string;
+  deposit: string;
   floor: string;
   surfaceMq: string;
   planimetryUrl: string;
@@ -34,6 +35,7 @@ const initialForm: CreateApartmentForm = {
   name: "",
   code: "",
   price: "",
+  deposit: "",
   floor: "",
   surfaceMq: "",
   planimetryUrl: "",
@@ -59,7 +61,7 @@ export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: Crea
     if (!raw) return;
     try {
       const parsed = JSON.parse(raw) as { step: number; form: CreateApartmentForm };
-      if (parsed.form) setForm(parsed.form);
+      if (parsed.form) setForm({ ...initialForm, ...parsed.form });
       if (parsed.step >= 1 && parsed.step <= 3) setStep(parsed.step as WizardStep);
     } catch {
       sessionStorage.removeItem(SESSION_KEY);
@@ -119,6 +121,10 @@ export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: Crea
         mode: form.mode,
         status: form.status
       };
+      if (form.mode === "RENT" && form.deposit.trim() !== "") {
+        const d = Number(form.deposit);
+        if (!Number.isNaN(d) && d >= 0) payload.deposit = d;
+      }
       const response = await followupApi.createApartment(payload);
       setCreatedApartmentId(response.apartmentId);
       setStep(3);
@@ -179,9 +185,15 @@ export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: Crea
               <Input value={form.code} onChange={(e) => setForm((s) => ({ ...s, code: e.target.value }))} className="w-full" />
             </label>
             <label>
-              Prezzo
+              {form.mode === "RENT" ? "Canone mensile (€)" : "Prezzo vendita (€)"}
               <Input value={form.price} onChange={(e) => setForm((s) => ({ ...s, price: e.target.value }))} className="w-full" />
             </label>
+            {form.mode === "RENT" && (
+              <label>
+                Deposito (€, opzionale)
+                <Input value={form.deposit} onChange={(e) => setForm((s) => ({ ...s, deposit: e.target.value }))} className="w-full" type="number" min={0} />
+              </label>
+            )}
             <label>
               Piano
               <Input value={form.floor} onChange={(e) => setForm((s) => ({ ...s, floor: e.target.value }))} className="w-full" />

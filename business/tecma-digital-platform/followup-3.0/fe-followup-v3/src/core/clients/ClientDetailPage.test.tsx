@@ -30,6 +30,7 @@ vi.mock("../../api/followupApi", () => ({
     getClientCandidates: vi.fn().mockResolvedValue({ data: [] }),
     listWorkflowsByWorkspace: vi.fn().mockResolvedValue({ data: [] }),
     getRequestActions: vi.fn().mockResolvedValue({ actions: [] }),
+    queryCalendar: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),
   },
 }));
 

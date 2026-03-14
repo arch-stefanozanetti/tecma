@@ -18,7 +18,8 @@ const ApartmentCreateSchema = z.object({
   mode: z.enum(["RENT", "SELL"]).default("SELL"),
   status: z.enum(["AVAILABLE", "RESERVED", "SOLD", "RENTED"]).default("AVAILABLE"),
   surfaceMq: z.number().nonnegative().default(0),
-  planimetryUrl: z.string().min(1)
+  planimetryUrl: z.string().min(1),
+  deposit: z.number().nonnegative().optional()
 });
 
 const ApartmentUpdateSchema = ApartmentCreateSchema.partial().extend({
@@ -293,6 +294,28 @@ export const createApartment = async (rawInput: unknown) => {
   const insertedId = new ObjectId();
   await collection.insertOne({ _id: insertedId, ...doc });
   const apartmentId = insertedId.toHexString();
+  const invStatus = input.status === "RESERVED" ? "reserved" : input.status === "SOLD" ? "sold" : input.status === "RENTED" ? "reserved" : "available";
+  const { createInventoryForUnit } = await import("../inventory/inventory.service.js");
+  const { upsertCommercialModel } = await import("../commercial-models/commercial-models.service.js");
+  const { createRatePlan } = await import("../rate-plans/rate-plans.service.js");
+  const { createSalePrice } = await import("../sale-prices/sale-prices.service.js");
+  const { createMonthlyRent } = await import("../monthly-rents/monthly-rents.service.js");
+  await createInventoryForUnit(apartmentId, input.workspaceId, invStatus);
+  const cm = await upsertCommercialModel(apartmentId, input.workspaceId, input.mode === "RENT" ? "rent_long" : "sell");
+  await createRatePlan(cm._id, "Default", input.mode === "RENT" ? "monthly_rent" : "fixed_sale");
+  if (input.price > 0) {
+    if (input.mode === "RENT") {
+      await createMonthlyRent({
+        unitId: apartmentId,
+        workspaceId: input.workspaceId,
+        pricePerMonth: input.price,
+        validFrom: now,
+        ...(input.deposit != null ? { deposit: input.deposit } : {})
+      });
+    } else {
+      await createSalePrice({ unitId: apartmentId, workspaceId: input.workspaceId, price: input.price, validFrom: now });
+    }
+  }
   await emitDomainEvent({
     type: "apartment.created",
     workspaceId: input.workspaceId,

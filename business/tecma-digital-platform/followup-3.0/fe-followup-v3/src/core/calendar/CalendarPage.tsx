@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import moment from "moment";
 import "moment/locale/it";
 import { ChevronLeft, ChevronRight, Calendar, Clock, MapPin, Building2, Plus, SlidersHorizontal } from "lucide-react";
@@ -16,7 +17,6 @@ import {
   DrawerFooter,
   DrawerCloseButton,
 } from "../../components/ui/drawer";
-import { Input } from "../../components/ui/input";
 import { Sheet, SheetContent } from "../../components/ui/sheet";
 import {
   Select,
@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
+import { CalendarEventFormDrawer } from "./CalendarEventFormDrawer";
 
 moment.locale("it");
 moment.updateLocale("it", { week: { dow: 1, doy: 4 } });
@@ -57,180 +58,6 @@ interface CalendarPageProps {
   workspaceId?: string;
   projectIds?: string[];
 }
-
-// ─── Event Form Drawer (nuovo / modifica) ─────────────────────────────────────
-const toDatetimeLocal = (iso: string) => moment(iso).format("YYYY-MM-DDTHH:mm");
-const fromDatetimeLocal = (s: string) => moment(s).toISOString();
-
-const EventFormDrawer = ({
-  mode,
-  event,
-  defaultDate,
-  workspaceId,
-  projectIds,
-  projects,
-  open,
-  onClose,
-  onSaved,
-}: {
-  mode: "create" | "edit";
-  event: CalendarEvent | null;
-  defaultDate: moment.Moment;
-  workspaceId: string;
-  projectIds: string[];
-  projects: { id: string; name: string; displayName: string }[];
-  open: boolean;
-  onClose: () => void;
-  onSaved: () => void;
-}) => {
-  const [title, setTitle] = useState("");
-  const [startsAt, setStartsAt] = useState("");
-  const [endsAt, setEndsAt] = useState("");
-  const [projectId, setProjectId] = useState("");
-  const [source, setSource] = useState<CalendarEvent["source"]>("CUSTOM_SERVICE");
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    setFormError(null);
-    if (mode === "edit" && event) {
-      setTitle(event.title);
-      setStartsAt(toDatetimeLocal(event.startsAt));
-      setEndsAt(toDatetimeLocal(event.endsAt));
-      setProjectId(event.projectId);
-      setSource(event.source);
-    } else {
-      const start = defaultDate.clone().hour(9).minute(0).second(0);
-      const end = start.clone().add(1, "hour");
-      setTitle("");
-      setStartsAt(start.format("YYYY-MM-DDTHH:mm"));
-      setEndsAt(end.format("YYYY-MM-DDTHH:mm"));
-      setProjectId(projectIds[0] ?? "");
-      setSource("CUSTOM_SERVICE");
-    }
-  }, [open, mode, event, defaultDate, projectIds]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
-    setSaving(true);
-    try {
-      if (mode === "edit" && event) {
-        await followupApi.updateCalendarEvent(event._id, {
-          title: title.trim(),
-          startsAt: fromDatetimeLocal(startsAt),
-          endsAt: fromDatetimeLocal(endsAt),
-          projectId: projectId || undefined,
-          source,
-        });
-      } else {
-        if (!workspaceId || !projectId) {
-          setFormError("Seleziona un progetto.");
-          return;
-        }
-        await followupApi.createCalendarEvent({
-          workspaceId,
-          projectId,
-          title: title.trim(),
-          startsAt: fromDatetimeLocal(startsAt),
-          endsAt: fromDatetimeLocal(endsAt),
-          source,
-        });
-      }
-      onSaved();
-      onClose();
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Errore durante il salvataggio.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (!open) return null;
-  return (
-    <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
-      <DrawerContent side="right" className="sm:max-w-md">
-        <DrawerHeader actions={<DrawerCloseButton />}>
-          <DrawerTitle>{mode === "edit" ? "Modifica evento" : "Nuovo evento"}</DrawerTitle>
-        </DrawerHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-          <DrawerBody className="space-y-4">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Titolo *</label>
-              <Input
-                className="h-10 rounded-lg border-border"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                placeholder="Titolo evento"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Inizio</label>
-              <Input
-                type="datetime-local"
-                className="h-10 rounded-lg border-border"
-                value={startsAt}
-                onChange={(e) => setStartsAt(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Fine</label>
-              <Input
-                type="datetime-local"
-                className="h-10 rounded-lg border-border"
-                value={endsAt}
-                onChange={(e) => setEndsAt(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Progetto</label>
-              <Select value={projectId} onValueChange={setProjectId} required>
-                <SelectTrigger className="h-10 rounded-lg border-border">
-                  <SelectValue placeholder="Seleziona progetto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.filter((p) => projectIds.includes(p.id)).map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.displayName || p.name || p.id}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Tipo</label>
-              <Select value={source} onValueChange={(v) => setSource(v as CalendarEvent["source"])}>
-                <SelectTrigger className="h-10 rounded-lg border-border">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SOURCE_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {formError && <p className="text-sm text-destructive">{formError}</p>}
-          </DrawerBody>
-          <DrawerFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Annulla
-            </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Salvataggio..." : mode === "edit" ? "Salva" : "Crea"}
-            </Button>
-          </DrawerFooter>
-        </form>
-      </DrawerContent>
-    </Drawer>
-  );
-};
 
 // ─── Event Drawer (solo lettura + Modifica + Elimina) ─────────────────────────
 const EventDrawer = ({
@@ -513,6 +340,8 @@ const MonthView = ({
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export const CalendarPage = (_props: CalendarPageProps) => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { workspaceId, selectedProjectIds, projects } = useWorkspace();
   const [view, setView] = useState<ViewType>("week");
   const [currentDate, setCurrentDate] = useState(moment());
@@ -588,6 +417,14 @@ export const CalendarPage = (_props: CalendarPageProps) => {
     setEventFormOpen(true);
   };
 
+  useEffect(() => {
+    const state = location.state as { openNewEvent?: boolean } | null;
+    if (state?.openNewEvent) {
+      handleOpenNewEvent();
+      navigate(location.pathname + location.search, { replace: true, state: {} });
+    }
+  }, []);
+
   const handleOpenEditEvent = () => {
     if (selectedEvent) {
       setEventToEdit(selectedEvent);
@@ -607,7 +444,7 @@ export const CalendarPage = (_props: CalendarPageProps) => {
     [weekStart]
   );
 
-  const navigate = (direction: -1 | 1) => {
+  const navigatePeriod = (direction: -1 | 1) => {
     const unit = view === "day" ? "day" : view === "week" ? "week" : "month";
     setCurrentDate((d) => d.clone().add(direction, unit));
   };
@@ -646,10 +483,10 @@ export const CalendarPage = (_props: CalendarPageProps) => {
           <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setCurrentDate(moment())}>
             Oggi
           </Button>
-          <button type="button" className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-white hover:bg-muted transition-colors" onClick={() => navigate(-1)}>
+          <button type="button" className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-white hover:bg-muted transition-colors" onClick={() => navigatePeriod(-1)}>
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <button type="button" className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-white hover:bg-muted transition-colors" onClick={() => navigate(1)}>
+          <button type="button" className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-white hover:bg-muted transition-colors" onClick={() => navigatePeriod(1)}>
             <ChevronRight className="h-4 w-4" />
           </button>
           <span className="ml-2 text-sm font-semibold capitalize text-foreground">{title()}</span>
@@ -766,7 +603,7 @@ export const CalendarPage = (_props: CalendarPageProps) => {
         onEdit={handleOpenEditEvent}
         onDelete={handleEventFormSaved}
       />
-      <EventFormDrawer
+      <CalendarEventFormDrawer
         mode={eventFormMode}
         event={eventToEdit}
         defaultDate={currentDate}
