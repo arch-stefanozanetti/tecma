@@ -14,6 +14,8 @@ import {
   Plus,
   Pencil,
   Trash2,
+  ExternalLink,
+  Copy,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -36,6 +38,7 @@ import {
   DrawerCloseButton,
 } from "../../components/ui/drawer";
 import { followupApi } from "../../api/followupApi";
+import { useWorkspace } from "../../auth/projectScope";
 import type {
   AutomationRuleRow,
   AutomationRuleTrigger,
@@ -45,7 +48,9 @@ import type {
 } from "../../types/domain";
 import { cn } from "../../lib/utils";
 
-const TAB_KEYS = ["connettori", "regole", "webhook", "api"] as const;
+const LOOKER_CONNECTOR_STORAGE_KEY = "followup3.connector.looker";
+
+const TAB_KEYS = ["connettori", "comunicazioni", "regole", "webhook", "api"] as const;
 type TabKey = (typeof TAB_KEYS)[number];
 
 const isValidTab = (s: string | null): s is TabKey =>
@@ -62,6 +67,9 @@ type ConnectorGroup =
   | "Docs/Signature"
   | "Productivity/Collab";
 
+/** Tab da aprire per completare la configurazione (es. webhook, api). */
+export type ConnectorRelatedTab = "webhook" | "api";
+
 interface ConnectorCatalogItem {
   id: string;
   name: string;
@@ -70,6 +78,10 @@ interface ConnectorCatalogItem {
   description: string;
   capabilities: string[];
   prerequisites: string[];
+  /** Breve guida "Come attivare" per connettori già utilizzabili (n8n, Looker, Outlook). */
+  setupSummary?: string;
+  /** Tab da aprire con "Vai a ..." per configurare (Webhook per n8n, API per Looker). */
+  relatedTab?: ConnectorRelatedTab;
 }
 
 const CONNECTOR_CATALOG: ConnectorCatalogItem[] = [
@@ -90,6 +102,8 @@ const CONNECTOR_CATALOG: ConnectorCatalogItem[] = [
     description: "Sincronizzazione casella Outlook e automazioni follow-up su activity.",
     capabilities: ["Mail sync", "Calendar sync hooks", "Timeline events"],
     prerequisites: ["Azure app registration"],
+    setupSummary: "Integrazione OAuth Outlook in arrivo. Per ricevere notifiche su eventi CRM (nuova trattativa, cambio stato) usa intanto i Webhook (tab Webhook) verso un workflow che invia email o crea attività Outlook.",
+    relatedTab: "webhook",
   },
   {
     id: "connector_mailchimp",
@@ -108,6 +122,8 @@ const CONNECTOR_CATALOG: ConnectorCatalogItem[] = [
     description: "Event bus out/in per orchestrare workflow custom senza sviluppo backend dedicato.",
     capabilities: ["Webhook out", "Webhook in", "Retry hooks"],
     prerequisites: ["n8n endpoint", "Signing secret"],
+    setupSummary: "Nel tab Webhook aggiungi un webhook con URL = URL del nodo Webhook del workflow n8n. Eventi disponibili: request.created, request.status_changed, client.created, calendar.event.created. Il payload viene inviato in POST con header X-Webhook-Signature (HMAC) se imposti un secret.",
+    relatedTab: "webhook",
   },
   {
     id: "connector_salesforce",
@@ -135,6 +151,8 @@ const CONNECTOR_CATALOG: ConnectorCatalogItem[] = [
     description: "Esportazione dataset per dashboard BI condivise e auditing operativo.",
     capabilities: ["Dataset export", "Scheduled push", "Schema mapping"],
     prerequisites: ["Destination connector"],
+    setupSummary: "Endpoint GET e POST /v1/public/listings (nessuna auth, 60 req/min). Per Looker Studio: connettore Community nel repo (connectors/looker-studio) con README per deploy; oppure Custom API / Google Sheet / n8n che chiamano l'API.",
+    relatedTab: "api",
   },
   {
     id: "connector_docusign",
@@ -198,16 +216,63 @@ const ALL_GROUPS: ConnectorGroup[] = [
   "Productivity/Collab",
 ];
 
+const CONNECTOR_EVENT_LABELS: Record<AutomationEventType, string> = {
+  "request.created": "Nuova trattativa",
+  "request.status_changed": "Cambio stato trattativa",
+  "client.created": "Nuovo cliente",
+};
+
+export type N8nConfigSnapshot = {
+  baseUrl: string;
+  apiKeyMasked?: string;
+  defaultWorkflowId?: string;
+} | null;
+
 function ConnettoriTab({
   connectors,
   setConnectors,
+  onOpenTab,
+  workspaceId = "",
+  webhookConfigs = [],
+  loadWebhooks,
+  projectIds = [],
+  n8nConfig = null,
+  loadN8nConfig,
+  outlookConnected = false,
+  loadOutlookStatus,
 }: {
   connectors: ConnectorCatalogItem[];
   setConnectors: React.Dispatch<React.SetStateAction<ConnectorCatalogItem[]>>;
+  onOpenTab?: (tab: ConnectorRelatedTab) => void;
+  workspaceId?: string;
+  webhookConfigs?: WebhookConfigRow[];
+  loadWebhooks?: () => void;
+  projectIds?: string[];
+  n8nConfig?: N8nConfigSnapshot;
+  loadN8nConfig?: () => void;
+  outlookConnected?: boolean;
+  loadOutlookStatus?: () => void;
 }) {
   const [search, setSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState<"all" | ConnectorGroup>("all");
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [setupConnectorId, setSetupConnectorId] = useState<string | null>(null);
+  const [connectorConfigDrawer, setConnectorConfigDrawer] = useState<"connector_n8n" | "connector_outlook" | "connector_looker" | null>(null);
+  const [connectorFormUrl, setConnectorFormUrl] = useState("");
+  const [connectorFormSecret, setConnectorFormSecret] = useState("");
+  const [connectorFormEvents, setConnectorFormEvents] = useState<AutomationEventType[]>(["request.created", "request.status_changed"]);
+  const [connectorFormEnabled, setConnectorFormEnabled] = useState(true);
+  const [connectorSaving, setConnectorSaving] = useState(false);
+  const [lookerTesting, setLookerTesting] = useState(false);
+  const [lookerTestError, setLookerTestError] = useState<string | null>(null);
+  const [n8nFormBaseUrl, setN8nFormBaseUrl] = useState("");
+  const [n8nFormApiKey, setN8nFormApiKey] = useState("");
+  const [n8nFormWorkflowId, setN8nFormWorkflowId] = useState("");
+  const [n8nTestTriggering, setN8nTestTriggering] = useState(false);
+  const [n8nTestError, setN8nTestError] = useState<string | null>(null);
+  const [outlookConnecting, setOutlookConnecting] = useState(false);
+  const [outlookCalendarEvents, setOutlookCalendarEvents] = useState<Array<{ id: string; subject: string; start: string; end: string; isAllDay?: boolean; webLink?: string }>>([]);
+  const [outlookCalendarLoading, setOutlookCalendarLoading] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -222,7 +287,70 @@ function ConnettoriTab({
 
   const configuredCount = connectors.filter((c) => c.status === "configured").length;
 
+  const openConnectorConfig = (id: "connector_n8n" | "connector_outlook" | "connector_looker") => {
+    const connectorId = id === "connector_n8n" ? "n8n" : id === "connector_outlook" ? "outlook" : null;
+    if (id === "connector_n8n") {
+      setN8nFormBaseUrl(n8nConfig?.baseUrl ?? "");
+      setN8nFormApiKey("");
+      setN8nFormWorkflowId(n8nConfig?.defaultWorkflowId ?? "");
+      setN8nTestError(null);
+    } else if (connectorId) {
+      const existing = webhookConfigs.find((w) => w.connectorId === connectorId);
+      setConnectorFormUrl(existing?.url ?? "");
+      setConnectorFormSecret(existing?.secret ?? "");
+      setConnectorFormEvents(existing?.events?.length ? existing.events : ["request.created", "request.status_changed"]);
+      setConnectorFormEnabled(existing?.enabled ?? true);
+    } else {
+      setLookerTestError(null);
+    }
+    setConnectorConfigDrawer(id);
+  };
+
+  const closeConnectorConfig = () => {
+    setConnectorConfigDrawer(null);
+  };
+
   const toggleConnector = (id: string) => {
+    if (id === "connector_n8n" || id === "connector_outlook" || id === "connector_looker") {
+      const conn = connectors.find((c) => c.id === id);
+      if (conn?.status === "configured") {
+        if (id === "connector_looker") {
+          try {
+            if (workspaceId) window.localStorage?.removeItem(`${LOOKER_CONNECTOR_STORAGE_KEY}.${workspaceId}`);
+          } catch {}
+          setConnectors((prev) => prev.map((c) => (c.id === id ? { ...c, status: "available" } : c)));
+        } else if (id === "connector_n8n") {
+          setTogglingId(id);
+          const deleteN8n = workspaceId ? followupApi.deleteN8nConfig(workspaceId) : Promise.resolve({ deleted: false });
+          const wh = webhookConfigs.find((w) => w.connectorId === "n8n");
+          const deleteWh = wh ? followupApi.deleteWebhookConfig(wh._id) : Promise.resolve({ deleted: false });
+          Promise.all([deleteN8n, deleteWh])
+            .then(() => {
+              loadWebhooks?.();
+              loadN8nConfig?.();
+              setConnectors((prev) => prev.map((c) => (c.id === id ? { ...c, status: "available" } : c)));
+            })
+            .catch((err) => window.alert(err?.message ?? "Errore disconnessione"))
+            .finally(() => setTogglingId(null));
+        } else if (id === "connector_outlook") {
+          setTogglingId(id);
+          const deleteOAuth = followupApi.deleteOutlook(workspaceId);
+          const wh = webhookConfigs.find((w) => w.connectorId === "outlook");
+          const deleteWh = wh ? followupApi.deleteWebhookConfig(wh._id) : Promise.resolve({ deleted: false });
+          Promise.all([deleteOAuth, deleteWh])
+            .then(() => {
+              loadOutlookStatus?.();
+              loadWebhooks?.();
+              setConnectors((prev) => prev.map((c) => (c.id === id ? { ...c, status: "beta" } : c)));
+            })
+            .catch((err) => window.alert(err?.message ?? "Errore disconnessione"))
+            .finally(() => setTogglingId(null));
+        }
+      } else {
+        openConnectorConfig(id);
+      }
+      return;
+    }
     setTogglingId(id);
     setTimeout(() => {
       setConnectors((prev) =>
@@ -235,6 +363,159 @@ function ConnettoriTab({
       );
       setTogglingId(null);
     }, 600);
+  };
+
+  const toggleConnectorFormEvent = (e: AutomationEventType) => {
+    setConnectorFormEvents((prev) =>
+      prev.includes(e) ? prev.filter((x) => x !== e) : [...prev, e]
+    );
+  };
+
+  const saveConnectorWebhook = () => {
+    if (!workspaceId || connectorConfigDrawer === "connector_looker") return;
+    if (!connectorFormUrl.trim()) {
+      window.alert("Inserisci l'URL del webhook.");
+      return;
+    }
+    if (connectorFormEvents.length === 0) {
+      window.alert("Seleziona almeno un evento.");
+      return;
+    }
+    const connectorId = connectorConfigDrawer === "connector_n8n" ? "n8n" : "outlook";
+    const existing = webhookConfigs.find((w) => w.connectorId === connectorId);
+    setConnectorSaving(true);
+    const payload = {
+      url: connectorFormUrl.trim(),
+      secret: connectorFormSecret.trim() || undefined,
+      events: connectorFormEvents,
+      enabled: connectorFormEnabled,
+      connectorId,
+    };
+    const done = () => {
+      setConnectorSaving(false);
+      setConnectorConfigDrawer(null);
+      loadWebhooks?.();
+      setConnectors((prev) => prev.map((c) => (c.id === connectorConfigDrawer ? { ...c, status: "configured" } : c)));
+    };
+    if (existing) {
+      followupApi
+        .updateWebhookConfig(existing._id, payload)
+        .then(done)
+        .catch((err) => {
+          setConnectorSaving(false);
+          window.alert(err?.message ?? "Errore salvataggio");
+        });
+    } else {
+      followupApi
+        .createWebhookConfig(workspaceId, payload)
+        .then(done)
+        .catch((err) => {
+          setConnectorSaving(false);
+          window.alert(err?.message ?? "Errore creazione");
+        });
+    }
+  };
+
+  const testLookerConnection = () => {
+    if (!workspaceId || projectIds.length === 0) {
+      setLookerTestError("Seleziona almeno un progetto nel workspace.");
+      return;
+    }
+    setLookerTesting(true);
+    setLookerTestError(null);
+    followupApi
+      .testPublicListings(workspaceId, projectIds)
+      .then(() => {
+        try {
+          if (workspaceId) window.localStorage?.setItem(`${LOOKER_CONNECTOR_STORAGE_KEY}.${workspaceId}`, "true");
+        } catch {}
+        setConnectors((prev) => prev.map((c) => (c.id === "connector_looker" ? { ...c, status: "configured" } : c)));
+        setConnectorConfigDrawer(null);
+      })
+      .catch((err) => setLookerTestError(err?.message ?? "Test fallito"))
+      .finally(() => setLookerTesting(false));
+  };
+
+  const saveN8nConfig = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_n8n") return;
+    const baseUrl = n8nFormBaseUrl.trim().replace(/\/$/, "");
+    if (!baseUrl) {
+      window.alert("Inserisci l'URL base dell'istanza n8n (es. https://n8n.example.com).");
+      return;
+    }
+    const apiKey = n8nFormApiKey.trim();
+    if (!apiKey && !n8nConfig?.baseUrl) {
+      window.alert("Inserisci l'API key n8n (Settings → API in n8n).");
+      return;
+    }
+    if (!apiKey) {
+      window.alert("Per salvare è necessario inserire l'API key (il backend non conserva la key precedente).");
+      return;
+    }
+    setConnectorSaving(true);
+    setN8nTestError(null);
+    followupApi
+      .saveN8nConfig(workspaceId, {
+        baseUrl,
+        apiKey: n8nFormApiKey.trim(),
+        defaultWorkflowId: n8nFormWorkflowId.trim() || undefined,
+      })
+      .then(() => {
+        loadN8nConfig?.();
+        setConnectors((prev) => prev.map((c) => (c.id === "connector_n8n" ? { ...c, status: "configured" } : c)));
+        setConnectorConfigDrawer(null);
+      })
+      .catch((err) => {
+        setConnectorSaving(false);
+        window.alert(err?.message ?? "Errore salvataggio config n8n");
+      })
+      .finally(() => setConnectorSaving(false));
+  };
+
+  const connectOutlook = () => {
+    setOutlookConnecting(true);
+    followupApi
+      .getOutlookAuthRedirect(workspaceId)
+      .then((url) => {
+        window.location.href = url;
+      })
+      .catch((err) => {
+        setOutlookConnecting(false);
+        window.alert(err?.message ?? "Errore avvio connessione Outlook");
+      });
+  };
+
+  const loadOutlookCalendar = () => {
+    const from = new Date();
+    const to = new Date();
+    to.setDate(to.getDate() + 14);
+    const dateFrom = from.toISOString();
+    const dateTo = to.toISOString();
+    setOutlookCalendarLoading(true);
+    followupApi
+      .getOutlookCalendarEvents(dateFrom, dateTo, workspaceId)
+      .then((r) => setOutlookCalendarEvents(r.data ?? []))
+      .catch(() => setOutlookCalendarEvents([]))
+      .finally(() => setOutlookCalendarLoading(false));
+  };
+
+  const testN8nTrigger = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_n8n") return;
+    const wfId = n8nFormWorkflowId.trim() || undefined;
+    if (!wfId && !n8nConfig?.defaultWorkflowId) {
+      setN8nTestError("Salva prima la config con un Workflow ID di default, oppure inserisci un Workflow ID qui per il test.");
+      return;
+    }
+    setN8nTestTriggering(true);
+    setN8nTestError(null);
+    followupApi
+      .triggerN8nWorkflow(workspaceId, { workflowId: wfId || undefined, data: { test: true, source: "integrations_ui" } })
+      .then(() => {
+        setN8nTestError(null);
+        window.alert("Workflow avviato con successo.");
+      })
+      .catch((err) => setN8nTestError(err?.message ?? "Test trigger fallito"))
+      .finally(() => setN8nTestTriggering(false));
   };
 
   return (
@@ -317,6 +598,37 @@ function ConnettoriTab({
                 </p>
               )}
 
+              {(connector.setupSummary ?? connector.relatedTab) && (
+                <div className="mt-3 space-y-1.5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs text-primary hover:text-primary"
+                    onClick={() => setSetupConnectorId(setupConnectorId === connector.id ? null : connector.id)}
+                  >
+                    Come attivare
+                  </Button>
+                  {setupConnectorId === connector.id && (
+                    <div className="rounded-md border border-border bg-muted/50 p-3 text-xs text-muted-foreground">
+                      {connector.setupSummary}
+                      {connector.relatedTab && onOpenTab && (
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="mt-2 h-auto p-0 text-xs font-medium text-primary"
+                          onClick={() => {
+                            onOpenTab(connector.relatedTab!);
+                            setSetupConnectorId(null);
+                          }}
+                        >
+                          Vai al tab {connector.relatedTab === "webhook" ? "Webhook" : "API"}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="mt-4 flex gap-2">
                 <Button
                   variant={isConfigured ? "outline" : "default"}
@@ -365,6 +677,170 @@ function ConnettoriTab({
           <p className="mt-3 text-sm">Nessun connettore trovato per questa ricerca.</p>
         </div>
       )}
+
+      <Drawer open={!!connectorConfigDrawer} onOpenChange={(open) => !open && closeConnectorConfig()}>
+        <DrawerContent>
+          <DrawerHeader actions={<DrawerCloseButton />}>
+            <DrawerTitle>
+              {connectorConfigDrawer === "connector_n8n" && "Configura n8n"}
+              {connectorConfigDrawer === "connector_outlook" && "Configura Outlook"}
+              {connectorConfigDrawer === "connector_looker" && "Configura Looker Studio"}
+            </DrawerTitle>
+          </DrawerHeader>
+          <DrawerBody className="space-y-4">
+            {connectorConfigDrawer === "connector_looker" && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Verifica che l&apos;API listati pubblici sia raggiungibile con il workspace e i progetti correnti. Se il test ha esito positivo, il connettore verrà considerato configurato.
+                </p>
+                {projectIds.length === 0 && (
+                  <p className="text-sm text-amber-600">Seleziona almeno un progetto nel selettore progetti (sidebar) per poter testare.</p>
+                )}
+                {lookerTestError && <p className="text-sm text-destructive">{lookerTestError}</p>}
+                <Button onClick={testLookerConnection} disabled={lookerTesting || projectIds.length === 0}>
+                  {lookerTesting ? "Test in corso..." : "Test connessione"}
+                </Button>
+              </>
+            )}
+            {connectorConfigDrawer === "connector_n8n" && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Configura l&apos;istanza n8n e l&apos;API key per avviare workflow dagli eventi CRM. Opzionale: Workflow ID di default (altrimenti specificabile per ogni trigger).
+                </p>
+                <div>
+                  <label htmlFor="n8n-base-url" className="text-sm font-medium text-foreground">Base URL n8n</label>
+                  <Input
+                    id="n8n-base-url"
+                    type="url"
+                    value={n8nFormBaseUrl}
+                    onChange={(e) => setN8nFormBaseUrl(e.target.value)}
+                    placeholder="https://n8n.example.com"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="n8n-api-key" className="text-sm font-medium text-foreground">API key</label>
+                  <Input
+                    id="n8n-api-key"
+                    type="password"
+                    value={n8nFormApiKey}
+                    onChange={(e) => setN8nFormApiKey(e.target.value)}
+                    placeholder={n8nConfig?.apiKeyMasked ? `Già configurata (${n8nConfig.apiKeyMasked}); inserisci nuova key per aggiornare` : "Da Settings → API in n8n"}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="n8n-workflow-id" className="text-sm font-medium text-foreground">Workflow ID (opzionale)</label>
+                  <Input
+                    id="n8n-workflow-id"
+                    type="text"
+                    value={n8nFormWorkflowId}
+                    onChange={(e) => setN8nFormWorkflowId(e.target.value)}
+                    placeholder="ID del workflow da avviare sugli eventi"
+                    className="mt-1"
+                  />
+                </div>
+                {n8nTestError && <p className="text-sm text-destructive">{n8nTestError}</p>}
+              </>
+            )}
+            {connectorConfigDrawer === "connector_outlook" && (
+              <>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-foreground">Connessione calendario (OAuth Microsoft)</p>
+                  {outlookConnected ? (
+                    <>
+                      <p className="text-sm text-muted-foreground">Outlook connesso. Puoi disconnettere dalla scheda o vedere gli eventi.</p>
+                      <Button variant="outline" size="sm" onClick={loadOutlookCalendar} disabled={outlookCalendarLoading}>
+                        {outlookCalendarLoading ? "Caricamento..." : "Vedi eventi calendario (14 gg)"}
+                      </Button>
+                      {outlookCalendarEvents.length > 0 && (
+                        <ul className="mt-2 max-h-48 overflow-auto rounded border border-border p-2 text-xs">
+                          {outlookCalendarEvents.map((e) => (
+                            <li key={e.id} className="flex justify-between gap-2 py-1">
+                              <span className="truncate">{e.subject || "(Senza oggetto)"}</span>
+                              <span className="shrink-0 text-muted-foreground">{e.start.slice(0, 16)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-muted-foreground">Connetti il tuo account Microsoft per leggere il calendario Outlook.</p>
+                      <Button onClick={connectOutlook} disabled={outlookConnecting}>
+                        {outlookConnecting ? "Reindirizzamento..." : "Connetti Outlook"}
+                      </Button>
+                    </>
+                  )}
+                </div>
+                <p className="text-sm font-medium text-foreground">Oppure: webhook (eventi CRM verso un URL)</p>
+                <div>
+                  <label htmlFor="conn-wh-url" className="text-sm font-medium text-foreground">URL webhook</label>
+                  <Input
+                    id="conn-wh-url"
+                    type="url"
+                    value={connectorFormUrl}
+                    onChange={(e) => setConnectorFormUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="conn-wh-secret" className="text-sm font-medium text-foreground">Secret (opzionale, per firma HMAC)</label>
+                  <Input
+                    id="conn-wh-secret"
+                    type="password"
+                    value={connectorFormSecret}
+                    onChange={(e) => setConnectorFormSecret(e.target.value)}
+                    placeholder="Secret per X-Webhook-Signature"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Eventi</label>
+                  <div className="mt-2 flex flex-col gap-2">
+                    {(Object.keys(CONNECTOR_EVENT_LABELS) as AutomationEventType[]).map((e) => (
+                      <div key={e} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`conn-ev-${e}`}
+                          checked={connectorFormEvents.includes(e)}
+                          onCheckedChange={() => toggleConnectorFormEvent(e)}
+                        />
+                        <label htmlFor={`conn-ev-${e}`} className="text-sm font-normal text-foreground cursor-pointer">{CONNECTOR_EVENT_LABELS[e]}</label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="conn-wh-enabled"
+                    checked={connectorFormEnabled}
+                    onCheckedChange={(c) => setConnectorFormEnabled(c === true)}
+                  />
+                  <label htmlFor="conn-wh-enabled" className="text-sm font-normal text-foreground cursor-pointer">Webhook attivo</label>
+                </div>
+              </>
+            )}
+          </DrawerBody>
+          {connectorConfigDrawer === "connector_n8n" && (
+            <DrawerFooter className="flex flex-wrap gap-2">
+              <Button onClick={saveN8nConfig} disabled={connectorSaving}>
+                {connectorSaving ? "Salvataggio..." : "Salva"}
+              </Button>
+              <Button variant="outline" onClick={testN8nTrigger} disabled={n8nTestTriggering || connectorSaving}>
+                {n8nTestTriggering ? "Test in corso..." : "Test trigger"}
+              </Button>
+            </DrawerFooter>
+          )}
+          {connectorConfigDrawer === "connector_outlook" && (
+            <DrawerFooter>
+              <Button onClick={saveConnectorWebhook} disabled={connectorSaving}>
+                {connectorSaving ? "Salvataggio..." : "Salva"}
+              </Button>
+            </DrawerFooter>
+          )}
+        </DrawerContent>
+      </Drawer>
     </>
   );
 }
@@ -781,25 +1257,245 @@ function WebhookTab({ workspaceId }: { workspaceId: string }) {
   );
 }
 
+function ComunicazioniTab({ workspaceId }: { workspaceId: string }) {
+  const [templates, setTemplates] = useState<Array<{ _id: string; name: string; channel: string; subject?: string; bodyText: string }>>([]);
+  const [rules, setRules] = useState<Array<Record<string, unknown>>>([]);
+  const [deliveries, setDeliveries] = useState<Array<{ _id: string; channel: string; templateId: string; recipientMasked: string; status: string; sentAt: string }>>([]);
+  const [whatsappConfig, setWhatsappConfig] = useState<{ config: { accountSid: string; fromNumber: string } } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [waSaving, setWaSaving] = useState(false);
+  const [waAccountSid, setWaAccountSid] = useState("");
+  const [waAuthToken, setWaAuthToken] = useState("");
+  const [waFromNumber, setWaFromNumber] = useState("");
+
+  const load = useCallback(() => {
+    if (!workspaceId) return;
+    setLoading(true);
+    Promise.all([
+      followupApi.listCommunicationTemplates(workspaceId).then((r) => setTemplates(r.data ?? [])).catch(() => setTemplates([])),
+      followupApi.listCommunicationRules(workspaceId).then((r) => setRules(r.data ?? [])).catch(() => setRules([])),
+      followupApi.listCommunicationDeliveries(workspaceId, 30).then((r) => setDeliveries(r.data ?? [])).catch(() => setDeliveries([])),
+      followupApi.getWhatsAppConfig(workspaceId).then((r) => { setWhatsappConfig(r.config ? { config: r.config.config } : null); if (r.config?.config) { setWaAccountSid(r.config.config.accountSid); setWaFromNumber(r.config.config.fromNumber); } }).catch(() => setWhatsappConfig(null)),
+    ]).finally(() => setLoading(false));
+  }, [workspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const saveWhatsApp = () => {
+    if (!workspaceId || !waAccountSid.trim() || !waAuthToken.trim() || !waFromNumber.trim()) {
+      window.alert("Compila Account SID, Auth Token e Numero mittente.");
+      return;
+    }
+    setWaSaving(true);
+    followupApi.saveWhatsAppConfig(workspaceId, { accountSid: waAccountSid.trim(), authToken: waAuthToken.trim(), fromNumber: waFromNumber.trim() })
+      .then(() => { load(); setWaAuthToken(""); })
+      .catch((e) => window.alert(e?.message ?? "Errore salvataggio"))
+      .finally(() => setWaSaving(false));
+  };
+
+  const removeWhatsApp = () => {
+    if (!workspaceId || !window.confirm("Rimuovere la configurazione WhatsApp?")) return;
+    followupApi.deleteWhatsAppConfig(workspaceId).then(() => { setWhatsappConfig(null); setWaAccountSid(""); setWaAuthToken(""); setWaFromNumber(""); }).catch((e) => window.alert(e?.message ?? "Errore"));
+  };
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h3 className="text-lg font-semibold text-foreground">Template</h3>
+        <p className="text-sm text-muted-foreground mt-1">Template per email, WhatsApp, SMS e notifiche in-app (variabili: {"{{client_name}}"}, {"{{apartment_name}}"}, {"{{visit_date}}"}, ecc.).</p>
+        {loading ? <p className="text-sm text-muted-foreground mt-2">Caricamento...</p> : (
+          <div className="mt-3 overflow-x-auto rounded-lg border border-border">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-border bg-muted/50"><th className="px-3 py-2 text-left font-medium">Nome</th><th className="px-3 py-2 text-left font-medium">Canale</th><th className="px-3 py-2 text-left font-medium">Oggetto</th></tr></thead>
+              <tbody>
+                {templates.length === 0 ? <tr><td colSpan={3} className="px-3 py-4 text-muted-foreground">Nessun template. Crea un template via API o da interfaccia dedicata.</td></tr> :
+                  templates.map((t) => (
+                    <tr key={t._id} className="border-b border-border last:border-0">
+                      <td className="px-3 py-2">{t.name}</td>
+                      <td className="px-3 py-2">{t.channel}</td>
+                      <td className="px-3 py-2">{t.subject ?? "—"}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      <div>
+        <h3 className="text-lg font-semibold text-foreground">Regole di comunicazione</h3>
+        <p className="text-sm text-muted-foreground mt-1">Evento → azioni (email, WhatsApp, notifica in-app).</p>
+        {!loading && (
+          <div className="mt-3 overflow-x-auto rounded-lg border border-border">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-border bg-muted/50"><th className="px-3 py-2 text-left font-medium">Nome</th><th className="px-3 py-2 text-left font-medium">Stato</th><th className="px-3 py-2 text-left font-medium">Evento</th><th className="px-3 py-2 text-left font-medium">Azioni</th></tr></thead>
+              <tbody>
+                {rules.length === 0 ? <tr><td colSpan={4} className="px-3 py-4 text-muted-foreground">Nessuna regola. Crea una regola via API.</td></tr> :
+                  rules.map((r) => (
+                    <tr key={String(r._id)} className="border-b border-border last:border-0">
+                      <td className="px-3 py-2">{String(r.name ?? "")}</td>
+                      <td className="px-3 py-2">{r.enabled ? "Attiva" : "Disattiva"}</td>
+                      <td className="px-3 py-2">{typeof r.trigger === "object" && r.trigger && "eventType" in r.trigger ? String((r.trigger as { eventType: string }).eventType) : "—"}</td>
+                      <td className="px-3 py-2">{Array.isArray(r.actions) ? r.actions.length : 0} azioni</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      <div>
+        <h3 className="text-lg font-semibold text-foreground">Ultime comunicazioni (Notification Center)</h3>
+        <p className="text-sm text-muted-foreground mt-1">Log degli invii recenti (email, WhatsApp).</p>
+        {!loading && (
+          <div className="mt-3 overflow-x-auto rounded-lg border border-border">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-border bg-muted/50"><th className="px-3 py-2 text-left font-medium">Canale</th><th className="px-3 py-2 text-left font-medium">Destinatario</th><th className="px-3 py-2 text-left font-medium">Stato</th><th className="px-3 py-2 text-left font-medium">Data</th></tr></thead>
+              <tbody>
+                {deliveries.length === 0 ? <tr><td colSpan={4} className="px-3 py-4 text-muted-foreground">Nessun invio recente.</td></tr> :
+                  deliveries.map((d) => (
+                    <tr key={d._id} className="border-b border-border last:border-0">
+                      <td className="px-3 py-2">{d.channel}</td>
+                      <td className="px-3 py-2">{d.recipientMasked}</td>
+                      <td className="px-3 py-2">{d.status}</td>
+                      <td className="px-3 py-2">{d.sentAt ? new Date(d.sentAt).toLocaleString() : "—"}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      <div className="rounded-lg border border-border bg-muted/20 p-4">
+        <h3 className="text-lg font-semibold text-foreground">Canali</h3>
+        <p className="text-sm text-muted-foreground mt-1">Configurazione WhatsApp (Twilio) per workspace. SMTP email da variabili d&apos;ambiente (SMTP_HOST, SMTP_FROM, ecc.).</p>
+        <div className="mt-4 space-y-3 max-w-md">
+          <div>
+            <label className="text-sm font-medium text-foreground">Account SID (Twilio)</label>
+            <Input className="mt-1" value={waAccountSid} onChange={(e) => setWaAccountSid(e.target.value)} placeholder="AC..." />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground">Auth Token</label>
+            <Input type="password" className="mt-1" value={waAuthToken} onChange={(e) => setWaAuthToken(e.target.value)} placeholder={whatsappConfig ? "•••••••• (lascia vuoto per non modificare)" : "Token"} />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground">Numero mittente (es. +39...)</label>
+            <Input className="mt-1" value={waFromNumber} onChange={(e) => setWaFromNumber(e.target.value)} placeholder="+39..." />
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={saveWhatsApp} disabled={waSaving}>{waSaving ? "Salvataggio..." : "Salva WhatsApp"}</Button>
+            {whatsappConfig && <Button variant="outline" onClick={removeWhatsApp}>Rimuovi config</Button>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Base URL assoluta per le API (per copia negli strumenti esterni). */
+function getPublicApiBaseUrl(): string {
+  if (typeof window === "undefined") return "";
+  const base = import.meta.env.VITE_API_BASE_URL;
+  if (typeof base === "string" && base.startsWith("http")) return base.replace(/\/$/, "");
+  const path = (base && base.startsWith("/") ? base : `/${(base || "v1").replace(/^\//, "")}`).replace(/\/$/, "");
+  return `${window.location.origin}${path}`;
+}
+
+const PUBLIC_ENDPOINTS: Array<{
+  method: string;
+  path: string;
+  auth: string;
+  rateLimit?: string;
+  description: string;
+}> = [
+  { method: "GET", path: "/public/listings", auth: "Nessuna", rateLimit: "60 req/min per IP", description: "Listati (query: workspaceId, projectIds, page, perPage). Per Looker Studio, GAS, widget." },
+  { method: "POST", path: "/public/listings", auth: "Nessuna", rateLimit: "60 req/min per IP", description: "Listati appartamenti (body ListQuery). Stesso contratto del GET." },
+  { method: "POST", path: "/apartments/query", auth: "JWT Bearer", description: "Elenco appartamenti con filtri e paginazione (ListQuery)." },
+  { method: "POST", path: "/clients/lite/query", auth: "JWT Bearer", description: "Lista light clienti (id, fullName, email) per dropdown e integrazioni." },
+];
+
 function ApiTab() {
+  const baseUrl = getPublicApiBaseUrl();
+  const openApiUrl = baseUrl ? `${baseUrl}/openapi.json` : "";
+
+  const copyBaseUrl = () => { if (baseUrl) navigator.clipboard.writeText(baseUrl); };
+
   return (
     <div className="space-y-6 rounded-lg border border-border bg-card p-6">
-      <div className="flex items-start gap-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-          <FileText className="h-5 w-5 text-muted-foreground" />
+      <div className="flex flex-col gap-6">
+        <div className="flex items-start gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+            <FileText className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold text-foreground">API pubbliche e riusabili</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Endpoint per listati, clienti light e integrazioni esterne (connettori, Looker Studio, n8n, siti web).
+              Regole: autenticazione e rate limit sotto; spec OpenAPI per contratti completi.
+            </p>
+          </div>
         </div>
         <div>
-          <h3 className="font-semibold text-foreground">API pubbliche</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Endpoint esistenti per listing (apartments/query, clients/lite/query) sono disponibili per
-            siti web e connettori. Autenticazione API key o OAuth; documentazione OpenAPI e piani in
-            <code className="mx-1 rounded bg-muted px-1 text-xs">docs/plans/</code>.
-          </p>
-          <ul className="mt-3 list-inside list-disc text-sm text-muted-foreground">
-            <li>apartments/query — ricerca appartamenti con filtri</li>
-            <li>clients/lite/query — clienti light per integrazioni</li>
+          <h4 className="text-sm font-medium text-foreground mb-2">URL base</h4>
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 font-mono text-sm">
+            <code className="flex-1 truncate text-foreground">{baseUrl || "—"}</code>
+            {baseUrl && (
+              <Button variant="ghost" size="sm" className="shrink-0 gap-1" onClick={copyBaseUrl}>
+                <Copy className="h-3.5 w-3.5" />
+                Copia
+              </Button>
+            )}
+          </div>
+        </div>
+        <div>
+          <h4 className="text-sm font-medium text-foreground mb-2">Endpoint (Riusabili)</h4>
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/50">
+                  <th className="px-3 py-2 text-left font-medium text-foreground">Metodo</th>
+                  <th className="px-3 py-2 text-left font-medium text-foreground">Path</th>
+                  <th className="px-3 py-2 text-left font-medium text-foreground">Auth</th>
+                  <th className="px-3 py-2 text-left font-medium text-foreground">Rate limit</th>
+                  <th className="px-3 py-2 text-left font-medium text-foreground">Descrizione</th>
+                </tr>
+              </thead>
+              <tbody>
+                {PUBLIC_ENDPOINTS.map((ep) => (
+                  <tr key={`${ep.method} ${ep.path}`} className="border-b border-border last:border-0">
+                    <td className="px-3 py-2 font-mono text-foreground">{ep.method}</td>
+                    <td className="px-3 py-2 font-mono text-muted-foreground">{ep.path}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{ep.auth}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{ep.rateLimit ?? "—"}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{ep.description}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div className="rounded-lg border border-border bg-muted/20 p-4">
+          <h4 className="text-sm font-medium text-foreground mb-2">Regole</h4>
+          <ul className="list-inside list-disc space-y-1 text-sm text-muted-foreground">
+            <li><strong>API senza JWT:</strong> <code className="rounded bg-muted px-1">GET /v1/public/listings</code> e <code className="rounded bg-muted px-1">POST /v1/public/listings</code> — rate limit 60 req/min per IP; 429 se superato.</li>
+            <li><strong>API con JWT:</strong> header <code className="rounded bg-muted px-1">Authorization: Bearer &lt;token&gt;</code> (token da login o SSO).</li>
+            <li>Login / SSO: 10 richieste / 15 minuti per IP.</li>
           </ul>
         </div>
+        <div className="rounded-lg border border-border bg-muted/20 p-4">
+          <h4 className="text-sm font-medium text-foreground mb-2">Looker Studio</h4>
+          <p className="text-sm text-muted-foreground mb-2">
+            Per usare i listati in Looker Studio: (1) endpoint <code className="rounded bg-muted px-1">GET /v1/public/listings</code> con parametri in query (vedi tabella sopra); (2) codice <strong>Community Connector</strong> (Google Apps Script) nel repo, cartella <code className="rounded bg-muted px-1">connectors/looker-studio</code>, con README per deploy e uso in Looker (Aggiungi dati → Connettore personalizzato).
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Documentazione completa: <code className="rounded bg-muted px-1">docs/API_RIUSABILI.md</code> nel repository.
+          </p>
+        </div>
+        {openApiUrl && (
+          <a href={openApiUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
+            Apri spec OpenAPI (openapi.json)
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        )}
       </div>
     </div>
   );
@@ -814,6 +1510,85 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
   const tabParam = searchParams.get("tab");
   const activeTab = isValidTab(tabParam) ? tabParam : "connettori";
   const [connectors, setConnectors] = useState<ConnectorCatalogItem[]>(CONNECTOR_CATALOG);
+  const [webhookConfigs, setWebhookConfigs] = useState<WebhookConfigRow[]>([]);
+  const [n8nConfig, setN8nConfig] = useState<N8nConfigSnapshot>(null);
+  const [outlookConnected, setOutlookConnected] = useState(false);
+  const { selectedProjectIds: projectIds } = useWorkspace();
+
+  const loadWebhooks = useCallback(() => {
+    if (!workspaceId) return;
+    followupApi
+      .listWebhookConfigs(workspaceId)
+      .then((res) => setWebhookConfigs(res.data ?? []))
+      .catch(() => setWebhookConfigs([]));
+  }, [workspaceId]);
+
+  const loadN8nConfig = useCallback(() => {
+    if (!workspaceId) return;
+    followupApi
+      .getN8nConfig(workspaceId)
+      .then((res) => setN8nConfig(res.config?.config ?? null))
+      .catch(() => setN8nConfig(null));
+  }, [workspaceId]);
+
+  useEffect(() => {
+    loadWebhooks();
+  }, [loadWebhooks]);
+
+  const loadOutlookStatus = useCallback(() => {
+    followupApi
+      .getOutlookStatus()
+      .then((r) => setOutlookConnected(r.connected))
+      .catch(() => setOutlookConnected(false));
+  }, []);
+
+  useEffect(() => {
+    loadN8nConfig();
+  }, [loadN8nConfig]);
+
+  useEffect(() => {
+    loadOutlookStatus();
+  }, [loadOutlookStatus]);
+
+  useEffect(() => {
+    if (searchParams.get("outlook") === "connected") {
+      loadOutlookStatus();
+      setConnectors((prev) => prev.map((c) => (c.id === "connector_outlook" ? { ...c, status: "configured" } : c)));
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("outlook");
+        return next;
+      });
+    }
+  }, [searchParams, loadOutlookStatus]);
+
+  useEffect(() => {
+    setConnectors((prev) =>
+      prev.map((c) => {
+        if (c.id === "connector_n8n") {
+          const hasN8nApi = !!n8nConfig?.baseUrl;
+          const hasN8nWebhook = webhookConfigs.some((w) => w.connectorId === "n8n");
+          return { ...c, status: hasN8nApi || hasN8nWebhook ? "configured" : "available" };
+        }
+        if (c.id === "connector_outlook") {
+          const hasOutlookOAuth = outlookConnected;
+          const hasOutlookWebhook = webhookConfigs.some((w) => w.connectorId === "outlook");
+          return { ...c, status: hasOutlookOAuth || hasOutlookWebhook ? "configured" : "beta" };
+        }
+        if (c.id === "connector_looker") {
+          try {
+            const stored = typeof window !== "undefined" && workspaceId
+              ? window.localStorage?.getItem(`${LOOKER_CONNECTOR_STORAGE_KEY}.${workspaceId}`)
+              : null;
+            return { ...c, status: stored === "true" ? "configured" : "available" };
+          } catch {
+            return c;
+          }
+        }
+        return c;
+      })
+    );
+  }, [workspaceId, webhookConfigs, n8nConfig, outlookConnected]);
 
   const setTab = (value: TabKey) => {
     setSearchParams((prev) => {
@@ -857,6 +1632,9 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
             <TabsTrigger value="connettori" role="tab" aria-selected={activeTab === "connettori"}>
               Connettori
             </TabsTrigger>
+            <TabsTrigger value="comunicazioni" role="tab" aria-selected={activeTab === "comunicazioni"}>
+              Comunicazioni
+            </TabsTrigger>
             <TabsTrigger value="regole" role="tab" aria-selected={activeTab === "regole"}>
               Regole
             </TabsTrigger>
@@ -869,7 +1647,22 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
           </TabsList>
 
           <TabsContent value="connettori" className="mt-6" role="tabpanel">
-            <ConnettoriTab connectors={connectors} setConnectors={setConnectors} />
+            <ConnettoriTab
+              connectors={connectors}
+              setConnectors={setConnectors}
+              onOpenTab={(tab) => setTab(tab)}
+              workspaceId={workspaceId}
+              webhookConfigs={webhookConfigs}
+              loadWebhooks={loadWebhooks}
+              projectIds={projectIds}
+              n8nConfig={n8nConfig}
+              loadN8nConfig={loadN8nConfig}
+              outlookConnected={outlookConnected}
+              loadOutlookStatus={loadOutlookStatus}
+            />
+          </TabsContent>
+          <TabsContent value="comunicazioni" className="mt-6" role="tabpanel">
+            <ComunicazioniTab workspaceId={workspaceId} />
           </TabsContent>
           <TabsContent value="regole" className="mt-6" role="tabpanel">
             <RegoleTab workspaceId={workspaceId} />

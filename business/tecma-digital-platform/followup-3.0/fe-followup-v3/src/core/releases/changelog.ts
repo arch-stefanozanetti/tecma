@@ -34,6 +34,68 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.13.0",
+    date: "2026-03-06",
+    title: "Connettori reali (n8n, Outlook, Looker) e Communication Engine — Touchpoint multicanale",
+    releaseType: "minor",
+    changes: [
+      // Connettori reali
+      {
+        type: "feature",
+        text: "Webhook: aggiunto connectorId a WebhookConfig per distinguere configurazioni per connettore (n8n, Outlook, ecc.).",
+      },
+      {
+        type: "feature",
+        text: "n8n: configurazione per workspace (base URL, API key, workflow ID default) in tz_connector_configs; servizio trigger workflow via POST API n8n; route GET/POST config e POST trigger; integrazione con eventi CRM (stesso payload dei webhook).",
+      },
+      {
+        type: "feature",
+        text: "Integrazioni: drawer configurazione n8n (Base URL, API key, Workflow ID) e Looker (test API listati); stato connettori derivato da webhook config e localStorage dove applicabile.",
+      },
+      {
+        type: "feature",
+        text: "Outlook: OAuth2 Microsoft + Microsoft Graph per calendario; servizio auth/callback, refresh token, GET eventi calendario; route auth, callback, calendar/events, DELETE disconnessione; FE \"Connetti Outlook\" / \"Disconnetti\" e vista eventi calendario Outlook.",
+      },
+      {
+        type: "feature",
+        text: "Looker Studio: endpoint GET /v1/public/listings con query params (workspaceId, projectIds, page, perPage); documentazione API; codice Community Connector (Google Apps Script) e README per uso in Looker.",
+      },
+      // Communication Engine
+      {
+        type: "feature",
+        text: "Communication Engine: catalogo eventi esteso (visit.scheduled, visit.updated, visit.completed, proposal.sent, contract.signed) emessi da calendario e trattative.",
+      },
+      {
+        type: "feature",
+        text: "Template e regole di comunicazione: collection tz_communication_templates e tz_communication_rules; azioni send_email, send_whatsapp, send_sms, create_notification; variabili {{client_name}}, {{apartment_name}}, {{visit_date}}, ecc.; risoluzione contesto da payload evento.",
+      },
+      {
+        type: "feature",
+        text: "Email: modulo SMTP (Nodemailer, env SMTP_*); channel dispatcher unico per email, WhatsApp, in-app; integrazione regole comunicazione nel dispatch eventi.",
+      },
+      {
+        type: "feature",
+        text: "WhatsApp: configurazione per workspace (Twilio) in tz_connector_configs; whatsapp.service per invio messaggi; tab Comunicazioni con form Account SID, Auth Token, From Number.",
+      },
+      {
+        type: "feature",
+        text: "UI Comunicazioni: tab in Integrazioni con lista template, lista regole di comunicazione, configurazione canali (WhatsApp) e log invii.",
+      },
+      {
+        type: "feature",
+        text: "Comunicazioni schedulate: collection tz_scheduled_communications; creazione job alla visit.scheduled in base a regole con schedules (offset in ore/giorni); worker ogni 2 minuti che invia le comunicazioni in scadenza.",
+      },
+      {
+        type: "feature",
+        text: "Branding progetto: collection tz_project_branding (logoUrl, primaryColor, footerText); layout email con logo, bordo colore e footer; API GET/PUT /projects/:id/branding; sezione \"Branding (email e comunicazioni)\" in configurazione progetto.",
+      },
+      {
+        type: "feature",
+        text: "Notification Center: log invii in tz_communication_deliveries (canale, destinatario mascherato, stato, data); API GET communication-deliveries; sezione \"Ultime comunicazioni\" nel tab Comunicazioni.",
+      },
+    ],
+  },
+  {
     version: "0.12.0",
     date: "2026-03-10",
     title: "Integrazioni e automazioni funzionanti — Notifiche, Regole, Webhook",

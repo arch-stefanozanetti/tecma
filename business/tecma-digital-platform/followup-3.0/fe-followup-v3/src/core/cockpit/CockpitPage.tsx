@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, Clock, Euro, Building2, Users, CalendarDays, Home, Handshake, UserPlus, CalendarPlus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Calendar, Clock, Euro, Building2, Users, CalendarDays, Home, Handshake, UserPlus, CalendarPlus, ChevronRight } from "lucide-react";
 import moment from "moment";
 import "moment/locale/it";
 import { followupApi } from "../../api/followupApi";
 import { useWorkspace } from "../../auth/projectScope";
 import { isPriceAvailabilityRelevant } from "../features";
-import type { CalendarEvent } from "../../types/domain";
+import type { CalendarEvent, ClientRow, RequestRow } from "../../types/domain";
 import type { AiSuggestion, ProjectAccessProject } from "../../types/domain";
 import { Button } from "../../components/ui/button";
 import { cn } from "../../lib/utils";
@@ -91,6 +92,9 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
     requests: number | null;
   }>({ apartments: null, soldOrRented: null, calendar: null, clients: null, requests: null });
   const [kpiLoading, setKpiLoading] = useState(false);
+  const [recentClients, setRecentClients] = useState<ClientRow[]>([]);
+  const [recentRequests, setRecentRequests] = useState<RequestRow[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!workspaceId || projectIds.length === 0) return;
@@ -136,6 +140,32 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
   useEffect(() => {
     if (suggestionsLoaded && actions.length === 0) setActions([...INITIAL_ACTIONS]);
   }, [suggestionsLoaded, actions.length]);
+
+  useEffect(() => {
+    if (!workspaceId || projectIds.length === 0) return;
+    followupApi
+      .queryClients({
+        workspaceId,
+        projectIds,
+        page: 1,
+        perPage: 5,
+        searchText: "",
+        sort: { field: "updatedAt", direction: -1 },
+      })
+      .then((r) => setRecentClients(r.data ?? []))
+      .catch(() => setRecentClients([]));
+    followupApi
+      .queryRequests({
+        workspaceId,
+        projectIds,
+        page: 1,
+        perPage: 5,
+        searchText: "",
+        sort: { field: "updatedAt", direction: -1 },
+      })
+      .then((r) => setRecentRequests(r.data ?? []))
+      .catch(() => setRecentRequests([]));
+  }, [workspaceId, projectIds]);
 
   const displayProjects = useMemo(() => projects.filter((p) => projectIds.includes(p.id)), [projects, projectIds]);
   const nextEventsToday = useMemo(
@@ -282,6 +312,74 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* ── Clienti e trattative (widget 360) ───────────────────────────────── */}
+        {(recentClients.length > 0 || recentRequests.length > 0) && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {recentClients.length > 0 && (
+              <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Ultimi clienti
+                  </span>
+                  {onNavigateToSection && (
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => onNavigateToSection("clients")}>
+                      Vedi tutti
+                    </Button>
+                  )}
+                </div>
+                <ul className="space-y-1">
+                  {recentClients.map((c) => (
+                    <li key={c._id}>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/clients/${c._id}`)}
+                        className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+                      >
+                        <span className="font-medium text-foreground truncate">{c.fullName ?? c.email ?? c._id}</span>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {recentRequests.length > 0 && (
+              <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Trattative da seguire
+                  </span>
+                  {onNavigateToSection && (
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => onNavigateToSection("requests")}>
+                      Pipeline
+                    </Button>
+                  )}
+                </div>
+                <ul className="space-y-1">
+                  {recentRequests.map((r) => (
+                    <li key={r._id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (r.clientId && onNavigateToSection) {
+                            navigate(`/clients/${r.clientId}`);
+                          } else if (onNavigateToSection) {
+                            onNavigateToSection("requests", { requestId: r._id });
+                          }
+                        }}
+                        className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+                      >
+                        <span className="truncate text-foreground">{r.clientName ?? r._id}</span>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
 

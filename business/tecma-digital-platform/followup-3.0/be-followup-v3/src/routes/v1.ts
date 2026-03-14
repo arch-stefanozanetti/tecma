@@ -94,6 +94,8 @@ import {
   getProjectDetail,
   getProjectPolicies,
   putProjectPolicies,
+  getProjectBranding,
+  putProjectBranding,
   getProjectEmailConfig,
   putProjectEmailConfig,
   listProjectEmailTemplates,
@@ -138,6 +140,34 @@ import {
   update as updateWebhookConfig,
   remove as removeWebhookConfig,
 } from "../core/automations/webhook-configs.service.js";
+import {
+  listByWorkspace as listCommunicationTemplates,
+  create as createCommunicationTemplate,
+  getById as getCommunicationTemplateById,
+  update as updateCommunicationTemplate,
+  remove as removeCommunicationTemplate,
+} from "../core/communications/templates.service.js";
+import {
+  listByWorkspace as listCommunicationRules,
+  create as createCommunicationRule,
+  getById as getCommunicationRuleById,
+  update as updateCommunicationRule,
+  remove as removeCommunicationRule,
+} from "../core/communications/communication-rules.service.js";
+import { listByWorkspace as listCommunicationDeliveries } from "../core/communications/communication-deliveries.service.js";
+import { getN8nConfig, saveN8nConfig, triggerN8nWorkflow, deleteN8nConfig } from "../core/connectors/n8n.service.js";
+import {
+  getWhatsAppConfig,
+  saveWhatsAppConfig,
+  deleteWhatsAppConfig,
+} from "../core/connectors/whatsapp-config.service.js";
+import {
+  getAuthUrl,
+  exchangeCodeForTokens,
+  getCalendarEvents,
+  hasOutlookConnected,
+  deleteOutlookCredentials,
+} from "../core/connectors/outlook.service.js";
 import { runReport } from "../core/reports/reports.service.js";
 
 export const v1Router = Router();
@@ -193,6 +223,46 @@ v1Router.post("/auth/logout", (req, res) => {
 
 // ─── Public API (no JWT; rate limited) ───────────────────────────────────────
 v1Router.post("/public/listings", publicApiRateLimiter, handleAsync((req) => queryApartments(req.body)));
+v1Router.get("/public/listings", publicApiRateLimiter, handleAsync((req) => {
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";
+  const projectIdsRaw = typeof req.query.projectIds === "string" ? req.query.projectIds : "";
+  const projectIds = projectIdsRaw ? projectIdsRaw.split(",").map((s) => s.trim()).filter(Boolean) : [];
+  if (!workspaceId || projectIds.length === 0) throw new HttpError("workspaceId and projectIds (comma-separated) query params required", 400);
+  const page = typeof req.query.page === "string" ? parseInt(req.query.page, 10) : 1;
+  const perPage = typeof req.query.perPage === "string" ? parseInt(req.query.perPage, 10) : 25;
+  const searchText = typeof req.query.searchText === "string" ? req.query.searchText : undefined;
+  const body = {
+    workspaceId,
+    projectIds,
+    page: Number.isNaN(page) ? 1 : page,
+    perPage: Number.isNaN(perPage) ? 25 : Math.min(200, perPage),
+    ...(searchText !== undefined && searchText !== "" && { searchText }),
+  };
+  return queryApartments(body);
+}));
+
+// ─── Outlook OAuth callback (no JWT; Microsoft redirects here) ─────────────────
+v1Router.get("/connectors/outlook/callback", (req, res) => {
+  const code = typeof req.query.code === "string" ? req.query.code : "";
+  const stateRaw = typeof req.query.state === "string" ? req.query.state : "";
+  const base = (process.env.OUTLOOK_FRONTEND_REDIRECT_BASE ?? "").replace(/\/$/, "");
+  const toPath = (q: string) => (base ? `${base}/integrations?tab=connettori&outlook=${q}` : `/integrations?tab=connettori&outlook=${q}`);
+  if (!code || !stateRaw) {
+    res.redirect(302, toPath("error"));
+    return;
+  }
+  let state: { userId: string; workspaceId?: string };
+  try {
+    state = JSON.parse(Buffer.from(stateRaw, "base64url").toString("utf8")) as { userId: string; workspaceId?: string };
+  } catch {
+    res.redirect(302, toPath("error"));
+    return;
+  }
+  const redirectUri = process.env.OUTLOOK_REDIRECT_URI ?? "";
+  exchangeCodeForTokens(code, redirectUri, state)
+    .then(() => res.redirect(302, toPath("connected")))
+    .catch(() => res.redirect(302, toPath("error")));
+});
 
 // ─── Protected routes (require valid JWT) ────────────────────────────────────
 v1Router.use(requireAuth);
@@ -406,10 +476,16 @@ v1Router.get("/notifications", handleAsync(async (req) => {
   const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";
   if (!workspaceId) throw new HttpError("workspaceId query required", 400);
   const read = req.query.read === "true" ? true : req.query.read === "false" ? false : undefined;
+  const type = typeof req.query.type === "string" && req.query.type ? req.query.type : undefined;
+  const dateFrom = typeof req.query.dateFrom === "string" && req.query.dateFrom ? req.query.dateFrom : undefined;
+  const dateTo = typeof req.query.dateTo === "string" && req.query.dateTo ? req.query.dateTo : undefined;
   const page = typeof req.query.page === "string" ? parseInt(req.query.page, 10) : 1;
   const perPage = typeof req.query.perPage === "string" ? parseInt(req.query.perPage, 10) : 25;
   return queryNotifications(workspaceId, {
     read,
+    type: type as import("../core/notifications/notifications.service.js").NotificationType | undefined,
+    dateFrom,
+    dateTo,
     page: Number.isNaN(page) ? 1 : page,
     perPage: Number.isNaN(perPage) ? 25 : Math.min(200, perPage),
   });
@@ -450,6 +526,77 @@ v1Router.delete("/automation-rules/:id", handleAsync(async (req) => {
   return { deleted: true };
 }));
 
+// ─── Communication templates & rules ────────────────────────────────────────
+v1Router.get("/workspaces/:workspaceId/communication-templates", handleAsync(async (req) => {
+  const projectId = typeof req.query.projectId === "string" ? req.query.projectId : undefined;
+  const channelRaw = typeof req.query.channel === "string" ? req.query.channel : undefined;
+  const channel = channelRaw && ["email", "whatsapp", "sms", "in_app"].includes(channelRaw) ? (channelRaw as "email" | "whatsapp" | "sms" | "in_app") : undefined;
+  const data = await listCommunicationTemplates(req.params.workspaceId, { projectId, channel });
+  return { data };
+}));
+v1Router.post("/workspaces/:workspaceId/communication-templates", handleAsync(async (req) => {
+  const body = z.object({
+    projectId: z.string().optional(),
+    channel: z.enum(["email", "whatsapp", "sms", "in_app"]),
+    name: z.string().min(1),
+    subject: z.string().optional(),
+    bodyText: z.string().min(1),
+    bodyHtml: z.string().optional(),
+    variables: z.array(z.string()).optional(),
+  }).parse(req.body);
+  const template = await createCommunicationTemplate({
+    ...body,
+    workspaceId: req.params.workspaceId,
+    variables: body.variables ?? [],
+  });
+  return { template };
+}));
+v1Router.get("/communication-templates/:id", handleAsync(async (req) => {
+  const template = await getCommunicationTemplateById(req.params.id);
+  if (!template) throw new HttpError("Template not found", 404);
+  return { template };
+}));
+v1Router.patch("/communication-templates/:id", handleAsync(async (req) => {
+  const template = await updateCommunicationTemplate(req.params.id, req.body);
+  if (!template) throw new HttpError("Template not found", 404);
+  return { template };
+}));
+v1Router.delete("/communication-templates/:id", handleAsync(async (req) => {
+  const ok = await removeCommunicationTemplate(req.params.id);
+  if (!ok) throw new HttpError("Template not found", 404);
+  return { deleted: true };
+}));
+v1Router.get("/workspaces/:workspaceId/communication-rules", handleAsync(async (req) => {
+  const projectId = typeof req.query.projectId === "string" ? req.query.projectId : undefined;
+  const data = await listCommunicationRules(req.params.workspaceId, { projectId });
+  return { data };
+}));
+v1Router.get("/workspaces/:workspaceId/communication-deliveries", handleAsync(async (req) => {
+  const limit = typeof req.query.limit === "string" ? Math.min(100, parseInt(req.query.limit, 10) || 50) : 50;
+  const data = await listCommunicationDeliveries(req.params.workspaceId, limit);
+  return { data };
+}));
+v1Router.post("/workspaces/:workspaceId/communication-rules", handleAsync(async (req) => {
+  const body = z.record(z.unknown()).parse(req.body);
+  const rule = await createCommunicationRule({ ...body, workspaceId: req.params.workspaceId } as Parameters<typeof createCommunicationRule>[0]);
+  return { rule };
+}));
+v1Router.get("/communication-rules/:id", handleAsync(async (req) => {
+  const rule = await getCommunicationRuleById(req.params.id);
+  if (!rule) throw new HttpError("Communication rule not found", 404);
+  return { rule };
+}));
+v1Router.patch("/communication-rules/:id", handleAsync(async (req) => {
+  const rule = await updateCommunicationRule(req.params.id, req.body);
+  if (!rule) throw new HttpError("Communication rule not found", 404);
+  return { rule };
+}));
+v1Router.delete("/communication-rules/:id", handleAsync(async (req) => {
+  const ok = await removeCommunicationRule(req.params.id);
+  if (!ok) throw new HttpError("Communication rule not found", 404);
+  return { deleted: true };
+}));
+
 v1Router.get("/workspaces/:workspaceId/webhook-configs", handleAsync(async (req) => {
   const configs = await listWebhookConfigs(req.params.workspaceId);
   return { data: configs };
@@ -473,6 +620,92 @@ v1Router.delete("/webhook-configs/:id", handleAsync(async (req) => {
   const ok = await removeWebhookConfig(req.params.id);
   if (!ok) throw new HttpError("Webhook config not found", 404);
   return { deleted: true };
+}));
+
+// ─── Connettore n8n ─────────────────────────────────────────────────────────
+v1Router.get("/workspaces/:workspaceId/connectors/n8n/config", handleAsync(async (req) => {
+  const config = await getN8nConfig(req.params.workspaceId);
+  return { config: config ?? null };
+}));
+v1Router.post("/workspaces/:workspaceId/connectors/n8n/config", handleAsync(async (req) => {
+  const body = z.object({
+    baseUrl: z.string().min(1),
+    apiKey: z.string().min(1),
+    defaultWorkflowId: z.string().optional(),
+  }).parse(req.body);
+  const config = await saveN8nConfig(req.params.workspaceId, body);
+  return { config };
+}));
+v1Router.post("/workspaces/:workspaceId/connectors/n8n/trigger", handleAsync(async (req) => {
+  const body = z.object({
+    workflowId: z.string().optional(),
+    data: z.record(z.unknown()).optional(),
+  }).parse(req.body ?? {});
+  const result = await triggerN8nWorkflow(req.params.workspaceId, body.workflowId, body.data ?? {});
+  return result;
+}));
+v1Router.delete("/workspaces/:workspaceId/connectors/n8n/config", handleAsync(async (req) => {
+  const deleted = await deleteN8nConfig(req.params.workspaceId);
+  return { deleted };
+}));
+
+// ─── Connettore WhatsApp (Twilio) ────────────────────────────────────────────
+v1Router.get("/workspaces/:workspaceId/connectors/whatsapp/config", handleAsync(async (req) => {
+  const config = await getWhatsAppConfig(req.params.workspaceId);
+  return { config: config ?? null };
+}));
+v1Router.post("/workspaces/:workspaceId/connectors/whatsapp/config", handleAsync(async (req) => {
+  const body = z.object({
+    accountSid: z.string().min(1),
+    authToken: z.string().min(1),
+    fromNumber: z.string().min(1),
+  }).parse(req.body);
+  const config = await saveWhatsAppConfig(req.params.workspaceId, body);
+  return { config };
+}));
+v1Router.delete("/workspaces/:workspaceId/connectors/whatsapp/config", handleAsync(async (req) => {
+  const deleted = await deleteWhatsAppConfig(req.params.workspaceId);
+  return { deleted };
+}));
+
+// ─── Connettore Outlook (OAuth2 + Graph) ────────────────────────────────────
+v1Router.get("/connectors/outlook/auth", (req, res) => {
+  const userId = req.user?.sub;
+  if (!userId) {
+    sendError(res, new HttpError("Unauthorized", 401));
+    return;
+  }
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : undefined;
+  const { redirectUri } = (() => {
+    const uri = process.env.OUTLOOK_REDIRECT_URI;
+    if (!uri) throw new HttpError("Outlook connector not configured (OUTLOOK_REDIRECT_URI)", 503);
+    return { redirectUri: uri };
+  })();
+  const url = getAuthUrl(redirectUri, { userId, workspaceId });
+  res.redirect(302, url);
+});
+v1Router.get("/connectors/outlook/calendar/events", handleAsync(async (req) => {
+  const userId = req.user?.sub;
+  if (!userId) throw new HttpError("Unauthorized", 401);
+  const dateFrom = typeof req.query.dateFrom === "string" ? req.query.dateFrom : "";
+  const dateTo = typeof req.query.dateTo === "string" ? req.query.dateTo : "";
+  if (!dateFrom || !dateTo) throw new HttpError("dateFrom and dateTo query params required (ISO datetime)", 400);
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : undefined;
+  const events = await getCalendarEvents(userId, dateFrom, dateTo, workspaceId);
+  return { data: events };
+}));
+v1Router.get("/connectors/outlook/status", handleAsync(async (req) => {
+  const userId = req.user?.sub;
+  if (!userId) throw new HttpError("Unauthorized", 401);
+  const connected = await hasOutlookConnected(userId);
+  return { connected };
+}));
+v1Router.delete("/connectors/outlook", handleAsync(async (req) => {
+  const userId = req.user?.sub;
+  if (!userId) throw new HttpError("Unauthorized", 401);
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : undefined;
+  const deleted = await deleteOutlookCredentials(userId, workspaceId);
+  return { deleted };
 }));
 
 v1Router.post("/apartments", handleAsync(async (req) => {
@@ -716,6 +949,20 @@ v1Router.put("/projects/:projectId/policies", handleAsync(async (req) => {
   if (!workspaceId) throw new HttpError("Missing workspaceId query param", 400);
   const isAdmin = req.user?.isAdmin ?? false;
   return putProjectPolicies(projectId, workspaceId, isAdmin, req.body);
+}));
+v1Router.get("/projects/:projectId/branding", handleAsync(async (req) => {
+  const projectId = req.params.projectId;
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";
+  if (!workspaceId) throw new HttpError("Missing workspaceId query param", 400);
+  const isAdmin = req.user?.isAdmin ?? false;
+  return getProjectBranding(projectId, workspaceId, isAdmin);
+}));
+v1Router.put("/projects/:projectId/branding", handleAsync(async (req) => {
+  const projectId = req.params.projectId;
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";
+  if (!workspaceId) throw new HttpError("Missing workspaceId query param", 400);
+  const isAdmin = req.user?.isAdmin ?? false;
+  return putProjectBranding(projectId, workspaceId, isAdmin, req.body);
 }));
 v1Router.get("/projects/:projectId/email-config", handleAsync(async (req) => {
   const projectId = req.params.projectId;

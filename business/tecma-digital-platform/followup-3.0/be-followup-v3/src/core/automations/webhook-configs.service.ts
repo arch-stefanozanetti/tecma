@@ -12,6 +12,8 @@ const COLLECTION = "tz_webhook_configs";
 export interface WebhookConfigRow {
   _id: string;
   workspaceId: string;
+  /** Identificatore connettore (es. "n8n", "outlook") per UI Integrazioni. */
+  connectorId?: string;
   url: string;
   secret?: string;
   events: AutomationEventType[];
@@ -22,6 +24,7 @@ export interface WebhookConfigRow {
 
 const CreateSchema = z.object({
   workspaceId: z.string().min(1),
+  connectorId: z.string().max(64).optional(),
   url: z.string().url(),
   secret: z.string().optional(),
   events: z.array(z.enum(AUTOMATION_EVENT_TYPES as unknown as [string, ...string[]])).min(1),
@@ -29,6 +32,7 @@ const CreateSchema = z.object({
 });
 
 const UpdateSchema = z.object({
+  connectorId: z.string().max(64).optional(),
   url: z.string().url().optional(),
   secret: z.string().optional(),
   events: z.array(z.enum(AUTOMATION_EVENT_TYPES as unknown as [string, ...string[]])).min(1).optional(),
@@ -48,6 +52,7 @@ function docToRow(doc: Record<string, unknown>): WebhookConfigRow {
   return {
     _id: doc._id instanceof ObjectId ? doc._id.toHexString() : String(doc._id),
     workspaceId: String(doc.workspaceId ?? ""),
+    connectorId: doc.connectorId != null ? String(doc.connectorId) : undefined,
     url: String(doc.url ?? ""),
     secret: doc.secret as string | undefined,
     events: (doc.events as AutomationEventType[]) ?? [],
@@ -86,6 +91,7 @@ export const create = async (rawInput: unknown): Promise<WebhookConfigRow> => {
   const now = new Date();
   const doc = {
     workspaceId: input.workspaceId,
+    ...(input.connectorId != null && input.connectorId !== "" && { connectorId: input.connectorId.trim() }),
     url: input.url.trim(),
     ...(input.secret != null && input.secret !== "" && { secret: input.secret }),
     events: input.events,
@@ -115,6 +121,7 @@ export const update = async (
   }
   const db = getDb();
   const updateFields: Record<string, unknown> = { updatedAt: new Date() };
+  if (input.connectorId !== undefined) updateFields.connectorId = input.connectorId?.trim() || undefined;
   if (input.url !== undefined) updateFields.url = input.url.trim();
   if (input.secret !== undefined) updateFields.secret = input.secret || undefined;
   if (input.events !== undefined) updateFields.events = input.events;

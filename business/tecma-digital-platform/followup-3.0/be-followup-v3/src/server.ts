@@ -3,9 +3,18 @@ import express from "express";
 import { ENV } from "./config/env.js";
 import { connectDb } from "./config/db.js";
 import { v1Router } from "./routes/v1.js";
+import { runDueScheduled } from "./core/communications/scheduled-communications.service.js";
+
+const SCHEDULED_COMMS_INTERVAL_MS = 2 * 60 * 1000;
 
 const bootstrap = async () => {
   await connectDb();
+
+  setInterval(() => {
+    runDueScheduled().catch((err) => {
+      console.error("[scheduled-communications] runDueScheduled failed:", err);
+    });
+  }, SCHEDULED_COMMS_INTERVAL_MS);
 
   const app = express();
   app.use(cors());

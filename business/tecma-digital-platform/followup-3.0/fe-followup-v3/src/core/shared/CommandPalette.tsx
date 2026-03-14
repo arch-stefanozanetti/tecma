@@ -18,6 +18,8 @@ export type Section =
   | "apartments"
   | "requests"
   | "projects"
+  | "inbox"
+  | "customer360"
   | "workspaces"
   | "users"
   | "audit"
@@ -49,6 +51,8 @@ const SECTION_COMMANDS: CommandSectionItem[] = [
   { kind: "section", id: "apartments", label: "Appartamenti", hint: "Lista appartamenti" },
   { kind: "section", id: "requests", label: "Trattative", hint: "Pipeline vendita/affitto" },
   { kind: "section", id: "calendar", label: "Calendario", hint: "Agenda" },
+  { kind: "section", id: "inbox", label: "Inbox", hint: "Notifiche e promemoria" },
+  { kind: "section", id: "customer360", label: "Customer 360", hint: "Vista aggregata clienti e trattative" },
   { kind: "section", id: "projects", label: "Progetti", hint: "Lista progetti" },
   { kind: "section", id: "priceAvailability", label: "Prezzi e disponibilità", hint: "Matrice prezzi" },
   { kind: "section", id: "integrations", label: "Integrazioni e automazioni", hint: "Connettori, regole, webhook, API" },

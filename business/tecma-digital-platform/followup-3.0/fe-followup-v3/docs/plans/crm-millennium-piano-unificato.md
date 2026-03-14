@@ -7,12 +7,14 @@
 
 ## Indice wave
 
-| Wave | Nome                       | Obiettivo (una riga)                                        | Stato        |
-|------|----------------------------|-------------------------------------------------------------|--------------|
-| 1    | Ricerca e preferenze UX   | Command Palette (Cmd+K) + persistenza sidebar               | Implementato |
-| 2    | Inbox                     | Notifiche e azioni in un unico punto                        | Implementato |
-| 3    | Customer 360              | Vista unificata cliente (timeline, trattative, calendario) | Implementato |
-| 4    | Integrazioni e automazioni| Regole, webhook, API pubbliche + pagina unica con 4 tab     | Implementato |
+| Wave | Nome                       | Obiettivo (una riga)                                        | FE           | BE           |
+|------|----------------------------|-------------------------------------------------------------|--------------|--------------|
+| 1    | Ricerca e preferenze UX   | Command Palette (Cmd+K) + persistenza sidebar               | Implementato | —            |
+| 2    | Inbox                     | Notifiche e azioni in un unico punto                        | Implementato | Implementato |
+| 3    | Customer 360              | Vista unificata cliente (timeline, trattative, calendario) | Implementato | —            |
+| 4    | Integrazioni e automazioni| Regole, webhook, API pubbliche + pagina unica con 4 tab     | Implementato | Parziale     |
+
+**Resta da fare:** Wave 4 backend: documentazione API pubbliche (OpenAPI) e autenticazione per uso esterno (API key/OAuth).
 
 ---
 
@@ -114,14 +116,20 @@ Regole "if this then that", webhook configurabili, API pubbliche documentate; un
 
 ### Stato Wave 4
 
-- Frontend: placeholder/empty state per Regole e Webhook finché backend non è pronto; Connettori = IntegrationsPage attuale; tab API = testo + link a docs.
-- Backend: da implementare (AutomationRule, WebhookConfig, job di invio, documentazione API pubbliche).
+- **Frontend:** implementato. Pagina unica Integrazioni con 4 tab (Connettori, Regole, Webhook, API); tab Regole e Webhook con CRUD e integrazione alle API backend; Connettori = catalogo; tab API = testo e link a docs.
+- **Backend:** implementato per automazioni e webhook:
+  - **AutomationRule** (collection `tz_automation_rules`): CRUD, list by workspace; trigger (request.created, request.status_changed, client.created, con toStatus opzionale); azioni create_notification e webhook_call.
+  - **WebhookConfig** (collection `tz_webhook_configs`): CRUD, list by workspace; url, secret, eventi abilitati.
+  - **Invio eventi:** `dispatchEvent(workspaceId, eventType, payload)` invocato su creazione cliente, creazione richiesta e cambio stato richiesta; esegue regole abilitate (notifiche in `tz_notifications`) e invio webhook.
+  - **Webhook delivery:** POST al URL configurato con retry, firma HMAC su body (X-Webhook-Signature: sha256=...).
+- **Resta da fare (Wave 4 backend):** documentazione API pubbliche (OpenAPI/Swagger) per endpoint esistenti (apartments/query, clients/lite/query); autenticazione per uso esterno (API key o OAuth) da definire.
 
 ---
 
 ## Stato e prossimi passi
 
-- **Wave 1:** implementato (Command Palette con ricerca entità, shortcut Cmd/Ctrl+K, preferenze sidebar in localStorage).
-- **Wave 2:** implementato (Inbox in header, Sheet notifiche, navigazione da link, segna letti).
-- **Wave 3:** implementato (ClientDetailPage con tab Profilo, Trattative, Appartamenti, Timeline unificata e eventi calendario).
-- **Wave 4:** frontend implementato (pagina unica Integrazioni con 4 tab, redirect `/automations`); backend automazioni/webhook (AutomationRule, WebhookConfig, job invio) e documentazione API pubbliche da completare quando richiesto.
+- **Wave 1 (FE):** implementato. Command Palette con ricerca entità (clienti, appartamenti, trattative), shortcut Cmd/Ctrl+K, preferenze sidebar in localStorage.
+- **Wave 2 (FE + BE):** implementato. Inbox in header, Sheet notifiche, navigazione da link, segna letti; backend notifiche (get, mark read, read-all).
+- **Wave 3 (FE):** implementato. ClientDetailPage con tab Profilo, Trattative, Appartamenti, Timeline unificata e eventi calendario.
+- **Wave 4 (FE):** implementato. Pagina unica Integrazioni con 4 tab (Connettori, Regole, Webhook, API), redirect `/automations` → `/integrations?tab=regole`, CRUD regole e webhook collegato al backend.
+- **Wave 4 (BE):** implementato per automazioni e webhook (AutomationRule, WebhookConfig, dispatchEvent su client/request, invio webhook con retry e firma). **Resta:** documentazione API pubbliche (OpenAPI) e autenticazione per uso esterno (API key/OAuth).

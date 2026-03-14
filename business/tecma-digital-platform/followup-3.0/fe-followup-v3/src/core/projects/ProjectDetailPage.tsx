@@ -23,6 +23,7 @@ import {
   KeyRound,
   ToggleLeft,
   Save,
+  Palette,
 } from "lucide-react";
 import {
   Select,
@@ -108,15 +109,18 @@ export const ProjectDetailPage = () => {
 
   const [identityDraft, setIdentityDraft] = useState(emptyProject());
   const [policiesDraft, setPoliciesDraft] = useState(emptyPolicies());
+  const [brandingDraft, setBrandingDraft] = useState({ logoUrl: "", primaryColor: "", footerText: "" });
   const [emailConfigDraft, setEmailConfigDraft] = useState({ smtpHost: "", smtpPort: "", fromEmail: "", defaultTemplateId: "" });
 
   const [savingIdentity, setSavingIdentity] = useState(false);
   const [savingPolicies, setSavingPolicies] = useState(false);
+  const [savingBranding, setSavingBranding] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
 
   const [secIdentity, setSecIdentity] = useState(true);
   const [secContacts, setSecContacts] = useState(true);
   const [secLegal, setSecLegal] = useState(true);
+  const [secBranding, setSecBranding] = useState(false);
   const [secEmail, setSecEmail] = useState(false);
   const [secTechnica, setSecTechnica] = useState(false);
   const [secPdf, setSecPdf] = useState(false);
@@ -129,9 +133,10 @@ export const ProjectDetailPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const [proj, pol, cfg, etList, pdfList] = await Promise.all([
+      const [proj, pol, branding, cfg, etList, pdfList] = await Promise.all([
         followupApi.getProjectDetail(pid, wsId),
         followupApi.getProjectPolicies(pid, wsId).catch(() => null),
+        followupApi.getProjectBranding(pid, wsId).catch(() => null),
         followupApi.getProjectEmailConfig(pid, wsId).catch(() => null),
         followupApi.listProjectEmailTemplates(pid, wsId).catch(() => []),
         followupApi.listProjectPdfTemplates(pid, wsId).catch(() => []),
@@ -162,6 +167,11 @@ export const ProjectDetailPage = () => {
         termsUrl: pol?.termsUrl ?? "",
         content: pol?.content ?? "",
         legalNotes: pol?.legalNotes ?? "",
+      });
+      setBrandingDraft({
+        logoUrl: (branding as { logoUrl?: string })?.logoUrl ?? "",
+        primaryColor: (branding as { primaryColor?: string })?.primaryColor ?? "",
+        footerText: (branding as { footerText?: string })?.footerText ?? "",
       });
       setEmailConfigDraft({
         smtpHost: (cfg as Record<string, unknown>)?.smtpHost as string ?? "",
@@ -227,6 +237,26 @@ export const ProjectDetailPage = () => {
       window.alert(e instanceof Error ? e.message : "Errore salvataggio");
     } finally {
       setSavingPolicies(false);
+    }
+  };
+
+  const setBrand = (part: Partial<{ logoUrl: string; primaryColor: string; footerText: string }>) =>
+    setBrandingDraft((prev) => ({ ...prev, ...part }));
+
+  const handleSaveBranding = async () => {
+    if (!pid || !wsId) return;
+    setSavingBranding(true);
+    try {
+      await followupApi.putProjectBranding(pid, wsId, {
+        logoUrl: brandingDraft.logoUrl || undefined,
+        primaryColor: brandingDraft.primaryColor || undefined,
+        footerText: brandingDraft.footerText || undefined,
+      });
+      void loadAll();
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "Errore salvataggio");
+    } finally {
+      setSavingBranding(false);
     }
   };
 
@@ -429,6 +459,47 @@ export const ProjectDetailPage = () => {
                 <Button size="sm" onClick={handleSavePolicies} disabled={savingPolicies} className="gap-2">
                   <Save className="h-3.5 w-3.5" />
                   {savingPolicies ? "Salvataggio…" : "Salva note e policy"}
+                </Button>
+              </div>
+            )}
+          </section>
+
+          {/* ── Branding (email/comunicazioni) ─── */}
+          <section>
+            <SectionTitle
+              label="Branding (email e comunicazioni)"
+              icon={<Palette className="h-4 w-4 text-muted-foreground" />}
+              open={secBranding}
+              onToggle={() => setSecBranding(!secBranding)}
+            />
+            {secBranding && (
+              <div className="mt-4 space-y-4">
+                <F label="URL logo" hint="Logo mostrato nell'intestazione delle email (URL pubblico).">
+                  <Input
+                    value={brandingDraft.logoUrl}
+                    onChange={(e) => setBrand({ logoUrl: e.target.value })}
+                    placeholder="https://..."
+                  />
+                </F>
+                <F label="Colore primario" hint="Es. #2563eb per bordo e accenti nelle email.">
+                  <Input
+                    value={brandingDraft.primaryColor}
+                    onChange={(e) => setBrand({ primaryColor: e.target.value })}
+                    placeholder="#2563eb"
+                  />
+                </F>
+                <F label="Testo footer" hint="Testo in fondo alle email (es. disclaimer o link).">
+                  <Textarea
+                    value={brandingDraft.footerText}
+                    onChange={(e) => setBrand({ footerText: e.target.value })}
+                    placeholder="© Progetto. Tutti i diritti riservati."
+                    rows={2}
+                    className="w-full"
+                  />
+                </F>
+                <Button size="sm" onClick={handleSaveBranding} disabled={savingBranding} className="gap-2">
+                  <Save className="h-3.5 w-3.5" />
+                  {savingBranding ? "Salvataggio…" : "Salva branding"}
                 </Button>
               </div>
             )}

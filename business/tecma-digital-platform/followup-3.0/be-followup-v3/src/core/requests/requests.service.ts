@@ -18,6 +18,7 @@ import {
 } from "../workflow/apartment-lock.service.js";
 import { createContract } from "../contracts/contracts.service.js";
 import { setInventoryStatus } from "../inventory/inventory.service.js";
+import { dispatchEvent } from "../automations/automation-events.service.js";
 
 /** Ruolo del cliente rispetto all'immobile (compravendita: venditore vs acquirente). */
 export type ClientRole = "buyer" | "seller" | "tenant" | "landlord";
@@ -527,6 +528,31 @@ export const updateRequestStatus = async (
     });
   } finally {
     await session.endSession();
+  }
+
+  const projectId = typeof doc.projectId === "string" ? doc.projectId : "";
+  const clientId = typeof doc.clientId === "string" ? doc.clientId : "";
+  if (newStatus === "quote" || newStatus === "offer") {
+    dispatchEvent(workspaceId, "proposal.sent", {
+      workspaceId,
+      projectId,
+      entityType: "request",
+      entityId: id,
+      clientId,
+      apartmentId,
+      toStatus: newStatus,
+    }).catch((err) => console.error("[requests] dispatch proposal.sent failed:", err));
+  }
+  if (newStatus === "won") {
+    dispatchEvent(workspaceId, "contract.signed", {
+      workspaceId,
+      projectId,
+      entityType: "request",
+      entityId: id,
+      clientId,
+      apartmentId,
+      toStatus: newStatus,
+    }).catch((err) => console.error("[requests] dispatch contract.signed failed:", err));
   }
 
   return getRequestById(id);

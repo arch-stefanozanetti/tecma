@@ -12,6 +12,11 @@ export const AUTOMATION_EVENT_TYPES = [
   "request.created",
   "request.status_changed",
   "client.created",
+  "visit.scheduled",
+  "visit.updated",
+  "visit.completed",
+  "proposal.sent",
+  "contract.signed",
 ] as const;
 export type AutomationEventType = (typeof AUTOMATION_EVENT_TYPES)[number];
 

@@ -12,6 +12,7 @@ import {
   GitBranch,
   Handshake,
   Home,
+  Inbox as InboxIcon,
   Layers,
   Link2,
   LogOut,
@@ -56,7 +57,9 @@ type Section =
   | "reports"
   | "releases"
   | "integrations"
-  | "priceAvailability";
+  | "priceAvailability"
+  | "inbox"
+  | "customer360";
 
 interface PageTemplateProps {
   section: Section;
@@ -94,6 +97,8 @@ const navItems: NavItem[] = [
   { id: "clients", label: "Clienti", icon: Users },
   { id: "requests", label: "Trattative", icon: Handshake },
   { id: "calendar", label: "Calendario", icon: CalendarDays },
+  { id: "inbox", label: "Inbox", icon: InboxIcon },
+  { id: "customer360", label: "Customer 360", icon: UserCircle },
   { id: "projects", label: "Progetti", icon: Building2 },
   { id: "priceAvailability", label: "Prezzi e disponibilità", icon: Euro, compact: true, group: "tools" },
   { id: "integrations", label: "Integrazioni e automazioni", icon: Plug, compact: true, group: "tools" },

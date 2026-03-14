@@ -33,6 +33,23 @@ curl -X POST "http://localhost:5060/v1/public/listings" \
   -d '{"workspaceId":"dev-1","projectIds":["project-01"],"page":1,"perPage":25}'
 ```
 
+**GET (per Looker Studio e connettori che preferiscono query string):**  
+`GET /v1/public/listings` — stesso contratto e risposta della POST, parametri in query:
+
+| Parametro    | Tipo   | Obbligatorio | Descrizione |
+|-------------|--------|--------------|-------------|
+| workspaceId | string | Sì          | ID workspace |
+| projectIds  | string | Sì          | ID progetti separati da virgola (es. `id1,id2`) |
+| page        | number | No (default 1) | Pagina |
+| perPage     | number | No (default 25, max 200) | Elementi per pagina |
+| searchText  | string | No          | Ricerca su nome/codice |
+
+**Esempio URL (Looker Community Connector, Google Apps Script, ecc.):**
+```
+GET /v1/public/listings?workspaceId=dev-1&projectIds=project-01,project-02&page=1&perPage=25
+```
+Rate limit e autenticazione identici alla POST (nessuna auth, 60 req/min per IP).
+
 ---
 
 ### 1. Elenco appartamenti (listings, con JWT)

@@ -475,6 +475,8 @@ export interface AutomationRuleRow {
 export interface WebhookConfigRow {
   _id: string;
   workspaceId: string;
+  /** Identificatore connettore (es. "n8n", "outlook") per UI Integrazioni. */
+  connectorId?: string;
   url: string;
   secret?: string;
   events: AutomationEventType[];

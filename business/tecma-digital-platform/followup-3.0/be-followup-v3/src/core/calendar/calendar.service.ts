@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getDb } from "../../config/db.js";
 import { ListQuerySchema, type ListQueryInput, buildPagination } from "../shared/list-query.js";
 import { PaginatedResponse } from "../../types/http.js";
+import { dispatchEvent } from "../automations/automation-events.service.js";
 
 const SOURCES = ["FOLLOWUP_SELL", "FOLLOWUP_RENT", "CUSTOM_SERVICE"] as const;
 const CalendarEventCreateSchema = z.object({
@@ -251,6 +252,19 @@ export const createCalendarEvent = async (rawInput: unknown): Promise<{ event: C
     ...(doc.clientId && { clientId: doc.clientId }),
     ...(doc.apartmentId && { apartmentId: doc.apartmentId }),
   };
+  if (event.clientId) {
+    dispatchEvent(doc.workspaceId, "visit.scheduled", {
+      workspaceId: doc.workspaceId,
+      projectId: doc.projectId,
+      entityType: "calendar_event",
+      entityId: _id,
+      clientId: event.clientId,
+      apartmentId: event.apartmentId,
+      startsAt: event.startsAt,
+      endsAt: event.endsAt,
+      title: event.title,
+    }).catch((err) => console.error("[calendar] dispatch visit.scheduled failed:", err));
+  }
   return { event };
 };
 
@@ -303,6 +317,19 @@ export const updateCalendarEvent = async (
     ...(updated!.clientId != null && { clientId: String(updated!.clientId) }),
     ...(updated!.apartmentId != null && { apartmentId: String(updated!.apartmentId) }),
   };
+  if (event.clientId) {
+    dispatchEvent(event.workspaceId, "visit.updated", {
+      workspaceId: event.workspaceId,
+      projectId: event.projectId,
+      entityType: "calendar_event",
+      entityId: event._id,
+      clientId: event.clientId,
+      apartmentId: event.apartmentId,
+      startsAt: event.startsAt,
+      endsAt: event.endsAt,
+      title: event.title,
+    }).catch((err) => console.error("[calendar] dispatch visit.updated failed:", err));
+  }
   return { event };
 };
 

@@ -33,6 +33,9 @@ export interface NotificationRow {
 
 export interface QueryNotificationsParams {
   read?: boolean;
+  type?: NotificationType;
+  dateFrom?: string;
+  dateTo?: string;
   page?: number;
   perPage?: number;
 }
@@ -62,6 +65,21 @@ export const queryNotifications = async (
   const filter: Record<string, unknown> = { workspaceId };
   if (params.read !== undefined) {
     filter.read = params.read;
+  }
+  if (params.type !== undefined) {
+    filter.type = params.type;
+  }
+  const dateRange: Record<string, Date> = {};
+  if (params.dateFrom !== undefined && params.dateFrom) {
+    const from = new Date(params.dateFrom);
+    if (!Number.isNaN(from.getTime())) dateRange.$gte = from;
+  }
+  if (params.dateTo !== undefined && params.dateTo) {
+    const to = new Date(params.dateTo);
+    if (!Number.isNaN(to.getTime())) dateRange.$lte = to;
+  }
+  if (Object.keys(dateRange).length > 0) {
+    filter.createdAt = dateRange;
   }
 
   const [data, total] = await Promise.all([

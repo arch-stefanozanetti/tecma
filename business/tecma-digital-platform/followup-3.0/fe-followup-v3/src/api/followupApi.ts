@@ -1,4 +1,4 @@
-import { deleteJson, getJson, patchJson, postJson, putJson, setTokens } from "./http";
+import { deleteJson, getJson, getAccessToken, API_BASE_URL, patchJson, postJson, putJson, setTokens } from "./http";
 import type {
   AdditionalInfoCreateInput,
   AdditionalInfoRow,
@@ -178,6 +178,15 @@ export const followupApi = {
   putProjectPolicies: (projectId: string, workspaceId: string, payload: { privacyPolicyUrl?: string; termsUrl?: string; content?: string; legalNotes?: string }) =>
     putJson<{ projectId: string; privacyPolicyUrl?: string; termsUrl?: string; content?: string; legalNotes?: string; updatedAt: string }>(
       `/projects/${projectId}/policies?workspaceId=${encodeURIComponent(workspaceId)}`,
+      payload
+    ),
+  getProjectBranding: (projectId: string, workspaceId: string) =>
+    getJson<{ projectId: string; logoUrl?: string; primaryColor?: string; footerText?: string; updatedAt: string }>(
+      `/projects/${projectId}/branding?workspaceId=${encodeURIComponent(workspaceId)}`
+    ),
+  putProjectBranding: (projectId: string, workspaceId: string, payload: { logoUrl?: string; primaryColor?: string; footerText?: string }) =>
+    putJson<{ projectId: string; logoUrl?: string; primaryColor?: string; footerText?: string; updatedAt: string }>(
+      `/projects/${projectId}/branding?workspaceId=${encodeURIComponent(workspaceId)}`,
       payload
     ),
   getProjectEmailConfig: (projectId: string, workspaceId: string) =>
@@ -399,9 +408,15 @@ export const followupApi = {
     getJson<UserPreferences>(`/session/preferences?email=${encodeURIComponent(email)}`),
   saveUserPreferences: (email: string, workspaceId: string, selectedProjectIds: string[]) =>
     postJson<UserPreferences>("/session/preferences", { email, workspaceId, selectedProjectIds }),
-  getNotifications: (workspaceId: string, params?: { read?: boolean; page?: number; perPage?: number }) => {
+  getNotifications: (
+    workspaceId: string,
+    params?: { read?: boolean; type?: string; dateFrom?: string; dateTo?: string; page?: number; perPage?: number }
+  ) => {
     const q = new URLSearchParams({ workspaceId });
     if (params?.read !== undefined) q.set("read", String(params.read));
+    if (params?.type) q.set("type", params.type);
+    if (params?.dateFrom) q.set("dateFrom", params.dateFrom);
+    if (params?.dateTo) q.set("dateTo", params.dateTo);
     if (params?.page !== undefined) q.set("page", String(params.page));
     if (params?.perPage !== undefined) q.set("perPage", String(params.perPage));
     return getJson<PaginatedResponse<NotificationRow>>(`/notifications?${q.toString()}`);
@@ -422,10 +437,96 @@ export const followupApi = {
     getJson<{ data: WebhookConfigRow[] }>(`/workspaces/${encodeURIComponent(workspaceId)}/webhook-configs`),
   createWebhookConfig: (workspaceId: string, payload: Omit<WebhookConfigRow, "_id" | "workspaceId" | "createdAt" | "updatedAt">) =>
     postJson<{ config: WebhookConfigRow }>(`/workspaces/${encodeURIComponent(workspaceId)}/webhook-configs`, payload),
-  updateWebhookConfig: (id: string, payload: Partial<Pick<WebhookConfigRow, "url" | "secret" | "events" | "enabled">>) =>
+  updateWebhookConfig: (id: string, payload: Partial<Pick<WebhookConfigRow, "url" | "secret" | "events" | "enabled" | "connectorId">>) =>
     patchJson<{ config: WebhookConfigRow }>(`/webhook-configs/${encodeURIComponent(id)}`, payload),
   deleteWebhookConfig: (id: string) =>
     deleteJson<{ deleted: boolean }>(`/webhook-configs/${encodeURIComponent(id)}`),
+  /** Connettore n8n: config (API reale). */
+  getN8nConfig: (workspaceId: string) =>
+    getJson<{ config: { _id: string; workspaceId: string; connectorId: string; config: { baseUrl: string; apiKeyMasked?: string; defaultWorkflowId?: string }; updatedAt: string } | null }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/connectors/n8n/config`
+    ),
+  saveN8nConfig: (workspaceId: string, body: { baseUrl: string; apiKey: string; defaultWorkflowId?: string }) =>
+    postJson<{ config: { _id: string; workspaceId: string; connectorId: string; config: { baseUrl: string; apiKeyMasked?: string; defaultWorkflowId?: string }; updatedAt: string } }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/connectors/n8n/config`,
+      body
+    ),
+  triggerN8nWorkflow: (workspaceId: string, body: { workflowId?: string; data?: Record<string, unknown> }) =>
+    postJson<{ executionId?: number; waitingForWebhook?: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/n8n/trigger`, body ?? {}),
+  deleteN8nConfig: (workspaceId: string) =>
+    deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/n8n/config`),
+  /** Connettore Outlook (OAuth2). Redirect a Microsoft: usa getOutlookAuthRedirect e poi window.location.href = url. */
+  getOutlookAuthRedirect: async (workspaceId?: string): Promise<string> => {
+    const token = getAccessToken();
+    if (!token) throw new Error("Non autenticato");
+    const q = workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : "";
+    const res = await fetch(`${API_BASE_URL}/connectors/outlook/auth${q}`, {
+      method: "GET",
+      redirect: "manual",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.status !== 302) {
+      const text = await res.text();
+      throw new Error(text || `Errore ${res.status} durante avvio connessione Outlook`);
+    }
+    const loc = res.headers.get("Location");
+    if (!loc) throw new Error("Redirect URL mancante");
+    return loc;
+  },
+  getOutlookStatus: () => getJson<{ connected: boolean }>("/connectors/outlook/status"),
+  deleteOutlook: (workspaceId?: string) =>
+    deleteJson<{ deleted: boolean }>(`/connectors/outlook${workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : ""}`),
+  getOutlookCalendarEvents: (dateFrom: string, dateTo: string, workspaceId?: string) =>
+    getJson<{ data: Array<{ id: string; subject: string; start: string; end: string; isAllDay?: boolean; webLink?: string }> }>(
+      `/connectors/outlook/calendar/events?dateFrom=${encodeURIComponent(dateFrom)}&dateTo=${encodeURIComponent(dateTo)}${workspaceId ? `&workspaceId=${encodeURIComponent(workspaceId)}` : ""}`
+    ),
+  /** Communication templates (Comunicazioni). */
+  listCommunicationTemplates: (workspaceId: string, params?: { projectId?: string; channel?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.projectId) q.set("projectId", params.projectId);
+    if (params?.channel) q.set("channel", params.channel);
+    const query = q.toString();
+    return getJson<{ data: Array<{ _id: string; workspaceId: string; projectId?: string; channel: string; name: string; subject?: string; bodyText: string; bodyHtml?: string; variables: string[]; createdAt: string; updatedAt: string }> }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/communication-templates${query ? `?${query}` : ""}`
+    );
+  },
+  createCommunicationTemplate: (workspaceId: string, body: { projectId?: string; channel: string; name: string; subject?: string; bodyText: string; bodyHtml?: string; variables?: string[] }) =>
+    postJson<{ template: Record<string, unknown> }>(`/workspaces/${encodeURIComponent(workspaceId)}/communication-templates`, body),
+  getCommunicationTemplate: (id: string) => getJson<{ template: Record<string, unknown> }>(`/communication-templates/${encodeURIComponent(id)}`),
+  updateCommunicationTemplate: (id: string, body: Record<string, unknown>) =>
+    patchJson<{ template: Record<string, unknown> }>(`/communication-templates/${encodeURIComponent(id)}`, body),
+  deleteCommunicationTemplate: (id: string) => deleteJson<{ deleted: boolean }>(`/communication-templates/${encodeURIComponent(id)}`),
+  /** Communication rules (Comunicazioni). */
+  listCommunicationRules: (workspaceId: string, params?: { projectId?: string }) =>
+    getJson<{ data: Array<Record<string, unknown>> }>(`/workspaces/${encodeURIComponent(workspaceId)}/communication-rules${params?.projectId ? `?projectId=${encodeURIComponent(params.projectId)}` : ""}`),
+  createCommunicationRule: (workspaceId: string, body: Record<string, unknown>) =>
+    postJson<{ rule: Record<string, unknown> }>(`/workspaces/${encodeURIComponent(workspaceId)}/communication-rules`, body),
+  getCommunicationRule: (id: string) => getJson<{ rule: Record<string, unknown> }>(`/communication-rules/${encodeURIComponent(id)}`),
+  updateCommunicationRule: (id: string, body: Record<string, unknown>) =>
+    patchJson<{ rule: Record<string, unknown> }>(`/communication-rules/${encodeURIComponent(id)}`, body),
+  deleteCommunicationRule: (id: string) => deleteJson<{ deleted: boolean }>(`/communication-rules/${encodeURIComponent(id)}`),
+  /** Log comunicazioni inviate (Notification Center). */
+  listCommunicationDeliveries: (workspaceId: string, limit?: number) =>
+    getJson<{ data: Array<{ _id: string; channel: string; templateId: string; recipientMasked: string; status: string; sentAt: string }> }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/communication-deliveries${limit != null ? `?limit=${limit}` : ""}`
+    ),
+  /** WhatsApp config (Twilio) per workspace. */
+  getWhatsAppConfig: (workspaceId: string) =>
+    getJson<{ config: { _id: string; workspaceId: string; connectorId: string; config: { accountSid: string; authTokenMasked?: string; fromNumber: string }; updatedAt: string } | null }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/connectors/whatsapp/config`
+    ),
+  saveWhatsAppConfig: (workspaceId: string, body: { accountSid: string; authToken: string; fromNumber: string }) =>
+    postJson<{ config: Record<string, unknown> }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/whatsapp/config`, body),
+  deleteWhatsAppConfig: (workspaceId: string) =>
+    deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/whatsapp/config`),
+  /** Test API listati pubblici (nessuna auth richiesta lato backend). Per connettore Looker Studio. */
+  testPublicListings: (workspaceId: string, projectIds: string[]) =>
+    postJson<PaginatedResponse<ApartmentRow>>("/public/listings", {
+      workspaceId,
+      projectIds,
+      page: 1,
+      perPage: 5,
+    }),
   login: (email: string, password: string) =>
     postJson<{
       accessToken: string;

@@ -32,6 +32,8 @@ import { PriceAvailabilityPage } from "./core/prices/PriceAvailabilityPage";
 import { ReleasesPage } from "./core/releases/ReleasesPage";
 import { IntegrationsPage } from "./core/integrations/IntegrationsPage";
 import { ProjectsPage } from "./core/projects/ProjectsPage";
+import { InboxPage } from "./core/shared/InboxPage";
+import { Customer360Page } from "./core/customer360/Customer360Page";
 import { isSectionEnabledByFeature, isPriceAvailabilityRelevant } from "./core/features";
 import { CommandPalette } from "./core/shared/CommandPalette";
 import type { ProjectAccessProject } from "./types/domain";
@@ -58,7 +60,9 @@ type Section =
   | "reports"
   | "releases"
   | "integrations"
-  | "priceAvailability";
+  | "priceAvailability"
+  | "inbox"
+  | "customer360";
 
 const renderSection = (
   section: Section,
@@ -68,7 +72,8 @@ const renderSection = (
   projectsForCockpit?: ProjectAccessProject[],
   enabledFeatures?: string[],
   location?: { state?: unknown },
-  isAdmin?: boolean
+  isAdmin?: boolean,
+  navigate?: (path: string) => void
 ): ReactNode => {
   if (!isSectionEnabledByFeature(section, enabledFeatures)) {
     return (
@@ -248,6 +253,27 @@ const renderSection = (
     return <IntegrationsPage workspaceId={workspaceId} />;
   }
 
+  if (section === "inbox") {
+    return (
+      <InboxPage
+        workspaceId={workspaceId}
+        onSectionChange={(s, state) => onSectionChange(s as Section, state)}
+        navigate={navigate ?? (() => {})}
+      />
+    );
+  }
+
+  if (section === "customer360") {
+    return (
+      <Customer360Page
+        workspaceId={workspaceId}
+        projectIds={projectIds}
+        onSectionChange={(s, state) => onSectionChange(s as Section, state)}
+        navigate={navigate ?? (() => {})}
+      />
+    );
+  }
+
   if (section === "projects") {
     return <ProjectsPage />;
   }
@@ -259,7 +285,7 @@ const renderSection = (
 };
 
 const SECTIONS: Section[] = [
-  "cockpit", "calendar", "clients", "apartments", "requests", "projects",
+  "cockpit", "calendar", "clients", "apartments", "requests", "projects", "inbox", "customer360",
   "createApartment", "createApartmentHC", "editApartmentHC", "associateAptClient",
   "completeFlow", "catalogHC", "templateConfig", "aiApprovals", "workflowConfig", "workspaces", "users", "audit", "reports", "releases", "integrations", "priceAvailability",
 ];
@@ -272,6 +298,8 @@ const SECTION_TO_PATH: Partial<Record<Section, string>> = {
   apartments: "/apartments",
   requests: "/requests",
   projects: "/projects",
+  inbox: "/inbox",
+  customer360: "/customer-360",
   workflowConfig: "/workflow-config",
   workspaces: "/workspace",
   users: "/users",
@@ -491,7 +519,8 @@ export const App = () => {
     filteredProjects,
     workspaceFeatures,
     location,
-    projectScope.isAdmin ?? false
+    projectScope.isAdmin ?? false,
+    navigate
   );
 
   return (

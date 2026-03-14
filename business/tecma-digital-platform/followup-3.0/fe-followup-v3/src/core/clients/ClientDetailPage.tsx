@@ -305,6 +305,25 @@ export const ClientDetailPage = () => {
     return items;
   }, [requests, transitionsByRequestId, timelineActionsFiltered, calendarEvents]);
 
+  /** Prossimi appuntamenti (solo futuri), max 5, per blocco in cima alla scheda */
+  const upcomingCalendarEvents = useMemo(() => {
+    const now = new Date().toISOString();
+    return calendarEvents
+      .filter((ev) => ev.startsAt >= now)
+      .sort((a, b) => (a.startsAt > b.startsAt ? 1 : -1))
+      .slice(0, 5);
+  }, [calendarEvents]);
+
+  /** Riepilogo trattative per blocco in cima (conteggio per stato) */
+  const requestsSummaryByStatus = useMemo(() => {
+    const m: Record<string, number> = {};
+    requests.forEach((r) => {
+      const s = r.status ?? "other";
+      m[s] = (m[s] ?? 0) + 1;
+    });
+    return m;
+  }, [requests]);
+
   const openActionDrawerCreate = useCallback(() => {
     setEditingAction(null);
     setActionDrawerMode("create");
@@ -613,6 +632,69 @@ export const ClientDetailPage = () => {
           </span>
         </div>
       </header>
+
+      {/* Blocco Prossimi appuntamenti + Riepilogo trattative (Customer 360) */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-chrome border border-border bg-card p-3 shadow-sm">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <CalendarCheck className="h-3.5 w-3.5" />
+              Prossimi appuntamenti
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => {
+                setCalendarDrawerPrefill({ clientId: client._id, projectId: client.projectId ?? undefined });
+                setCalendarDrawerOpen(true);
+              }}
+            >
+              Fissa in calendario
+            </Button>
+          </div>
+          {upcomingCalendarEvents.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nessun appuntamento in programma.</p>
+          ) : (
+            <ul className="space-y-1">
+              {upcomingCalendarEvents.map((ev) => (
+                <li key={ev._id} className="flex items-center gap-2 text-sm">
+                  <span className="tabular-nums text-muted-foreground shrink-0">
+                    {moment(ev.startsAt).format("DD MMM HH:mm")}
+                  </span>
+                  <span className="truncate text-foreground">{ev.title}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="rounded-chrome border border-border bg-card p-3 shadow-sm">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <FileText className="h-3.5 w-3.5" />
+              Trattative
+            </span>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setActiveTab("trattative")}>
+              Vai alla tab
+            </Button>
+          </div>
+          {requests.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nessuna trattativa associata.</p>
+          ) : (
+            <p className="text-sm text-foreground">
+              {requests.length} trattativa{requests.length !== 1 ? "e" : ""}
+              {Object.keys(requestsSummaryByStatus).length > 0 && (
+                <span className="text-muted-foreground">
+                  {" "}
+                  ({Object.entries(requestsSummaryByStatus)
+                    .map(([status, n]) => `${n} ${statusLabel(status)}`)
+                    .join(", ")})
+                </span>
+              )}
+            </p>
+          )}
+        </div>
+      </div>
 
       <Drawer open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DrawerContent side="right" className="sm:max-w-md">

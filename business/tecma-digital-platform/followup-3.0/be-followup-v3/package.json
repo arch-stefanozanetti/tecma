@@ -1,6 +1,6 @@
 {
   "name": "be-followup-v3",
-  "version": "0.1.0",
+  "version": "0.13.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -34,6 +34,7 @@
     "express-rate-limit": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "mongodb": "^6.16.0",
+    "nodemailer": "^8.0.2",
     "xlsx": "^0.18.5",
     "zod": "^3.24.2"
   },
@@ -42,6 +43,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^24.6.2",
+    "@types/nodemailer": "^7.0.11",
     "@types/supertest": "^6.0.2",
     "@vitest/coverage-v8": "^3.2.4",
     "eslint": "^9.15.0",
