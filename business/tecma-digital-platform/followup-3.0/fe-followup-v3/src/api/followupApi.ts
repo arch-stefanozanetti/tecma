@@ -41,6 +41,10 @@ import type {
   WorkspaceUserRow,
   WorkspaceUserRole,
   UserWithVisibilityRow,
+  CustomerNeedRow,
+  OpportunityRow,
+  InitiativeRow,
+  FeatureRow,
 } from "../types/domain";
 
 export const followupApi = {
@@ -729,5 +733,49 @@ export const followupApi = {
       decision,
       actorEmail,
       note
-    })
+    }),
+
+  // Product Discovery (admin only)
+  getCustomerNeeds: (params?: { opportunityId?: string; status?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.opportunityId) q.set("opportunityId", params.opportunityId);
+    if (params?.status) q.set("status", params.status);
+    const query = q.toString();
+    return getJson<CustomerNeedRow[]>(`/customer-needs${query ? `?${query}` : ""}`);
+  },
+  createCustomerNeed: (payload: Partial<CustomerNeedRow>) => postJson<CustomerNeedRow>("/customer-needs", payload),
+  getCustomerNeed: (id: string) => getJson<CustomerNeedRow>(`/customer-needs/${id}`),
+  updateCustomerNeed: (id: string, payload: Partial<CustomerNeedRow>) =>
+    patchJson<CustomerNeedRow>(`/customer-needs/${id}`, payload),
+
+  getOpportunities: (params?: { initiativeId?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.initiativeId) q.set("initiativeId", params.initiativeId);
+    const query = q.toString();
+    return getJson<OpportunityRow[]>(`/opportunities${query ? `?${query}` : ""}`);
+  },
+  createOpportunity: (payload: Partial<OpportunityRow>) => postJson<OpportunityRow>("/opportunities", payload),
+  getOpportunity: (id: string) => getJson<OpportunityRow>(`/opportunities/${id}`),
+  updateOpportunity: (id: string, payload: Partial<OpportunityRow>) =>
+    patchJson<OpportunityRow>(`/opportunities/${id}`, payload),
+
+  getInitiatives: () => getJson<InitiativeRow[]>("/initiatives"),
+  getSuggestedRoadmap: () => getJson<InitiativeRow[]>("/product-discovery/suggested-roadmap"),
+  createInitiative: (payload: Partial<InitiativeRow>) => postJson<InitiativeRow>("/initiatives", payload),
+  getInitiative: (id: string) => getJson<InitiativeRow>(`/initiatives/${id}`),
+  updateInitiative: (id: string, payload: Partial<InitiativeRow>) =>
+    patchJson<InitiativeRow>(`/initiatives/${id}`, payload),
+
+  getTopProblems: () => getJson<OpportunityRow[]>("/product-discovery/top-problems"),
+
+  getFeatures: (params?: { initiativeId?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.initiativeId) q.set("initiativeId", params.initiativeId);
+    const query = q.toString();
+    return getJson<FeatureRow[]>(`/features${query ? `?${query}` : ""}`);
+  },
+  createFeature: (payload: Partial<FeatureRow>) => postJson<FeatureRow>("/features", payload),
+  getFeature: (id: string) => getJson<FeatureRow>(`/features/${id}`),
+  updateFeature: (id: string, payload: Partial<FeatureRow>) =>
+    patchJson<FeatureRow>(`/features/${id}`, payload),
 };

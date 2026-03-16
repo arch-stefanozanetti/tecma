@@ -77,6 +77,26 @@ Documentazione dello schema del database principale Followup 3.0. Tutte le colle
 
 ---
 
+## 2.1 Product Discovery (solo admin)
+
+Modulo leggero per raccogliere feedback clienti e trasformarli in opportunità/iniziative/feature. Collection nel main DB con prefisso `tz_`.
+
+| Collection | Scopo | Chiavi principali |
+|------------|-------|-------------------|
+| `tz_customer_needs` | Singolo feedback cliente | `_id`, `title`, `problem`, `customer_name`, `customer_segment`, `severity`, `frequency`, `business_impact`, `source`, `status`, `opportunity_id`, `created_by`, `createdAt`, `updatedAt`. Score (severity×freq×impact) calcolato in lettura. |
+| `tz_opportunities` | Cluster di problemi ricorrenti | `_id`, `title`, `problem_statement`, `feedback_count` (denorm.), `impact_score`, `initiative_id`, `createdAt`, `updatedAt` |
+| `tz_initiatives` | Iniziativa roadmap | `_id`, `title`, `description`, `product_area`, `priority`, `status`, `opportunity_ids`, `estimated_dev_effort`, `estimated_business_impact`, `createdAt`, `updatedAt`. ROI Score = impact/effort calcolato in lettura. |
+| `tz_features` | Feature concreta di sviluppo | `_id`, `title`, `description`, `initiative_id`, `status`, `createdAt`, `updatedAt` |
+
+Relazioni: `customer_need.opportunity_id` → `tz_opportunities._id`; `opportunity.initiative_id` → `tz_initiatives._id`; `feature.initiative_id` → `tz_initiatives._id`.
+
+Indici consigliati:
+- `tz_customer_needs`: `{ opportunity_id: 1 }`, `{ createdAt: -1 }`, `{ status: 1 }`
+- `tz_opportunities`: `{ initiative_id: 1 }`
+- `tz_features`: `{ initiative_id: 1 }`
+
+---
+
 ## 3. Collection future (proposte)
 
 ### 3.1 Ruoli e visibilità

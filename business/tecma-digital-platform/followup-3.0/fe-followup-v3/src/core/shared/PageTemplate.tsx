@@ -59,7 +59,8 @@ type Section =
   | "integrations"
   | "priceAvailability"
   | "inbox"
-  | "customer360";
+  | "customer360"
+  | "productDiscovery";
 
 interface PageTemplateProps {
   section: Section;
@@ -105,6 +106,7 @@ const navItems: NavItem[] = [
   { id: "workflowConfig", label: "Config. workflow", icon: GitBranch, adminOnly: true, compact: true, group: "admin" },
   { id: "workspaces", label: "Workspaces", icon: FolderKanban, adminOnly: true, compact: true, group: "admin" },
   { id: "users", label: "User", icon: UserCircle, adminOnly: true, compact: true, group: "admin" },
+  { id: "productDiscovery", label: "Product Discovery", icon: Layers, adminOnly: true, compact: true, group: "admin" },
   { id: "reports", label: "Report", icon: BarChart2, compact: true, group: "tools" },
 ];
 
@@ -190,7 +192,7 @@ const SideNav = ({
         <LogoTecma className={cn("opacity-85", collapsed ? "h-10 w-10" : "h-24 w-24")} />
       </div>
 
-      <div className={cn("flex-1 min-h-0 overflow-y-auto", collapsed ? "px-2" : "px-6")}>
+      <div className={cn("flex-1 min-h-0 overflow-y-auto pt-5 pb-5", collapsed ? "px-2" : "px-6")}>
         {onCollapseToggle && (
           <div className={cn("mb-8 flex justify-end", collapsed ? "mb-4" : "")}>
             <button

@@ -31,6 +31,7 @@ import { ReportsPage } from "./core/reports/ReportsPage";
 import { PriceAvailabilityPage } from "./core/prices/PriceAvailabilityPage";
 import { ReleasesPage } from "./core/releases/ReleasesPage";
 import { IntegrationsPage } from "./core/integrations/IntegrationsPage";
+import { ProductDiscoveryPage } from "./core/product-discovery/ProductDiscoveryPage";
 import { ProjectsPage } from "./core/projects/ProjectsPage";
 import { InboxPage } from "./core/shared/InboxPage";
 import { Customer360Page } from "./core/customer360/Customer360Page";
@@ -62,7 +63,8 @@ type Section =
   | "integrations"
   | "priceAvailability"
   | "inbox"
-  | "customer360";
+  | "customer360"
+  | "productDiscovery";
 
 const renderSection = (
   section: Section,
@@ -205,6 +207,14 @@ const renderSection = (
     );
   }
 
+  if (section === "productDiscovery") {
+    return (
+      <PageSimple title="Product Discovery" description="Feedback clienti, opportunità, iniziative e feature (solo admin).">
+        <ProductDiscoveryPage />
+      </PageSimple>
+    );
+  }
+
   if (section === "audit") {
     return (
       <PageSimple title="Audit log" description="Tracciamento CRUD su clienti, appartamenti, richieste, associazioni.">
@@ -287,7 +297,7 @@ const renderSection = (
 const SECTIONS: Section[] = [
   "cockpit", "calendar", "clients", "apartments", "requests", "projects", "inbox", "customer360",
   "createApartment", "createApartmentHC", "editApartmentHC", "associateAptClient",
-  "completeFlow", "catalogHC", "templateConfig", "aiApprovals", "workflowConfig", "workspaces", "users", "audit", "reports", "releases", "integrations", "priceAvailability",
+  "completeFlow", "catalogHC", "templateConfig", "aiApprovals", "workflowConfig", "workspaces", "users", "audit", "reports", "releases", "integrations", "priceAvailability", "productDiscovery",
 ];
 
 /** Path puliti per le sezioni principali; le altre restano ?section=X */
@@ -308,6 +318,7 @@ const SECTION_TO_PATH: Partial<Record<Section, string>> = {
   releases: "/releases",
   integrations: "/integrations",
   priceAvailability: "/prices",
+  productDiscovery: "/product-discovery",
 };
 const PATH_TO_SECTION: Record<string, Section> = Object.fromEntries(
   (Object.entries(SECTION_TO_PATH) as [Section, string][]).map(([s, p]) => [p, s])

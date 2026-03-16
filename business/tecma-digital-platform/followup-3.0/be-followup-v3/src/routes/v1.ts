@@ -115,6 +115,32 @@ import {
   updateAdditionalInfo,
   deleteAdditionalInfo,
 } from "../core/additional-infos/additional-infos.service.js";
+import {
+  listCustomerNeeds,
+  getCustomerNeedById,
+  createCustomerNeed,
+  updateCustomerNeed,
+} from "../core/product-discovery/customer-needs.service.js";
+import {
+  listInitiatives,
+  listSuggestedRoadmap,
+  getInitiativeById,
+  createInitiative,
+  updateInitiative,
+} from "../core/product-discovery/initiatives.service.js";
+import {
+  listOpportunities,
+  listTopProblems,
+  getOpportunityById,
+  createOpportunity,
+  updateOpportunity,
+} from "../core/product-discovery/opportunities.service.js";
+import {
+  listFeatures,
+  getFeatureById,
+  createFeature,
+  updateFeature,
+} from "../core/product-discovery/features.service.js";
 import { HttpError } from "../types/http.js";
 import { handleAsync, sendError } from "./asyncHandler.js";
 import { requireAuth, requireAdmin } from "./authMiddleware.js";
@@ -1197,6 +1223,43 @@ v1Router.get("/workflows/:workflowId", handleAsync(async (req) => {
   if (!detail) throw new HttpError("Workflow not found", 404);
   return detail;
 }));
+
+// ─── Product Discovery (admin only) ───────────────────────────────────────────
+v1Router.get("/customer-needs", requireAdmin, handleAsync(async (req) => {
+  const opportunityId = typeof req.query.opportunityId === "string" ? req.query.opportunityId : undefined;
+  const status = typeof req.query.status === "string" ? req.query.status : undefined;
+  return listCustomerNeeds({ opportunityId, status });
+}));
+v1Router.post("/customer-needs", requireAdmin, handleAsync(async (req) => {
+  const createdBy = typeof req.user?.sub === "string" ? req.user.sub : undefined;
+  return createCustomerNeed(req.body, createdBy);
+}));
+v1Router.get("/customer-needs/:id", requireAdmin, handleAsync((req) => getCustomerNeedById(req.params.id)));
+v1Router.patch("/customer-needs/:id", requireAdmin, handleAsync((req) => updateCustomerNeed(req.params.id, req.body)));
+
+v1Router.get("/opportunities", requireAdmin, handleAsync(async (req) => {
+  const initiativeId = typeof req.query.initiativeId === "string" ? req.query.initiativeId : undefined;
+  return listOpportunities({ initiativeId });
+}));
+v1Router.post("/opportunities", requireAdmin, handleAsync((req) => createOpportunity(req.body)));
+v1Router.get("/opportunities/:id", requireAdmin, handleAsync((req) => getOpportunityById(req.params.id)));
+v1Router.patch("/opportunities/:id", requireAdmin, handleAsync((req) => updateOpportunity(req.params.id, req.body)));
+
+v1Router.get("/initiatives", requireAdmin, handleAsync(() => listInitiatives()));
+v1Router.post("/initiatives", requireAdmin, handleAsync((req) => createInitiative(req.body)));
+v1Router.get("/initiatives/:id", requireAdmin, handleAsync((req) => getInitiativeById(req.params.id)));
+v1Router.patch("/initiatives/:id", requireAdmin, handleAsync((req) => updateInitiative(req.params.id, req.body)));
+
+v1Router.get("/product-discovery/suggested-roadmap", requireAdmin, handleAsync(() => listSuggestedRoadmap()));
+v1Router.get("/product-discovery/top-problems", requireAdmin, handleAsync(() => listTopProblems()));
+
+v1Router.get("/features", requireAdmin, handleAsync(async (req) => {
+  const initiativeId = typeof req.query.initiativeId === "string" ? req.query.initiativeId : undefined;
+  return listFeatures({ initiativeId });
+}));
+v1Router.post("/features", requireAdmin, handleAsync((req) => createFeature(req.body)));
+v1Router.get("/features/:id", requireAdmin, handleAsync((req) => getFeatureById(req.params.id)));
+v1Router.patch("/features/:id", requireAdmin, handleAsync((req) => updateFeature(req.params.id, req.body)));
 
 v1Router.get("/inspect/model-sample", handleAsync(async (req) => {
   const projectId = typeof req.query.projectId === "string" ? req.query.projectId : "";

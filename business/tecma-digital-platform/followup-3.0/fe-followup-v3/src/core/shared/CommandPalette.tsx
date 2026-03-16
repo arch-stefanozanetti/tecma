@@ -26,7 +26,8 @@ export type Section =
   | "reports"
   | "releases"
   | "integrations"
-  | "priceAvailability";
+  | "priceAvailability"
+  | "productDiscovery";
 
 export interface CommandSectionItem {
   kind: "section";
@@ -61,6 +62,7 @@ const SECTION_COMMANDS: CommandSectionItem[] = [
   { kind: "section", id: "workspaces", label: "Workspaces", hint: "Gestione workspace (admin)" },
   { kind: "section", id: "users", label: "User", hint: "Utenti e visibilità (admin)" },
   { kind: "section", id: "audit", label: "Audit log", hint: "Tracciamento CRUD (admin)" },
+  { kind: "section", id: "productDiscovery", label: "Product Discovery", hint: "Feedback clienti e opportunità (admin)" },
 ];
 
 const ENTITY_LIMIT = 5;
@@ -119,7 +121,7 @@ export const CommandPalette = ({
 
   const visibleSectionCommands = useMemo(() => {
     return SECTION_COMMANDS.filter((item) => {
-      if (item.id === "workspaces" || item.id === "users" || item.id === "audit") {
+      if (item.id === "workspaces" || item.id === "users" || item.id === "audit" || item.id === "productDiscovery") {
         if (!isAdmin) return false;
       }
       if (!isSectionEnabledByFeature(item.id, enabledFeatures)) return false;

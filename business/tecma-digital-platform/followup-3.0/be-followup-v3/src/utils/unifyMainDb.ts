@@ -45,6 +45,10 @@ const TZ_COLLECTIONS = [
   "tz_hc_apartments",
   "tz_configuration_templates",
   "tz_complete_flow_runs",
+  "tz_customer_needs",
+  "tz_opportunities",
+  "tz_initiatives",
+  "tz_features",
 ];
 
 const unifyMainDb = async () => {

@@ -589,3 +589,69 @@ export interface AiActionDraft {
   createdAt: string;
   updatedAt: string;
 }
+
+/** Product Discovery: single customer feedback. */
+export interface CustomerNeedRow {
+  _id: string;
+  title: string;
+  customer_name?: string;
+  customer_segment?: string;
+  situation?: string;
+  problem: string;
+  customer_need?: string;
+  workaround?: string;
+  impact_description?: string;
+  severity?: string;
+  frequency?: string;
+  business_impact?: string;
+  source?: string;
+  evidence?: string;
+  status: string;
+  opportunity_id?: string;
+  created_by?: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Computed: severityWeight × frequencyWeight × impactWeight. */
+  score?: number;
+}
+
+/** Product Discovery: cluster of customer needs. */
+export interface OpportunityRow {
+  _id: string;
+  title: string;
+  problem_statement?: string;
+  affected_users?: string[];
+  feedback_count: number;
+  impact_score?: string;
+  initiative_id?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Product Discovery: roadmap initiative. */
+export interface InitiativeRow {
+  _id: string;
+  title: string;
+  description?: string;
+  product_area?: string;
+  priority?: string;
+  status?: string;
+  opportunity_ids?: string[];
+  estimated_dev_effort?: number;
+  estimated_business_impact?: number;
+  /** Computed: estimated_business_impact / estimated_dev_effort. */
+  roi_score?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Product Discovery: concrete feature. */
+export interface FeatureRow {
+  _id: string;
+  title: string;
+  description?: string;
+  initiative_id?: string;
+  status?: string;
+  createdAt: string;
+  updatedAt: string;
+}
