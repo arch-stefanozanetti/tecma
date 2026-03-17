@@ -1,0 +1,45 @@
+# Render Blueprint: FollowUp 3.0 (BE + FE)
+# Dashboard → New → Blueprint → collega repo tecma; imposta env (sync: false) prima del primo deploy.
+# Dopo deploy BE, imposta su FE: VITE_API_BASE_URL = URL del servizio BE (es. https://followup-3-be.onrender.com)
+version: "1"
+services:
+  - type: web
+    name: followup-3-be
+    runtime: node
+    region: frankfurt
+    plan: free
+    rootDir: business/tecma-digital-platform/followup-3.0/be-followup-v3
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /v1/health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: MONGO_URI
+        sync: false
+      - key: MONGO_DB_NAME
+        sync: false
+      - key: AUTH_JWT_SECRET
+        sync: false
+      - key: AUTH_JWT_EXPIRES_IN
+        value: 15m
+      - key: AUTH_REFRESH_EXPIRES_DAYS
+        value: "7"
+
+  - type: web
+    name: followup-3-fe
+    runtime: static
+    region: frankfurt
+    plan: free
+    rootDir: business/tecma-digital-platform/followup-3.0/fe-followup-v3
+    buildCommand: npm ci --omit=optional && npm run build
+    staticPublishPath: business/tecma-digital-platform/followup-3.0/fe-followup-v3/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
+      - key: VITE_DATA_MODE
+        value: rest

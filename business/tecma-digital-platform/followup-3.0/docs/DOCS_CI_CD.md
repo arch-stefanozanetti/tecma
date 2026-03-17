@@ -3,6 +3,7 @@
 - **Repo monorepo (root = tecma)**: un solo workflow in root: [.github/workflows/followup-3.0-ci-cd.yml](../../.github/workflows/followup-3.0-ci-cd.yml). Path che scatenano la pipeline: `business/tecma-digital-platform/followup-3.0/fe-followup-v3/**`, `business/tecma-digital-platform/followup-3.0/be-followup-v3/**`, `business/tecma-digital-platform/design-system/**`.
 - **Cosa fa la pipeline:** build + test del **frontend** (FE, include design-system come dipendenza) e del **backend** (BE); se tutto passa, deploy di **FE e BE** su Vercel (dev/demo su push, prod solo manuale). Un solo workflow, niente duplicazioni.
 - **Repo solo followup-3.0**: usa [docs/ci-cd-workflow.example.yml](ci-cd-workflow.example.yml) copiato in `.github/workflows/ci-cd.yml` (path senza prefisso `business/tecma-digital-platform/followup-3.0/`).
+- **Deploy su Render (alternativa a Vercel):** [docs/RENDER_DEPLOY.md](RENDER_DEPLOY.md) e Blueprint [`render.yaml`](../../../../render.yaml) in root repo; la pipeline Actions attuale non deploya su Render (solo Vercel), salvo aggiunta di Deploy Hook.
 
 ## Branch e comportamenti
 
