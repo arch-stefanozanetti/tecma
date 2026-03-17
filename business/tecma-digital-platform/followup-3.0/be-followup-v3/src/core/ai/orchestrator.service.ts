@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
+import { HttpError } from "../../types/http.js";
 import { emitDomainEvent } from "../events/event-log.service.js";
 
 const SuggestionsInputSchema = z.object({
@@ -160,9 +161,7 @@ export const decideAiSuggestion = async (rawInput: unknown) => {
 
   const existing = await db.collection<SuggestionDoc>("tz_ai_suggestions").findOne({ _id: suggestionId });
   if (!existing) {
-    const error = new Error("Suggestion not found");
-    (error as Error & { statusCode?: number }).statusCode = 404;
-    throw error;
+    throw new HttpError("Suggestion not found", 404);
   }
 
   await db.collection("tz_ai_suggestions").updateOne(

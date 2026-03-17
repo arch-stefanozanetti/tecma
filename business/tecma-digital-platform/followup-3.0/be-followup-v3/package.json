@@ -22,6 +22,7 @@
     "seed:matching-profile": "tsx src/utils/seedMatchingProfile.ts",
     "db:list-collections": "tsx src/utils/listCollections.ts",
     "db:copy-test": "tsx src/utils/copyCollections.ts",
+    "clone-user-from-source": "tsx src/utils/cloneUserFromSourceDb.ts",
     "migrate:request-workflow": "tsx src/utils/migrateRequestWorkflowIds.ts",
     "migrate:apartments-to-inventory-pricing": "tsx src/utils/migrate-apartments-to-inventory-pricing.ts"
   },

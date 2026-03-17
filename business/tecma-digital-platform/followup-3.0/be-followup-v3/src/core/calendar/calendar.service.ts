@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
 import { ListQuerySchema, type ListQueryInput, buildPagination } from "../shared/list-query.js";
-import { PaginatedResponse } from "../../types/http.js";
+import { HttpError, PaginatedResponse } from "../../types/http.js";
 import { dispatchEvent } from "../automations/automation-events.service.js";
 
 const SOURCES = ["FOLLOWUP_SELL", "FOLLOWUP_RENT", "CUSTOM_SERVICE"] as const;
@@ -276,16 +276,12 @@ export const updateCalendarEvent = async (
   const db = getDb();
   const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("calendar_events");
   if (!ObjectId.isValid(eventId)) {
-    const err = new Error("Event not found");
-    (err as Error & { statusCode?: number }).statusCode = 404;
-    throw err;
+    throw new HttpError("Event not found", 404);
   }
   const _id = new ObjectId(eventId);
   const existing = await collection.findOne({ _id } as never);
   if (!existing) {
-    const err = new Error("Event not found");
-    (err as Error & { statusCode?: number }).statusCode = 404;
-    throw err;
+    throw new HttpError("Event not found", 404);
   }
   const update: Record<string, unknown> = {};
   const unset: Record<string, 1> = {};
@@ -335,18 +331,14 @@ export const updateCalendarEvent = async (
 
 export const deleteCalendarEvent = async (eventId: string): Promise<{ deleted: boolean }> => {
   if (!ObjectId.isValid(eventId)) {
-    const err = new Error("Event not found");
-    (err as Error & { statusCode?: number }).statusCode = 404;
-    throw err;
+    throw new HttpError("Event not found", 404);
   }
   const db = getDb();
   const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("calendar_events");
   const _id = new ObjectId(eventId);
   const result = await collection.deleteOne({ _id } as never);
   if (result.deletedCount === 0) {
-    const err = new Error("Event not found");
-    (err as Error & { statusCode?: number }).statusCode = 404;
-    throw err;
+    throw new HttpError("Event not found", 404);
   }
   return { deleted: true };
 };

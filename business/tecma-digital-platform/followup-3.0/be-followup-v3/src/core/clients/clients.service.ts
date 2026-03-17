@@ -2,7 +2,7 @@ import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
 import { ListQuerySchema, type ListQueryInput, buildPagination } from "../shared/list-query.js";
-import { PaginatedResponse } from "../../types/http.js";
+import { HttpError, PaginatedResponse } from "../../types/http.js";
 
 /** Coniuge/familiare del cliente (legacy). */
 export interface ClientConiuge {
@@ -215,16 +215,12 @@ export const getClientById = async (rawId: unknown): Promise<{ client: ClientRow
   const id = z.string().min(1).parse(rawId);
   const _id = ObjectId.isValid(id) ? new ObjectId(id) : null;
   if (!_id) {
-    const err = new Error("Client not found");
-    (err as Error & { statusCode?: number }).statusCode = 404;
-    throw err;
+    throw new HttpError("Client not found", 404);
   }
   const db = getDb();
   const doc = await db.collection("tz_clients").findOne({ _id });
   if (!doc) {
-    const err = new Error("Client not found");
-    (err as Error & { statusCode?: number }).statusCode = 404;
-    throw err;
+    throw new HttpError("Client not found", 404);
   }
   const client = mapDocToClientRow(doc as Record<string, unknown>);
   return { client };
@@ -309,15 +305,11 @@ export const updateClient = async (
   const collection = db.collection("tz_clients");
   const _id = ObjectId.isValid(clientId) ? new ObjectId(clientId) : null;
   if (!_id) {
-    const err = new Error("Client not found");
-    (err as Error & { statusCode?: number }).statusCode = 404;
-    throw err;
+    throw new HttpError("Client not found", 404);
   }
   const existing = await collection.findOne({ _id });
   if (!existing) {
-    const err = new Error("Client not found");
-    (err as Error & { statusCode?: number }).statusCode = 404;
-    throw err;
+    throw new HttpError("Client not found", 404);
   }
   const updateDoc: Record<string, unknown> = {
     updatedAt: new Date().toISOString(),

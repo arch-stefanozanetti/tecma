@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
+import { HttpError } from "../../types/http.js";
 import { ListQuerySchema, buildPagination } from "../shared/list-query.js";
 import { emitDomainEvent } from "../events/event-log.service.js";
 
@@ -343,9 +344,7 @@ export const updateApartment = async (rawInput: unknown) => {
   if (input.price !== undefined || input.mode !== undefined) {
     const existing = await collection.findOne({ _id: apartmentId });
     if (!existing) {
-      const notFoundError = new Error("Apartment not found");
-      (notFoundError as Error & { statusCode?: number }).statusCode = 404;
-      throw notFoundError;
+      throw new HttpError("Apartment not found", 404);
     }
     updateDoc.rawPrice = {
       mode: input.mode ?? existing.mode,
@@ -355,9 +354,7 @@ export const updateApartment = async (rawInput: unknown) => {
 
   const current = await collection.findOne({ _id: apartmentId });
   if (!current) {
-    const notFoundError = new Error("Apartment not found");
-    (notFoundError as Error & { statusCode?: number }).statusCode = 404;
-    throw notFoundError;
+    throw new HttpError("Apartment not found", 404);
   }
 
   const next = {
@@ -368,9 +365,7 @@ export const updateApartment = async (rawInput: unknown) => {
   await collection.updateOne({ _id: apartmentId }, { $set: updateDoc });
   const updated = await collection.findOne({ _id: apartmentId });
   if (!updated) {
-    const notFoundError = new Error("Apartment not found");
-    (notFoundError as Error & { statusCode?: number }).statusCode = 404;
-    throw notFoundError;
+    throw new HttpError("Apartment not found", 404);
   }
 
   return { apartment: mapApartment(updated) };
@@ -405,9 +400,7 @@ export const getApartmentById = async (rawApartmentId: unknown) => {
   if (primary) return { apartment: mapApartment(primary) };
   const legacyDoc = await db.collection<LegacyApartmentDoc>(LEGACY_APARTMENTS_VIEW).findOne({ _id: apartmentId });
   if (!legacyDoc) {
-    const notFoundError = new Error("Apartment not found");
-    (notFoundError as Error & { statusCode?: number }).statusCode = 404;
-    throw notFoundError;
+    throw new HttpError("Apartment not found", 404);
   }
   return { apartment: mapLegacyApartmentToDetail(legacyDoc) };
 };
@@ -445,9 +438,7 @@ export const getHCApartment = async (rawApartmentId: unknown) => {
   const apartmentId = z.string().parse(rawApartmentId);
   const config = await getHCApartmentsCollection().findOne({ apartmentId });
   if (!config) {
-    const notFoundError = new Error("HC apartment config not found");
-    (notFoundError as Error & { statusCode?: number }).statusCode = 404;
-    throw notFoundError;
+    throw new HttpError("HC apartment config not found", 404);
   }
   return { config };
 };
@@ -580,17 +571,13 @@ export const deleteAssociation = async (rawAssociationId: unknown) => {
   const collection = getAssociationsCollection();
   const existing = await collection.findOne({ _id: id });
   if (!existing) {
-    const notFoundError = new Error("Association not found");
-    (notFoundError as Error & { statusCode?: number }).statusCode = 404;
-    throw notFoundError;
+    throw new HttpError("Association not found", 404);
   }
   const now = new Date().toISOString();
   await collection.updateOne({ _id: id }, { $set: { active: false, updatedAt: now } });
   const updated = await collection.findOne({ _id: id });
   if (!updated) {
-    const notFoundError = new Error("Association not found");
-    (notFoundError as Error & { statusCode?: number }).statusCode = 404;
-    throw notFoundError;
+    throw new HttpError("Association not found", 404);
   }
   await emitDomainEvent({
     type: "association.deleted",
@@ -715,9 +702,7 @@ export const updateHCMaster = async (rawEntity: unknown, rawId: unknown, rawInpu
     { returnDocument: "after" }
   );
   if (!updated) {
-    const notFoundError = new Error("HC master entity not found");
-    (notFoundError as Error & { statusCode?: number }).statusCode = 404;
-    throw notFoundError;
+    throw new HttpError("HC master entity not found", 404);
   }
   await emitDomainEvent({
     type: "hc_master.updated",
@@ -733,9 +718,7 @@ export const deleteHCMaster = async (rawEntity: unknown, rawId: unknown) => {
   const collection = getHCMasterCollection(entity);
   const deletion = await collection.deleteOne({ _id: id });
   if (deletion.deletedCount === 0) {
-    const notFoundError = new Error("HC master entity not found");
-    (notFoundError as Error & { statusCode?: number }).statusCode = 404;
-    throw notFoundError;
+    throw new HttpError("HC master entity not found", 404);
   }
   await emitDomainEvent({
     type: "hc_master.deleted",

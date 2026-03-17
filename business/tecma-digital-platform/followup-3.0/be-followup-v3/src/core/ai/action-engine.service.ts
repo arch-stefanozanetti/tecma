@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
+import { HttpError } from "../../types/http.js";
 import { emitDomainEvent } from "../events/event-log.service.js";
 import { ListQuerySchema, buildPagination } from "../shared/list-query.js";
 
@@ -116,9 +117,7 @@ export const decideAiActionDraft = async (rawDraftId: unknown, rawInput: unknown
 
   const existing = await db.collection("tz_ai_action_drafts").findOne({ _id: draftId });
   if (!existing) {
-    const error = new Error("AI action draft not found");
-    (error as Error & { statusCode?: number }).statusCode = 404;
-    throw error;
+    throw new HttpError("AI action draft not found", 404);
   }
 
   const nextStatus = input.decision === "approved" ? "approved" : "rejected";

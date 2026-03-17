@@ -22,6 +22,7 @@ vi.mock("./api/followupApi", () => ({
     queryClients: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),
     queryRequests: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),
     generateAiSuggestions: vi.fn().mockResolvedValue({ generatedAt: "", data: [] }),
+    getNotifications: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0, page: 1, perPage: 25, totalPages: 0 } }),
   },
 }));
 

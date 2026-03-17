@@ -39,6 +39,7 @@ import {
 } from "../../components/ui/drawer";
 import { followupApi } from "../../api/followupApi";
 import { useWorkspace } from "../../auth/projectScope";
+import { useToast } from "../../contexts/ToastContext";
 import type {
   AutomationRuleRow,
   AutomationRuleTrigger,
@@ -253,6 +254,7 @@ function ConnettoriTab({
   outlookConnected?: boolean;
   loadOutlookStatus?: () => void;
 }) {
+  const { toastError } = useToast();
   const [search, setSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState<"all" | ConnectorGroup>("all");
   const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -467,7 +469,7 @@ function ConnettoriTab({
       })
       .catch((err) => {
         setConnectorSaving(false);
-        window.alert(err?.message ?? "Errore salvataggio config n8n");
+        toastError(err?.message ?? "Errore salvataggio config n8n");
       })
       .finally(() => setConnectorSaving(false));
   };

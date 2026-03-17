@@ -28,6 +28,8 @@ vi.mock("../../api/followupApi", () => ({
     listWorkspaceUsers: vi.fn().mockResolvedValue({ data: [] }),
     getApartmentCandidates: vi.fn().mockResolvedValue({ data: [] }),
     listWorkflowsByWorkspace: vi.fn().mockResolvedValue({ data: [] }),
+    getApartmentPrices: vi.fn().mockResolvedValue({ data: [] }),
+    getApartmentInventory: vi.fn().mockResolvedValue({ data: [] }),
   },
 }));
 
