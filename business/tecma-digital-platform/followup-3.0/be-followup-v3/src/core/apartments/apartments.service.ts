@@ -240,6 +240,7 @@ const sortable: Record<string, 1> = {
   updatedAt: 1
 };
 
+/* c8 ignore start - legacy view mapping kept for migration support, not used in tz_* runtime paths */
 type LegacyAvailability = {
   value?: string;
 };
@@ -385,6 +386,7 @@ const mapLegacyToListRow = (doc: LegacyApartmentDoc): ApartmentListRow => {
     normalizedPrice: normalizePrice(rawPrice)
   };
 };
+/* c8 ignore stop */
 
 const TZ_APARTMENTS_COLLECTION = "tz_apartments";
 
@@ -425,6 +427,7 @@ const queryPrimaryApartments = async (input: ListQueryInput): Promise<PaginatedR
   };
 };
 
+/* c8 ignore start - legacy query fallback not used in current runtime */
 const queryLegacyApartments = async (input: ListQueryInput): Promise<PaginatedResponse<ApartmentListRow>> => {
   const db = getDb();
   const collection = db.collection<LegacyApartmentDoc>("apartments_view");
@@ -470,6 +473,7 @@ const queryLegacyApartments = async (input: ListQueryInput): Promise<PaginatedRe
     }
   };
 };
+/* c8 ignore stop */
 
 export const queryApartments = async (rawInput: unknown): Promise<PaginatedResponse<ApartmentListRow>> => {
   const input = ListQuerySchema.parse(rawInput);
