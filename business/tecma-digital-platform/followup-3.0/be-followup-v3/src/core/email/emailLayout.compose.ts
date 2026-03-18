@@ -63,6 +63,57 @@ function unshieldAfterSanitize(html: string, tokens: string[]): string {
   return s;
 }
 
+/** Frammento HTML da editor ricco (titolo/corpo): placeholder ammessi, tag limitati. */
+export function sanitizeRichEmailFragment(html: string, allowed: Set<string>): string {
+  const stripped = html.replace(/\{\{(\w+)\}\}/g, (_, k: string) =>
+    allowed.has(k) ? `{{${k}}}` : ""
+  );
+  const { html: shielded, tokens } = shieldPlaceholdersForSanitize(stripped);
+  const clean = sanitizeHtml(shielded, {
+    allowedTags: [
+      "p",
+      "br",
+      "strong",
+      "b",
+      "em",
+      "i",
+      "u",
+      "s",
+      "strike",
+      "del",
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "ul",
+      "ol",
+      "li",
+      "blockquote",
+      "span",
+      "div"
+    ],
+    allowedAttributes: {
+      span: ["style"],
+      p: ["style"],
+      div: ["style"],
+      li: ["style"],
+      h1: ["style"],
+      h2: ["style"],
+      h3: ["style"],
+      h4: ["style"],
+      blockquote: ["style"]
+    },
+    allowedStyles: {
+      "*": {
+        "text-decoration": [/^underline$/i, /^none$/i, /^line-through$/i],
+        "text-align": [/^(left|center|right|justify)$/i]
+      }
+    },
+    allowVulnerableTags: false
+  });
+  return unshieldAfterSanitize(clean, tokens);
+}
+
 export function sanitizeTransactionalEmailHtml(html: string): string {
   const { html: shielded, tokens } = shieldPlaceholdersForSanitize(html);
   const clean = sanitizeHtml(shielded, {
@@ -161,16 +212,41 @@ export function composeLayoutToHtml(flowKey: EmailFlowKey, layout: EmailLayoutV1
   for (const block of layout.blocks as EmailBlock[]) {
     switch (block.type) {
       case "heading": {
-        const inner = mixWithAllowedPlaceholders(block.text, allowed);
-        rows.push(
-          `<tr><td style="padding:16px 24px 8px;"><h2 style="margin:0;font-size:22px;color:${escapeHtml(color)};">${inner}</h2></td></tr>`
-        );
+        const b = block as { html?: string; text?: string };
+        if (b.html?.trim()) {
+          const frag = sanitizeRichEmailFragment(b.html, allowed);
+          rows.push(
+            `<tr><td style="padding:16px 24px 8px;color:${escapeHtml(color)};">${frag}</td></tr>`
+          );
+        } else if (b.text?.trim()) {
+          const inner = mixWithAllowedPlaceholders(b.text, allowed);
+          rows.push(
+            `<tr><td style="padding:16px 24px 8px;"><h2 style="margin:0;font-size:22px;color:${escapeHtml(color)};">${inner}</h2></td></tr>`
+          );
+        } else {
+          rows.push(`<tr><td style="padding:16px 24px 8px;"></td></tr>`);
+        }
         break;
       }
       case "text": {
-        const inner = mixWithAllowedPlaceholders(block.text, allowed);
-        const paras = inner.split(/\n{2,}/).map((p) => `<p style="margin:0 0 12px;line-height:1.5;color:#374151;">${p.replace(/\n/g, "<br/>")}</p>`);
-        rows.push(`<tr><td style="padding:8px 24px;">${paras.join("")}</td></tr>`);
+        const b = block as { html?: string; text?: string };
+        if (b.html?.trim()) {
+          const frag = sanitizeRichEmailFragment(b.html, allowed);
+          rows.push(
+            `<tr><td style="padding:8px 24px;color:#374151;font-size:15px;line-height:1.55;">${frag}</td></tr>`
+          );
+        } else if (b.text?.trim()) {
+          const inner = mixWithAllowedPlaceholders(b.text, allowed);
+          const paras = inner
+            .split(/\n{2,}/)
+            .map(
+              (p) =>
+                `<p style="margin:0 0 12px;line-height:1.5;color:#374151;">${p.replace(/\n/g, "<br/>")}</p>`
+            );
+          rows.push(`<tr><td style="padding:8px 24px;">${paras.join("")}</td></tr>`);
+        } else {
+          rows.push(`<tr><td style="padding:8px 24px;"></td></tr>`);
+        }
         break;
       }
       case "button": {

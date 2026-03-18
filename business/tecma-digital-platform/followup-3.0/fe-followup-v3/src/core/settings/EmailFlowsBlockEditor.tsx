@@ -8,10 +8,12 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 import { useToast } from "../../contexts/ToastContext";
+import { EmailRichEditor } from "./EmailRichEditor";
+import { headingBlockToHtml, textBlockToHtml } from "./emailBlockHtml";
 
 export type EmailLayoutBlock =
-  | { type: "heading"; text: string }
-  | { type: "text"; text: string }
+  | { type: "heading"; html?: string; text?: string }
+  | { type: "text"; html?: string; text?: string }
   | { type: "button"; label: string; href: string }
   | { type: "image"; src: string; alt: string };
 
@@ -90,8 +92,8 @@ export function defaultEmailLayout(flowKey: string): EmailLayoutState {
     logoUrl: "",
     primaryColor: "#1a1a2e",
     blocks: [
-      { type: "heading", text: "Titolo" },
-      { type: "text", text: "Testo del messaggio." },
+      { type: "heading", html: "<h2>Titolo</h2>" },
+      { type: "text", html: "<p>Testo del messaggio. Usa la barra per <strong>grassetto</strong>, elenchi, titoli.</p>" },
       { type: "button", label: "Azione", href: link }
     ]
   };
@@ -125,9 +127,9 @@ export function EmailFlowsBlockEditor({
           : "{{verifyLink}}";
     const next: EmailLayoutBlock =
       type === "heading"
-        ? { type: "heading", text: "Titolo" }
+        ? { type: "heading", html: "<h2>Titolo</h2>" }
         : type === "text"
-          ? { type: "text", text: "" }
+          ? { type: "text", html: "<p></p>" }
           : type === "button"
             ? { type: "button", label: "Pulsante", href: link }
             : { type: "image", src: "", alt: "" };
@@ -212,10 +214,20 @@ export function EmailFlowsBlockEditor({
                 </Button>
               </div>
               {block.type === "heading" ? (
-                <DroppableField value={block.text} onChange={(text) => setBlock(i, { text })} />
+                <EmailRichEditor
+                  editorKey={`${flowKey}-heading-${i}`}
+                  variant="heading"
+                  html={headingBlockToHtml(block)}
+                  onChange={(html) => setBlock(i, { html, text: undefined })}
+                />
               ) : null}
               {block.type === "text" ? (
-                <DroppableField value={block.text} onChange={(text) => setBlock(i, { text })} multiline />
+                <EmailRichEditor
+                  editorKey={`${flowKey}-text-${i}`}
+                  variant="body"
+                  html={textBlockToHtml(block)}
+                  onChange={(html) => setBlock(i, { html, text: undefined })}
+                />
               ) : null}
               {block.type === "button" ? (
                 <div className="space-y-2">
@@ -275,7 +287,7 @@ export function EmailFlowsBlockEditor({
 
       <aside className="w-full shrink-0 space-y-2 rounded-lg border border-dashed border-primary/30 bg-primary/5 p-3 lg:w-44">
         <p className="text-xs font-semibold text-foreground">Variabili</p>
-        <p className="text-[11px] text-muted-foreground">Trascina in un campo testo.</p>
+        <p className="text-[11px] text-muted-foreground">Trascina nell&apos;editor titolo/testo.</p>
         <div className="flex flex-col gap-1.5">
           {placeholders.map((p) => (
             <span

@@ -357,23 +357,46 @@ export const openApiV1 = {
       put: {
         tags: ["admin"],
         operationId: "putEmailFlow",
-        summary: "Salva template (enabled, subject, bodyHtml)",
+        summary: "Salva template: editorMode html (bodyHtml) o blocks (layout → HTML sanitizzato)",
         security: [{ bearerAuth: [] }],
         requestBody: {
           content: {
             "application/json": {
               schema: {
-                type: "object",
-                required: ["enabled", "subject", "bodyHtml"],
-                properties: {
-                  enabled: { type: "boolean" },
-                  subject: { type: "string" },
-                  bodyHtml: { type: "string" }
-                }
+                oneOf: [
+                  {
+                    type: "object",
+                    required: ["enabled", "subject", "editorMode", "bodyHtml"],
+                    properties: {
+                      enabled: { type: "boolean" },
+                      subject: { type: "string" },
+                      editorMode: { type: "string", enum: ["html"] },
+                      bodyHtml: { type: "string" }
+                    }
+                  },
+                  {
+                    type: "object",
+                    required: ["enabled", "subject", "editorMode", "layout"],
+                    properties: {
+                      enabled: { type: "boolean" },
+                      subject: { type: "string" },
+                      editorMode: { type: "string", enum: ["blocks"] },
+                      layout: { type: "object" }
+                    }
+                  }
+                ]
               }
             }
           }
         },
+        responses: { "200": {}, "400": {}, "403": {} }
+      }
+    },
+    "/admin/email-flows/upload-asset": {
+      post: {
+        tags: ["admin"],
+        summary: "Upload immagine per email (multipart field: file); richiede EMAIL_FLOW_S3_BUCKET",
+        security: [{ bearerAuth: [] }],
         responses: { "200": {}, "400": {}, "403": {} }
       }
     },
@@ -397,10 +420,11 @@ export const openApiV1 = {
             "application/json": {
               schema: {
                 type: "object",
-                required: ["subject", "bodyHtml"],
+                required: ["subject"],
                 properties: {
                   subject: { type: "string" },
                   bodyHtml: { type: "string" },
+                  layout: { type: "object" },
                   sampleVars: { type: "object", additionalProperties: { type: "string" } }
                 }
               }

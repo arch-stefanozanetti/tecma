@@ -1,8 +1,16 @@
 import { z } from "zod";
 
 export const emailBlockSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("heading"), text: z.string().max(500) }),
-  z.object({ type: z.literal("text"), text: z.string().max(20_000) }),
+  z.object({
+    type: z.literal("heading"),
+    html: z.string().max(12_000).optional(),
+    text: z.string().max(500).optional()
+  }),
+  z.object({
+    type: z.literal("text"),
+    html: z.string().max(40_000).optional(),
+    text: z.string().max(20_000).optional()
+  }),
   z.object({
     type: z.literal("button"),
     label: z.string().max(200),

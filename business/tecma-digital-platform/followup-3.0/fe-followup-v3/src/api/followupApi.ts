@@ -349,8 +349,8 @@ export const followupApi = {
           logoUrl: string;
           primaryColor: string;
           blocks: Array<
-            | { type: "heading"; text: string }
-            | { type: "text"; text: string }
+            | { type: "heading"; html?: string; text?: string }
+            | { type: "text"; html?: string; text?: string }
             | { type: "button"; label: string; href: string }
             | { type: "image"; src: string; alt: string }
           >;
@@ -373,8 +373,8 @@ export const followupApi = {
             logoUrl: string;
             primaryColor: string;
             blocks: Array<
-              | { type: "heading"; text: string }
-              | { type: "text"; text: string }
+              | { type: "heading"; html?: string; text?: string }
+              | { type: "text"; html?: string; text?: string }
               | { type: "button"; label: string; href: string }
               | { type: "image"; src: string; alt: string }
             >;
@@ -409,8 +409,8 @@ export const followupApi = {
         logoUrl: string;
         primaryColor: string;
         blocks: Array<
-          | { type: "heading"; text: string }
-          | { type: "text"; text: string }
+          | { type: "heading"; html?: string; text?: string }
+          | { type: "text"; html?: string; text?: string }
           | { type: "button"; label: string; href: string }
           | { type: "image"; src: string; alt: string }
         >;

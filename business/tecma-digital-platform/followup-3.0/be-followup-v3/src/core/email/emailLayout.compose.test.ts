@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   composeLayoutToHtml,
   mixWithAllowedPlaceholders,
+  sanitizeRichEmailFragment,
   sanitizeTransactionalEmailHtml
 } from "./emailLayout.compose.js";
 
@@ -34,5 +35,15 @@ describe("emailLayout.compose", () => {
     const raw = `<p><a href="{{resetLink}}">x</a></p>`;
     const out = sanitizeTransactionalEmailHtml(raw);
     expect(out).toContain("{{resetLink}}");
+  });
+
+  it("sanitizeRichEmailFragment keeps lists and bold", () => {
+    process.env.EMAIL_ASSET_URL_HOSTS = "*";
+    const allowed = new Set(["projectName"]);
+    const raw = "<p><strong>Hi</strong></p><ul><li>uno</li><li>{{projectName}}</li></ul>";
+    const out = sanitizeRichEmailFragment(raw, allowed);
+    expect(out).toContain("<strong>");
+    expect(out).toContain("ul");
+    expect(out).toContain("{{projectName}}");
   });
 });
