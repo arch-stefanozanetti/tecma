@@ -58,7 +58,8 @@ Tutto gira in locale: **nessun gateway né API remote**. Il frontend usa il prox
    ```bash
    cd fe-followup-v3
    cp .env.example .env
-   npm install && npm run dev
+   corepack enable && corepack prepare pnpm@9.15.9 --activate
+   pnpm install && pnpm run dev
    ```
 3. **Verifica:**  
    - `curl http://localhost:8080/v1/health` → risposta OK.  

@@ -31,8 +31,8 @@ services:
     name: followup-3-fe
     runtime: static
     rootDir: business/tecma-digital-platform/followup-3.0/fe-followup-v3
-    # npm install (non ci): npm ci + bug optional omette @rollup/rollup-linux-x64-gnu su Render.
-    buildCommand: npm install --no-audit --no-fund && npm run build
+    # pnpm + tree pulito: evita cache node_modules cross-OS e bug npm optional (Rollup Linux).
+    buildCommand: rm -rf node_modules && corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install --frozen-lockfile && pnpm run build
     staticPublishPath: business/tecma-digital-platform/followup-3.0/fe-followup-v3/dist
     routes:
       - type: rewrite

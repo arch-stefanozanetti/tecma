@@ -33,12 +33,7 @@ Collegare il repo e il primo deploy richiedono **login su render.com**, **autori
 2. Collega il repo GitHub `arch-stefanozanetti/tecma` (branch desiderato).
 3. Render legge `render.yaml`. Compila le variabili **sync: false** (obbligatorie prima del build):
    - **BE:** `MONGO_URI`, `MONGO_DB_NAME`, `AUTH_JWT_SECRET`
-   - **FE:** `VITE_API_BASE_URL` — dopo il BE live: `https://<nome-be>.onrender.com/v1` (deve includere **`/v1`**).
-4. Ordine consigliato: deploy prima il **BE**, poi imposta `VITE_API_BASE_URL` sul **FE** e rifai deploy del FE.
-
-**BE:** build `npm ci && npm run build`, start `npm start`, health check `GET /v1/health`.
-
-**FE:** build **`npm install --no-audit --no-fund && npm run build`** (nel Blueprint: non `npm ci`, altrimenti su Render manca spesso `@rollup/rollup-linux-x64-gnu`). C’è anche `optionalDependencies` sul rollup Linux come ausilio. Publish `dist`, rewrite SPA.
+   - **FE:** lockfile **`pnpm-lock.yaml`**. Build Render: `rm -rf node_modules && corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install --frozen-lockfile && pnpm run build`. In locale: `pnpm install` / `pnpm run build`. Publish `dist`, rewrite SPA. In `.npmrc` non usare `optional=false` né `omit=optional`.
 
 Il **backend Node** usa **`plan: starter`** (e opz. `region: frankfurt`). Il **frontend static** nel Blueprint **non** ha `region` né `plan`: Render non li supporta su `runtime: static` (CDN globale).
 
@@ -68,7 +63,7 @@ Il BE usa `cors()` senza restrizioni di origine ([server.ts](../be-followup-v3/s
 
 ## 5. Coesistenza con Vercel e CI
 
-La pipeline [.github/workflows/followup-3.0-ci-cd.yml](../../../../.github/workflows/followup-3.0-ci-cd.yml) continua a deployare su **Vercel** se i secret sono configurati.
+La pipeline [.github/workflows/followup-3.0-ci-cd.yml](../../../../.github/workflows/followup-3.0-ci-cd.yml) usa **pnpm** per il FE (`pnpm-lock.yaml`) e **npm** per il BE; deploy su **Vercel** se i secret sono configurati.
 
 - **Solo Render:** disattiva i job deploy Vercel o rimuovi i secret; usa auto-deploy Git su Render (push sul branch collegato).
 - **Entrambi:** lascia Vercel per prod e Render per staging, oppure viceversa.
@@ -81,3 +76,4 @@ La pipeline [.github/workflows/followup-3.0-ci-cd.yml](../../../../.github/workf
 - **FE bianco su refresh su route profonde:** verifica che le rewrite SPA in `render.yaml` (`/*` → `/index.html`) siano applicate.
 - **401 / rete dal FE:** controlla `VITE_API_BASE_URL` (URL del BE, HTTPS).
 - **BE cold start (free):** primo request dopo idle può essere lento.
+- **`Cannot find module @rollup/rollup-linux-x64-gnu`:** assicurarsi build FE con pnpm + comando sopra; verificare che `.npmrc` non contenga `optional=false` o `omit=optional`. Se **corepack** su Render fallisse, sostituire nella build con `npm install -g pnpm@9.15.9` prima di `pnpm install`.
