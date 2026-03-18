@@ -36,7 +36,9 @@ Collegare il repo e il primo deploy richiedono **login su render.com**, **autori
    - **FE:** `VITE_API_BASE_URL` = `https://<nome-be>.onrender.com/v1` (dopo che il BE è live).
 4. Ordine: deploy **BE**, poi imposta `VITE_API_BASE_URL` sul **FE** e ridistribuisci il FE se serve.
 
-**Build FE su Render:** `pnpm-lock.yaml`; comando nel Blueprint: `rm -rf node_modules && corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install --frozen-lockfile && pnpm run build`. In `.npmrc` non usare `optional=false` né `omit=optional`.
+**Build FE su Render:** prima si compila **design-system** (`npm ci && npm run build` in `../../design-system`), poi nel FE: pnpm install + build. Vedi `buildCommand` completo in `render.yaml`.
+
+**Publish directory (static site):** con `rootDir` = cartella FE, **`staticPublishPath` deve essere `dist`** (solo il nome della cartella, relativo al rootDir). Se imposti il path completo dal root del repo (`business/.../fe-followup-v3/dist`), Render fallisce con *Publish directory … does not exist* perché risolve il path sotto il rootDir, non sotto la root del repo. In **Dashboard → followup-3-fe → Settings** verifica **Publish Directory** = `dist` se dopo un sync Blueprint restasse il valore errato.
 
 Il **backend Node** usa **`plan: starter`** (e opz. `region: frankfurt`). Il **frontend static** nel Blueprint **non** ha `region` né `plan`: Render non li supporta su `runtime: static` (CDN globale).
 
@@ -78,3 +80,4 @@ Opzionale: [Deploy Hook](https://render.com/docs/deploy-hooks) Render + `curl` d
 - **401 / rete dal FE:** controlla `VITE_API_BASE_URL` (URL del BE, HTTPS).
 - **BE cold start (free):** primo request dopo idle può essere lento.
 - **`Cannot find module @rollup/rollup-linux-x64-gnu`:** assicurarsi build FE con pnpm + comando sopra; verificare che `.npmrc` non contenga `optional=false` o `omit=optional`. Se **corepack** su Render fallisse, sostituire nella build con `npm install -g pnpm@9.15.9` prima di `pnpm install`.
+- **Build Vite OK ma *Publish directory … does not exist*:** imposta **Publish Directory** su **`dist`** (Dashboard o `staticPublishPath: dist` in `render.yaml`), non il path assoluto dal root del monorepo.
