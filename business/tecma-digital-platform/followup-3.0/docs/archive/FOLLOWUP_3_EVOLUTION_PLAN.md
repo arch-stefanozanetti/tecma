@@ -195,7 +195,7 @@
 ## 5. Riferimenti
 
 - **Visione prodotto e funzionalità:** `followup-nova` (Recommerce Nova), `CRM_ENTERPRISE_WAVES.md` e README in `tecma/business/followup-nova`.
-- **Piani esistenti Followup 3.0:** `docs/FOLLOWUP_3_MEGA_CRM_MASTERPLAN.md`, `docs/FOLLOWUP_FUTURE_AI_NATIVE_PLAN.md`.
+- **Piani esistenti Followup 3.0 (stesso archivio):** `FOLLOWUP_3_MEGA_CRM_MASTERPLAN.md`, `FOLLOWUP_FUTURE_AI_NATIVE_PLAN.md`.
 - **Auth e identità:** design già discusso (JWT Followup, collection `user` in lettura, `tz_*` per sessioni/audit); dettagli in conversation e in codice `be-followup-v3/src/core/auth/`.
 - **Design system:** skill create-design-system-rules; Figma MCP per contesto e screenshot; Tailwind e token in `fe-followup-v3`.
 

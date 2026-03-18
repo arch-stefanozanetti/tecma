@@ -41,7 +41,7 @@ export const AutomationsPage = () => (
           <p className="mt-1 text-sm text-muted-foreground">
             Endpoint esistenti per listing (apartments/query, clients) sono documentati per uso da siti
             web e connettori. Autenticazione API key o OAuth e documentazione OpenAPI in
-            <code className="mx-1 rounded bg-muted px-1 text-xs">docs/plans/</code>.
+            <code className="mx-1 rounded bg-muted px-1 text-xs">docs/archive/plans-2025-2026/</code> (storico).
           </p>
         </div>
       </div>

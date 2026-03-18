@@ -52,7 +52,7 @@ Quattro collection con prefisso `tz_`:
 
 Relazioni: customer_need.opportunity_id → opportunities; opportunity.initiative_id → initiatives; feature.initiative_id → initiatives.
 
-Indici: vedi `docs/MAIN_DB_SCHEMA.md` sezione Product Discovery.
+Indici: vedi `../../MAIN_DB_SCHEMA.md` sezione Product Discovery.
 
 ---
 
@@ -89,4 +89,4 @@ Tutte le route sono protette con `requireAuth` + `requireAdmin`.
 
 - **Backend**: `be-followup-v3/src/core/product-discovery/` (customer-needs, opportunities, initiatives, features services); route in `routes/v1.ts` con requireAdmin.
 - **Frontend**: sezione `productDiscovery` in nav (adminOnly, group admin); `ProductDiscoveryPage` con 4 tab, tabelle, form «Nuovo feedback», sheet di dettaglio; API in `followupApi`.
-- **Documentazione**: `docs/MAIN_DB_SCHEMA.md` aggiornato con le 4 collection; `unifyMainDb.ts` include le nuove collection per copia unificata DB.
+- **Documentazione**: `../../MAIN_DB_SCHEMA.md` aggiornato con le 4 collection; `unifyMainDb.ts` include le nuove collection per copia unificata DB.

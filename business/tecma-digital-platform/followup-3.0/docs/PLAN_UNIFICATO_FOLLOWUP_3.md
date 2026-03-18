@@ -1,14 +1,28 @@
 # Followup 3.0 — Piano unificato (unico riferimento)
 
-**Ultimo aggiornamento:** 2026-03-07  
-**Uso:** questo documento è il **piano di riferimento unico** per il progetto. Unifica i contenuti di:
+**Ultimo aggiornamento:** 2026-03-06  
+
+## Prossimi passi (ripartenza)
+
+| Priorità | Cosa |
+|----------|------|
+| 1 | **Wave 5** — primo endpoint/API riusabile (es. listing) con contratto stabile e OpenAPI. |
+| 2 | **Workspace users (Fase 1 BE)** — `user.workspaces[]` su test-zanetti, route `GET/POST/PATCH/DELETE /workspaces/:id/users` così “Aggiungi utente” funziona. |
+| 3 | **Project access + drawer (Fase 1–3)** — `tz_workspace_user_projects`, estensione `getProjectAccessByEmail`, drawer progetti nel FE. |
+| 4 | **Wave 7** — AI read-only, approvazioni draft (dopo o in parallelo a 5 se priorità prodotto). |
+| 5 | **Entity assignments + matching** — come da tabelle in sez. 4 e 6. |
+
+Dettaglio step-by-step: **sez. 4** (workspace) e **sez. 7** sotto.
+
+---
+
+**Uso:** questo documento è il **piano di riferimento unico** per il progetto. Fonti di dettaglio (in **[archive/](archive/)**, non backlog attivo):
 
 - [FOLLOWUP_3_MASTER.md](FOLLOWUP_3_MASTER.md) — visione, wave, principi
-- [PLAN-user-workspace-projects-and-view-segregation.md](PLAN-user-workspace-projects-and-view-segregation.md) — utenti workspace, progetti, segregazione view
-- [PLAN_100_PERCENT_FULL_APP.md](PLAN_100_PERCENT_FULL_APP.md) — test e coverage 100%
-- [plans/2025-03-07-unificazione-api-aws-gateway-followup.md](plans/2025-03-07-unificazione-api-aws-gateway-followup.md) — integrazione API con gateway AWS (riferimento)
-
-Documenti deprecati (solo storico): FOLLOWUP_3_MEGA_CRM_MASTERPLAN.md, FOLLOWUP_3_EVOLUTION_PLAN.md, FOLLOWUP_FUTURE_AI_NATIVE_PLAN.md.
+- [archive/PLAN-user-workspace-projects-and-view-segregation.md](archive/PLAN-user-workspace-projects-and-view-segregation.md) — utenti workspace, progetti, segregazione view
+- [archive/PLAN_100_PERCENT_FULL_APP.md](archive/PLAN_100_PERCENT_FULL_APP.md) — test e coverage 100%
+- [archive/plans-2025-2026/2025-03-07-unificazione-api-aws-gateway-followup.md](archive/plans-2025-2026/2025-03-07-unificazione-api-aws-gateway-followup.md) — gateway AWS (design history)
+- [archive/README.md](archive/README.md) — indice archivio (mega-piani deprecati, note email/Render/product discovery)
 
 ---
 
@@ -172,19 +186,19 @@ Riferimenti: [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), [DESIGN_SYSTEM_COMPONENTS_WAV
 - E2E (Playwright): Login → Cockpit, → Clients, → Calendar, → Requests, → Apartments (almeno liste).
 - CI: unit FE, unit BE, integration BE, E2E (e lint/security dove previsto).
 
-Riferimento esteso: [PLAN_100_PERCENT_FULL_APP.md](PLAN_100_PERCENT_FULL_APP.md).
+Riferimento esteso: [archive/PLAN_100_PERCENT_FULL_APP.md](archive/PLAN_100_PERCENT_FULL_APP.md).
 
 ---
 
 ## 6. Altri piani (riferimento)
 
-- **Unificazione API con aws-api-gateway:** [plans/2025-03-07-unificazione-api-aws-gateway-followup.md](plans/2025-03-07-unificazione-api-aws-gateway-followup.md). Centralizzare BSS + Followup nel gateway, OpenAPI/Postman, frontend che usa gateway per ambiente.
+- **Unificazione API con aws-api-gateway:** [archive/plans-2025-2026/2025-03-07-unificazione-api-aws-gateway-followup.md](archive/plans-2025-2026/2025-03-07-unificazione-api-aws-gateway-followup.md). Centralizzare BSS + Followup nel gateway, OpenAPI/Postman, frontend che usa gateway per ambiente.
 - **Matching:** endpoint GET `/v1/matching/apartments/:id/candidates` e `/v1/matching/clients/:id/candidates` (scoring budget/prezzo/città) — da implementare nel BE se richiesto; FE già pronto.
 - **Dialog → Drawer:** dove richiesto, usare Drawer invece di Dialog (es. Modifica appartamento, Nuova trattativa, Eventi calendario).
 
 ---
 
-## 7. Prossimi passi operativi (ordine consigliato)
+## 7. Prossimi passi operativi (dettaglio — allineati alla tabella in cima)
 
 1. **User–workspace (BE)** — In test-zanetti: estendere il **documento utente** con `workspaces: [{ workspaceId, role }, ...]` (nessuna collection dedicata). Servizio list/add/update/remove che opera sulla collection utenti; indice su `workspaces.workspaceId`; route `GET/POST/PATCH/DELETE /workspaces/:id/users` e `GET/POST/DELETE .../users/:userId/projects`. Così “Aggiungi utente” funziona.
 2. **Project access con workspace (BE)** — Estendere `getProjectAccessByEmail` con `workspaceId` opzionale e filtro da `tz_workspace_user_projects`.

@@ -242,4 +242,4 @@ Dopo questi quattro blocchi, Wave 3 può considerarsi chiusa e si può passare a
 - **Auth e identità:** codice `be-followup-v3/src/core/auth/`; report stato API BSS: [AUTH_AND_TECMA_BSS_API_REPORT.md](AUTH_AND_TECMA_BSS_API_REPORT.md).
 - **Design system:** [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), [DESIGN_SYSTEM_COMPONENTS_WAVES.md](DESIGN_SYSTEM_COMPONENTS_WAVES.md); skill create-design-system-rules; Figma MCP.
 - **Architettura frontend (come aggiungere feature):** [fe-followup-v3/ARCHITECTURE.md](../fe-followup-v3/ARCHITECTURE.md).
-- **Piano unificazione API con aws-api-gateway:** [plans/2025-03-07-unificazione-api-aws-gateway-followup.md](plans/2025-03-07-unificazione-api-aws-gateway-followup.md).
+- **Piano unificazione API con aws-api-gateway:** [archive/plans-2025-2026/2025-03-07-unificazione-api-aws-gateway-followup.md](archive/plans-2025-2026/2025-03-07-unificazione-api-aws-gateway-followup.md).

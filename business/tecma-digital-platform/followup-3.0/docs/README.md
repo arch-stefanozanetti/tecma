@@ -1,6 +1,6 @@
 # Documentazione Followup 3.0
 
-Indice della documentazione di progetto. **Punto di partenza:** [FOLLOWUP_3_MASTER.md](FOLLOWUP_3_MASTER.md).
+Indice della documentazione di progetto. **Piano operativo unico:** [PLAN_UNIFICATO_FOLLOWUP_3.md](PLAN_UNIFICATO_FOLLOWUP_3.md). Visione e wave: [FOLLOWUP_3_MASTER.md](FOLLOWUP_3_MASTER.md).
 
 ---
 
@@ -22,14 +22,10 @@ Indice della documentazione di progetto. **Punto di partenza:** [FOLLOWUP_3_MAST
 | [AUTH_AND_TECMA_BSS_API_REPORT.md](AUTH_AND_TECMA_BSS_API_REPORT.md) | Stato API TECMA-BSS (aws-api-gateway), auth esistente, cosa manca, test. |
 | [fe-followup-v3/ARCHITECTURE.md](../fe-followup-v3/ARCHITECTURE.md) | Architettura frontend: struttura `src/`, come aggiungere una pagina o un endpoint, hook `usePaginatedList` e `useAsync`. |
 | [REFACTORING.md](REFACTORING.md) | Refactoring strutturale (sprint): split project-config BE, route v1, IntegrationsPage (catalog/tab), pagine FE (costanti/hook/componenti), toast per errori API. |
-| [plans/2025-03-07-unificazione-api-aws-gateway-followup.md](plans/2025-03-07-unificazione-api-aws-gateway-followup.md) | Piano task-by-task per unificare le API Followup con aws-api-gateway (merge spec, test, Postman, FE). |
+| [archive/plans-2025-2026/2025-03-07-unificazione-api-aws-gateway-followup.md](archive/plans-2025-2026/2025-03-07-unificazione-api-aws-gateway-followup.md) | Storico: unificazione API Followup con aws-api-gateway (merge spec, test, Postman, FE). |
 
 ---
 
-## File deprecati (solo riferimento storico)
+## Archivio (storico, non backlog)
 
-I contenuti rilevanti sono stati unificati in **FOLLOWUP_3_MASTER.md**. Non usare come fonte di verità.
-
-- `FOLLOWUP_3_EVOLUTION_PLAN.md` — sostituito da FOLLOWUP_3_MASTER.md (sezione 4 e 5).
-- `FOLLOWUP_3_MEGA_CRM_MASTERPLAN.md` — visione sintetizzata in FOLLOWUP_3_MASTER.md (sezione 2).
-- `FOLLOWUP_FUTURE_AI_NATIVE_PLAN.md` — direzione AI/evoluzioni in FOLLOWUP_3_MASTER.md (Wave 7 e sezione 2).
+Vedi **[archive/README.md](archive/README.md)** — mega-piani deprecati, note design (email flows, Render, product discovery), PLAN workspace e PLAN 100% spostati lì. Contenuti rilevanti sono in **PLAN_UNIFICATO** e **FOLLOWUP_3_MASTER**.
