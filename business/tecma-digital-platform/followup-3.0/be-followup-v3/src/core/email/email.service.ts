@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
 import { ENV } from "../../config/env.js";
 import { resolveCustomEmail } from "./emailFlows.service.js";
+import { logger } from "../../observability/logger.js";
 
 export type SentEmailRecord = {
   to: string;
@@ -23,7 +24,7 @@ export function isInviteEmailDeliverable(): boolean {
 function getTransporter(): Transporter | null {
   if (ENV.EMAIL_TRANSPORT === "mock") return null;
   if (!ENV.SES_SMTP_USER || !ENV.SES_SMTP_PASS) {
-    console.warn("[email] EMAIL_TRANSPORT=smtp but SES credentials missing; falling back to mock");
+    logger.warn("[email] EMAIL_TRANSPORT=smtp but SES credentials missing; falling back to mock");
     return null;
   }
   if (!transporter) {
@@ -46,8 +47,7 @@ async function sendHtml(to: string, subject: string, html: string, kind: SentEma
   if (!tx) {
     mockOutbox.push(record);
     if (ENV.APP_ENV !== "test") {
-      // eslint-disable-next-line no-console
-      console.info(`[email mock] ${kind} -> ${to}: ${subject}`);
+      logger.info({ kind, to, subject }, "[email mock] email sent to outbox");
     }
     return;
   }

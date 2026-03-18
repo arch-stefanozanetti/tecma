@@ -1,5 +1,6 @@
 import type { OptionalId } from "mongodb";
 import { getDb } from "../../config/db.js";
+import { logger } from "../../observability/logger.js";
 
 const COLLECTION = "tz_accessLogs";
 
@@ -30,6 +31,6 @@ export async function writeAccessLog(entry: Omit<AccessLogDoc, "_id" | "createdA
     };
     await coll().insertOne(doc as AccessLogDoc);
   } catch (err) {
-    console.error("[accessLog] write failed:", err);
+    logger.error({ err }, "[accessLog] write failed");
   }
 }

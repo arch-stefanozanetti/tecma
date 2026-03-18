@@ -1,12 +1,10 @@
 /**
- * Prezzo corrente per unit: da SalePrice / MonthlyRent con fallback a tz_apartments.rawPrice (backward compatibility).
+ * Prezzo corrente per unit: da SalePrice / MonthlyRent (legacy rawPrice rimosso).
  */
-import { ObjectId } from "mongodb";
-import { getDb } from "../../config/db.js";
 import { getCurrentSalePrice } from "../sale-prices/sale-prices.service.js";
 import { getCurrentMonthlyRent } from "../monthly-rents/monthly-rents.service.js";
 
-export type CurrentPriceSource = "sale_price" | "monthly_rent" | "rawPrice";
+export type CurrentPriceSource = "sale_price" | "monthly_rent";
 
 export interface CurrentPriceResult {
   source: CurrentPriceSource;
@@ -43,20 +41,6 @@ export const getCurrentPriceForUnit = async (unitId: string): Promise<CurrentPri
       validFrom: rent.validFrom,
       validTo: rent.validTo,
       deposit: rent.deposit,
-    };
-  }
-
-  const db = getDb();
-  if (!ObjectId.isValid(unitId)) return null;
-  const apt = await db.collection("tz_apartments").findOne({ _id: new ObjectId(unitId) });
-  if (!apt) return null;
-  const raw = (apt as { rawPrice?: { mode?: string; amount?: number } }).rawPrice;
-  if (raw && typeof raw.amount === "number") {
-    return {
-      source: "rawPrice",
-      amount: raw.amount,
-      currency: "EUR",
-      mode: (raw.mode === "RENT" ? "RENT" : "SELL") as "SELL" | "RENT",
     };
   }
 

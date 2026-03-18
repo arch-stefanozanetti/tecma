@@ -3,6 +3,7 @@
  * Fase 2: implementazione piena; qui stub che logga se non configurato.
  */
 import { getDb } from "../../config/db.js";
+import { logger } from "../../observability/logger.js";
 
 const CONNECTOR_ID = "whatsapp";
 
@@ -25,7 +26,7 @@ async function getWhatsAppConfig(workspaceId: string): Promise<{ fromNumber: str
 export async function sendWhatsAppMessage(workspaceId: string, to: string, bodyText: string): Promise<void> {
   const config = await getWhatsAppConfig(workspaceId);
   if (!config) {
-    console.warn("[whatsapp] Workspace has no WhatsApp config, skip send to", to);
+    logger.warn({ workspaceId, to }, "[whatsapp] workspace has no config; skipping send");
     return;
   }
   try {
@@ -45,11 +46,11 @@ export async function sendWhatsAppMessage(workspaceId: string, to: string, bodyT
     });
     if (!res.ok) {
       const text = await res.text();
-      console.error("[whatsapp] Twilio error:", res.status, text);
+      logger.error({ status: res.status, response: text }, "[whatsapp] Twilio error");
       throw new Error(`WhatsApp send failed: ${res.status}`);
     }
   } catch (err) {
-    console.error("[whatsapp] send failed:", err);
+    logger.error({ err }, "[whatsapp] send failed");
     throw err;
   }
 }

@@ -473,9 +473,7 @@ const queryLegacyApartments = async (input: ListQueryInput): Promise<PaginatedRe
 
 export const queryApartments = async (rawInput: unknown): Promise<PaginatedResponse<ApartmentListRow>> => {
   const input = ListQuerySchema.parse(rawInput);
-  const primary = await queryPrimaryApartments(input);
-  if (primary.pagination.total > 0) return primary;
-  return queryLegacyApartments(input);
+  return queryPrimaryApartments(input);
 };
 
 export const getApartmentById = async (rawApartmentId: unknown): Promise<{ apartment: ReturnType<typeof mapApartment> }> => {
@@ -486,11 +484,7 @@ export const getApartmentById = async (rawApartmentId: unknown): Promise<{ apart
     const apartment = mapApartment(tzDoc);
     return { apartment };
   }
-  const primary = await db.collection<RawApartment>("apartments").findOne({ _id: apartmentId });
-  if (primary) return { apartment: mapApartment(primary) };
-  const legacyDoc = await db.collection<LegacyApartmentDetailDoc>(LEGACY_APARTMENTS_VIEW).findOne({ _id: apartmentId });
-  if (!legacyDoc) throw new HttpError("Apartment not found", 404);
-  return { apartment: mapLegacyApartmentToDetail(legacyDoc) };
+  throw new HttpError("Apartment not found", 404);
 };
 
 export const createApartment = async (rawInput: unknown) => {

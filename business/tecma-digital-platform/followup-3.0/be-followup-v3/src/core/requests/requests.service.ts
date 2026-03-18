@@ -19,6 +19,7 @@ import {
 import { createContract } from "../contracts/contracts.service.js";
 import { setInventoryStatus } from "../inventory/inventory.service.js";
 import { dispatchEvent } from "../automations/automation-events.service.js";
+import { logger } from "../../observability/logger.js";
 
 /** Ruolo del cliente rispetto all'immobile (compravendita: venditore vs acquirente). */
 export type ClientRole = "buyer" | "seller" | "tenant" | "landlord";
@@ -77,9 +78,9 @@ export interface RequestRow {
   updatedAt: string;
   clientName?: string;
   apartmentCode?: string;
-  /** Riferimento a asset.quotes (legacy). */
+  /** Riferimento quote su main DB. */
   quoteId?: string;
-  /** Snapshot da asset.quotes. */
+  /** Snapshot quote persistito in richiesta. */
   quoteStatus?: string;
   quoteNumber?: string;
   quoteExpiryOn?: string;
@@ -146,34 +147,6 @@ const toIsoDate = (value: unknown): string => {
     if (!Number.isNaN(parsed.valueOf())) return parsed.toISOString();
   }
   return new Date(0).toISOString();
-};
-
-/** Legge dati quote da asset.quotes (legacy). Ritorna undefined se non trovata o DB non disponibile. */
-const fetchQuoteFromLegacy = async (quoteId: string): Promise<{
-  status?: string;
-  quoteNumber?: string;
-  expiryOn?: string;
-  totalPrice?: number;
-} | null> => {
-  if (!ObjectId.isValid(quoteId)) return null;
-  try {
-    const db = getDb();
-    const quote = await db.collection("tz_quotes").findOne(
-      { _id: new ObjectId(quoteId) },
-      { projection: { status: 1, quoteNumber: 1, expiryOn: 1, "customQuote.totalPrice": 1 } }
-    );
-    if (!quote) return null;
-    const q = quote as Record<string, unknown>;
-    const customQuote = q.customQuote as Record<string, unknown> | undefined;
-    return {
-      status: typeof q.status === "string" ? q.status : undefined,
-      quoteNumber: typeof q.quoteNumber === "string" ? q.quoteNumber : undefined,
-      expiryOn: q.expiryOn != null ? toIsoDate(q.expiryOn) : undefined,
-      totalPrice: typeof customQuote?.totalPrice === "number" ? customQuote.totalPrice : undefined,
-    };
-  } catch {
-    return null;
-  }
 };
 
 const CLIENT_ROLES = ["buyer", "seller", "tenant", "landlord"] as const;
@@ -330,22 +303,9 @@ export const getRequestById = async (rawId: unknown): Promise<{ request: Request
       apartmentCode = (apt as unknown as { code: string }).code;
     }
   }
-  let quoteData: Partial<RequestRow> = {};
-  if (row.quoteId) {
-    const legacy = await fetchQuoteFromLegacy(row.quoteId);
-    if (legacy) {
-      quoteData = {
-        quoteStatus: legacy.status ?? row.quoteStatus,
-        quoteNumber: legacy.quoteNumber ?? row.quoteNumber,
-        quoteExpiryOn: legacy.expiryOn ?? row.quoteExpiryOn,
-        quoteTotalPrice: legacy.totalPrice ?? row.quoteTotalPrice,
-      };
-    }
-  }
   return {
     request: {
       ...row,
-      ...quoteData,
       clientName: clientName ?? row.clientId,
       apartmentCode: apartmentCode ?? row.apartmentId,
     },
@@ -373,13 +333,6 @@ export const createRequest = async (rawInput: unknown): Promise<{ request: Reque
   if (input.clientRole != null) doc.clientRole = input.clientRole;
   if (input.quoteId && ObjectId.isValid(input.quoteId)) {
     doc.quoteId = input.quoteId;
-    const legacy = await fetchQuoteFromLegacy(input.quoteId);
-    if (legacy) {
-      doc.quoteStatus = legacy.status;
-      doc.quoteNumber = legacy.quoteNumber;
-      doc.quoteExpiryOn = legacy.expiryOn;
-      doc.quoteTotalPrice = legacy.totalPrice;
-    }
   }
   const result = await collection.insertOne(doc);
   const _id = result.insertedId.toHexString();
@@ -477,13 +430,6 @@ export const updateRequestStatus = async (
   }
   if (newStatus === "quote" && body.quoteId && ObjectId.isValid(body.quoteId)) {
     update.quoteId = body.quoteId;
-    const legacy = await fetchQuoteFromLegacy(body.quoteId);
-    if (legacy) {
-      update.quoteStatus = legacy.status;
-      update.quoteNumber = legacy.quoteNumber;
-      update.quoteExpiryOn = legacy.expiryOn;
-      update.quoteTotalPrice = legacy.totalPrice;
-    }
   }
 
   const client = getMongoClient();
@@ -541,7 +487,7 @@ export const updateRequestStatus = async (
       clientId,
       apartmentId,
       toStatus: newStatus,
-    }).catch((err) => console.error("[requests] dispatch proposal.sent failed:", err));
+    }).catch((err) => logger.error({ err }, "[requests] dispatch proposal.sent failed"));
   }
   if (newStatus === "won") {
     dispatchEvent(workspaceId, "contract.signed", {
@@ -552,7 +498,7 @@ export const updateRequestStatus = async (
       clientId,
       apartmentId,
       toStatus: newStatus,
-    }).catch((err) => console.error("[requests] dispatch contract.signed failed:", err));
+    }).catch((err) => logger.error({ err }, "[requests] dispatch contract.signed failed"));
   }
 
   return getRequestById(id);

@@ -7,6 +7,7 @@ import { getDb } from "../../config/db.js";
 import type { DispatchEventPayload } from "../automations/automation-events.service.js";
 import type { CommunicationSchedule } from "./communication-rules.service.js";
 import { dispatchCommunicationJob } from "./channel-dispatcher.service.js";
+import { logger } from "../../observability/logger.js";
 
 const COLLECTION = "tz_scheduled_communications";
 
@@ -143,7 +144,7 @@ export async function executeScheduled(id: string): Promise<boolean> {
       payload: row.payload,
     });
   } catch (err) {
-    console.error("[scheduled-communications] execute failed:", id, err);
+    logger.error({ err, id }, "[scheduled-communications] execute failed");
     return false;
   }
   const now = new Date();

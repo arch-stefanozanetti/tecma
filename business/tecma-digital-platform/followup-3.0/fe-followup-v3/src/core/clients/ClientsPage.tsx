@@ -14,7 +14,7 @@ import {
   Download,
   ArrowLeftRight,
 } from "lucide-react";
-import { followupApi } from "../../api/followupApi";
+import { clientsApi } from "../../api/domains/clientsApi";
 import type { AdditionalInfoRow, ClientRow } from "../../types/domain";
 import { useWorkspace } from "../../auth/projectScope";
 import { usePaginatedList } from "../shared/usePaginatedList";
@@ -47,40 +47,7 @@ import {
   type ClientsFiltersDraft,
   type TimeFrameDraft,
 } from "./ClientsFiltersDrawerContent";
-
-// Status display mapping — handles both legacy and new status values
-const STATUS_LABEL: Record<string, string> = {
-  lead: "Lead",
-  Lead: "Lead",
-  LEAD: "Lead",
-  prospect: "Prospect",
-  Prospect: "Prospect",
-  PROSPECT: "Prospect",
-  client: "Client",
-  Client: "Client",
-  CLIENT: "Client",
-  contacted: "Contacted",
-  CONTACTED: "Contacted",
-  negotiation: "Negotiation",
-  NEGOTIATION: "Negotiation",
-  won: "Won",
-  WON: "Won",
-  lost: "Lost",
-  LOST: "Lost",
-};
-
-const statusLabel = (raw: string) => STATUS_LABEL[raw] ?? raw;
-
-const formatDate = (iso?: string) => {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(d);
-};
+import { formatDate, statusLabel } from "./ClientsPage.utils";
 
 const CLIENTS_PER_PAGE = 50;
 
@@ -115,7 +82,7 @@ export const ClientsPage = () => {
 
   useEffect(() => {
     if (!workspaceId) return;
-    followupApi
+    clientsApi
       .listAdditionalInfos(workspaceId)
       .then((r) => setAdditionalInfos(r.data ?? []))
       .catch(() => setAdditionalInfos([]));
@@ -183,7 +150,7 @@ export const ClientsPage = () => {
         ? Object.fromEntries(Object.entries(formAdditionalInfo).filter(([, v]) => v != null && String(v).trim() !== ""))
         : undefined;
       if (clientFormMode === "edit" && editingClient) {
-        const res = await followupApi.updateClient(editingClient._id, {
+        const res = await clientsApi.updateClient(editingClient._id, {
           fullName: formFullName.trim(),
           email: formEmail.trim() || undefined,
           phone: formPhone.trim() || undefined,
@@ -199,7 +166,7 @@ export const ClientsPage = () => {
           setFormSubmitError("Seleziona un progetto.");
           return;
         }
-        await followupApi.createClient({
+        await clientsApi.createClient({
           workspaceId,
           projectId: formProjectId,
           fullName: formFullName.trim(),
@@ -245,7 +212,7 @@ export const ClientsPage = () => {
     error,
     refetch,
   } = usePaginatedList<ClientRow>({
-    loader: followupApi.queryClients,
+    loader: clientsApi.queryClients,
     workspaceId: workspaceId ?? "",
     projectIds: selectedProjectIds,
     defaultSortField: "updatedAt",

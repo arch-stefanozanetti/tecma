@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ExternalLink, Filter, Link2, MoreHorizontal, Pencil, Plus, RefreshCcw, RotateCcw, Search, Trash2 } from "lucide-react";
-import { followupApi } from "../../api/followupApi";
+import { requestsApi } from "../../api/domains/requestsApi";
 import type {
   RequestRow,
   RequestStatus,
@@ -106,7 +106,7 @@ export const RequestsPage = () => {
       return;
     }
     setTransitionsLoading(true);
-    followupApi
+    requestsApi
       .getRequestTransitions(selectedRequest._id)
       .then((r) => setRequestTransitions(r.transitions ?? []))
       .catch(() => setRequestTransitions([]))
@@ -119,7 +119,7 @@ export const RequestsPage = () => {
       return;
     }
     setActionsLoading(true);
-    followupApi
+    requestsApi
       .getRequestActions(workspaceId, selectedRequest?._id)
       .then((r) => setRequestActions(r.actions ?? []))
       .catch(() => setRequestActions([]))
@@ -130,7 +130,7 @@ export const RequestsPage = () => {
   useEffect(() => {
     const openRequestId = (location.state as { openRequestId?: string } | null)?.openRequestId;
     if (!openRequestId) return;
-    followupApi
+    requestsApi
       .getRequestById(openRequestId)
       .then((r) => {
         setSelectedRequest(r.request);
@@ -150,8 +150,12 @@ export const RequestsPage = () => {
     setFormType("sell");
     setFormStatus("new");
     setFormClientRole("");
-    followupApi.queryClientsLite(workspaceId, selectedProjectIds).then((r) => setClientsLite(r.data ?? []));
-    followupApi
+    requestsApi
+      .queryClientsLite(workspaceId, selectedProjectIds)
+      .then((r) =>
+        setClientsLite((r.data ?? []).map((c) => ({ ...c, email: c.email ?? "" })))
+      );
+    requestsApi
       .queryApartments({
         workspaceId,
         projectIds: selectedProjectIds,
@@ -175,7 +179,7 @@ export const RequestsPage = () => {
     setFormError(null);
     setFormSaving(true);
     try {
-      await followupApi.createRequest({
+      await requestsApi.createRequest({
         workspaceId,
         projectId: formProjectId,
         clientId: formClientId,
@@ -214,7 +218,7 @@ export const RequestsPage = () => {
     error,
     refetch,
   } = usePaginatedList<RequestRow>({
-    loader: followupApi.queryRequests,
+    loader: requestsApi.queryRequests,
     workspaceId: workspaceId ?? "",
     projectIds: selectedProjectIds,
     defaultSortField: "updatedAt",
@@ -269,7 +273,7 @@ export const RequestsPage = () => {
   const handleStatusChange = async (requestId: string, newStatus: RequestStatus) => {
     setStatusChangingId(requestId);
     try {
-      await followupApi.updateRequestStatus(requestId, { status: newStatus });
+      await requestsApi.updateRequestStatus(requestId, { status: newStatus });
       refetch();
       setSelectedRequest((prev) => (prev?._id === requestId ? { ...prev, status: newStatus } : prev));
     } catch (err) {
@@ -293,10 +297,10 @@ export const RequestsPage = () => {
     if (!selectedRequest) return;
     setRevertingTransitionId(transitionId);
     try {
-      const { request } = await followupApi.revertRequestStatus(selectedRequest._id, transitionId);
+      const { request } = await requestsApi.revertRequestStatus(selectedRequest._id, transitionId);
       setSelectedRequest(request);
       refetch();
-      const { transitions } = await followupApi.getRequestTransitions(selectedRequest._id);
+      const { transitions } = await requestsApi.getRequestTransitions(selectedRequest._id);
       setRequestTransitions(transitions ?? []);
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Errore durante il ripristino dello stato.");
@@ -364,14 +368,14 @@ export const RequestsPage = () => {
     setActionFormSaving(true);
     try {
       if (actionDrawerMode === "edit" && editingAction) {
-        await followupApi.updateRequestAction(editingAction._id, {
+        await requestsApi.updateRequestAction(editingAction._id, {
           type: actionFormType,
           title: actionFormTitle.trim() || undefined,
           description: actionFormDescription.trim() || undefined,
           requestIds: actionFormRequestIds,
         });
       } else {
-        await followupApi.createRequestAction({
+        await requestsApi.createRequestAction({
           workspaceId,
           requestIds: actionFormRequestIds,
           type: actionFormType,
@@ -380,7 +384,7 @@ export const RequestsPage = () => {
         });
       }
       setActionDrawerOpen(false);
-      const { actions } = await followupApi.getRequestActions(workspaceId, selectedRequest?._id);
+      const { actions } = await requestsApi.getRequestActions(workspaceId, selectedRequest?._id);
       setRequestActions(actions ?? []);
     } catch (err) {
       setActionFormError(err instanceof Error ? err.message : "Errore nel salvataggio.");
@@ -393,7 +397,7 @@ export const RequestsPage = () => {
     if (!window.confirm("Eliminare questa azione?")) return;
     setDeletingActionId(actionId);
     try {
-      await followupApi.deleteRequestAction(actionId);
+      await requestsApi.deleteRequestAction(actionId);
       setRequestActions((prev) => prev.filter((a) => a._id !== actionId));
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Errore durante l'eliminazione.");

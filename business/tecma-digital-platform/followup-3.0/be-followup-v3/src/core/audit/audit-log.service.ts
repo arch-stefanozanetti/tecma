@@ -3,6 +3,7 @@
  * Collection tz_audit_log (main DB). Non blocca il flusso principale se l'audit fallisce.
  */
 import { getDb } from "../../config/db.js";
+import { logger } from "../../observability/logger.js";
 
 const COLLECTION = "tz_audit_log";
 
@@ -55,7 +56,10 @@ export const record = async (input: AuditRecordInput): Promise<void> => {
     };
     await db.collection(COLLECTION).insertOne(doc);
   } catch (err) {
-    console.error("[auditLog] Failed to record:", input.action, input.entityType, input.entityId, err);
+    logger.error(
+      { err, action: input.action, entityType: input.entityType, entityId: input.entityId },
+      "[auditLog] failed to record"
+    );
   }
 };
 

@@ -1,6 +1,8 @@
 import type { Request, Response, RequestHandler } from "express";
 import { ZodError } from "zod";
 import { isProductionLike } from "../config/env.js";
+import { logger } from "../observability/logger.js";
+import { getRequestContext } from "../observability/request-context.js";
 
 const statusCodeFromError = (error: unknown): number =>
   typeof error === "object" && error !== null && "statusCode" in error
@@ -20,22 +22,28 @@ const messageFromError = (error: unknown): string => {
  */
 export const sendError = (res: Response, error: unknown): void => {
   const strict = isProductionLike();
+  const context = getRequestContext();
   let statusCode = statusCodeFromError(error);
   let message = messageFromError(error);
 
   if (error instanceof ZodError) {
     statusCode = 400;
+    logger.warn({ err: error, statusCode }, "Request validation failed");
     message = strict
       ? "Richiesta non valida"
       : error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join("; ") || "Validazione fallita";
   } else if (strict && statusCode >= 500) {
-    // eslint-disable-next-line no-console
-    console.error("[api] errore server:", error);
+    logger.error({ err: error, statusCode }, "[api] server error");
     message =
       statusCode === 503 ? "Servizio temporaneamente non disponibile" : "Errore interno del server";
+  } else if (statusCode >= 500) {
+    logger.error({ err: error, statusCode }, "[api] server error");
   }
 
-  res.status(statusCode).json({ error: message });
+  res.status(statusCode).json({
+    error: message,
+    ...(context?.requestId ? { requestId: context.requestId } : {})
+  });
 };
 
 export const handleAsync = (

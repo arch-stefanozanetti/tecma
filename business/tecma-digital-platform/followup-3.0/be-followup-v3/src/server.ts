@@ -5,6 +5,9 @@ import { connectDb } from "./config/db.js";
 import { v1Router } from "./routes/v1.js";
 import { runDueScheduled } from "./core/communications/scheduled-communications.service.js";
 import { ensureDefaultRoleDefinitions } from "./core/rbac/roleDefinitions.service.js";
+import { logger } from "./observability/logger.js";
+import { initOtel, shutdownOtel } from "./observability/otel.js";
+import { requestContextMiddleware } from "./routes/requestContextMiddleware.js";
 
 const SCHEDULED_COMMS_INTERVAL_MS = 2 * 60 * 1000;
 
@@ -41,18 +44,20 @@ function buildCorsOriginChecker(): (origin: string | undefined, cb: (err: Error 
 }
 
 const bootstrap = async () => {
+  await initOtel();
   await connectDb();
   await ensureDefaultRoleDefinitions().catch((err) => {
-    console.error("[rbac] ensureDefaultRoleDefinitions:", err);
+    logger.error({ err }, "[rbac] ensureDefaultRoleDefinitions failed");
   });
 
   setInterval(() => {
     runDueScheduled().catch((err) => {
-      console.error("[scheduled-communications] runDueScheduled failed:", err);
+      logger.error({ err }, "[scheduled-communications] runDueScheduled failed");
     });
   }, SCHEDULED_COMMS_INTERVAL_MS);
 
   const app = express();
+  app.use(requestContextMiddleware);
   app.use(
     cors({
       origin: buildCorsOriginChecker(),
@@ -63,14 +68,26 @@ const bootstrap = async () => {
 
   app.use("/v1", v1Router);
 
-  app.listen(ENV.PORT, () => {
-    // eslint-disable-next-line no-console
-    console.log(`be-followup-v3 listening on :${ENV.PORT}`);
+  const server = app.listen(ENV.PORT, () => {
+    logger.info({ port: ENV.PORT }, "be-followup-v3 listening");
+  });
+
+  const shutdown = async (signal: string) => {
+    logger.info({ signal }, "Shutting down be-followup-v3");
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await shutdownOtel().catch((err) => logger.error({ err }, "OpenTelemetry shutdown failed"));
+    process.exit(0);
+  };
+
+  process.on("SIGINT", () => {
+    void shutdown("SIGINT");
+  });
+  process.on("SIGTERM", () => {
+    void shutdown("SIGTERM");
   });
 };
 
 bootstrap().catch((error) => {
-  // eslint-disable-next-line no-console
-  console.error("Failed to start be-followup-v3", error);
+  logger.fatal({ err: error }, "Failed to start be-followup-v3");
   process.exit(1);
 });

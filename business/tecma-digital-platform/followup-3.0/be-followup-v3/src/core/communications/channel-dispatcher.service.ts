@@ -12,6 +12,7 @@ import type { CommunicationRecipientType } from "./communication-rules.service.j
 import { getClientById } from "../clients/clients.service.js";
 import { getProjectDetail, getProjectBrandingInternal } from "../projects/project-config.service.js";
 import { logDelivery } from "./communication-deliveries.service.js";
+import { logger } from "../../observability/logger.js";
 
 export interface DispatchJob {
   workspaceId: string;
@@ -41,7 +42,9 @@ async function resolveRecipient(
       const project = await getProjectDetail(payload.projectId, payload.workspaceId, false);
       const vendorEmail = (project as { vendorEmail?: string })?.vendorEmail;
       if (vendorEmail) return { email: vendorEmail };
-    } catch {}
+    } catch (err) {
+      logger.warn({ err, projectId: payload.projectId }, "[channel-dispatcher] unable to resolve vendor email");
+    }
   }
   return {};
 }
@@ -52,11 +55,14 @@ async function resolveRecipient(
 export async function dispatchCommunicationJob(job: DispatchJob): Promise<void> {
   const template = await getTemplateById(job.templateId);
   if (!template) {
-    console.error("[channel-dispatcher] Template not found:", job.templateId);
+    logger.error({ templateId: job.templateId }, "[channel-dispatcher] template not found");
     return;
   }
   if (template.channel !== job.channel) {
-    console.error("[channel-dispatcher] Template channel mismatch:", template.channel, job.channel);
+    logger.error(
+      { templateChannel: template.channel, jobChannel: job.channel, templateId: job.templateId },
+      "[channel-dispatcher] template channel mismatch"
+    );
     return;
   }
   const context = await buildCommunicationContext(job.payload);
@@ -67,7 +73,10 @@ export async function dispatchCommunicationJob(job: DispatchJob): Promise<void> 
   if (job.channel === "email") {
     const email = recipient.email;
     if (!email) {
-      console.error("[channel-dispatcher] No email for recipient", job.recipientType, job.payload.clientId);
+      logger.warn(
+        { recipientType: job.recipientType, clientId: job.payload.clientId },
+        "[channel-dispatcher] missing recipient email"
+      );
       return;
     }
     const branding = job.projectId ? await getProjectBrandingInternal(job.projectId) : null;
@@ -98,7 +107,7 @@ export async function dispatchCommunicationJob(job: DispatchJob): Promise<void> 
   if (job.channel === "whatsapp") {
     const phone = recipient.phone;
     if (!phone) {
-      console.error("[channel-dispatcher] No phone for client", job.payload.clientId);
+      logger.warn({ clientId: job.payload.clientId }, "[channel-dispatcher] missing recipient phone");
       return;
     }
     await sendWhatsAppMessage(job.workspaceId, phone, resolved.bodyText);
@@ -126,7 +135,7 @@ export async function dispatchCommunicationJob(job: DispatchJob): Promise<void> 
   }
 
   if (job.channel === "sms") {
-    console.warn("[channel-dispatcher] SMS not implemented yet");
+    logger.warn("[channel-dispatcher] SMS not implemented yet");
     return;
   }
 }

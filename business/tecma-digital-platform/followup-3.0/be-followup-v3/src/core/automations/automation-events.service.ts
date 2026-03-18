@@ -13,6 +13,7 @@ import { listByWorkspace as listCommunicationRules } from "../communications/com
 import type { CommunicationRuleAction } from "../communications/communication-rules.service.js";
 import { dispatchCommunicationJob } from "../communications/channel-dispatcher.service.js";
 import { createScheduledForRule } from "../communications/scheduled-communications.service.js";
+import { logger } from "../../observability/logger.js";
 
 export interface DispatchEventPayload {
   workspaceId: string;
@@ -47,7 +48,7 @@ export const dispatchEvent = async (
         try {
           await executeAction(action, workspaceId, payload);
         } catch (err) {
-          console.error("[automation-events] Action failed:", rule._id, action.type, err);
+          logger.error({ err, ruleId: rule._id, actionType: action.type }, "[automation-events] action failed");
         }
       }
     }
@@ -57,7 +58,7 @@ export const dispatchEvent = async (
     );
     for (const config of matchingWebhooks) {
       deliverWebhook(config, eventType, payload).catch((err) => {
-        console.error("[automation-events] Webhook delivery failed:", config._id, err);
+        logger.error({ err, webhookId: config._id }, "[automation-events] webhook delivery failed");
       });
     }
 
@@ -67,7 +68,7 @@ export const dispatchEvent = async (
         eventType,
         ...payload,
       }).catch((err) => {
-        console.error("[automation-events] n8n trigger failed:", workspaceId, err);
+        logger.error({ err, workspaceId }, "[automation-events] n8n trigger failed");
       });
     }
 
@@ -83,19 +84,22 @@ export const dispatchEvent = async (
         try {
           await executeCommunicationAction(action, workspaceId, rule.projectId, payload);
         } catch (err) {
-          console.error("[automation-events] Communication action failed:", rule._id, action.type, err);
+          logger.error(
+            { err, ruleId: rule._id, actionType: action.type },
+            "[automation-events] communication action failed"
+          );
         }
       }
       if (rule.schedules?.length && typeof payload.startsAt === "string" && payload.startsAt) {
         try {
           await createScheduledForRule(rule._id, workspaceId, rule.projectId, payload, rule.schedules);
         } catch (err) {
-          console.error("[automation-events] createScheduledForRule failed:", rule._id, err);
+          logger.error({ err, ruleId: rule._id }, "[automation-events] createScheduledForRule failed");
         }
       }
     }
   } catch (err) {
-    console.error("[automation-events] dispatchEvent failed:", workspaceId, eventType, err);
+    logger.error({ err, workspaceId, eventType }, "[automation-events] dispatchEvent failed");
   }
 };
 

@@ -46,14 +46,11 @@ describe("sendError in modalità production-like", () => {
         ? save.AUTH_JWT_SECRET
         : "prod-auth-jwt-secret-at-least-32-characters"
     });
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const { sendError: sendErrorProd } = await import("./asyncHandler.js");
     const res = { status: vi.fn().mockReturnThis(), json: vi.fn() } as unknown as Response;
     sendErrorProd(res, new HttpError("Dettaglio interno non esposto", 500));
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ error: "Errore interno del server" });
-    expect(consoleSpy).toHaveBeenCalled();
-    consoleSpy.mockRestore();
     Object.assign(process.env, save);
     vi.resetModules();
     await import("./asyncHandler.js");
@@ -78,7 +75,6 @@ describe("sendError in modalità production-like", () => {
           ? save.AUTH_JWT_SECRET
           : "staging-auth-jwt-secret-min-32-chars-ok!!"
     });
-    vi.spyOn(console, "error").mockImplementation(() => {});
     const { sendError: sendErrorProd } = await import("./asyncHandler.js");
     const res = { status: vi.fn().mockReturnThis(), json: vi.fn() } as unknown as Response;
     sendErrorProd(res, new HttpError("SSO down", 503));

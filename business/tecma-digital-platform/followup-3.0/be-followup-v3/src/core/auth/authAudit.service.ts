@@ -1,5 +1,6 @@
 import type { OptionalId } from "mongodb";
 import { getDb } from "../../config/db.js";
+import { logger } from "../../observability/logger.js";
 
 const COLLECTION_NAME = "tz_authEvents";
 
@@ -52,6 +53,6 @@ export async function logAuthEvent(
     };
     await getCollection().insertOne(doc);
   } catch (err) {
-    console.error("[authAudit] Failed to write auth event:", eventType, err);
+    logger.error({ err, eventType }, "[authAudit] failed to write auth event");
   }
 }

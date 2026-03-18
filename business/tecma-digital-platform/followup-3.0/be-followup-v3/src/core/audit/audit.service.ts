@@ -1,5 +1,6 @@
 import type { OptionalId } from "mongodb";
 import { getDb } from "../../config/db.js";
+import { logger } from "../../observability/logger.js";
 
 const COLLECTION = "tz_auditLogs";
 
@@ -36,6 +37,6 @@ export async function writeAuditLog(params: {
     };
     await coll().insertOne(doc as AuditLogDoc);
   } catch (err) {
-    console.error("[audit] write failed:", err);
+    logger.error({ err }, "[audit] write failed");
   }
 }

@@ -1,0 +1,662 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "followup-3.0",
+    "languages": [
+      "javascript",
+      "typescript"
+    ],
+    "frameworks": [
+      "Express",
+      "MUI",
+      "MongoDB",
+      "Playwright",
+      "React",
+      "Tailwind",
+      "Vite",
+      "Vitest",
+      "Zod"
+    ],
+    "description": "Followup 3.0 – CRM multi-progetto (BE + FE). Avvio 100% in locale.",
+    "analyzedAt": "2026-03-15T20:22:46.048Z",
+    "gitCommitHash": "db24b6df0daf96def5e19a1ea94f308d052a1a65"
+  },
+  "nodes": [
+    {
+      "id": "file:fe-followup-v3/postcss.config.js",
+      "type": "file",
+      "name": "postcss.config.js",
+      "filePath": "fe-followup-v3/postcss.config.js",
+      "summary": "Configurazione PostCSS con plugin Tailwind CSS e Autoprefixer per il frontend.",
+      "tags": [
+        "config",
+        "postcss",
+        "tailwind",
+        "build"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:fe-followup-v3/src/lib/utils.ts",
+      "type": "file",
+      "name": "utils.ts",
+      "filePath": "fe-followup-v3/src/lib/utils.ts",
+      "summary": "Fornisce l'helper cn() per merge di classi CSS con clsx e tailwind-merge, usato nei componenti.",
+      "tags": [
+        "utility",
+        "styling",
+        "tailwind",
+        "component"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "func:fe-followup-v3/src/lib/utils.ts:cn",
+      "type": "function",
+      "name": "cn",
+      "filePath": "fe-followup-v3/src/lib/utils.ts",
+      "lineRange": [
+        4,
+        6
+      ],
+      "summary": "Combina classi CSS in modo condizionale con clsx e le unifica con tailwind-merge.",
+      "tags": [
+        "utility",
+        "styling",
+        "tailwind"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:fe-followup-v3/src/lib/ds-form-classes.ts",
+      "type": "file",
+      "name": "ds-form-classes.ts",
+      "filePath": "fe-followup-v3/src/lib/ds-form-classes.ts",
+      "summary": "Costanti condivise per classi di form nativi (select, textarea) allineate al design system; unica fonte di verità.",
+      "tags": [
+        "utility",
+        "design-system",
+        "form",
+        "styling"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:fe-followup-v3/src/lib/ds-form-classes.test.ts",
+      "type": "file",
+      "name": "ds-form-classes.test.ts",
+      "filePath": "fe-followup-v3/src/lib/ds-form-classes.test.ts",
+      "summary": "Test unitari Vitest per le costanti INPUT_LIKE_CLASSES e TEXTAREA_LIKE_CLASSES.",
+      "tags": [
+        "test",
+        "unit-test",
+        "vitest",
+        "validation"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:be-followup-v3/vitest.integration.config.ts",
+      "type": "file",
+      "name": "vitest.integration.config.ts",
+      "filePath": "be-followup-v3/vitest.integration.config.ts",
+      "summary": "Configurazione Vitest per test di integrazione: ambiente node, timeout 15s, alias @ verso src.",
+      "tags": [
+        "config",
+        "test",
+        "vitest",
+        "integration"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:fe-followup-v3/e2e/visual/login.spec.ts",
+      "type": "file",
+      "name": "login.spec.ts",
+      "filePath": "fe-followup-v3/e2e/visual/login.spec.ts",
+      "summary": "Test E2E Playwright per regressione visiva della pagina di login; genera baseline screenshot.",
+      "tags": [
+        "test",
+        "e2e",
+        "visual-regression",
+        "playwright"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:fe-followup-v3/src/main.tsx",
+      "type": "file",
+      "name": "main.tsx",
+      "filePath": "fe-followup-v3/src/main.tsx",
+      "summary": "Entry point dell'app React: monta il root con ErrorBoundary, BrowserRouter e App, importa gli stili globali.",
+      "tags": [
+        "entry-point",
+        "bootstrap",
+        "react",
+        "component"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:be-followup-v3/src/config/env.ts",
+      "type": "file",
+      "name": "env.ts",
+      "filePath": "be-followup-v3/src/config/env.ts",
+      "summary": "Carica e valida le variabili d'ambiente con Zod (PORT, MONGO_URI, JWT, ecc.) e le espone come ENV.",
+      "tags": [
+        "config",
+        "validation",
+        "env",
+        "schema"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:fe-followup-v3/vitest.setup.ts",
+      "type": "file",
+      "name": "vitest.setup.ts",
+      "filePath": "fe-followup-v3/vitest.setup.ts",
+      "summary": "Setup globale per Vitest: estende expect con matchers jest-dom e polyfill per Radix UI in jsdom.",
+      "tags": [
+        "test",
+        "config",
+        "setup",
+        "polyfill"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:be-followup-v3/src/core/auth/token.service.ts",
+      "type": "file",
+      "name": "token.service.ts",
+      "filePath": "be-followup-v3/src/core/auth/token.service.ts",
+      "summary": "Servizio JWT per firma e verifica degli access token; usa secret e scadenza da ENV.",
+      "tags": [
+        "service",
+        "auth",
+        "jwt",
+        "token"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "func:be-followup-v3/src/core/auth/token.service.ts:signAccessToken",
+      "type": "function",
+      "name": "signAccessToken",
+      "filePath": "be-followup-v3/src/core/auth/token.service.ts",
+      "lineRange": [
+        14,
+        15
+      ],
+      "summary": "Firma un payload (sub, email, role, isAdmin) e restituisce un JWT access token.",
+      "tags": [
+        "auth",
+        "jwt",
+        "sign"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "func:be-followup-v3/src/core/auth/token.service.ts:verifyAccessToken",
+      "type": "function",
+      "name": "verifyAccessToken",
+      "filePath": "be-followup-v3/src/core/auth/token.service.ts",
+      "lineRange": [
+        17,
+        18
+      ],
+      "summary": "Verifica un JWT e restituisce il payload tipizzato AccessTokenPayload.",
+      "tags": [
+        "auth",
+        "jwt",
+        "verify"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:be-followup-v3/src/routes/rateLimitMiddleware.ts",
+      "type": "file",
+      "name": "rateLimitMiddleware.ts",
+      "filePath": "be-followup-v3/src/routes/rateLimitMiddleware.ts",
+      "summary": "Esporta middleware express-rate-limit per login (10/15min) e API pubbliche (60/min).",
+      "tags": [
+        "middleware",
+        "rate-limit",
+        "auth",
+        "api"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:fe-followup-v3/src/components/ui/separator.tsx",
+      "type": "file",
+      "name": "separator.tsx",
+      "filePath": "fe-followup-v3/src/components/ui/separator.tsx",
+      "summary": "Wrapper React per Radix UI Separator con orientamento orizzontale/verticale e styling Tailwind.",
+      "tags": [
+        "component",
+        "ui",
+        "radix",
+        "layout"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "func:fe-followup-v3/src/components/ui/separator.tsx:Separator",
+      "type": "function",
+      "name": "Separator",
+      "filePath": "fe-followup-v3/src/components/ui/separator.tsx",
+      "lineRange": [
+        5,
+        16
+      ],
+      "summary": "Componente Separator forwardRef che delega a Radix Root con cn per classi.",
+      "tags": [
+        "component",
+        "ui",
+        "forward-ref"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:fe-followup-v3/src/core/shared/PageSimple.tsx",
+      "type": "file",
+      "name": "PageSimple.tsx",
+      "filePath": "fe-followup-v3/src/core/shared/PageSimple.tsx",
+      "summary": "Layout di pagina con header (titolo, descrizione) e area contenuto; usato per pagine interne.",
+      "tags": [
+        "component",
+        "layout",
+        "shared",
+        "page"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "func:fe-followup-v3/src/core/shared/PageSimple.tsx:PageSimple",
+      "type": "function",
+      "name": "PageSimple",
+      "filePath": "fe-followup-v3/src/core/shared/PageSimple.tsx",
+      "lineRange": [
+        10,
+        19
+      ],
+      "summary": "Renderizza layout con titolo, descrizione e children in area scrollabile.",
+      "tags": [
+        "component",
+        "layout",
+        "page"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:fe-followup-v3/e2e/smoke.spec.ts",
+      "type": "file",
+      "name": "smoke.spec.ts",
+      "filePath": "fe-followup-v3/e2e/smoke.spec.ts",
+      "summary": "Smoke test Playwright: verifica che la login non sia pagina bianca e che logo/titolo siano visibili.",
+      "tags": [
+        "test",
+        "e2e",
+        "smoke",
+        "playwright"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:fe-followup-v3/src/components/ui/progress.test.tsx",
+      "type": "file",
+      "name": "progress.test.tsx",
+      "filePath": "fe-followup-v3/src/components/ui/progress.test.tsx",
+      "summary": "Test suite per il componente Progress: verifica value, showLabel e clamping tra 0 e 100.",
+      "tags": [
+        "test",
+        "component",
+        "progress",
+        "ui"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:fe-followup-v3/src/core/ai/ApprovalsPage.test.tsx",
+      "type": "file",
+      "name": "ApprovalsPage.test.tsx",
+      "filePath": "fe-followup-v3/src/core/ai/ApprovalsPage.test.tsx",
+      "summary": "Test suite per ApprovalsPage con mock di followupApi; verifica il rendering della sezione AI Approval Queue.",
+      "tags": [
+        "test",
+        "ai",
+        "approvals",
+        "mock"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:fe-followup-v3/src/core/apartments/CreateApartmentPage.test.tsx",
+      "type": "file",
+      "name": "CreateApartmentPage.test.tsx",
+      "filePath": "fe-followup-v3/src/core/apartments/CreateApartmentPage.test.tsx",
+      "summary": "Test suite per CreateApartmentPage con mock followupApi; verifica il rendering del wizard step 1.",
+      "tags": [
+        "test",
+        "apartments",
+        "wizard",
+        "mock"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:fe-followup-v3/src/core/clients/constants.ts",
+      "type": "file",
+      "name": "constants.ts",
+      "filePath": "fe-followup-v3/src/core/clients/constants.ts",
+      "summary": "Costanti e tipi per il modulo clienti: opzioni filtro status (lead, prospect, client, ecc.) e tipologia tabella (contacts, myHome, crm, otherInfo).",
+      "tags": [
+        "constants",
+        "type-definition",
+        "data-model",
+        "clients"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:be-followup-v3/src/utils/listCollections.ts",
+      "type": "file",
+      "name": "listCollections.ts",
+      "filePath": "be-followup-v3/src/utils/listCollections.ts",
+      "summary": "Script utility che si connette al DB MongoDB ed elenca le collection disponibili stampandone i nomi in console.",
+      "tags": [
+        "utility",
+        "script",
+        "data-model"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "func:be-followup-v3/src/utils/listCollections.ts:main",
+      "type": "function",
+      "name": "main",
+      "filePath": "be-followup-v3/src/utils/listCollections.ts",
+      "lineRange": [
+        3,
+        14
+      ],
+      "summary": "Connette al DB, ottiene l'elenco delle collection con listCollections e stampa i nomi ordinati in console.",
+      "tags": [
+        "utility",
+        "script",
+        "async"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:be-followup-v3/vitest.config.ts",
+      "type": "file",
+      "name": "vitest.config.ts",
+      "filePath": "be-followup-v3/vitest.config.ts",
+      "summary": "Configurazione Vitest per il backend: ambiente node, coverage v8, alias @ verso src, esclusione integration.",
+      "tags": [
+        "config",
+        "test",
+        "coverage"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:fe-followup-v3/src/components/ui/divider.test.tsx",
+      "type": "file",
+      "name": "divider.test.tsx",
+      "filePath": "fe-followup-v3/src/components/ui/divider.test.tsx",
+      "summary": "Test suite per il componente Divider: verifica role separator e orientazione orizzontale/verticale.",
+      "tags": [
+        "test",
+        "component",
+        "divider",
+        "ui"
+      ],
+      "complexity": "simple"
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:fe-followup-v3/src/lib/utils.ts",
+      "target": "func:fe-followup-v3/src/lib/utils.ts:cn",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:fe-followup-v3/src/lib/utils.ts",
+      "target": "func:fe-followup-v3/src/lib/utils.ts:cn",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:fe-followup-v3/src/lib/ds-form-classes.test.ts",
+      "target": "file:fe-followup-v3/src/lib/ds-form-classes.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:fe-followup-v3/src/lib/ds-form-classes.ts",
+      "target": "file:fe-followup-v3/src/lib/ds-form-classes.test.ts",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "file:be-followup-v3/src/core/auth/token.service.ts",
+      "target": "file:be-followup-v3/src/config/env.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:be-followup-v3/src/core/auth/token.service.ts",
+      "target": "func:be-followup-v3/src/core/auth/token.service.ts:signAccessToken",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:be-followup-v3/src/core/auth/token.service.ts",
+      "target": "func:be-followup-v3/src/core/auth/token.service.ts:verifyAccessToken",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:be-followup-v3/src/core/auth/token.service.ts",
+      "target": "func:be-followup-v3/src/core/auth/token.service.ts:signAccessToken",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:be-followup-v3/src/core/auth/token.service.ts",
+      "target": "func:be-followup-v3/src/core/auth/token.service.ts:verifyAccessToken",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:fe-followup-v3/src/components/ui/separator.tsx",
+      "target": "file:fe-followup-v3/src/lib/utils.ts",
+      "type": "imports",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "file:fe-followup-v3/src/components/ui/separator.tsx",
+      "target": "func:fe-followup-v3/src/components/ui/separator.tsx:Separator",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:fe-followup-v3/src/components/ui/separator.tsx",
+      "target": "func:fe-followup-v3/src/components/ui/separator.tsx:Separator",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:fe-followup-v3/src/core/shared/PageSimple.tsx",
+      "target": "func:fe-followup-v3/src/core/shared/PageSimple.tsx:PageSimple",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "file:fe-followup-v3/src/core/shared/PageSimple.tsx",
+      "target": "func:fe-followup-v3/src/core/shared/PageSimple.tsx:PageSimple",
+      "type": "exports",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "file:be-followup-v3/src/utils/listCollections.ts",
+      "target": "func:be-followup-v3/src/utils/listCollections.ts:main",
+      "type": "contains",
+      "direction": "forward",
+      "weight": 1
+    }
+  ],
+  "layers": [
+    {
+      "id": "layer:config",
+      "name": "Config Layer",
+      "description": "Configurazione build (PostCSS), ambiente (env Zod), e test (Vitest unit/integration/setup) per FE e BE.",
+      "nodeIds": [
+        "file:fe-followup-v3/postcss.config.js",
+        "file:fe-followup-v3/vitest.setup.ts",
+        "file:be-followup-v3/vitest.config.ts",
+        "file:be-followup-v3/vitest.integration.config.ts",
+        "file:be-followup-v3/src/config/env.ts"
+      ]
+    },
+    {
+      "id": "layer:api",
+      "name": "API Layer",
+      "description": "Middleware e gestione richieste backend (rate limiting su login e API pubbliche).",
+      "nodeIds": [
+        "file:be-followup-v3/src/routes/rateLimitMiddleware.ts"
+      ]
+    },
+    {
+      "id": "layer:service",
+      "name": "Service Layer",
+      "description": "Logica di dominio backend (auth/token JWT) e frontend (layout condivisi, costanti modulo clienti).",
+      "nodeIds": [
+        "file:be-followup-v3/src/core/auth/token.service.ts",
+        "file:fe-followup-v3/src/core/shared/PageSimple.tsx",
+        "file:fe-followup-v3/src/core/clients/constants.ts"
+      ]
+    },
+    {
+      "id": "layer:data",
+      "name": "Data Layer",
+      "description": "Utility e script che interagiscono con il database (es. elenco collection MongoDB).",
+      "nodeIds": [
+        "file:be-followup-v3/src/utils/listCollections.ts"
+      ]
+    },
+    {
+      "id": "layer:ui",
+      "name": "UI Layer",
+      "description": "Entry point React e componenti UI riutilizzabili (es. Separator Radix/Tailwind).",
+      "nodeIds": [
+        "file:fe-followup-v3/src/main.tsx",
+        "file:fe-followup-v3/src/components/ui/separator.tsx"
+      ]
+    },
+    {
+      "id": "layer:utility",
+      "name": "Utility Layer",
+      "description": "Helper e costanti condivise FE: merge classi CSS (cn), classi design system per form.",
+      "nodeIds": [
+        "file:fe-followup-v3/src/lib/utils.ts",
+        "file:fe-followup-v3/src/lib/ds-form-classes.ts"
+      ]
+    },
+    {
+      "id": "layer:test",
+      "name": "Test Layer",
+      "description": "Test unitari (Vitest), test componenti UI e core, E2E e smoke Playwright.",
+      "nodeIds": [
+        "file:fe-followup-v3/src/lib/ds-form-classes.test.ts",
+        "file:fe-followup-v3/e2e/visual/login.spec.ts",
+        "file:fe-followup-v3/e2e/smoke.spec.ts",
+        "file:fe-followup-v3/src/components/ui/progress.test.tsx",
+        "file:fe-followup-v3/src/core/ai/ApprovalsPage.test.tsx",
+        "file:fe-followup-v3/src/core/apartments/CreateApartmentPage.test.tsx",
+        "file:fe-followup-v3/src/components/ui/divider.test.tsx"
+      ]
+    }
+  ],
+  "tour": [
+    {
+      "order": 1,
+      "title": "Entry point frontend",
+      "description": "L'applicazione React parte da fe-followup-v3/src/main.tsx: qui vengono montati ErrorBoundary, BrowserRouter e il componente App, e vengono importati gli stili globali. È il punto di ingresso per capire come il frontend viene avviato e quale albero di componenti viene renderizzato.",
+      "nodeIds": [
+        "file:fe-followup-v3/src/main.tsx"
+      ]
+    },
+    {
+      "order": 2,
+      "title": "Configurazione ambiente backend",
+      "description": "Il backend espone la configurazione validata in be-followup-v3/src/config/env.ts: le variabili d'ambiente (PORT, MONGO_URI, JWT secret e scadenza, ecc.) sono validate con Zod e esposte come oggetto ENV. È la base per capire come il server legge porta, database e segreti in modo type-safe.",
+      "nodeIds": [
+        "file:be-followup-v3/src/config/env.ts"
+      ]
+    },
+    {
+      "order": 3,
+      "title": "Utility e design system (FE)",
+      "description": "Le utility condivise del frontend vivono in src/lib: utils.ts fornisce cn() per il merge di classi CSS con clsx e tailwind-merge; ds-form-classes.ts definisce le costanti per select e textarea allineate al design system. Sono la base per lo styling coerente e i form in tutta l'app.",
+      "nodeIds": [
+        "file:fe-followup-v3/src/lib/utils.ts",
+        "file:fe-followup-v3/src/lib/ds-form-classes.ts"
+      ]
+    },
+    {
+      "order": 4,
+      "title": "Auth e rate limiting (BE)",
+      "description": "Il servizio JWT in token.service.ts firma e verifica gli access token usando ENV; le route sono protette da rateLimitMiddleware che applica limiti diversi per login (10 req/15 min) e API pubbliche (60/min). Insieme definiscono come il backend gestisce autenticazione e protezione dalle richieste abusive.",
+      "nodeIds": [
+        "file:be-followup-v3/src/core/auth/token.service.ts",
+        "file:be-followup-v3/src/routes/rateLimitMiddleware.ts"
+      ]
+    },
+    {
+      "order": 5,
+      "title": "Data layer e script DB",
+      "description": "listCollections.ts è uno script utility che si connette a MongoDB ed elenca le collection; mostra come il backend interagisce con il database e come sono organizzati gli script di supporto per esplorare il data model. Utile per orientarsi prima di toccare i modelli e le collection.",
+      "nodeIds": [
+        "file:be-followup-v3/src/utils/listCollections.ts"
+      ]
+    },
+    {
+      "order": 6,
+      "title": "Componenti UI e layout condivisi",
+      "description": "Separator è un wrapper Radix UI con Tailwind usato per layout; PageSimple è il layout di pagina con header (titolo, descrizione) e area contenuto per le pagine interne; constants.ts nel modulo clienti definisce filtri e tipologie tabella. Insieme mostrano il pattern UI: componenti base in components/ui, layout in core/shared, costanti di dominio in core/<modulo>.",
+      "nodeIds": [
+        "file:fe-followup-v3/src/components/ui/separator.tsx",
+        "file:fe-followup-v3/src/core/shared/PageSimple.tsx",
+        "file:fe-followup-v3/src/core/clients/constants.ts"
+      ]
+    },
+    {
+      "order": 7,
+      "title": "Test: unitari ed E2E",
+      "description": "I test unitari validano le utility (ds-form-classes.test.ts con Vitest); gli E2E con Playwright coprono smoke (smoke.spec.ts) e regressione visiva (login). Questi file illustrano come il progetto verifica logica, componenti e flussi critici prima del deploy.",
+      "nodeIds": [
+        "file:fe-followup-v3/src/lib/ds-form-classes.test.ts",
+        "file:fe-followup-v3/e2e/smoke.spec.ts"
+      ]
+    }
+  ]
+}

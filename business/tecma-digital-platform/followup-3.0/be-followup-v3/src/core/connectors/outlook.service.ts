@@ -5,6 +5,7 @@
 import { ObjectId } from "mongodb";
 import { getDb } from "../../config/db.js";
 import { HttpError } from "../../types/http.js";
+import { logger } from "../../observability/logger.js";
 
 const COLLECTION = "tz_connector_credentials";
 const CONNECTOR_ID = "outlook";
@@ -143,7 +144,7 @@ async function getCredentials(userId: string, workspaceId?: string): Promise<{
   });
   if (!res.ok) {
     const text = await res.text();
-    console.error("[outlook] Token refresh failed:", res.status, text);
+    logger.error({ status: res.status, response: text }, "[outlook] token refresh failed");
     return null;
   }
   const json = (await res.json()) as { access_token: string; refresh_token?: string; expires_in: number };

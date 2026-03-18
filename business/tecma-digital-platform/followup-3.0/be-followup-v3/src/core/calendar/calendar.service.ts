@@ -4,6 +4,7 @@ import { getDb } from "../../config/db.js";
 import { ListQuerySchema, type ListQueryInput, buildPagination } from "../shared/list-query.js";
 import { HttpError, PaginatedResponse } from "../../types/http.js";
 import { dispatchEvent } from "../automations/automation-events.service.js";
+import { logger } from "../../observability/logger.js";
 
 const SOURCES = ["FOLLOWUP_SELL", "FOLLOWUP_RENT", "CUSTOM_SERVICE"] as const;
 const CalendarEventCreateSchema = z.object({
@@ -263,7 +264,7 @@ export const createCalendarEvent = async (rawInput: unknown): Promise<{ event: C
       startsAt: event.startsAt,
       endsAt: event.endsAt,
       title: event.title,
-    }).catch((err) => console.error("[calendar] dispatch visit.scheduled failed:", err));
+    }).catch((err) => logger.error({ err }, "[calendar] dispatch visit.scheduled failed"));
   }
   return { event };
 };
@@ -324,7 +325,7 @@ export const updateCalendarEvent = async (
       startsAt: event.startsAt,
       endsAt: event.endsAt,
       title: event.title,
-    }).catch((err) => console.error("[calendar] dispatch visit.updated failed:", err));
+    }).catch((err) => logger.error({ err }, "[calendar] dispatch visit.updated failed"));
   }
   return { event };
 };

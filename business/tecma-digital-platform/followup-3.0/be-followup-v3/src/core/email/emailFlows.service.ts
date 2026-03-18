@@ -4,6 +4,7 @@
 import { getDb } from "../../config/db.js";
 import { assertOnlyAllowedPlaceholders, composeLayoutToHtml } from "./emailLayout.compose.js";
 import type { EmailLayoutV1 } from "./emailLayout.schema.js";
+import { logger } from "../../observability/logger.js";
 
 import {
   EMAIL_FLOW_KEYS,
@@ -72,16 +73,14 @@ export async function resolveCustomEmail(
     const subj = applyPlaceholders(subject, vars);
     const html = applyPlaceholders(bodyHtml, vars);
     if (hasUnresolvedPlaceholders(subj) || hasUnresolvedPlaceholders(html)) {
-      // eslint-disable-next-line no-console
-      console.warn(`[email-flows] ${flowKey}: placeholder non risolti, uso template default`);
+      logger.warn({ flowKey }, "[email-flows] unresolved placeholders, using default template");
       return null;
     }
     return { subject: subj, html };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (msg.includes("not initialized")) return null;
-    // eslint-disable-next-line no-console
-    console.warn("[email-flows] lettura fallita, default:", e);
+    logger.warn({ err: e }, "[email-flows] read failed, using default template");
     return null;
   }
 }

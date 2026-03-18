@@ -1,0 +1,32 @@
+name: CI BE Core Strict
+
+on:
+  push:
+    paths:
+      - "be-followup-v3/**"
+      - ".github/workflows/ci-be.yml"
+  pull_request:
+    paths:
+      - "be-followup-v3/**"
+      - ".github/workflows/ci-be.yml"
+
+jobs:
+  be-core-strict:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: be-followup-v3
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: be-followup-v3/package-lock.json
+
+      - run: npm ci
+      - run: npm run test:lint:core
+      - run: npm run build
+      - run: npm run test:coverage:core
+      - run: npm run check:no-legacy-runtime

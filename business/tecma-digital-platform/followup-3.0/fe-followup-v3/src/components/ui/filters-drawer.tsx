@@ -1,9 +1,17 @@
 /**
  * FiltersDrawer — Drawer filtri ispirato a fe-tecma-followup / fe-coliving.
- * Sheet da destra: header (titolo + chiudi), content scrollabile, footer (Azzera, Chiudi, Applica).
+ * Usa il primitive Drawer centrale: header (titolo + chiudi), content scrollabile, footer (Azzera, Chiudi, Applica).
  */
 import * as React from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "./sheet";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerBody,
+  DrawerFooter,
+  DrawerCloseButton,
+} from "./drawer";
 import { Button } from "./button";
 import { ScrollArea } from "./scroll-area";
 import { cn } from "../../lib/utils";
@@ -39,20 +47,21 @@ export function FiltersDrawer({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent
         side="right"
-        className={cn("flex h-full w-full max-w-md flex-col sm:max-w-md", className)}
+        size="md"
+        className={cn("flex h-full flex-col", className)}
       >
-        <SheetHeader className="flex-shrink-0 border-b border-border pb-4">
-          <SheetTitle className="text-lg font-semibold text-foreground">
-            {title}
-          </SheetTitle>
-        </SheetHeader>
-        <ScrollArea className="min-h-0 flex-1 py-4">
-          <div className="pr-4">{children}</div>
-        </ScrollArea>
-        <SheetFooter className="flex-shrink-0 flex-row flex-wrap gap-2 border-t border-border pt-4">
+        <DrawerHeader actions={<DrawerCloseButton />}>
+          <DrawerTitle>{title}</DrawerTitle>
+        </DrawerHeader>
+        <DrawerBody className="py-0">
+          <ScrollArea className="min-h-0 flex-1 py-4">
+            <div className="pr-4">{children}</div>
+          </ScrollArea>
+        </DrawerBody>
+        <DrawerFooter className="flex-row flex-wrap items-center gap-2">
           {onReset && (
             <Button
               variant="ghost"
@@ -72,8 +81,8 @@ export function FiltersDrawer({
               </Button>
             )}
           </div>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   );
 }

@@ -31,12 +31,14 @@ export interface DrawerContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content> {
   /** Lato di apertura (default right) */
   side?: "left" | "right";
+  /** Size standardizzato del pannello (default "md") */
+  size?: "sm" | "md" | "lg" | "xl" | "full";
 }
 
 const DrawerContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   DrawerContentProps
->(({ side = "right", className, children, ...props }, ref) => (
+>(({ side = "right", size = "md", className, children, ...props }, ref) => (
   <DrawerPortal>
     <DrawerOverlay />
     <SheetPrimitive.Content
@@ -44,10 +46,15 @@ const DrawerContent = React.forwardRef<
       aria-describedby={undefined}
       className={cn(
         "fixed inset-y-0 z-50 flex h-full w-full flex-col bg-background shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500 data-[state=open]:animate-in data-[state=closed]:animate-out",
+        size === "sm" && "min-w-[320px] max-w-[360px]",
+        size === "md" && "min-w-[360px] max-w-[400px]",
+        size === "lg" && "min-w-[400px] max-w-[520px]",
+        size === "xl" && "min-w-[420px] max-w-[680px]",
+        size === "full" && "w-full max-w-none",
         side === "right" &&
-          "right-0 min-w-[360px] max-w-[400px] border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
+          "right-0 border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
         side === "left" &&
-          "left-0 min-w-[360px] max-w-[400px] border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left",
+          "left-0 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left",
         className
       )}
       {...props}
