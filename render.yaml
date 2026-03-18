@@ -31,8 +31,7 @@ services:
     name: followup-3-fe
     runtime: static
     rootDir: business/tecma-digital-platform/followup-3.0/fe-followup-v3
-    # NODE_ENV=development durante npm ci: altrimenti npm salta optional "dev" (@rollup/rollup-linux-x64-gnu).
-    buildCommand: NODE_ENV=development npm ci && npm run build
+    buildCommand: npm ci && npm run build
     staticPublishPath: business/tecma-digital-platform/followup-3.0/fe-followup-v3/dist
     routes:
       - type: rewrite
