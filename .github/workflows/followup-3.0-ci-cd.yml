@@ -1,6 +1,6 @@
-# CI/CD FollowUp 3.0: build & test FE + BE; deploy FE e BE su Vercel (dev/demo/prod).
-# Un solo workflow in root repo tecma. Secret: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID_FE, VERCEL_PROJECT_ID_BE.
-name: Followup 3.0 CI/CD
+# FollowUp 3.0: CI — build e test FE + BE (nessun deploy da Actions).
+# Deploy: Render — vedi business/tecma-digital-platform/followup-3.0/docs/RENDER_DEPLOY.md e render.yaml in root.
+name: Followup 3.0 CI
 
 on:
   push:
@@ -9,6 +9,7 @@ on:
       - "business/tecma-digital-platform/followup-3.0/fe-followup-v3/**"
       - "business/tecma-digital-platform/followup-3.0/be-followup-v3/**"
       - "business/tecma-digital-platform/design-system/**"
+      - "render.yaml"
       - ".github/workflows/followup-3.0-ci-cd.yml"
   pull_request:
     branches: [develop, demo, main]
@@ -16,19 +17,11 @@ on:
       - "business/tecma-digital-platform/followup-3.0/fe-followup-v3/**"
       - "business/tecma-digital-platform/followup-3.0/be-followup-v3/**"
       - "business/tecma-digital-platform/design-system/**"
+      - "render.yaml"
       - ".github/workflows/followup-3.0-ci-cd.yml"
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: "Ambiente da deployare (solo per branch main)"
-        required: true
-        default: "prod"
-        type: choice
-        options:
-          - prod
 
 concurrency:
-  group: followup-3.0-ci-cd-${{ github.ref }}
+  group: followup-3.0-ci-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -43,7 +36,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # --- Frontend (pnpm: lockfile pnpm-lock.yaml) ---
       - uses: pnpm/action-setup@v4
         with:
           version: 9
@@ -67,7 +59,6 @@ jobs:
         working-directory: ${{ env.FOLLOWUP_FE_DIR }}
         run: pnpm run build
 
-      # --- Backend ---
       - name: Install dependencies (BE)
         working-directory: ${{ env.FOLLOWUP_BE_DIR }}
         run: npm ci
@@ -79,139 +70,3 @@ jobs:
       - name: Build (BE)
         working-directory: ${{ env.FOLLOWUP_BE_DIR }}
         run: npm run build
-
-  deploy-dev:
-    name: Deploy Dev (FE + BE)
-    needs: ci
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Deploy FE to Vercel (Dev)
-        id: deploy-fe
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_FE }}
-          working-directory: ${{ env.FOLLOWUP_FE_DIR }}
-          vercel-args: "--no-prod"
-
-      - name: Deploy BE to Vercel (Dev)
-        id: deploy-be
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_BE }}
-          working-directory: ${{ env.FOLLOWUP_BE_DIR }}
-          vercel-args: "--no-prod"
-
-      - name: Verify FE deployment
-        if: steps.deploy-fe.outputs.preview-url != ''
-        run: |
-          url="${{ steps.deploy-fe.outputs.preview-url }}"
-          echo "Checking FE $url"
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            if curl -sf -o /dev/null -w "%{http_code}" "$url" | grep -q 200; then
-              echo "FE Deployment OK (HTTP 200)"
-              exit 0
-            fi
-            echo "Wait attempt $i/10..."
-            sleep 15
-          done
-          echo "FE deployment verification timeout"
-          exit 1
-
-  deploy-demo:
-    name: Deploy Demo (FE + BE)
-    needs: ci
-    if: github.event_name == 'push' && github.ref == 'refs/heads/demo'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Deploy FE to Vercel (Demo)
-        id: deploy-fe
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_FE }}
-          working-directory: ${{ env.FOLLOWUP_FE_DIR }}
-          vercel-args: "--no-prod"
-
-      - name: Deploy BE to Vercel (Demo)
-        id: deploy-be
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_BE }}
-          working-directory: ${{ env.FOLLOWUP_BE_DIR }}
-          vercel-args: "--no-prod"
-
-      - name: Verify FE deployment
-        if: steps.deploy-fe.outputs.preview-url != ''
-        run: |
-          url="${{ steps.deploy-fe.outputs.preview-url }}"
-          echo "Checking FE $url"
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            if curl -sf -o /dev/null -w "%{http_code}" "$url" | grep -q 200; then
-              echo "FE Deployment OK (HTTP 200)"
-              exit 0
-            fi
-            echo "Wait attempt $i/10..."
-            sleep 15
-          done
-          echo "FE deployment verification timeout"
-          exit 1
-
-  deploy-prod:
-    name: Deploy Production (FE + BE)
-    needs: ci
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Deploy FE to Vercel (Production)
-        id: deploy-fe
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_FE }}
-          working-directory: ${{ env.FOLLOWUP_FE_DIR }}
-          vercel-args: "--prod"
-
-      - name: Deploy BE to Vercel (Production)
-        id: deploy-be
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_BE }}
-          working-directory: ${{ env.FOLLOWUP_BE_DIR }}
-          vercel-args: "--prod"
-
-      - name: Verify FE deployment
-        if: steps.deploy-fe.outputs.deployment-url != ''
-        run: |
-          url="${{ steps.deploy-fe.outputs.deployment-url }}"
-          echo "Checking FE $url"
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            if curl -sf -o /dev/null -w "%{http_code}" "$url" | grep -q 200; then
-              echo "FE Deployment OK (HTTP 200)"
-              exit 0
-            fi
-            echo "Wait attempt $i/10..."
-            sleep 15
-          done
-          echo "FE deployment verification timeout"
-          exit 1

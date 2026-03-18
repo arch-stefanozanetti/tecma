@@ -16,7 +16,7 @@ Build Static Site su Render falliva con `Cannot find module @rollup/rollup-linux
 - **pnpm** solo per `fe-followup-v3` + `pnpm-lock.yaml`.
 - Build Render: `rm -rf node_modules` poi `corepack` + `pnpm install --frozen-lockfile` + `pnpm run build`.
 - Rimozione `optional=false` / `omit=optional` da `.npmrc`.
-- CI GitHub Actions: `pnpm/action-setup` + `pnpm install --frozen-lockfile` per il FE.
+- CI GitHub Actions: `pnpm/action-setup` + `pnpm install --frozen-lockfile` per il FE (solo build/test; deploy su Render).
 - `package-lock.json` del FE rimosso (single source of truth: pnpm).
 
 ## Riferimenti

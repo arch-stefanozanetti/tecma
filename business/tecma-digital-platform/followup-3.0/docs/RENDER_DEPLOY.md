@@ -1,6 +1,6 @@
 # FollowUp 3.0 su Render
 
-Deploy alternativo/complementare a Vercel: backend come **Web Service** (Node), frontend come **Static Site** (Vite). MongoDB resta su **Atlas** (stesse variabili del BE).
+Deploy FollowUp 3.0 su **Render**: backend **Web Service** (Node), frontend **Static Site** (Vite). MongoDB su **Atlas** (stesse variabili del BE).
 
 ---
 
@@ -33,7 +33,10 @@ Collegare il repo e il primo deploy richiedono **login su render.com**, **autori
 2. Collega il repo GitHub `arch-stefanozanetti/tecma` (branch desiderato).
 3. Render legge `render.yaml`. Compila le variabili **sync: false** (obbligatorie prima del build):
    - **BE:** `MONGO_URI`, `MONGO_DB_NAME`, `AUTH_JWT_SECRET`
-   - **FE:** lockfile **`pnpm-lock.yaml`**. Build Render: `rm -rf node_modules && corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install --frozen-lockfile && pnpm run build`. In locale: `pnpm install` / `pnpm run build`. Publish `dist`, rewrite SPA. In `.npmrc` non usare `optional=false` né `omit=optional`.
+   - **FE:** `VITE_API_BASE_URL` = `https://<nome-be>.onrender.com/v1` (dopo che il BE è live).
+4. Ordine: deploy **BE**, poi imposta `VITE_API_BASE_URL` sul **FE** e ridistribuisci il FE se serve.
+
+**Build FE su Render:** `pnpm-lock.yaml`; comando nel Blueprint: `rm -rf node_modules && corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install --frozen-lockfile && pnpm run build`. In `.npmrc` non usare `optional=false` né `omit=optional`.
 
 Il **backend Node** usa **`plan: starter`** (e opz. `region: frankfurt`). Il **frontend static** nel Blueprint **non** ha `region` né `plan`: Render non li supporta su `runtime: static` (CDN globale).
 
@@ -61,13 +64,11 @@ Il BE usa `cors()` senza restrizioni di origine ([server.ts](../be-followup-v3/s
 
 ---
 
-## 5. Coesistenza con Vercel e CI
+## 5. CI GitHub (senza deploy)
 
-La pipeline [.github/workflows/followup-3.0-ci-cd.yml](../../../../.github/workflows/followup-3.0-ci-cd.yml) usa **pnpm** per il FE (`pnpm-lock.yaml`) e **npm** per il BE; deploy su **Vercel** se i secret sono configurati.
+La pipeline [.github/workflows/followup-3.0-ci-cd.yml](../../../../.github/workflows/followup-3.0-ci-cd.yml) esegue solo **build + test** (FE con **pnpm**, BE con **npm**). Il deploy è su **Render** (push sul branch collegato al Blueprint).
 
-- **Solo Render:** disattiva i job deploy Vercel o rimuovi i secret; usa auto-deploy Git su Render (push sul branch collegato).
-- **Entrambi:** lascia Vercel per prod e Render per staging, oppure viceversa.
-- **Deploy Render da GitHub senza MCP:** [Deploy Hook](https://render.com/docs/deploy-hooks) + `curl` in un job Actions (il Render MCP **non** avvia deploy).
+Opzionale: [Deploy Hook](https://render.com/docs/deploy-hooks) Render + `curl` da Actions se vuoi trigger espliciti oltre all’auto-deploy da Git.
 
 ---
 
