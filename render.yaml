@@ -26,11 +26,10 @@ services:
       - key: AUTH_REFRESH_EXPIRES_DAYS
         value: "7"
 
-  # Static sites: niente `region` nel Blueprint (Render non lo accetta).
+  # Static: niente `region` né `plan` nel Blueprint (Render non li accetta su static).
   - type: web
     name: followup-3-fe
     runtime: static
-    plan: starter
     rootDir: business/tecma-digital-platform/followup-3.0/fe-followup-v3
     buildCommand: npm ci --omit=optional && npm run build
     staticPublishPath: business/tecma-digital-platform/followup-3.0/fe-followup-v3/dist

@@ -24,7 +24,10 @@ Nel repo **tecma**, alla root, è presente [`render.yaml`](../../../../render.ya
 | `followup-3-be` | Web (Node)  | `business/tecma-digital-platform/followup-3.0/be-followup-v3` |
 | `followup-3-fe` | Static site | `business/tecma-digital-platform/followup-3.0/fe-followup-v3` |
 
-**Primo deploy:**
+**Chi deve fare il Blueprint (non automatizzabile dall’agent):**  
+Collegare il repo e il primo deploy richiedono **login su render.com**, **autorizzazione GitHub** e **inserimento dei segreti** (`MONGO_URI`, `AUTH_JWT_SECRET`, …). Nessun tool può farlo al posto tuo senza esporre quei segreti. Con **Render MCP** (API key già in Cursor) puoi invece, *dopo* che i servizi esistono, chiedere in chat di aggiornare env (es. `VITE_API_BASE_URL`) o leggere log — non sostituisce il wizard Blueprint iniziale.
+
+**Primo deploy (tu, ~2 minuti):**
 
 1. [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint**.
 2. Collega il repo GitHub `arch-stefanozanetti/tecma` (branch desiderato).
@@ -37,7 +40,7 @@ Nel repo **tecma**, alla root, è presente [`render.yaml`](../../../../render.ya
 
 **FE:** build `npm ci --omit=optional && npm run build`, publish `dist`, rewrite SPA `/*` → `/index.html` (nel Blueprint).
 
-Se `plan: free` non è accettato per la tua org/regione, modifica `render.yaml` da dashboard o file (es. `starter`).
+Il **backend Node** usa **`plan: starter`** (e opz. `region: frankfurt`). Il **frontend static** nel Blueprint **non** ha `region` né `plan`: Render non li supporta su `runtime: static` (CDN globale).
 
 ---
 
