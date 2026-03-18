@@ -55,6 +55,8 @@ export interface UserWorkspaceMembership {
 
 /** Utente con visibilità e associazioni (pagina User admin). */
 export interface UserWithVisibilityRow {
+  /** Presente se l’utente esiste in tz_users */
+  userId?: string | null;
   email: string;
   role: string | null;
   isAdmin: boolean;

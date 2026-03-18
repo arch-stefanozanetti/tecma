@@ -14,7 +14,6 @@ import type {
   RequestActionType,
 } from "../../types/domain";
 import { Button } from "../../components/ui/button";
-import { Progress } from "../../components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import {
   Drawer,
@@ -34,67 +33,22 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import { cn } from "../../lib/utils";
+import { formatDate } from "../../lib/formatDate";
 import { STATUS_FILTER_OPTIONS } from "./constants";
+import {
+  ACTION_TYPE_LABEL,
+  STATUS_LABEL,
+  statusLabel,
+} from "./clientDetailConstants";
 import { Textarea } from "../../components/ui/textarea";
 import { MatchingCandidatesList } from "../../components/MatchingCandidatesList";
 import { RequestStatusRoadmap } from "../../components/RequestStatusRoadmap";
 import { useWorkflowConfig } from "../../hooks/useWorkflowConfig";
 import { CalendarEventFormDrawer } from "../calendar/CalendarEventFormDrawer";
+import { ClientProfilationCard } from "./ClientProfilationCard";
+import { useClientDetailData } from "./useClientDetailData";
+import { useToast } from "../../contexts/ToastContext";
 import moment from "moment";
-
-const ACTION_TYPE_LABEL: Record<RequestActionType, string> = {
-  note: "Nota",
-  call: "Chiamata",
-  email: "Email",
-  meeting: "Incontro",
-  other: "Altro",
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  lead: "Lead",
-  Lead: "Lead",
-  prospect: "Prospect",
-  Prospect: "Prospect",
-  client: "Client",
-  Client: "Client",
-  contacted: "Contacted",
-  negotiation: "Negotiation",
-  won: "Won",
-  lost: "Lost",
-};
-
-const statusLabel = (raw: string) => STATUS_LABEL[raw] ?? raw;
-
-const formatDate = (iso?: string) => {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return new Intl.DateTimeFormat("it-IT", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(d);
-};
-
-/** Campi usati per la profilazione (match): più sono compilati, migliore il match. */
-const PROFILATION_FIELDS: (keyof ClientRow)[] = [
-  "email",
-  "phone",
-  "city",
-  "source",
-  "myhomeVersion",
-  "createdBy",
-];
-
-function getProfilationPercent(client: ClientRow): number {
-  let filled = 0;
-  for (const key of PROFILATION_FIELDS) {
-    const v = client[key];
-    if (v != null && String(v).trim() !== "") filled++;
-  }
-  const total = PROFILATION_FIELDS.length;
-  return total === 0 ? 100 : Math.round((filled / total) * 100);
-}
 
 export const ClientDetailPage = () => {
   const { clientId } = useParams<{ clientId: string }>();
@@ -103,11 +57,17 @@ export const ClientDetailPage = () => {
   const workflowConfigRent = useWorkflowConfig(workspaceId, "rent");
   const workflowConfigSell = useWorkflowConfig(workspaceId, "sell");
   const getWorkflowConfig = (type: "rent" | "sell") => (type === "rent" ? workflowConfigRent : workflowConfigSell);
-  const [client, setClient] = useState<ClientRow | null>(null);
-  const [requests, setRequests] = useState<RequestRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [requestsLoading, setRequestsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    client,
+    setClient,
+    loading,
+    error,
+    requests,
+    setRequests,
+    requestsLoading,
+    reloadRequests,
+  } = useClientDetailData(clientId, workspaceId, selectedProjectIds);
+  const { toastError } = useToast();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [formFullName, setFormFullName] = useState("");
   const [formEmail, setFormEmail] = useState("");
@@ -169,55 +129,11 @@ export const ClientDetailPage = () => {
       await followupApi.createClientAction(clientId, type);
       await followupApi.getAuditForEntity("client", clientId, workspaceId ?? "", 25).then((r) => setAuditEvents(r.data ?? []));
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Errore durante la registrazione dell'azione.");
+      toastError(err instanceof Error ? err.message : "Errore durante la registrazione dell'azione.");
     } finally {
       setActionLogging(null);
     }
   };
-
-  useEffect(() => {
-    if (!clientId) return;
-    setLoading(true);
-    setError(null);
-    followupApi
-      .getClientById(clientId)
-      .then((r) => {
-        setClient(r.client);
-      })
-      .catch((err) => {
-        const msg = err?.message ?? "Errore nel caricamento";
-        const is404 =
-          /not found/i.test(String(msg)) ||
-          (typeof (err as { statusCode?: number })?.statusCode === "number" &&
-            (err as { statusCode: number }).statusCode === 404);
-        setError(is404 ? "Cliente non trovato" : msg);
-        setClient(null);
-      })
-      .finally(() => setLoading(false));
-  }, [clientId]);
-
-  const reloadRequests = useCallback(() => {
-    if (!clientId || !client || !workspaceId || selectedProjectIds.length === 0) return;
-    const projectIds = client.projectId ? [client.projectId] : selectedProjectIds;
-    setRequestsLoading(true);
-    followupApi
-      .queryRequests({
-        workspaceId,
-        projectIds,
-        page: 1,
-        perPage: 50,
-        filters: { clientId },
-      })
-      .then((r) => {
-        setRequests(r.data ?? []);
-      })
-      .catch(() => setRequests([]))
-      .finally(() => setRequestsLoading(false));
-  }, [clientId, client, workspaceId, selectedProjectIds.length]);
-
-  useEffect(() => {
-    reloadRequests();
-  }, [reloadRequests]);
 
   // Tab Timeline: carica azioni
   useEffect(() => {
@@ -264,11 +180,6 @@ export const ClientDetailPage = () => {
       })
       .catch(() => {});
   }, [activeTab, requests, transitionsByRequestId]);
-
-  const profilationPercent = useMemo(
-    () => (client ? getProfilationPercent(client) : 0),
-    [client]
-  );
 
   const timelineSorted = useMemo(
     () =>
@@ -439,7 +350,7 @@ export const ClientDetailPage = () => {
       await followupApi.deleteRequestAction(actionId);
       setTimelineActions((prev) => prev.filter((a) => a._id !== actionId));
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Errore durante l'eliminazione.");
+      toastError(err instanceof Error ? err.message : "Errore durante l'eliminazione.");
     } finally {
       setDeletingActionId(null);
     }
@@ -471,7 +382,7 @@ export const ClientDetailPage = () => {
       if (msg.includes("già in uso") || msg.includes("altra trattativa")) {
         msg = "Appartamento già in uso da un'altra trattativa. Sblocca o porta a conclusione quella trattativa prima di cambiare stato.";
       }
-      window.alert(msg);
+      toastError(msg);
     } finally {
       setRequestStatusChangingId(null);
     }
@@ -565,7 +476,7 @@ export const ClientDetailPage = () => {
       setAssignments((prev) => [...prev, { userId: assignUserId.trim() }]);
       setAssignUserId("");
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Errore assegnazione");
+      toastError(e instanceof Error ? e.message : "Errore assegnazione");
     }
   };
 
@@ -576,7 +487,7 @@ export const ClientDetailPage = () => {
       await followupApi.unassignEntity(workspaceId, "client", clientId, userId);
       setAssignments((prev) => prev.filter((a) => a.userId !== userId));
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Errore rimozione");
+      toastError(e instanceof Error ? e.message : "Errore rimozione");
     }
   };
 
@@ -910,18 +821,7 @@ export const ClientDetailPage = () => {
             </div>
           </section>
 
-            <section className="space-y-4 rounded-lg border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-foreground">Profilazione per il match</h2>
-              <p className="text-xs text-muted-foreground">
-                Più il profilo è completo, più i consigli di appartamenti saranno pertinenti.
-              </p>
-              <Progress value={profilationPercent} showLabel />
-              {profilationPercent < 100 && (
-                <p className="text-xs text-muted-foreground">
-                  Completa email, telefono, città, fonte e altri campi per migliorare il match.
-                </p>
-              )}
-            </section>
+            <ClientProfilationCard client={client} />
           </div>
 
           <section className="rounded-lg border border-border bg-card p-4">

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { followupApi } from "../../api/followupApi";
 import type { WorkspaceRow, WorkspaceProjectRow, ProjectAccessProject, WorkspaceUserRow, WorkspaceUserRole } from "../../types/domain";
 import { useWorkspace } from "../../auth/projectScope";
+import { useToast } from "../../contexts/ToastContext";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import {
@@ -122,6 +123,7 @@ const emptyProjectForm = (): ProjectForm => ({
 export const WorkspacesPage = () => {
   const navigate = useNavigate();
   const { email } = useWorkspace();
+  const { toastError } = useToast();
 
   const [workspaces, setWorkspaces] = useState<WorkspaceRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -236,7 +238,7 @@ export const WorkspacesPage = () => {
       setWsDrawerOpen(false);
       void loadWorkspaces();
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Errore salvataggio workspace");
+      toastError(e instanceof Error ? e.message : "Errore salvataggio workspace");
     } finally {
       setSaving(false);
     }
@@ -250,7 +252,7 @@ export const WorkspacesPage = () => {
       setSelectedWs(null);
       void loadWorkspaces();
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Errore eliminazione");
+      toastError(e instanceof Error ? e.message : "Errore eliminazione");
     } finally {
       setSaving(false);
     }
@@ -306,7 +308,7 @@ export const WorkspacesPage = () => {
       // Link "Configura progetto" (Opzione B): redirect a ProjectDetailPage per policies, email, templates
       navigate(`/projects/${res.project.id}${wsId ? `?workspaceId=${wsId}` : ""}`);
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Errore creazione progetto");
+      toastError(e instanceof Error ? e.message : "Errore creazione progetto");
     } finally {
       setSaving(false);
     }
@@ -326,7 +328,7 @@ export const WorkspacesPage = () => {
       setAssociateSearch("");
       openProjectList(selectedWs);
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Errore associazione");
+      toastError(e instanceof Error ? e.message : "Errore associazione");
     } finally {
       setSaving(false);
     }
@@ -343,7 +345,7 @@ export const WorkspacesPage = () => {
     if (!selectedWs || !userFormEmail.trim()) return;
     const email = userFormEmail.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      window.alert("Inserisci un'email valida.");
+      toastError("Inserisci un'email valida.");
       return;
     }
     setSaving(true);
@@ -357,7 +359,7 @@ export const WorkspacesPage = () => {
       setUserDrawerOpen(false);
       openProjectList(selectedWs);
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Errore aggiunta utente");
+      toastError(e instanceof Error ? e.message : "Errore aggiunta utente");
     } finally {
       setSaving(false);
     }
@@ -371,7 +373,7 @@ export const WorkspacesPage = () => {
       await followupApi.removeWorkspaceUser(selectedWs._id, wu.userId);
       openProjectList(selectedWs);
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Errore rimozione utente");
+      toastError(e instanceof Error ? e.message : "Errore rimozione utente");
     } finally {
       setSaving(false);
     }
@@ -384,7 +386,7 @@ export const WorkspacesPage = () => {
       await followupApi.updateWorkspaceUser(selectedWs._id, wu.userId, { role: newRole });
       openProjectList(selectedWs);
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Errore aggiornamento ruolo");
+      toastError(e instanceof Error ? e.message : "Errore aggiornamento ruolo");
     } finally {
       setSaving(false);
     }
@@ -400,7 +402,7 @@ export const WorkspacesPage = () => {
       await followupApi.dissociateProjectFromWorkspace(selectedWs._id, projectId);
       openProjectList(selectedWs);
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Errore rimozione");
+      toastError(e instanceof Error ? e.message : "Errore rimozione");
     } finally {
       setSaving(false);
     }
@@ -451,7 +453,7 @@ export const WorkspacesPage = () => {
               <div
                 key={ws._id}
                 className={cn(
-                  "rounded-lg border border-border bg-background p-4 shadow-sm",
+                  "rounded-ui border border-border bg-background p-4 shadow-sm",
                   selectedWs?._id === ws._id && "ring-2 ring-primary/50"
                 )}
               >
@@ -551,7 +553,7 @@ export const WorkspacesPage = () => {
                           className="h-9 text-sm"
                         />
                         {associateOpen && (
-                          <div className="absolute z-50 mt-1 w-full max-h-56 overflow-y-auto rounded-lg border border-border bg-background shadow-lg">
+                          <div className="absolute z-50 mt-1 w-full max-h-56 overflow-y-auto rounded-ui border border-border bg-background shadow-lg">
                             {allProjects
                               .filter((p) => !projects.some((wp) => wp.projectId === p.id))
                               .filter((p) => {

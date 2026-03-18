@@ -17,7 +17,18 @@ export default {
       fontSize: tecmaTheme.fontSize,
       fontWeight: tecmaTheme.fontWeight,
       lineHeight: tecmaTheme.lineHeight,
-      borderRadius: { ...tecmaTheme.borderRadius, lg: "var(--radius)", md: "var(--radius)", sm: "var(--radius)", chrome: "var(--radius)" },
+      /* 8px ovunque — allineato a --radius-ui in styles.css */
+      borderRadius: {
+        DEFAULT: "8px",
+        sm: "8px",
+        md: "8px",
+        lg: "8px",
+        xl: "8px",
+        "2xl": "8px",
+        "3xl": "8px",
+        /* allineato a :root --radius-ui (evita rem/DS diverso da 8px) */
+        chrome: "var(--radius-ui)",
+      },
       backgroundImage: {
         "auth-page": "radial-gradient(circle at top left, hsl(230 100% 94% / 1) 0%, var(--app-bg) 45%, hsl(15 80% 97% / 1) 100%)",
         "auth-sidebar": "linear-gradient(to bottom, hsl(230 50% 94%), hsl(238 100% 99%), hsl(15 80% 97%))",

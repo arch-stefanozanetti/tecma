@@ -1,16 +1,21 @@
 import { Router } from "express";
+import { z } from "zod";
 import { queryApartments } from "../../core/apartments/apartments.service.js";
 import {
   loginWithCredentials,
   exchangeSsoJwt,
   refreshAccessToken,
   logoutWithRefreshToken,
+  requestPasswordReset,
+  resetPasswordWithToken
 } from "../../core/auth/auth.service.js";
+import { setPasswordFromInvite } from "../../core/users/users-mutations.service.js";
 import { exchangeCodeForTokens } from "../../core/connectors/outlook.service.js";
 import { openApiV1 } from "../../docs/openapi.js";
 import { HttpError } from "../../types/http.js";
 import { handleAsync, sendError } from "../asyncHandler.js";
 import { authRateLimiter, publicApiRateLimiter } from "../rateLimitMiddleware.js";
+import { getClientIp } from "../requestMeta.js";
 
 const SWAGGER_UI_HTML = `<!DOCTYPE html>
 <html lang="it">
@@ -53,14 +58,33 @@ publicRoutes.get("/docs", (_req, res) => {
   res.type("html").send(SWAGGER_UI_HTML);
 });
 
-publicRoutes.post("/auth/login", authRateLimiter, handleAsync((req) => loginWithCredentials(req.body)));
+const authMeta = (req: import("express").Request) => ({
+  ipAddress: getClientIp(req),
+  userAgent: req.get("user-agent") ?? null
+});
+
+publicRoutes.post("/auth/login", authRateLimiter, handleAsync((req) =>
+  loginWithCredentials(req.body, authMeta(req))
+));
 publicRoutes.post("/auth/sso-exchange", authRateLimiter, handleAsync((req) => exchangeSsoJwt(req.body)));
 publicRoutes.post("/auth/refresh", handleAsync((req) => refreshAccessToken(req.body)));
 publicRoutes.post("/auth/logout", (req, res) => {
-  logoutWithRefreshToken(req.body)
+  logoutWithRefreshToken(req.body, authMeta(req))
     .then(() => res.status(204).end())
     .catch((err) => sendError(res, err));
 });
+publicRoutes.post("/auth/request-password-reset", authRateLimiter, handleAsync((req) =>
+  requestPasswordReset(req.body, authMeta(req))
+));
+publicRoutes.post("/auth/reset-password", authRateLimiter, handleAsync((req) =>
+  resetPasswordWithToken(req.body, authMeta(req))
+));
+publicRoutes.post("/auth/set-password-from-invite", authRateLimiter, handleAsync((req) => {
+  const body = z
+    .object({ token: z.string().min(1), password: z.string().min(8) })
+    .parse(req.body);
+  return setPasswordFromInvite(body, authMeta(req));
+}));
 
 publicRoutes.post("/public/listings", publicApiRateLimiter, handleAsync((req) => queryApartments(req.body)));
 publicRoutes.get("/public/listings", publicApiRateLimiter, handleAsync((req) => {

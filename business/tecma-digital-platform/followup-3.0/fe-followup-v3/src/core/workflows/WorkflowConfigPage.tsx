@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { followupApi } from "../../api/followupApi";
 import { useWorkspace } from "../../auth/projectScope";
+import { useToast } from "../../contexts/ToastContext";
 import type {
   WorkflowRow,
   WorkflowStateRow,
@@ -41,6 +42,7 @@ const LOCK_LABEL: Record<ApartmentLockType, string> = {
 
 export const WorkflowConfigPage = () => {
   const { workspaceId, isAdmin } = useWorkspace();
+  const { toastError } = useToast();
   const [workspaces, setWorkspaces] = useState<WorkspaceRow[]>([]);
   /** Workspace usato per elenco e creazione workflow (admin può scegliere un altro). */
   const [selectedWorkspaceForConfig, setSelectedWorkspaceForConfig] = useState<string>(workspaceId);
@@ -129,7 +131,7 @@ export const WorkflowConfigPage = () => {
         setCreateType("sell");
         loadWorkflows();
       })
-      .catch((e) => window.alert(e instanceof Error ? e.message : "Errore creazione workflow"))
+      .catch((e) => toastError(e instanceof Error ? e.message : "Errore creazione workflow"))
       .finally(() => setCreating(false));
   }, [effectiveWorkspaceId, createName, createType, loadWorkflows]);
 
@@ -185,7 +187,7 @@ export const WorkflowConfigPage = () => {
         setAddStateOpen(false);
         loadDetail(detail.workflow._id);
       })
-      .catch((e) => window.alert(e instanceof Error ? e.message : "Errore aggiunta stato"))
+      .catch((e) => toastError(e instanceof Error ? e.message : "Errore aggiunta stato"))
       .finally(() => setAddingState(false));
   }, [detail, newStateCode, newStateLabel, newStateOrder, newStateTerminal, newStateReversible, newStateLock, loadDetail]);
 
@@ -204,7 +206,7 @@ export const WorkflowConfigPage = () => {
         setAddTransOpen(false);
         loadDetail(detail.workflow._id);
       })
-      .catch((e) => window.alert(e instanceof Error ? e.message : "Errore aggiunta transizione"))
+      .catch((e) => toastError(e instanceof Error ? e.message : "Errore aggiunta transizione"))
       .finally(() => setAddingTrans(false));
   }, [detail, newTransFrom, newTransTo, loadDetail]);
 

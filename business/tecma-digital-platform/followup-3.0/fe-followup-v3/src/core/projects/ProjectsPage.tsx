@@ -107,7 +107,7 @@ export const ProjectsPage = () => {
               )}
             </div>
           ) : (
-            <div className="overflow-hidden rounded-lg border border-border bg-background shadow-panel">
+            <div className="overflow-hidden rounded-ui border border-border bg-background shadow-panel">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border text-left text-sm font-normal text-muted-foreground">

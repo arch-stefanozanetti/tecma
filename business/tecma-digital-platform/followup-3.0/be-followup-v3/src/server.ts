@@ -4,11 +4,15 @@ import { ENV } from "./config/env.js";
 import { connectDb } from "./config/db.js";
 import { v1Router } from "./routes/v1.js";
 import { runDueScheduled } from "./core/communications/scheduled-communications.service.js";
+import { ensureDefaultRoleDefinitions } from "./core/rbac/roleDefinitions.service.js";
 
 const SCHEDULED_COMMS_INTERVAL_MS = 2 * 60 * 1000;
 
 const bootstrap = async () => {
   await connectDb();
+  await ensureDefaultRoleDefinitions().catch((err) => {
+    console.error("[rbac] ensureDefaultRoleDefinitions:", err);
+  });
 
   setInterval(() => {
     runDueScheduled().catch((err) => {

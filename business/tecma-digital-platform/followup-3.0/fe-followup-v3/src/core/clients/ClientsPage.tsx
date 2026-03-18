@@ -337,7 +337,7 @@ export const ClientsPage = () => {
                 <ChevronDown className={cn("ml-1 h-4 w-4 transition-transform", otherOptionsOpen && "rotate-180")} />
               </Button>
               {otherOptionsOpen && (
-                <div className="absolute right-0 top-11 z-50 w-52 overflow-hidden rounded-lg border border-border bg-background shadow-dropdown">
+                <div className="absolute right-0 top-11 z-50 w-52 overflow-hidden rounded-ui border border-border bg-background shadow-dropdown">
                   {[
                     { icon: Upload, label: "Importa Excel" },
                     { icon: Download, label: "Esporta Excel" },
@@ -360,10 +360,10 @@ export const ClientsPage = () => {
 
         {/* ── Lista clienti ─────────────────────────────────────── */}
         <div className="mt-6">
-          <div className="overflow-hidden rounded-lg border border-border bg-background shadow-panel">
+          <div className="overflow-hidden rounded-ui border border-border bg-background shadow-panel">
 
             {/* Tipologia tabella + Ricerca e filtri */}
-            <div className="border-b border-border px-4 py-4 lg:px-6">
+            <div className="rounded-t-ui border-b border-border px-4 py-4 lg:px-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="flex flex-1 flex-col gap-1.5 sm:flex-row sm:items-end sm:gap-3">
                   <div className="w-full sm:w-[200px] shrink-0">

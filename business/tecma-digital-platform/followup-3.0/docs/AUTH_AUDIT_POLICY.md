@@ -1,41 +1,60 @@
-# Audit eventi di autenticazione (Wave 6)
-
-Gli eventi di login, logout e SSO exchange vengono registrati in una collection dedicata per audit e sicurezza.
+# Audit autenticazione, accesso e mutazioni (MDOO / Wave 6+)
 
 ## Collection: `tz_authEvents`
 
-- **Database:** stesso DB del backend Followup (es. `MONGO_DB_NAME`).
-- **Documenti:** un documento per evento, con i campi:
-  - `eventType`: `"login"` | `"logout"` | `"sso_exchange"`
-  - `userId`: ID utente (stringa, da collection utenti legacy)
-  - `email`: email utente (se disponibile)
-  - `at`: data/ora dell’evento (ISO)
+- **Database:** stesso DB del backend Followup (`MONGO_DB_NAME`, es. `test-zanetti`).
+- **Scopo:** traccia eventi di autenticazione e sicurezza.
 
-Solo gli eventi **riusciti** vengono tracciati. I login falliti non sono registrati in questa collection (per evitare volumi elevati e abusi; eventuali log applicativi restano in console/servizi di log).
+### Campi (schema evoluto)
 
-## Uso consentito
+| Campo | Descrizione |
+|-------|-------------|
+| `eventType` | Tipo evento (stringa). Valori tipici: `login_success`, `login_failed`, `logout`, `sso_exchange`, `password_reset_requested`, `password_reset_completed`, `invite_accepted`. Legacy: `login` (alcuni flussi vecchi). |
+| `userId` | ID utente quando noto (manca su login fallito con email sconosciuta). |
+| `email` | Email normalizzata quando disponibile. |
+| `at` | Timestamp evento. |
+| `ipAddress` | IP client (se disponibile; es. da `X-Forwarded-For`). |
+| `userAgent` | User-Agent della richiesta. |
+| `success` | `true`/`false` dove applicabile. |
 
-- **Sicurezza:** individuare accessi anomali, sessioni duplicate, logout di massa.
-- **Compliance:** dimostrare chi ha effettuato l’accesso e quando (su richiesta di audit).
-- **Supporto:** correlare problemi segnalati dagli utenti con sessioni e orari di accesso.
+**Non** registrare password, token di refresh, JWT completi o header `Authorization` in chiaro.
 
-Non usare questa collection per analytics di prodotto o profilazione; contiene solo dati minimi (userId, email, tipo evento, timestamp).
+### Uso consentito
 
-## Retention e manutenzione
+- Sicurezza (tentativi falliti, reset password, inviti accettati).
+- Compliance e supporto (correlazione accessi).
 
-- **Retention consigliata:** 90–365 giorni a seconda della policy aziendale. Oltre un anno i dati possono essere archiviati o eliminati.
-- **Manutenzione:** è possibile creare un job periodico (cron o script) che elimina documenti con `at` precedente alla soglia (es. 1 anno). Esempio di query per cancellazione:
-  ```js
-  db.tz_authEvents.deleteMany({ at: { $lt: new Date(Date.now() - 365*24*60*60*1000) } })
-  ```
-- **Indici:** per query per utente o per intervallo temporale è utile un indice:
-  ```js
-  db.tz_authEvents.createIndex({ userId: 1, at: -1 })
-  db.tz_authEvents.createIndex({ at: -1 })
-  ```
+### Retention
 
-## Riferimenti
+Come da policy aziendale (es. 90–365 giorni). Esempio pulizia:
 
-- Implementazione: `be-followup-v3/src/core/auth/authAudit.service.ts`
-- Chiamate: `auth.service.ts` (login, exchangeSsoJwt, logoutWithRefreshToken)
-- Wave 6: [FOLLOWUP_3_MASTER.md](FOLLOWUP_3_MASTER.md) — Task 3 Audit e policy
+```js
+db.tz_authEvents.deleteMany({ at: { $lt: new Date(Date.now() - 365*24*60*60*1000) } })
+```
+
+Indici utili: `{ userId: 1, at: -1 }`, `{ at: -1 }`, `{ eventType: 1, at: -1 }`.
+
+---
+
+## Collection: `tz_accessLogs`
+
+- Una riga per richiesta HTTP su `/v1` (middleware access logger).
+- Campi tipici: `userId`, `endpoint`, `method`, `projectId`, `statusCode`, `responseTimeMs`, `ipAddress`, `createdAt`.
+- **Retention:** in ambienti ad alto traffico valutare TTL Mongo o campionamento.
+
+---
+
+## Collection: `tz_auditLogs`
+
+- Audit **mutazioni** su entità critiche (es. invito utente, update/delete utente).
+- Campi: `userId` (attore), `action`, `entityType`, `entityId`, `changes` (before/after JSON), `projectId`, `createdAt`.
+- Non includere segreti nei `changes`.
+
+---
+
+## Riferimenti implementazione
+
+- Auth events: `be-followup-v3/src/core/auth/authAudit.service.ts`
+- Access log: `be-followup-v3/src/core/audit/accessLog.service.ts`
+- Entity audit: `be-followup-v3/src/core/audit/audit.service.ts`
+- Chiamate login/logout/reset/invite: `auth.service.ts`, `users-mutations.service.ts`, route `v1/public.routes.ts` e `v1.ts`

@@ -15,6 +15,8 @@ export interface UserWorkspaceMembership {
 }
 
 export interface UserWithVisibilityRow {
+  /** _id tz_users quando presente */
+  userId: string | null;
   email: string;
   /** Ruolo globale da tz_users (admin, vendor, …) */
   role: string | null;
@@ -39,7 +41,7 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
   const wsColl = db.collection(COLLECTION_WORKSPACES);
 
   const [userDocs, membershipDocs, workspaceDocs] = await Promise.all([
-    usersColl.find({}).project({ email: 1, role: 1, project_ids: 1 }).toArray(),
+    usersColl.find({}).project({ email: 1, role: 1, project_ids: 1, _id: 1 }).toArray(),
     uwColl.find({}).toArray(),
     wsColl.find({}).project({ _id: 1, name: 1 }).toArray(),
   ]);
@@ -50,9 +52,14 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
     if (id) workspaceNames.set(id, typeof w.name === "string" ? w.name : id);
   }
 
-  const userByEmail = new Map<string, { role: string; projectIds: string[] }>();
+  const userByEmail = new Map<string, { role: string; projectIds: string[]; userId: string | null }>();
   const emailsFromUsers = new Set<string>();
-  for (const u of userDocs as { email?: unknown; role?: unknown; project_ids?: unknown[] }[]) {
+  for (const u of userDocs as {
+    _id?: { toHexString?: () => string };
+    email?: unknown;
+    role?: unknown;
+    project_ids?: unknown[];
+  }[]) {
     const email = normalizeEmail(u.email);
     if (!email) continue;
     emailsFromUsers.add(email);
@@ -60,7 +67,8 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
     const projectIds = Array.isArray(u.project_ids)
       ? (u.project_ids as unknown[]).map((id) => String(id)).filter(Boolean)
       : [];
-    userByEmail.set(email, { role, projectIds });
+    const userId = u._id && typeof u._id.toHexString === "function" ? u._id.toHexString() : null;
+    userByEmail.set(email, { role, projectIds, userId });
   }
 
   const membershipsByUser = new Map<string, { workspaceId: string; role: string }[]>();
@@ -83,12 +91,14 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
     const role = fromTzUsers?.role ?? null;
     const isAdmin = role?.toLowerCase() === "admin";
     const projectIds = fromTzUsers?.projectIds ?? [];
+    const userId = fromTzUsers?.userId ?? null;
     const memberships = (membershipsByUser.get(email) ?? []).map((m) => ({
       workspaceId: m.workspaceId,
       workspaceName: workspaceNames.get(m.workspaceId) ?? m.workspaceId,
       role: m.role,
     }));
     users.push({
+      userId,
       email,
       role,
       isAdmin,

@@ -1,7 +1,19 @@
 import { describe, it, expect, vi } from "vitest";
 import express from "express";
 import request from "supertest";
-import { signAccessToken } from "../core/auth/token.service.js";
+import { signAccessToken, type AccessTokenPayload } from "../core/auth/token.service.js";
+
+function makeToken(overrides: Partial<AccessTokenPayload> = {}): string {
+  return signAccessToken({
+    sub: "u1",
+    email: "u@test.it",
+    role: "user",
+    isAdmin: false,
+    permissions: ["apartments.read"],
+    projectId: null,
+    ...overrides
+  });
+}
 import { ListQuerySchema } from "../core/shared/list-query.js";
 
 vi.mock("../core/clients/clients.service.js", () => ({
@@ -34,15 +46,22 @@ vi.mock("../core/clients/clients.service.js", () => ({
   })
 }));
 
-vi.mock("../core/apartments/apartments.service.js", () => ({
-  queryApartments: vi.fn().mockImplementation(async (rawInput: unknown) => {
-    ListQuerySchema.parse(rawInput);
-    return {
-      data: [],
-      pagination: { page: 1, perPage: 25, total: 0, totalPages: 0 }
-    };
-  })
-}));
+vi.mock("../core/apartments/apartments.service.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../core/apartments/apartments.service.js")>();
+  return {
+    ...actual,
+    queryApartments: vi.fn().mockImplementation(async (rawInput: unknown) => {
+      ListQuerySchema.parse(rawInput);
+      return {
+        data: [],
+        pagination: { page: 1, perPage: 25, total: 0, totalPages: 0 }
+      };
+    }),
+    getApartmentById: vi.fn(),
+    createApartment: vi.fn(),
+    updateApartment: vi.fn(),
+  };
+});
 
 vi.mock("../core/requests/requests.service.js", () => ({
   queryRequests: vi.fn().mockImplementation(async (rawInput: unknown) => {
@@ -144,12 +163,7 @@ describe("v1 routes", () => {
 
   describe("POST /v1/session/projects-by-email", () => {
     it("returns 400 when body is invalid", async () => {
-      const token = signAccessToken({
-        sub: "u1",
-        email: "u@test.it",
-        role: "user",
-        isAdmin: false
-      });
+      const token = makeToken();
       const res = await request(app)
         .post("/v1/session/projects-by-email")
         .set("Authorization", `Bearer ${token}`)
@@ -175,8 +189,14 @@ describe("v1 routes", () => {
     });
 
     it("sets req.user and returns user when valid token", async () => {
-      const payload = { sub: "user-1", email: "u@test.it", role: "user", isAdmin: false };
-      const token = signAccessToken(payload);
+      const token = makeToken({
+        sub: "user-1",
+        email: "u@test.it",
+        role: "user",
+        isAdmin: false,
+        permissions: ["apartments.read"],
+        projectId: "p1"
+      });
       const res = await request(app)
         .get("/v1/auth/me")
         .set("Authorization", `Bearer ${token}`);
@@ -185,7 +205,9 @@ describe("v1 routes", () => {
         id: "user-1",
         email: "u@test.it",
         role: "user",
-        isAdmin: false
+        isAdmin: false,
+        permissions: ["apartments.read"],
+        projectId: "p1"
       });
     });
   });
@@ -213,12 +235,7 @@ describe("v1 routes", () => {
     });
 
     it("returns 200 with data and pagination when body is valid and JWT present", async () => {
-      const token = signAccessToken({
-        sub: "u1",
-        email: "u@test.it",
-        role: "user",
-        isAdmin: false
-      });
+      const token = makeToken();
       const res = await request(app)
         .post("/v1/requests/query")
         .set("Authorization", `Bearer ${token}`)
@@ -233,12 +250,7 @@ describe("v1 routes", () => {
     });
 
     it("returns 400 when body is invalid (missing workspaceId)", async () => {
-      const token = signAccessToken({
-        sub: "u1",
-        email: "u@test.it",
-        role: "user",
-        isAdmin: false
-      });
+      const token = makeToken();
       const res = await request(app)
         .post("/v1/requests/query")
         .set("Authorization", `Bearer ${token}`)
@@ -248,12 +260,7 @@ describe("v1 routes", () => {
     });
 
     it("returns 400 when body is invalid (empty projectIds)", async () => {
-      const token = signAccessToken({
-        sub: "u1",
-        email: "u@test.it",
-        role: "user",
-        isAdmin: false
-      });
+      const token = makeToken();
       const res = await request(app)
         .post("/v1/requests/query")
         .set("Authorization", `Bearer ${token}`)
@@ -279,12 +286,7 @@ describe("v1 routes", () => {
     });
 
     it("returns 200 with request when body is valid and JWT present", async () => {
-      const token = signAccessToken({
-        sub: "u1",
-        email: "u@test.it",
-        role: "user",
-        isAdmin: false
-      });
+      const token = makeToken();
       const res = await request(app)
         .post("/v1/requests")
         .set("Authorization", `Bearer ${token}`)
@@ -302,12 +304,7 @@ describe("v1 routes", () => {
     });
 
     it("returns 400 when body is invalid (missing clientId)", async () => {
-      const token = signAccessToken({
-        sub: "u1",
-        email: "u@test.it",
-        role: "user",
-        isAdmin: false
-      });
+      const token = makeToken();
       const res = await request(app)
         .post("/v1/requests")
         .set("Authorization", `Bearer ${token}`)
@@ -325,12 +322,7 @@ describe("v1 routes", () => {
     });
 
     it("returns 200 with client when id is valid and JWT present", async () => {
-      const token = signAccessToken({
-        sub: "u1",
-        email: "u@test.it",
-        role: "user",
-        isAdmin: false
-      });
+      const token = makeToken();
       const res = await request(app)
         .get("/v1/clients/c1")
         .set("Authorization", `Bearer ${token}`);
@@ -343,12 +335,7 @@ describe("v1 routes", () => {
     });
 
     it("returns 404 when client not found", async () => {
-      const token = signAccessToken({
-        sub: "u1",
-        email: "u@test.it",
-        role: "user",
-        isAdmin: false
-      });
+      const token = makeToken();
       const res = await request(app)
         .get("/v1/clients/404")
         .set("Authorization", `Bearer ${token}`);

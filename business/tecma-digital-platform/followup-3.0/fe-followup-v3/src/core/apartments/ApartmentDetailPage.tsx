@@ -18,52 +18,33 @@ import {
   DrawerCloseButton,
 } from "../../components/ui/drawer";
 import { cn } from "../../lib/utils";
+import { formatDate } from "../../lib/formatDate";
 import { MatchingCandidatesList } from "../../components/MatchingCandidatesList";
 import { useWorkflowConfig } from "../../hooks/useWorkflowConfig";
 import { PriceAvailabilityGrid, type MatrixUnit, type MatrixCell } from "../prices/PriceAvailabilityGrid";
-
-const STATUS_FILTER_OPTIONS: { value: ApartmentRow["status"]; label: string }[] = [
-  { value: "AVAILABLE", label: "Disponibile" },
-  { value: "RESERVED", label: "Riservato" },
-  { value: "SOLD", label: "Venduto" },
-  { value: "RENTED", label: "Affittato" },
-];
-
-const STATUS_LABEL: Record<ApartmentRow["status"], string> = {
-  AVAILABLE: "Disponibile",
-  RESERVED: "Riservato",
-  SOLD: "Venduto",
-  RENTED: "Affittato",
-};
-
-const MODE_LABEL: Record<ApartmentRow["mode"], string> = {
-  RENT: "Affitto",
-  SELL: "Vendita",
-};
-
-const formatDate = (iso?: string) => {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return new Intl.DateTimeFormat("it-IT", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(d);
-};
+import { STATUS_FILTER_OPTIONS, STATUS_LABEL, MODE_LABEL } from "./apartmentDetailConstants";
+import { ApartmentHeaderSection } from "./ApartmentHeaderSection";
+import { useApartmentDetailData } from "./useApartmentDetailData";
+import { useToast } from "../../contexts/ToastContext";
 
 export const ApartmentDetailPage = () => {
   const { apartmentId } = useParams<{ apartmentId: string }>();
   const navigate = useNavigate();
   const { workspaceId, selectedProjectIds, isAdmin } = useWorkspace();
+  const { toastError } = useToast();
   const workflowConfigRent = useWorkflowConfig(workspaceId, "rent");
   const workflowConfigSell = useWorkflowConfig(workspaceId, "sell");
   const getWorkflowConfig = (type: "rent" | "sell") => (type === "rent" ? workflowConfigRent : workflowConfigSell);
-  const [apartment, setApartment] = useState<ApartmentRow | null>(null);
-  const [requests, setRequests] = useState<RequestRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [requestsLoading, setRequestsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    apartment,
+    setApartment,
+    loading,
+    error,
+    requests,
+    setRequests,
+    requestsLoading,
+    reloadRequests,
+  } = useApartmentDetailData(apartmentId, workspaceId, selectedProjectIds);
   const [auditEvents, setAuditEvents] = useState<Array<{ _id: string; at: string; action: string; actor?: { email?: string } }>>([]);
   const [assignments, setAssignments] = useState<Array<{ userId: string }>>([]);
   const [workspaceUsers, setWorkspaceUsers] = useState<Array<{ userId: string }>>([]);
@@ -188,27 +169,6 @@ export const ApartmentDetailPage = () => {
 
   useEffect(() => {
     if (!apartmentId) return;
-    setLoading(true);
-    setError(null);
-    followupApi
-      .getApartmentById(apartmentId)
-      .then((r) => {
-        setApartment(r.apartment);
-      })
-      .catch((err) => {
-        const msg = err?.message ?? "Errore nel caricamento";
-        const is404 =
-          /not found/i.test(String(msg)) ||
-          (typeof (err as { statusCode?: number })?.statusCode === "number" &&
-            (err as { statusCode: number }).statusCode === 404);
-        setError(is404 ? "Appartamento non trovato" : msg);
-        setApartment(null);
-      })
-      .finally(() => setLoading(false));
-  }, [apartmentId]);
-
-  useEffect(() => {
-    if (!apartmentId) return;
     followupApi.getApartmentPrices(apartmentId).then((r) => setPrices(r)).catch(() => setPrices(null));
   }, [apartmentId]);
 
@@ -216,24 +176,6 @@ export const ApartmentDetailPage = () => {
     if (!apartmentId) return;
     followupApi.getApartmentInventory(apartmentId).then((r) => setInventory({ effectiveStatus: r.effectiveStatus, lock: r.lock })).catch(() => setInventory(null));
   }, [apartmentId]);
-
-  useEffect(() => {
-    if (!apartmentId || !apartment || !workspaceId || selectedProjectIds.length === 0) return;
-    setRequestsLoading(true);
-    followupApi
-      .queryRequests({
-        workspaceId,
-        projectIds: [apartment.projectId],
-        page: 1,
-        perPage: 50,
-        filters: { apartmentId },
-      })
-      .then((r) => {
-        setRequests(r.data ?? []);
-      })
-      .catch(() => setRequests([]))
-      .finally(() => setRequestsLoading(false));
-  }, [apartmentId, apartment?.projectId, workspaceId, selectedProjectIds.length]);
 
   const requestsSorted = useMemo(
     () =>
@@ -284,7 +226,7 @@ export const ApartmentDetailPage = () => {
       setAssignments((prev) => [...prev, { userId: assignUserId.trim() }]);
       setAssignUserId("");
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Errore assegnazione");
+      toastError(e instanceof Error ? e.message : "Errore assegnazione");
     }
   };
 
@@ -295,7 +237,7 @@ export const ApartmentDetailPage = () => {
       await followupApi.unassignEntity(workspaceId, "apartment", apartmentId, userId);
       setAssignments((prev) => prev.filter((a) => a.userId !== userId));
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Errore rimozione");
+      toastError(e instanceof Error ? e.message : "Errore rimozione");
     }
   };
 
@@ -405,51 +347,12 @@ export const ApartmentDetailPage = () => {
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="ghost" size="sm" className="gap-2" onClick={goBack}>
-          <ArrowLeft className="h-4 w-4" />
-          Torna a Appartamenti
-        </Button>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => setEditApartmentOpen(true)}>
-            <Pencil className="h-4 w-4" />
-            Modifica
-          </Button>
-          <Button variant="outline" size="sm" className="gap-2" onClick={goToEditApartmentHC}>
-            <Settings2 className="h-4 w-4" />
-            Configura HC
-          </Button>
-        </div>
-      </div>
-
-      <header className="flex flex-wrap items-start gap-3 border-b border-border pb-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">
-            {apartment.name || apartment.code}
-          </h1>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <span
-              className={cn(
-                "inline-block rounded-full px-2.5 py-0.5 text-xs font-medium",
-                "bg-muted text-muted-foreground"
-              )}
-            >
-              {STATUS_LABEL[apartment.status]}
-            </span>
-            <span
-              className={cn(
-                "inline-block rounded-full px-2.5 py-0.5 text-xs font-medium",
-                "bg-muted text-muted-foreground"
-              )}
-            >
-              {MODE_LABEL[apartment.mode]}
-            </span>
-          </div>
-          {apartment.name && apartment.code !== apartment.name && (
-            <p className="mt-1 text-sm text-muted-foreground">Codice: {apartment.code}</p>
-          )}
-        </div>
-      </header>
+      <ApartmentHeaderSection
+        apartment={apartment}
+        onBack={goBack}
+        onEdit={() => setEditApartmentOpen(true)}
+        onEditHC={goToEditApartmentHC}
+      />
 
       <Tabs defaultValue="panoramica" className="space-y-6">
         <TabsList className="w-full flex flex-wrap border-b border-border bg-transparent p-0">

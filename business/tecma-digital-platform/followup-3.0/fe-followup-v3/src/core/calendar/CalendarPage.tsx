@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import { CalendarEventFormDrawer } from "./CalendarEventFormDrawer";
+import { useToast } from "../../contexts/ToastContext";
 
 moment.locale("it");
 moment.updateLocale("it", { week: { dow: 1, doy: 4 } });
@@ -74,6 +75,7 @@ const EventDrawer = ({
   onDelete?: () => void;
 }) => {
   const [deleting, setDeleting] = useState(false);
+  const { toastError } = useToast();
   if (!event) return null;
   const startM = moment(event.startsAt);
   const endM = moment(event.endsAt);
@@ -89,7 +91,7 @@ const EventDrawer = ({
       onDelete();
       onClose();
     } catch {
-      window.alert("Impossibile eliminare l'evento (potrebbe essere di sola lettura).");
+      toastError("Impossibile eliminare l'evento (potrebbe essere di sola lettura).");
     } finally {
       setDeleting(false);
     }

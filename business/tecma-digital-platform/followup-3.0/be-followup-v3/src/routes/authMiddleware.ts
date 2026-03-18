@@ -32,7 +32,9 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
     sendError(res, new HttpError("Unauthorized", 401));
     return;
   }
-  if (!req.user.isAdmin) {
+  const isPrivileged =
+    req.user.isAdmin === true || (Array.isArray(req.user.permissions) && req.user.permissions.includes("*"));
+  if (!isPrivileged) {
     sendError(res, new HttpError("Admin role required", 403));
     return;
   }

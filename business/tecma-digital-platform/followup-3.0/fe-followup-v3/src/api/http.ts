@@ -39,7 +39,13 @@ export const clearTokens = (): void => {
 };
 
 const isPublicAuthPath = (path: string): boolean =>
-  path === "/auth/login" || path === "/auth/sso-exchange" || path === "/auth/refresh" || path === "/auth/logout";
+  path === "/auth/login" ||
+  path === "/auth/sso-exchange" ||
+  path === "/auth/refresh" ||
+  path === "/auth/logout" ||
+  path === "/auth/request-password-reset" ||
+  path === "/auth/reset-password" ||
+  path === "/auth/set-password-from-invite";
 
 interface RefreshResponse {
   accessToken: string;
@@ -114,7 +120,14 @@ const requestJson = async <T>(path: string, options: RequestInit, isRetry = fals
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `Errore API HTTP ${response.status} su ${path}`);
+    let message = text || `Errore API HTTP ${response.status} su ${path}`;
+    try {
+      const j = JSON.parse(text) as { error?: string };
+      if (typeof j?.error === "string" && j.error.length > 0) message = j.error;
+    } catch {
+      /* testo non JSON */
+    }
+    throw new Error(message);
   }
 
   if (response.status === 204) {

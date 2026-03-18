@@ -3,7 +3,7 @@
  */
 import type { DispatchEventPayload } from "../automations/automation-events.service.js";
 import { getClientById } from "../clients/clients.service.js";
-import { getApartmentById } from "../future/future.service.js";
+import { getApartmentById } from "../apartments/apartments.service.js";
 import { getProjectDetail } from "../projects/project-config.service.js";
 
 export type TemplateContext = Record<string, string | undefined>;

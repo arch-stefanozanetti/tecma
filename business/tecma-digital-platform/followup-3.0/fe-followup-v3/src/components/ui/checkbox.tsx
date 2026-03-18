@@ -9,8 +9,8 @@ import { Check } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 const sizeClasses = {
-  sm: "h-4 w-4 rounded-[1px]",
-  default: "h-6 w-6 rounded-[1px]",
+  sm: "h-4 w-4 rounded-md",
+  default: "h-6 w-6 rounded-md",
 } as const;
 
 export interface CheckboxProps

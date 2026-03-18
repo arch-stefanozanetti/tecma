@@ -395,7 +395,7 @@ const WorkspaceSelector = ({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 z-50 w-64 overflow-hidden rounded-lg border border-border bg-card shadow-dropdown">
+        <div className="absolute right-0 top-12 z-50 w-64 overflow-hidden rounded-ui border border-border bg-card shadow-dropdown">
           <div className="border-b border-border px-4 py-2.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Workspace
@@ -481,7 +481,7 @@ const ProjectSelector = ({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 z-50 w-64 overflow-hidden rounded-lg border border-border bg-card shadow-dropdown">
+        <div className="absolute right-0 top-12 z-50 w-64 overflow-hidden rounded-ui border border-border bg-card shadow-dropdown">
           <div className="border-b border-border px-4 py-2.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Active projects
@@ -698,7 +698,7 @@ export const PageTemplate = ({
                 Settings
               </button>
               {settingsOpen && (
-                <div className="absolute right-0 top-12 w-36 overflow-hidden rounded-lg border border-border bg-card shadow-dropdown">
+                <div className="absolute right-0 top-12 w-36 overflow-hidden rounded-ui border border-border bg-card shadow-dropdown">
                   {[
                     { label: "Accounts", icon: UserCircle },
                     { label: "Calendar", icon: CalendarDays },
@@ -740,7 +740,7 @@ export const PageTemplate = ({
                 <ChevronDown className={cn("h-4 w-4 transition-transform", userMenuOpen && "rotate-180")} />
               </button>
               {userMenuOpen && (
-                <div className="absolute right-0 top-12 z-50 w-64 overflow-hidden rounded-lg border border-border bg-card shadow-dropdown">
+                <div className="absolute right-0 top-12 z-50 w-64 overflow-hidden rounded-ui border border-border bg-card shadow-dropdown">
                   <div className="border-b border-border px-4 py-2.5">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Account

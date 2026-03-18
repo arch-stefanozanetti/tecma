@@ -293,7 +293,7 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
                 return (
                   <div
                     key={project.id}
-                    className="min-w-[200px] max-w-[240px] flex-shrink-0 overflow-hidden rounded-lg border border-border bg-card shadow-sm"
+                    className="min-w-[200px] max-w-[240px] flex-shrink-0 overflow-hidden rounded-ui border border-border bg-card shadow-sm"
                   >
                     {heroUrl && (
                       <div className="aspect-[16/10] bg-muted">

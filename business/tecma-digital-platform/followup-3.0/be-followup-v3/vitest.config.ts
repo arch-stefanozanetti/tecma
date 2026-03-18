@@ -5,6 +5,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    env: {
+      EMAIL_TRANSPORT: "mock",
+      APP_PUBLIC_URL: "http://localhost:5173"
+    },
     include: ["src/**/*.test.ts"],
     exclude: ["src/integration/**"],
     coverage: {

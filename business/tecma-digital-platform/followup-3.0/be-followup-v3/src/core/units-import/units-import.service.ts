@@ -5,7 +5,7 @@
 import * as XLSX from "xlsx";
 import { getDb } from "../../config/db.js";
 import { HttpError } from "../../types/http.js";
-import { createApartment } from "../future/future.service.js";
+import { createApartment } from "../apartments/apartments.service.js";
 
 export interface ExcelUnitRow {
   unit_code: string;

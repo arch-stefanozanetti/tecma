@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { buildItdLoginRedirectUrl, getJwtFromCookie } from "../../auth/itdLogin";
 import { followupApi } from "../../api/followupApi";
 import { login as authLogin, isBssAuth } from "../../api/authApi";
@@ -162,7 +163,7 @@ export const LoginPage = () => {
         </div>
         <div className="flex flex-1 items-center justify-center px-6 py-10 lg:px-10">
           <div className="w-full max-w-md">
-            <div className="glass-panel rounded-2xl px-7 py-8 shadow-panel">
+            <div className="glass-panel rounded-ui px-7 py-8 shadow-panel">
               <div className="mb-6">
                 <h2 className="text-2xl font-semibold text-foreground">Scegli l’ambiente</h2>
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -237,7 +238,7 @@ export const LoginPage = () => {
 
       <div className="flex flex-1 items-center justify-center px-6 py-10 lg:px-10">
         <div className="w-full max-w-md">
-          <div className="glass-panel rounded-2xl px-7 py-8 shadow-panel">
+          <div className="glass-panel rounded-ui px-7 py-8 shadow-panel">
             <div className="mb-6 flex flex-col items-center lg:items-start">
               <LogoTecma className="h-10 w-10 opacity-90 lg:hidden" />
               <h2 className="mt-2 lg:mt-0 text-2xl font-semibold text-foreground">Accedi a Followup 3.0</h2>
@@ -301,9 +302,15 @@ export const LoginPage = () => {
                 {loading ? "Accesso in corso..." : "Accedi"}
               </Button>
               <p className="text-center">
-                <a href={FORGOT_CREDENTIALS_URL} className="text-sm text-primary hover:underline">
-                  Hai dimenticato le credenziali?
-                </a>
+                {bssAuthMode ? (
+                  <a href={FORGOT_CREDENTIALS_URL} className="text-sm text-primary hover:underline">
+                    Hai dimenticato le credenziali?
+                  </a>
+                ) : (
+                  <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+                    Password dimenticata?
+                  </Link>
+                )}
               </p>
             </form>
 

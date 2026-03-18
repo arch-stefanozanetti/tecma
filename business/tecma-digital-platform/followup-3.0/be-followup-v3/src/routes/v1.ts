@@ -2,7 +2,12 @@ import { Router } from "express";
 import { z } from "zod";
 import { queryCalendarEvents, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from "../core/calendar/calendar.service.js";
 import { queryClients, createClient, updateClient, getClientById } from "../core/clients/clients.service.js";
-import { queryApartments } from "../core/apartments/apartments.service.js";
+import {
+  queryApartments,
+  getApartmentById,
+  createApartment,
+  updateApartment,
+} from "../core/apartments/apartments.service.js";
 import { getCurrentPriceForUnit } from "../core/unit-pricing/unit-pricing.service.js";
 import { listSalePricesByUnitId, createSalePrice, updateSalePrice } from "../core/sale-prices/sale-prices.service.js";
 import { listMonthlyRentsByUnitId, createMonthlyRent, updateMonthlyRent } from "../core/monthly-rents/monthly-rents.service.js";
@@ -23,9 +28,6 @@ import { getUserPreferences, upsertUserPreferences } from "../core/auth/userPref
 import { decideAiSuggestion, generateAiSuggestions } from "../core/ai/orchestrator.service.js";
 import { createAiActionDraft, decideAiActionDraft, queryAiActionDrafts } from "../core/ai/action-engine.service.js";
 import {
-  createApartment,
-  updateApartment,
-  getApartmentById,
   upsertHCApartment,
   getHCApartment,
   queryHCApartments,
@@ -116,7 +118,17 @@ import {
 } from "../core/product-discovery/features.service.js";
 import { HttpError } from "../types/http.js";
 import { handleAsync, sendError } from "./asyncHandler.js";
+import { PERMISSIONS } from "../core/rbac/permissions.js";
+import { writeAuditLog } from "../core/audit/audit.service.js";
+import {
+  inviteUser,
+  findUserById,
+  updateUserById,
+  deleteUserById
+} from "../core/users/users-mutations.service.js";
 import { requireAuth, requireAdmin } from "./authMiddleware.js";
+import { accessLoggerMiddleware } from "./accessLoggerMiddleware.js";
+import { requirePermission, requireAnyPermission } from "./permissionMiddleware.js";
 import { publicRoutes } from "./v1/public.routes.js";
 import { projectsRoutes } from "./v1/projects.routes.js";
 import { connectorsRoutes } from "./v1/connectors.routes.js";
@@ -146,6 +158,7 @@ import { runReport } from "../core/reports/reports.service.js";
 
 export const v1Router = Router();
 
+v1Router.use(accessLoggerMiddleware);
 v1Router.use("/", publicRoutes);
 
 // ─── Protected routes (require valid JWT) ────────────────────────────────────
@@ -161,7 +174,9 @@ v1Router.get("/auth/me", handleAsync((req) => {
     id: payload.sub,
     email: payload.email,
     role: payload.role,
-    isAdmin: payload.isAdmin
+    isAdmin: payload.isAdmin,
+    permissions: payload.permissions,
+    projectId: payload.projectId
   });
 }));
 
@@ -649,8 +664,93 @@ v1Router.get("/matching/apartments/:id/candidates", handleAsync(async (req) => {
   return getApartmentCandidates(apartmentId, workspaceId, projectIds);
 }));
 
-// ─── Users (admin: lista utenti e visibilità) ─────────────────────────────────
-v1Router.get("/users", requireAdmin, handleAsync(() => listUsersWithVisibility()));
+// ─── Users (permesso users.read = tipicamente solo admin via *) ───────────────
+v1Router.get("/users", requirePermission(PERMISSIONS.USERS_READ), handleAsync(() => listUsersWithVisibility()));
+
+v1Router.post(
+  "/users",
+  requireAnyPermission(PERMISSIONS.USERS_INVITE, PERMISSIONS.USERS_CREATE),
+  handleAsync(async (req) => {
+    const body = z
+      .object({
+        email: z.string().email(),
+        role: z.string().min(1),
+        projectId: z.string().min(1),
+        projectName: z.string().min(1).optional(),
+        /** Opzionale: base URL FE; se assente si usa header Origin / Referer / APP_PUBLIC_URL */
+        appPublicUrl: z.string().url().optional()
+      })
+      .parse(req.body);
+    const { resolveInviteAppBaseUrl } = await import("../utils/inviteLinkBaseUrl.js");
+    const appPublicBaseUrl = resolveInviteAppBaseUrl(req, body.appPublicUrl ?? null);
+    const result = await inviteUser({
+      email: body.email,
+      role: body.role,
+      projectId: body.projectId,
+      projectName: body.projectName ?? body.projectId,
+      appPublicBaseUrl
+    });
+    await writeAuditLog({
+      userId: req.user!.sub,
+      action: "user.invite",
+      entityType: "user",
+      entityId: result.userId,
+      changes: { after: { email: body.email, role: body.role, projectId: body.projectId } },
+      projectId: req.user!.projectId ?? body.projectId
+    });
+    return result;
+  })
+);
+
+v1Router.patch("/users/:id", requirePermission(PERMISSIONS.USERS_UPDATE), handleAsync(async (req) => {
+  const id = req.params.id;
+  const before = await findUserById(id);
+  if (!before) throw new HttpError("Utente non trovato", 404);
+  const body = z
+    .object({
+      role: z.string().optional(),
+      status: z.enum(["invited", "active", "disabled"]).optional(),
+      permissions_override: z.array(z.string()).optional(),
+      isDisabled: z.boolean().optional()
+    })
+    .parse(req.body);
+  const after = await updateUserById(id, body);
+  const safe = (u: typeof before) => ({
+    email: u.email,
+    role: u.role,
+    status: u.status,
+    permissions_override: u.permissions_override,
+    isDisabled: u.isDisabled
+  });
+  await writeAuditLog({
+    userId: req.user!.sub,
+    action: "user.update",
+    entityType: "user",
+    entityId: id,
+    changes: { before: safe(before), after: after ? safe(after) : null },
+    projectId: req.user!.projectId
+  });
+  return { ok: true, user: after };
+}));
+
+v1Router.delete("/users/:id", requirePermission(PERMISSIONS.USERS_DELETE), handleAsync(async (req) => {
+  const id = req.params.id;
+  const before = await findUserById(id);
+  if (!before) throw new HttpError("Utente non trovato", 404);
+  await writeAuditLog({
+    userId: req.user!.sub,
+    action: "user.delete",
+    entityType: "user",
+    entityId: id,
+    changes: {
+      before: { email: before.email, role: before.role }
+    },
+    projectId: req.user!.projectId
+  });
+  const ok = await deleteUserById(id);
+  if (!ok) throw new HttpError("Eliminazione non riuscita", 500);
+  return { ok: true };
+}));
 
 // ─── Workspaces ──────────────────────────────────────────────────────────────
 v1Router.get("/workspaces", handleAsync(async (req) => {

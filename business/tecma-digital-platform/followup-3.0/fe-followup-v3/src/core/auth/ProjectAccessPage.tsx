@@ -241,7 +241,7 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
   if (authStatus === "fail") {
     return (
       <div className="min-h-screen flex bg-auth-page text-foreground font-body items-center justify-center">
-        <div className="flex flex-col items-center gap-4 rounded-2xl glass-panel px-8 py-8 shadow-panel max-w-md">
+        <div className="flex flex-col items-center gap-4 rounded-ui glass-panel px-8 py-8 shadow-panel max-w-md">
           <p className="text-center text-foreground font-medium">Sessione non valida o scaduta</p>
           <p className="text-center text-sm text-muted-foreground">
             Effettua di nuovo l’accesso per continuare.
@@ -287,7 +287,7 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
 
       <div className="flex min-w-0 flex-1 flex-col items-center px-4 py-6 lg:px-10 lg:py-8 overflow-hidden">
         <div className="w-full max-w-4xl flex flex-col min-h-0 flex-1 overflow-hidden">
-          <div className="glass-panel rounded-2xl px-6 py-6 shadow-panel flex flex-col min-h-0 flex-1 overflow-hidden">
+          <div className="glass-panel rounded-ui px-6 py-6 shadow-panel flex flex-col min-h-0 flex-1 overflow-hidden">
             <header className="flex-shrink-0 mb-4">
               <h2 className="text-xl font-semibold text-foreground">Seleziona i progetti</h2>
               {access?.found && (
@@ -404,7 +404,7 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
                   </div>
                 </div>
 
-                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-xl border border-border bg-background/80">
+                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-ui border border-border bg-background/80">
                   {!access && !error && (
                     <div className="px-4 py-6 text-sm text-muted-foreground">
                       {meEmail ? "Caricamento progetti..." : "Caricamento..."}

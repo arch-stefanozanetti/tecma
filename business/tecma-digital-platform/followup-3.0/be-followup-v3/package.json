@@ -1,6 +1,6 @@
 {
   "name": "be-followup-v3",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -23,6 +23,7 @@
     "db:list-collections": "tsx src/utils/listCollections.ts",
     "db:copy-test": "tsx src/utils/copyCollections.ts",
     "clone-user-from-source": "tsx src/utils/cloneUserFromSourceDb.ts",
+    "clone-adminusers-to-tz-users": "tsx src/utils/cloneAdminUsersToTzUsers.ts",
     "migrate:request-workflow": "tsx src/utils/migrateRequestWorkflowIds.ts",
     "migrate:apartments-to-inventory-pricing": "tsx src/utils/migrate-apartments-to-inventory-pricing.ts"
   },

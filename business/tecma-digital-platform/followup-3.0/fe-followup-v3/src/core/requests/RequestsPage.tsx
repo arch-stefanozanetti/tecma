@@ -35,89 +35,26 @@ import {
 } from "../../components/ui/drawer";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { FiltersDrawer } from "../../components/ui/filters-drawer";
-
-const TYPE_LABEL: Record<RequestType, string> = {
-  rent: "Affitto",
-  sell: "Vendita",
-};
-
-const STATUS_LABEL: Record<RequestStatus, string> = {
-  new: "Nuova",
-  contacted: "Contattato",
-  viewing: "In visita",
-  quote: "Preventivo",
-  offer: "Offerta",
-  won: "Vinto",
-  lost: "Perso",
-};
-
-const CLIENT_ROLE_LABEL: Record<ClientRole, string> = {
-  buyer: "Acquirente",
-  seller: "Venditore",
-  tenant: "Affittuario",
-  landlord: "Cedente",
-};
-
-/** Ordine colonne kanban (flusso trattativa). */
-const KANBAN_STATUS_ORDER: RequestStatus[] = [
-  "new",
-  "contacted",
-  "viewing",
-  "quote",
-  "offer",
-  "won",
-  "lost",
-];
-
-/** Transizioni ammesse (allineate al backend). */
-const ALLOWED_NEXT_STATUSES: Record<RequestStatus, RequestStatus[]> = {
-  new: ["contacted", "viewing", "lost"],
-  contacted: ["viewing", "quote", "offer", "lost"],
-  viewing: ["quote", "offer", "contacted", "lost"],
-  quote: ["offer", "viewing", "lost"],
-  offer: ["won", "lost", "viewing", "quote"],
-  won: [],
-  lost: [],
-};
-
-const TYPE_FILTER_OPTIONS: { value: string; label: string }[] = [
-  { value: "all", label: "Tutti i tipi" },
-  { value: "rent", label: "Affitto" },
-  { value: "sell", label: "Vendita" },
-];
-
-const STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
-  { value: "all", label: "Tutti gli stati" },
-  ...(Object.entries(STATUS_LABEL).map(([v, label]) => ({ value: v, label }))),
-];
-
-const ACTION_TYPE_LABEL: Record<RequestActionType, string> = {
-  note: "Nota",
-  call: "Chiamata",
-  email: "Email",
-  meeting: "Incontro",
-  other: "Altro",
-};
-
-const formatDate = (iso?: string) => {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return new Intl.DateTimeFormat("it-IT", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(d);
-};
-
-type ViewMode = "list" | "kanban";
-
-const REQUESTS_PER_PAGE = 25;
+import { useToast } from "../../contexts/ToastContext";
+import {
+  TYPE_LABEL,
+  STATUS_LABEL,
+  CLIENT_ROLE_LABEL,
+  KANBAN_STATUS_ORDER,
+  ALLOWED_NEXT_STATUSES,
+  TYPE_FILTER_OPTIONS,
+  STATUS_FILTER_OPTIONS,
+  ACTION_TYPE_LABEL,
+  formatDate,
+  REQUESTS_PER_PAGE,
+  type ViewMode,
+} from "./requestsPageConstants";
 
 export const RequestsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { workspaceId, selectedProjectIds } = useWorkspace();
+  const { toastError } = useToast();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -346,7 +283,7 @@ export const RequestsPage = () => {
       if (msg.includes("già in uso") || msg.includes("altra trattativa")) {
         msg = "Appartamento già in uso da un'altra trattativa. Sblocca o porta a conclusione quella trattativa prima di cambiare stato.";
       }
-      window.alert(msg);
+      toastError(msg);
     } finally {
       setStatusChangingId(null);
     }
@@ -362,7 +299,7 @@ export const RequestsPage = () => {
       const { transitions } = await followupApi.getRequestTransitions(selectedRequest._id);
       setRequestTransitions(transitions ?? []);
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Errore durante il ripristino dello stato.");
+      toastError(err instanceof Error ? err.message : "Errore durante il ripristino dello stato.");
     } finally {
       setRevertingTransitionId(null);
     }
@@ -459,7 +396,7 @@ export const RequestsPage = () => {
       await followupApi.deleteRequestAction(actionId);
       setRequestActions((prev) => prev.filter((a) => a._id !== actionId));
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "Errore durante l'eliminazione.");
+      toastError(err instanceof Error ? err.message : "Errore durante l'eliminazione.");
     } finally {
       setDeletingActionId(null);
     }
@@ -495,15 +432,15 @@ export const RequestsPage = () => {
 
         <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)} className="mt-6">
           <TabsList className="h-auto w-auto border-b border-border bg-transparent p-0">
-            <TabsTrigger value="list" className="rounded-none">Lista</TabsTrigger>
-            <TabsTrigger value="kanban" className="rounded-none">Kanban</TabsTrigger>
+            <TabsTrigger value="list" className="rounded-t-lg">Lista</TabsTrigger>
+            <TabsTrigger value="kanban" className="rounded-t-lg">Kanban</TabsTrigger>
           </TabsList>
         </Tabs>
 
         <div className="mt-4">
-          <div className="overflow-hidden rounded-lg border border-border bg-background shadow-panel">
+          <div className="overflow-hidden rounded-ui border border-border bg-background shadow-panel">
 
-            <div className="border-b border-border px-4 py-4 lg:px-6">
+            <div className="rounded-t-ui border-b border-border px-4 py-4 lg:px-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div className="flex flex-1 flex-wrap items-end gap-3">
                   <div className="relative min-w-[200px] max-w-md flex-1">

@@ -20,6 +20,9 @@ import { WorkflowConfigPage } from "./core/workflows/WorkflowConfigPage";
 import { HCMasterCatalogPage } from "./core/hc/HCMasterCatalogPage";
 import { TemplateConfigPage } from "./core/templates/TemplateConfigPage";
 import { LoginPage } from "./core/auth/LoginPage";
+import { SetPasswordFromInvitePage } from "./core/auth/SetPasswordFromInvitePage";
+import { ResetPasswordPage } from "./core/auth/ResetPasswordPage";
+import { ForgotPasswordPage } from "./core/auth/ForgotPasswordPage";
 import { ProjectAccessPage } from "./core/auth/ProjectAccessPage";
 import { ApprovalsPage } from "./core/ai/ApprovalsPage";
 import { RequestsPage } from "./core/requests/RequestsPage";
@@ -447,6 +450,15 @@ export const App = () => {
     else navigate(`/?section=${s}`, { state: navState });
   };
 
+  if (pathname.startsWith("/set-password")) {
+    return <SetPasswordFromInvitePage />;
+  }
+  if (pathname.startsWith("/reset-password")) {
+    return <ResetPasswordPage />;
+  }
+  if (pathname.startsWith("/forgot-password")) {
+    return <ForgotPasswordPage />;
+  }
   if (pathname.includes("/login")) {
     return <LoginPage />;
   }

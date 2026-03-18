@@ -5,9 +5,18 @@ import { z } from "zod";
 import { ENV } from "../../config/env.js";
 import { getDb } from "../../config/db.js";
 import { HttpError } from "../../types/http.js";
+import { sendPasswordResetEmail } from "../email/email.service.js";
+import { PERMISSIONS } from "../rbac/permissions.js";
+import { resolveEffectivePermissions } from "../rbac/roleDefinitions.service.js";
 import { logAuthEvent } from "./authAudit.service.js";
-import { createSession, deleteSession, getSession } from "./refreshSession.service.js";
-import { signAccessToken } from "./token.service.js";
+import {
+  createSession,
+  deleteSession,
+  deleteSessionsByUser,
+  getSession
+} from "./refreshSession.service.js";
+import { createPasswordResetToken, consumePasswordResetToken } from "./passwordResetToken.service.js";
+import { signAccessToken, type AccessTokenPayload } from "./token.service.js";
 
 const LoginInputSchema = z.object({
   email: z.string().email(),
@@ -20,6 +29,9 @@ type LegacyUserDoc = {
   role?: string;
   isDisabled?: boolean;
   password?: string;
+  status?: string;
+  permissions_override?: string[];
+  project_ids?: string[];
 };
 
 const USER_COLLECTION_CANDIDATES = ["tz_users", "users", "Users", "user", "User", "backoffice_users"];
@@ -40,7 +52,6 @@ const findLegacyUserByEmail = async (email: string): Promise<LegacyUserDoc | nul
   const db = getDb();
   const collectionName = await detectUserCollectionName();
   const users = db.collection<LegacyUserDoc>(collectionName);
-
   const normalized = email.trim().toLowerCase();
   return users.findOne({
     email: { $regex: `^${normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" }
@@ -55,44 +66,111 @@ const findLegacyUserById = async (userId: string): Promise<LegacyUserDoc | null>
   return users.findOne({ _id: new ObjectId(userId) });
 };
 
-export const loginWithCredentials = async (rawInput: unknown) => {
-  const { email, password } = LoginInputSchema.parse(rawInput);
+async function findUserDocByIdAcrossCollections(userId: string): Promise<{
+  collection: string;
+  doc: LegacyUserDoc;
+} | null> {
+  if (!ObjectId.isValid(userId)) return null;
+  const id = new ObjectId(userId);
+  const db = getDb();
+  for (const name of USER_COLLECTION_CANDIDATES) {
+    const exists = await db.listCollections({ name }, { nameOnly: true }).hasNext();
+    if (!exists) continue;
+    const doc = await db.collection<LegacyUserDoc>(name).findOne({ _id: id });
+    if (doc) return { collection: name, doc };
+  }
+  return null;
+}
 
+async function buildTokenPayload(user: LegacyUserDoc, emailFallback: string): Promise<AccessTokenPayload> {
+  const role = (user.role || "").toLowerCase() || null;
+  const perms = await resolveEffectivePermissions(role, user.permissions_override);
+  const isAdmin = perms.includes(PERMISSIONS.ALL);
+  const projectId =
+    Array.isArray(user.project_ids) && user.project_ids.length > 0 ? String(user.project_ids[0]) : null;
+  return {
+    sub: user._id.toHexString(),
+    email: (user.email || emailFallback).toLowerCase(),
+    role,
+    isAdmin,
+    permissions: perms,
+    projectId
+  };
+}
+
+function invitedCannotLogin(u: LegacyUserDoc): boolean {
+  if (u.status === "invited") return true;
+  if (!u.password) return true;
+  return false;
+}
+
+export type AuthRequestMeta = { ipAddress?: string | null; userAgent?: string | null };
+
+export const loginWithCredentials = async (rawInput: unknown, meta: AuthRequestMeta = {}) => {
+  const { email, password } = LoginInputSchema.parse(rawInput);
   const user = await findLegacyUserByEmail(email);
-  if (!user || !user.password) {
+
+  const fail = async () => {
+    await logAuthEvent("login_failed", {
+      email: email.toLowerCase(),
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+      success: false
+    });
     throw new HttpError("Credenziali non valide", 401);
+  };
+
+  if (!user) {
+    await fail();
+    return null as never;
   }
 
-  if (user.isDisabled) {
+  const u = user;
+
+  if (u.isDisabled) {
+    await logAuthEvent("login_failed", {
+      userId: u._id.toHexString(),
+      email: (u.email || email).toLowerCase(),
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+      success: false
+    });
     throw new HttpError("Utente disabilitato", 401);
   }
 
-  const passwordOk = await bcrypt.compare(password, user.password);
-  if (!passwordOk) {
-    throw new HttpError("Credenziali non valide", 401);
+  if (invitedCannotLogin(u)) {
+    await fail();
+    return null as never;
   }
 
-  const role = (user.role || "").toLowerCase() || null;
-  const isAdmin = role === "admin";
+  const passwordOk = await bcrypt.compare(password, u.password!);
+  if (!passwordOk) {
+    await fail();
+    return null as never;
+  }
 
-  const accessToken = signAccessToken({
-    sub: user._id.toHexString(),
-    email: (user.email || email).toLowerCase(),
-    role,
-    isAdmin
+  const payload = await buildTokenPayload(u, email);
+  const accessToken = signAccessToken(payload);
+  const refreshToken = await createSession(payload.sub, payload.email);
+  await logAuthEvent("login_success", {
+    userId: payload.sub,
+    email: payload.email,
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+    success: true
   });
-
-  const refreshToken = await createSession(user._id.toHexString(), (user.email || email).toLowerCase());
 
   return {
     accessToken,
     refreshToken,
     expiresIn: ENV.AUTH_JWT_EXPIRES_IN,
     user: {
-      id: user._id.toHexString(),
-      email: (user.email || email).toLowerCase(),
-      role,
-      isAdmin
+      id: payload.sub,
+      email: payload.email,
+      role: payload.role,
+      isAdmin: payload.isAdmin,
+      permissions: payload.permissions,
+      projectId: payload.projectId
     }
   };
 };
@@ -139,28 +217,22 @@ export const exchangeSsoJwt = async (rawInput: unknown) => {
   if (user.isDisabled) {
     throw new HttpError("Utente disabilitato", 401);
   }
-  const role = (user.role || "").toLowerCase() || null;
-  const isAdmin = role === "admin";
-  const accessToken = signAccessToken({
-    sub: user._id.toHexString(),
-    email: (user.email || email).toLowerCase(),
-    role,
-    isAdmin
-  });
-
-  const refreshToken = await createSession(user._id.toHexString(), (user.email || email).toLowerCase());
-  const userEmail = (user.email || email).toLowerCase();
-  await logAuthEvent("sso_exchange", { userId: user._id.toHexString(), email: userEmail });
+  const payload = await buildTokenPayload(user, email);
+  const accessToken = signAccessToken(payload);
+  const refreshToken = await createSession(user._id.toHexString(), payload.email);
+  await logAuthEvent("sso_exchange", { userId: payload.sub, email: payload.email, success: true });
 
   return {
     accessToken,
     refreshToken,
     expiresIn: ENV.AUTH_JWT_EXPIRES_IN,
     user: {
-      id: user._id.toHexString(),
-      email: userEmail,
-      role,
-      isAdmin
+      id: payload.sub,
+      email: payload.email,
+      role: payload.role,
+      isAdmin: payload.isAdmin,
+      permissions: payload.permissions,
+      projectId: payload.projectId
     }
   };
 };
@@ -180,19 +252,9 @@ export const refreshAccessToken = async (rawInput: unknown) => {
     await deleteSession(refreshToken);
     throw new HttpError("User not found or disabled", 401);
   }
-  const role = (user.role || "").toLowerCase() || null;
-  const isAdmin = role === "admin";
   const email = (user.email || session.email || "").toLowerCase();
-
-  const payload = {
-    sub: user._id.toHexString(),
-    email,
-    role,
-    isAdmin
-  };
+  const payload = await buildTokenPayload(user, email);
   const accessToken = signAccessToken(payload);
-
-  // Rotate refresh token: delete old, create new
   await deleteSession(refreshToken);
   const newRefreshToken = await createSession(user._id.toHexString(), email);
 
@@ -203,12 +265,69 @@ export const refreshAccessToken = async (rawInput: unknown) => {
   };
 };
 
-export const logoutWithRefreshToken = async (rawInput: unknown): Promise<void> => {
+export const logoutWithRefreshToken = async (rawInput: unknown, meta: AuthRequestMeta = {}): Promise<void> => {
   const { refreshToken } = RefreshInputSchema.parse(rawInput);
   const session = await getSession(refreshToken);
   if (session) {
-    await logAuthEvent("logout", { userId: session.userId, email: session.email });
+    await logAuthEvent("logout", {
+      userId: session.userId,
+      email: session.email,
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+      success: true
+    });
   }
   await deleteSession(refreshToken);
 };
 
+const RequestResetSchema = z.object({
+  email: z.string().email()
+});
+
+export const requestPasswordReset = async (rawInput: unknown, meta: AuthRequestMeta = {}) => {
+  const { email } = RequestResetSchema.parse(rawInput);
+  const user = await findLegacyUserByEmail(email);
+  await logAuthEvent("password_reset_requested", {
+    userId: user?._id.toHexString(),
+    email: email.toLowerCase(),
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+    success: true
+  });
+  if (!user?.password || user.isDisabled || invitedCannotLogin(user)) {
+    return { ok: true };
+  }
+  const raw = await createPasswordResetToken(user._id.toHexString(), user.email || email);
+  await sendPasswordResetEmail({ to: (user.email || email).toLowerCase(), token: raw });
+  return { ok: true };
+};
+
+const ResetPasswordSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8)
+});
+
+export const resetPasswordWithToken = async (rawInput: unknown, meta: AuthRequestMeta = {}) => {
+  const { token, password } = ResetPasswordSchema.parse(rawInput);
+  const consumed = await consumePasswordResetToken(token);
+  if (!consumed) {
+    throw new HttpError("Token non valido o scaduto", 400);
+  }
+  const located = await findUserDocByIdAcrossCollections(consumed.userId);
+  if (!located) {
+    throw new HttpError("Token non valido", 400);
+  }
+  const hash = await bcrypt.hash(password, 12);
+  await getDb()
+    .collection(located.collection)
+    .updateOne({ _id: located.doc._id }, { $set: { password: hash, status: "active" } });
+  await deleteSessionsByUser(consumed.userId);
+  await logAuthEvent("password_reset_completed", {
+    userId: consumed.userId,
+    email: consumed.email,
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+    success: true
+  });
+  return { ok: true };
+};

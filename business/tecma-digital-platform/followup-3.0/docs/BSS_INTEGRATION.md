@@ -46,6 +46,13 @@ Riepilogo:
 
 Con auth BSS il login richiede **project_id** (campo "Project ID" nel form). L’opzione "Accedi con SSO aziendale" non è mostrata (il gateway BSS non espone `sso-exchange`; se necessario si può aggiungere un path sul gateway che punta al backend Followup).
 
+### Inviti, set-password, reset password (MDOO)
+
+Questi flussi sono implementati su **be-followup-v3** (`POST /v1/auth/set-password-from-invite`, `POST /v1/auth/request-password-reset`, `POST /v1/auth/reset-password`, `POST /v1/users` per invito).
+
+- Con **auth Followup** (default / proxy locale): il frontend può usare le pagine `/set-password`, `/reset-password`, `/forgot-password` che chiamano questi endpoint sul backend Followup.
+- Con **`VITE_USE_BSS_AUTH=true`**: login e refresh passano dal **gateway BSS**; invito e reset password **non** sono gestiti dal gateway nello stesso modo. Per utenti creati via invito su Followup, **`VITE_API_BASE_URL` deve comunque raggiungere il backend** che espone le API sopra (o il gateway deve proxyare verso be-followup-v3 quei path). In caso contrario il link email (SES) deve puntare a un host che inoltra a be-followup-v3.
+
 ### Dati (per uso futuro)
 
 Se in futuro si unificano le fonti dati sul gateway, possono essere utili:

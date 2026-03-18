@@ -2,8 +2,8 @@
  * ButtonGroup — DS Tecma Software Suite (Figma).
  * @see https://www.figma.com/design/ZRftnYLwNGRshiXEkS7WGM/DS---Tecma-Software-Suite?node-id=456-10239
  *
- * Groups multiple buttons: horizontal = attached (shared borders, only outer corners rounded);
- * vertical = stacked with gap, each button fully rounded.
+ * Groups multiple buttons: horizontal = in fila con gap, ogni pulsante con raggio 8px;
+ * vertical = stacked con gap.
  * Composes Button; supports Type=Default (Outline + Primary) and Type=Segmented (e.g. secondary + Outline) via child variants.
  */
 import * as React from "react";
@@ -40,7 +40,7 @@ const ButtonGroup = React.forwardRef<HTMLDivElement, ButtonGroupProps>(
         className={cn(
           isVertical
             ? "flex flex-col gap-2"
-            : "inline-flex rounded-md [&>*]:rounded-none [&>*:first-child]:rounded-l-md [&>*:last-child]:rounded-r-md [&>*:not(:first-child)]:border-l-0",
+            : "inline-flex flex-wrap gap-1 [&>*]:rounded-lg",
           className
         )}
         {...props}

@@ -14,6 +14,8 @@ export interface AuthUser {
   email: string;
   role: string | null;
   isAdmin: boolean;
+  permissions?: string[];
+  projectId?: string | null;
 }
 
 export interface LoginResult {

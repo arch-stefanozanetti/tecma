@@ -12,7 +12,8 @@ export const openApiV1 = {
   ],
   tags: [
     { name: "health", description: "Stato del servizio" },
-    { name: "auth", description: "Login, refresh, logout, SSO" },
+    { name: "auth", description: "Login, refresh, logout, SSO, reset password, invito" },
+    { name: "users", description: "Utenti e inviti (RBAC)" },
     { name: "session", description: "Progetti per email, preferenze utente" },
     { name: "clients", description: "Clienti (query, CRUD, azioni)" },
     { name: "apartments", description: "Appartamenti e listing" },
@@ -67,7 +68,17 @@ export const openApiV1 = {
                   properties: {
                     accessToken: { type: "string" },
                     refreshToken: { type: "string" },
-                    user: { type: "object", properties: { email: { type: "string" }, role: { type: "string" } } }
+                    user: {
+                      type: "object",
+                      properties: {
+                        id: { type: "string" },
+                        email: { type: "string" },
+                        role: { type: "string" },
+                        isAdmin: { type: "boolean" },
+                        permissions: { type: "array", items: { type: "string" } },
+                        projectId: { type: "string", nullable: true }
+                      }
+                    }
                   }
                 }
               }
@@ -124,6 +135,65 @@ export const openApiV1 = {
         }
       }
     },
+    "/auth/request-password-reset": {
+      post: {
+        tags: ["auth"],
+        operationId: "requestPasswordReset",
+        summary: "Richiedi email di reset password (risposta generica anche se email assente)",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { type: "object", required: ["email"], properties: { email: { type: "string", format: "email" } } }
+            }
+          }
+        },
+        responses: { "200": { description: "{ ok: true }" }, "400": { description: "Validazione" } }
+      }
+    },
+    "/auth/reset-password": {
+      post: {
+        tags: ["auth"],
+        operationId: "resetPassword",
+        summary: "Reimposta password con token da email",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["token", "password"],
+                properties: { token: { type: "string" }, password: { type: "string", minLength: 8 } }
+              }
+            }
+          }
+        },
+        responses: { "200": { description: "{ ok: true }" }, "400": { description: "Token non valido" } }
+      }
+    },
+    "/auth/set-password-from-invite": {
+      post: {
+        tags: ["auth"],
+        operationId: "setPasswordFromInvite",
+        summary: "Attiva account da link invito",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["token", "password"],
+                properties: { token: { type: "string" }, password: { type: "string", minLength: 8 } }
+              }
+            }
+          }
+        },
+        responses: {
+          "200": { description: "accessToken, refreshToken, user (come login)" },
+          "400": { description: "Token non valido" }
+        }
+      }
+    },
     "/public/listings": {
       post: {
         tags: ["apartments", "Riusabili"],
@@ -164,9 +234,106 @@ export const openApiV1 = {
     "/auth/me": {
       get: {
         tags: ["auth"],
-        summary: "Get current user from JWT",
+        operationId: "getAuthMe",
+        summary: "Utente corrente da JWT",
         security: [{ bearerAuth: [] }],
-        responses: { "200": { description: "Current user" }, "401": { description: "Missing or invalid token" } }
+        responses: {
+          "200": {
+            description: "id, email, role, isAdmin, permissions, projectId",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string" },
+                    email: { type: "string" },
+                    role: { type: "string", nullable: true },
+                    isAdmin: { type: "boolean" },
+                    permissions: { type: "array", items: { type: "string" } },
+                    projectId: { type: "string", nullable: true }
+                  }
+                }
+              }
+            }
+          },
+          "401": { description: "Missing or invalid token" }
+        }
+      }
+    },
+    "/users": {
+      get: {
+        tags: ["users"],
+        operationId: "listUsersWithVisibility",
+        summary: "Lista utenti e visibilità (permesso users.read)",
+        security: [{ bearerAuth: [] }],
+        responses: { "200": { description: "{ users: [...] }" }, "401": {}, "403": {} }
+      },
+      post: {
+        tags: ["users"],
+        operationId: "inviteUser",
+        summary: "Invita utente (email + ruolo + progetto)",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["email", "role", "projectId"],
+                properties: {
+                  email: { type: "string", format: "email" },
+                  role: { type: "string" },
+                  projectId: { type: "string" },
+                  projectName: { type: "string" },
+                  appPublicUrl: {
+                    type: "string",
+                    format: "uri",
+                    description: "Base URL FE per link invito; se omesso si usa Origin o APP_PUBLIC_URL"
+                  }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          "200": { description: "{ userId }" },
+          "403": {},
+          "409": { description: "Email già registrata" },
+          "502": { description: "Invio email fallito" },
+          "503": { description: "SMTP non configurato" }
+        }
+      }
+    },
+    "/users/{id}": {
+      parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+      patch: {
+        tags: ["users"],
+        operationId: "patchUser",
+        summary: "Aggiorna utente (users.update)",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  role: { type: "string" },
+                  status: { type: "string", enum: ["invited", "active", "disabled"] },
+                  permissions_override: { type: "array", items: { type: "string" } },
+                  isDisabled: { type: "boolean" }
+                }
+              }
+            }
+          }
+        },
+        responses: { "200": {}, "404": {} }
+      },
+      delete: {
+        tags: ["users"],
+        operationId: "deleteUser",
+        summary: "Elimina utente da tz_users (users.delete)",
+        security: [{ bearerAuth: [] }],
+        responses: { "200": {}, "404": {} }
       }
     },
     "/session/projects-by-email": {

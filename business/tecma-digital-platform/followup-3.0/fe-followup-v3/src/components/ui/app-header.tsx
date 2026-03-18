@@ -82,7 +82,7 @@ export function AppHeader({
               align="end"
               sideOffset={8}
               className={cn(
-                "z-50 min-w-[16rem] overflow-hidden rounded-lg border border-border bg-card shadow-dropdown",
+                "z-50 min-w-[16rem] overflow-hidden rounded-ui border border-border bg-card shadow-dropdown",
                 "data-[state=open]:animate-in data-[state=closed]:animate-out",
                 "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
               )}

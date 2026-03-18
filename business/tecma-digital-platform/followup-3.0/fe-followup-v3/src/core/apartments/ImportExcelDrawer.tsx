@@ -3,6 +3,7 @@
  */
 import { useState } from "react";
 import { followupApi } from "../../api/followupApi";
+import { useToast } from "../../contexts/ToastContext";
 import {
   Drawer,
   DrawerContent,
@@ -24,6 +25,7 @@ interface ImportExcelDrawerProps {
 }
 
 export const ImportExcelDrawer = ({ open, onOpenChange, workspaceId, projectId, onImported }: ImportExcelDrawerProps) => {
+  const { toastError } = useToast();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<{
     validRows: Array<Record<string, unknown>>;
@@ -60,7 +62,7 @@ export const ImportExcelDrawer = ({ open, onOpenChange, workspaceId, projectId, 
         .unitsImportPreview(workspaceId, projectId, b64)
         .then((res) => setPreview(res))
         .catch((err) => {
-          window.alert(err?.message ?? "Errore anteprima");
+          toastError(err?.message ?? "Errore anteprima");
         })
         .finally(() => setLoading(false));
     };
@@ -77,7 +79,7 @@ export const ImportExcelDrawer = ({ open, onOpenChange, workspaceId, projectId, 
         setExecuteResult(res);
         onImported?.();
       })
-      .catch((err) => window.alert(err?.message ?? "Errore importazione"))
+      .catch((err) => toastError(err?.message ?? "Errore importazione"))
       .finally(() => setLoading(false));
   };
 

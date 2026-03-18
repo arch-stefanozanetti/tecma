@@ -1,6 +1,6 @@
 import { getDb } from "../../config/db.js";
 import { getClientById } from "../clients/clients.service.js";
-import { getApartmentById } from "../future/future.service.js";
+import { getApartmentById } from "../apartments/apartments.service.js";
 
 const DEFAULT_SCORE = 80;
 const DEFAULT_REASONS = ["Stesso progetto"];

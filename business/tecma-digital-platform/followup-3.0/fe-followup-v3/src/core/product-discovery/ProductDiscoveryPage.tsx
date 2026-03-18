@@ -35,12 +35,13 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import { Plus, MessageSquare, Target, LayoutList, Layers, TrendingUp, AlertTriangle } from "lucide-react";
-
-const SEGMENT_OPTIONS = ["Agency", "Developer", "Fund", "Enterprise"];
-const SEVERITY_OPTIONS = ["blocking", "high_friction", "minor", "pattern"];
-const FREQUENCY_OPTIONS = ["1 customer", "2-3 customers", "4+ customers", "Nice to have"];
-const BUSINESS_IMPACT_OPTIONS = ["Deal blocker", "Upsell", "Efficiency"];
-const SOURCE_OPTIONS = ["customer_call", "ticket", "demo", "email", "analytics"];
+import {
+  SEGMENT_OPTIONS,
+  SEVERITY_OPTIONS,
+  FREQUENCY_OPTIONS,
+  BUSINESS_IMPACT_OPTIONS,
+  SOURCE_OPTIONS,
+} from "./productDiscoveryConstants";
 
 export const ProductDiscoveryPage = () => {
   const [activeTab, setActiveTab] = useState<string>("needs");

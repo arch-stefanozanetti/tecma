@@ -323,6 +323,19 @@ export const followupApi = {
     }>("/audit/query", query),
   // Workspaces (tz_workspaces)
   listUsersWithVisibility: () => getJson<{ users: UserWithVisibilityRow[] }>("/users"),
+  /** Invito MDOO: crea utente invited + email set-password; richiede permesso users.invite. */
+  inviteUser: (body: {
+    email: string;
+    role: string;
+    projectId: string;
+    projectName?: string;
+    /** Base FE per link invito; default = origine browser */
+    appPublicUrl?: string;
+  }) =>
+    postJson<{ userId: string }>("/users", {
+      ...body,
+      appPublicUrl: body.appPublicUrl ?? (typeof window !== "undefined" ? window.location.origin : undefined)
+    }),
   listWorkspaces: () => getJson<WorkspaceRow[]>("/workspaces"),
   getWorkspaceById: (id: string) => getJson<{ workspace: WorkspaceRow }>(`/workspaces/${id}`),
   createWorkspace: (payload: { name: string }) => postJson<{ workspace: WorkspaceRow }>("/workspaces", payload),
@@ -536,19 +549,58 @@ export const followupApi = {
       accessToken: string;
       refreshToken: string;
       expiresIn?: string;
-      user: { id: string; email: string; role: string | null; isAdmin: boolean };
+      user: {
+        id: string;
+        email: string;
+        role: string | null;
+        isAdmin: boolean;
+        permissions?: string[];
+        projectId?: string | null;
+      };
     }>("/auth/login", { email, password }),
-  me: () => getJson<{ id: string; email: string; role: string | null; isAdmin: boolean }>("/auth/me"),
+  me: () =>
+    getJson<{
+      id: string;
+      email: string;
+      role: string | null;
+      isAdmin: boolean;
+      permissions?: string[];
+      projectId?: string | null;
+    }>("/auth/me"),
   ssoExchange: (ssoJwt: string) =>
     postJson<{
       accessToken: string;
       refreshToken: string;
       expiresIn?: string;
-      user: { id: string; email: string; role: string | null; isAdmin: boolean };
+      user: {
+        id: string;
+        email: string;
+        role: string | null;
+        isAdmin: boolean;
+        permissions?: string[];
+        projectId?: string | null;
+      };
     }>("/auth/sso-exchange", { ssoJwt }),
   refresh: (refreshToken: string) =>
     postJson<{ accessToken: string; refreshToken?: string; expiresIn?: string }>("/auth/refresh", { refreshToken }),
   logout: (refreshToken: string) => postJson<void>("/auth/logout", { refreshToken }),
+  setPasswordFromInvite: (body: { token: string; password: string }) =>
+    postJson<{
+      accessToken: string;
+      refreshToken: string;
+      expiresIn?: string;
+      user: {
+        id: string;
+        email: string;
+        role: string | null;
+        isAdmin: boolean;
+        permissions?: string[];
+        projectId?: string | null;
+      };
+    }>("/auth/set-password-from-invite", body),
+  requestPasswordReset: (email: string) => postJson<{ ok: boolean }>("/auth/request-password-reset", { email }),
+  resetPassword: (token: string, password: string) =>
+    postJson<{ ok: boolean }>("/auth/reset-password", { token, password }),
   createApartment: (payload: ApartmentCreateInput) => postJson<{ apartmentId: string; apartment: ApartmentRow }>("/apartments", payload),
   updateApartment: (apartmentId: string, payload: Partial<ApartmentCreateInput>) =>
     patchJson<{ apartment: ApartmentRow }>(`/apartments/${apartmentId}`, payload),

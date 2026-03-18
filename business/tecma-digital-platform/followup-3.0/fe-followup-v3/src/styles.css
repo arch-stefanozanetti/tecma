@@ -65,8 +65,11 @@
     --border: 220 17% 86%;
     --input: 220 17% 86%;
     --ring: 238 64% 58%;
-    --radius: 0.85rem;
-    --radius-chrome: 2px;
+    /* Raggio angoli: unica fonte di verità (:root vince su token importati prima) */
+    --radius-ui: 8px;
+    --radius: var(--radius-ui);
+    --tecma-radius: var(--radius-ui);
+    --radius-chrome: var(--radius-ui);
     --sidebar: 222 24% 90%;
     --sidebar-foreground: 224 20% 26%;
     --sidebar-border: 220 20% 83%;
@@ -100,7 +103,7 @@
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: var(--radius-ui); }
 ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 
 @layer components {
@@ -114,7 +117,8 @@
     @apply fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-[15vh];
   }
   .command-palette {
-    @apply w-full max-w-xl rounded-lg border border-border bg-card px-3 pt-3 shadow-lg;
+    border-radius: var(--radius-ui);
+    @apply w-full max-w-xl border border-border bg-card px-3 pt-3 shadow-lg;
   }
   .command-list {
     @apply max-h-[60vh] overflow-y-auto py-2;
@@ -127,5 +131,27 @@
   .command-item:hover,
   .command-item.command-item-highlighted {
     @apply bg-muted;
+  }
+}
+
+/*
+ * Dopo @tailwind utilities: stessa classe può essere generata da Tailwind (es. chrome: "8px").
+ * Queste regole vengono emesse per ultime nel layer utilities → vincono su eventuali CSS esterni
+ * o build vecchie che usavano ancora var(--tecma-radius) / 0.85rem (~14px) o 1rem (16px).
+ */
+@layer utilities {
+  .rounded-ui {
+    border-radius: var(--radius-ui);
+  }
+  .rounded-t-ui {
+    border-top-left-radius: var(--radius-ui);
+    border-top-right-radius: var(--radius-ui);
+  }
+  .rounded-b-ui {
+    border-bottom-left-radius: var(--radius-ui);
+    border-bottom-right-radius: var(--radius-ui);
+  }
+  .rounded-chrome {
+    border-radius: var(--radius-ui);
   }
 }

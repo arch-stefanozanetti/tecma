@@ -21,6 +21,7 @@ Indice della documentazione di progetto. **Punto di partenza:** [FOLLOWUP_3_MAST
 | [DESIGN_SYSTEM_COMPONENTS_WAVES.md](DESIGN_SYSTEM_COMPONENTS_WAVES.md) | Wave per l’import delle componenti Figma (Button, Input, ecc.); stato per componente. |
 | [AUTH_AND_TECMA_BSS_API_REPORT.md](AUTH_AND_TECMA_BSS_API_REPORT.md) | Stato API TECMA-BSS (aws-api-gateway), auth esistente, cosa manca, test. |
 | [fe-followup-v3/ARCHITECTURE.md](../fe-followup-v3/ARCHITECTURE.md) | Architettura frontend: struttura `src/`, come aggiungere una pagina o un endpoint, hook `usePaginatedList` e `useAsync`. |
+| [REFACTORING.md](REFACTORING.md) | Refactoring strutturale (sprint): split project-config BE, route v1, IntegrationsPage (catalog/tab), pagine FE (costanti/hook/componenti), toast per errori API. |
 | [plans/2025-03-07-unificazione-api-aws-gateway-followup.md](plans/2025-03-07-unificazione-api-aws-gateway-followup.md) | Piano task-by-task per unificare le API Followup con aws-api-gateway (merge spec, test, Postman, FE). |
 
 ---

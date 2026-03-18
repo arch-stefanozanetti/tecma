@@ -267,7 +267,7 @@ export const ApartmentsPage = () => {
                 <span className={cn("ml-1 inline-block text-xs transition-transform", otherOptionsOpen && "rotate-180")}>▾</span>
               </Button>
               {otherOptionsOpen && (
-                <div className="absolute right-0 top-11 z-50 w-52 overflow-hidden rounded-lg border border-border bg-background shadow-dropdown">
+                <div className="absolute right-0 top-11 z-50 w-52 overflow-hidden rounded-ui border border-border bg-background shadow-dropdown">
                   {[
                     { icon: Upload, label: "Importa Excel" },
                     { icon: Download, label: "Esporta Excel" },
@@ -303,7 +303,7 @@ export const ApartmentsPage = () => {
         >
           <TabsList className="h-auto w-auto border-b border-border bg-transparent p-0">
             {MODE_TABS.map((tab) => (
-              <TabsTrigger key={tab.id} value={tab.id} className="rounded-none">
+              <TabsTrigger key={tab.id} value={tab.id} className="rounded-t-lg">
                 {tab.label}
               </TabsTrigger>
             ))}
@@ -314,10 +314,10 @@ export const ApartmentsPage = () => {
         <div className="mt-6">
           <h2 className="mb-4 text-base font-semibold text-foreground">Elenco appartamenti</h2>
 
-          <div className="overflow-hidden rounded-lg border border-border bg-background shadow-panel">
+          <div className="overflow-hidden rounded-ui border border-border bg-background shadow-panel">
 
             {/* Barra ricerca e filtri */}
-            <div className="border-b border-border px-4 py-4 lg:px-6">
+            <div className="rounded-t-ui border-b border-border px-4 py-4 lg:px-6">
               <div className="flex flex-wrap items-end gap-3">
                 <div className="relative flex-1 min-w-[200px] max-w-md">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

@@ -12,6 +12,7 @@ export interface AuthSessionDoc {
   token: string;
   expiresAt: Date;
   createdAt: Date;
+  revoked?: boolean;
 }
 
 const getCollection = () => getDb().collection<AuthSessionDoc>(COLLECTION_NAME);
@@ -55,7 +56,8 @@ export async function createSession(userId: string, email?: string): Promise<str
 export async function getSession(token: string): Promise<AuthSessionDoc | null> {
   const session = await getCollection().findOne({
     token,
-    expiresAt: { $gt: now() }
+    expiresAt: { $gt: now() },
+    $or: [{ revoked: { $exists: false } }, { revoked: false }]
   });
   return session;
 }
@@ -74,4 +76,9 @@ export async function deleteSession(token: string): Promise<boolean> {
 export async function deleteSessionsByUser(userId: string): Promise<number> {
   const result = await getCollection().deleteMany({ userId });
   return result.deletedCount ?? 0;
+}
+
+export async function revokeSessionsByUser(userId: string): Promise<number> {
+  const result = await getCollection().updateMany({ userId, revoked: { $ne: true } }, { $set: { revoked: true } });
+  return result.modifiedCount ?? 0;
 }

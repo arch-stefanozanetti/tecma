@@ -7,6 +7,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { followupApi } from "../../api/followupApi";
 import type { UserWithVisibilityRow, WorkspaceRow, WorkspaceUserRole } from "../../types/domain";
 import { useWorkspace } from "../../auth/projectScope";
+import { useToast } from "../../contexts/ToastContext";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Input } from "../../components/ui/input";
@@ -18,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
+import { RadioGroup, Radio } from "../../components/ui/radio-group";
 
 interface WorkspaceProjectOption {
   projectId: string;
@@ -37,6 +39,7 @@ export const UsersPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isAdmin } = useWorkspace();
+  const { toastError } = useToast();
   const [users, setUsers] = useState<UserWithVisibilityRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +58,14 @@ export const UsersPage = () => {
   const [addUserRole, setAddUserRole] = useState<WorkspaceUserRole>("vendor");
   const [addUserSaving, setAddUserSaving] = useState(false);
   const [addUserError, setAddUserError] = useState<string | null>(null);
+  /** invite = nuovo utente con email set-password; existing = solo membership workspace */
+  const [addUserMode, setAddUserMode] = useState<"invite" | "existing">("invite");
+  const [inviteGlobalRole, setInviteGlobalRole] = useState<"vendor" | "agent" | "admin">("vendor");
+  const [workspaceProjectsForInvite, setWorkspaceProjectsForInvite] = useState<
+    Array<{ projectId: string; displayName?: string; name?: string }>
+  >([]);
+  const [inviteProjectId, setInviteProjectId] = useState("");
+  const [loadingWorkspaceProjects, setLoadingWorkspaceProjects] = useState(false);
   const [savingRoleWorkspaceId, setSavingRoleWorkspaceId] = useState<string | null>(null);
 
   const load = () => {
@@ -79,10 +90,37 @@ export const UsersPage = () => {
       setAddUserEmail("");
       setAddUserWorkspaceId("");
       setAddUserRole("vendor");
+      setAddUserMode("invite");
+      setInviteGlobalRole("vendor");
+      setWorkspaceProjectsForInvite([]);
+      setInviteProjectId("");
       followupApi.listWorkspaces().then((list) => setWorkspaces(Array.isArray(list) ? list : [])).catch(() => setWorkspaces([]));
       navigate(location.pathname + location.search, { replace: true, state: {} });
     }
   }, []);
+
+  useEffect(() => {
+    if (!addUserOpen || !addUserWorkspaceId || addUserMode !== "invite") {
+      if (!addUserWorkspaceId) {
+        setWorkspaceProjectsForInvite([]);
+        setInviteProjectId("");
+      }
+      return;
+    }
+    setLoadingWorkspaceProjects(true);
+    followupApi
+      .listWorkspaceProjects(addUserWorkspaceId)
+      .then((r) => {
+        const rows = (r.data ?? []) as Array<{ projectId: string; displayName?: string; name?: string }>;
+        setWorkspaceProjectsForInvite(rows);
+        setInviteProjectId(rows[0]?.projectId ?? "");
+      })
+      .catch(() => {
+        setWorkspaceProjectsForInvite([]);
+        setInviteProjectId("");
+      })
+      .finally(() => setLoadingWorkspaceProjects(false));
+  }, [addUserOpen, addUserWorkspaceId, addUserMode]);
 
   const loadUserDetail = useCallback((user: UserWithVisibilityRow) => {
     if (!user.workspaces.length) {
@@ -148,7 +186,7 @@ export const UsersPage = () => {
         [workspaceId]: [...(prev[workspaceId] ?? []), projectId],
       }));
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Errore aggiunta progetto");
+      toastError(e instanceof Error ? e.message : "Errore aggiunta progetto");
     } finally {
       setSavingProject(null);
     }
@@ -164,7 +202,7 @@ export const UsersPage = () => {
         [workspaceId]: (prev[workspaceId] ?? []).filter((id) => id !== projectId),
       }));
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Errore rimozione progetto");
+      toastError(e instanceof Error ? e.message : "Errore rimozione progetto");
     } finally {
       setSavingProject(null);
     }
@@ -183,7 +221,7 @@ export const UsersPage = () => {
         ),
       }));
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Errore rimozione assegnazione");
+      toastError(e instanceof Error ? e.message : "Errore rimozione assegnazione");
     } finally {
       setSavingAssignment(null);
     }
@@ -209,7 +247,7 @@ export const UsersPage = () => {
         ],
       }));
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Errore aggiunta assegnazione");
+      toastError(e instanceof Error ? e.message : "Errore aggiunta assegnazione");
     } finally {
       setSavingAssignment(null);
     }
@@ -233,7 +271,21 @@ export const UsersPage = () => {
       </div>
 
       <div className="flex justify-end gap-2">
-        <Button size="sm" onClick={() => { setAddUserOpen(true); setAddUserError(null); setAddUserEmail(""); setAddUserWorkspaceId(""); setAddUserRole("vendor"); followupApi.listWorkspaces().then((list) => setWorkspaces(Array.isArray(list) ? list : [])).catch(() => setWorkspaces([])); }}>
+        <Button
+          size="sm"
+          onClick={() => {
+            setAddUserOpen(true);
+            setAddUserError(null);
+            setAddUserEmail("");
+            setAddUserWorkspaceId("");
+            setAddUserRole("vendor");
+            setAddUserMode("invite");
+            setInviteGlobalRole("vendor");
+            setWorkspaceProjectsForInvite([]);
+            setInviteProjectId("");
+            followupApi.listWorkspaces().then((list) => setWorkspaces(Array.isArray(list) ? list : [])).catch(() => setWorkspaces([]));
+          }}
+        >
           Aggiungi utente (a workspace)
         </Button>
         <Button variant="outline" size="sm" onClick={load} disabled={loading}>
@@ -312,6 +364,24 @@ export const UsersPage = () => {
             <SheetTitle>Aggiungi utente a workspace</SheetTitle>
           </SheetHeader>
           <div className="mt-4 space-y-4">
+            <RadioGroup
+              name="addUserMode"
+              value={addUserMode}
+              onChange={(v) => {
+                setAddUserMode(v as "invite" | "existing");
+                setAddUserError(null);
+              }}
+              className="space-y-2"
+            >
+              <Radio value="invite" label="Invita via email (nuovo utente)" />
+              <Radio value="existing" label="Già registrato (solo accesso al workspace)" />
+            </RadioGroup>
+            {addUserMode === "invite" && (
+              <p className="text-xs text-muted-foreground rounded-md bg-muted/50 p-2">
+                L&apos;utente riceve un&apos;email con link per impostare la password. Serve almeno un progetto associato al
+                workspace.
+              </p>
+            )}
             <div>
               <label className="text-sm font-medium text-foreground block mb-1">Workspace</label>
               <Select value={addUserWorkspaceId} onValueChange={setAddUserWorkspaceId}>
@@ -327,8 +397,51 @@ export const UsersPage = () => {
                 </SelectContent>
               </Select>
             </div>
+            {addUserMode === "invite" && addUserWorkspaceId && (
+              <div>
+                <label className="text-sm font-medium text-foreground block mb-1">Progetto (per invito)</label>
+                {loadingWorkspaceProjects ? (
+                  <p className="text-sm text-muted-foreground">Caricamento progetti…</p>
+                ) : workspaceProjectsForInvite.length === 0 ? (
+                  <p className="text-sm text-destructive">
+                    Nessun progetto su questo workspace. Associa almeno un progetto al workspace prima di invitare.
+                  </p>
+                ) : (
+                  <Select value={inviteProjectId} onValueChange={setInviteProjectId}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Progetto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {workspaceProjectsForInvite.map((p) => (
+                        <SelectItem key={p.projectId} value={p.projectId}>
+                          {p.displayName ?? p.name ?? p.projectId}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
+            {addUserMode === "invite" && (
+              <div>
+                <label className="text-sm font-medium text-foreground block mb-1">Ruolo globale (account)</label>
+                <Select
+                  value={inviteGlobalRole}
+                  onValueChange={(v) => setInviteGlobalRole(v as "vendor" | "agent" | "admin")}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="vendor">Vendor</SelectItem>
+                    <SelectItem value="agent">Agent</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div>
-              <label className="text-sm font-medium text-foreground block mb-1">Email (userId)</label>
+              <label className="text-sm font-medium text-foreground block mb-1">Email</label>
               <Input
                 type="email"
                 value={addUserEmail}
@@ -338,7 +451,9 @@ export const UsersPage = () => {
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-foreground block mb-1">Ruolo</label>
+              <label className="text-sm font-medium text-foreground block mb-1">
+                Ruolo nel workspace{addUserMode === "invite" ? " (dopo l&apos;attivazione)" : ""}
+              </label>
               <Select value={addUserRole} onValueChange={(v) => setAddUserRole(v as WorkspaceUserRole)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
@@ -353,22 +468,58 @@ export const UsersPage = () => {
             {addUserError && <p className="text-sm text-destructive">{addUserError}</p>}
             <div className="flex gap-2">
               <Button
-                disabled={!addUserWorkspaceId || !addUserEmail.trim() || addUserSaving}
+                disabled={
+                  !addUserWorkspaceId ||
+                  !addUserEmail.trim() ||
+                  addUserSaving ||
+                  (addUserMode === "invite" &&
+                    (workspaceProjectsForInvite.length === 0 || !inviteProjectId || loadingWorkspaceProjects))
+                }
                 onClick={async () => {
                   setAddUserSaving(true);
                   setAddUserError(null);
+                  const email = addUserEmail.trim();
                   try {
-                    await followupApi.addWorkspaceUser(addUserWorkspaceId, { userId: addUserEmail.trim(), role: addUserRole });
+                    if (addUserMode === "invite") {
+                      const dup = users.some((u) => u.email.toLowerCase() === email.toLowerCase());
+                      if (dup) {
+                        setAddUserError(
+                          'Questa email è già in elenco. Usa "Già registrato" oppure un\'altra email.'
+                        );
+                        setAddUserSaving(false);
+                        return;
+                      }
+                      const proj = workspaceProjectsForInvite.find((p) => p.projectId === inviteProjectId);
+                      const projectName = proj?.displayName ?? proj?.name ?? inviteProjectId;
+                      await followupApi.inviteUser({
+                        email,
+                        role: inviteGlobalRole,
+                        projectId: inviteProjectId,
+                        projectName
+                      });
+                      try {
+                        await followupApi.addWorkspaceUser(addUserWorkspaceId, { userId: email, role: addUserRole });
+                      } catch (e2) {
+                        setAddUserError(
+                          `Invito inviato, ma aggiunta al workspace fallita: ${e2 instanceof Error ? e2.message : "errore"}. Aggiungi l'utente al workspace dopo l'attivazione.`
+                        );
+                        load();
+                        return;
+                      }
+                    } else {
+                      await followupApi.addWorkspaceUser(addUserWorkspaceId, { userId: email, role: addUserRole });
+                    }
                     load();
                     setAddUserOpen(false);
                   } catch (e) {
-                    setAddUserError(e instanceof Error ? e.message : "Errore aggiunta utente");
+                    const msg = e instanceof Error ? e.message : "Errore";
+                    setAddUserError(msg.includes("409") || msg.toLowerCase().includes("già") ? msg : msg);
                   } finally {
                     setAddUserSaving(false);
                   }
                 }}
               >
-                {addUserSaving ? "Aggiunta..." : "Aggiungi"}
+                {addUserSaving ? "Invio…" : addUserMode === "invite" ? "Invita e aggiungi al workspace" : "Aggiungi"}
               </Button>
               <Button variant="outline" onClick={() => setAddUserOpen(false)}>
                 Annulla
@@ -403,7 +554,7 @@ export const UsersPage = () => {
                               setSelectedUser((u) => (u ? { ...u, workspaces: u.workspaces.map((x) => (x.workspaceId === w.workspaceId ? { ...x, role: newRole } : x)) } : null));
                               load();
                             } catch {
-                              window.alert("Errore aggiornamento ruolo");
+                              toastError("Errore aggiornamento ruolo");
                             } finally {
                               setSavingRoleWorkspaceId(null);
                             }

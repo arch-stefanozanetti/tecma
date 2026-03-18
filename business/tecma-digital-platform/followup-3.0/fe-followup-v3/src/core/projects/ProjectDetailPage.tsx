@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { followupApi } from "../../api/followupApi";
 import { useWorkspace } from "../../auth/projectScope";
+import { useToast } from "../../contexts/ToastContext";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
@@ -99,6 +100,7 @@ export const ProjectDetailPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { workspaceId: scopeWorkspaceId } = useWorkspace();
+  const { toastError } = useToast();
   const workspaceId = searchParams.get("workspaceId") ?? scopeWorkspaceId ?? "";
 
   const [project, setProject] = useState<ProjectDoc | null>(null);
@@ -216,7 +218,7 @@ export const ProjectDetailPage = () => {
       });
       void loadAll();
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Errore salvataggio");
+      toastError(e instanceof Error ? e.message : "Errore salvataggio");
     } finally {
       setSavingIdentity(false);
     }
@@ -234,7 +236,7 @@ export const ProjectDetailPage = () => {
       });
       void loadAll();
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Errore salvataggio");
+      toastError(e instanceof Error ? e.message : "Errore salvataggio");
     } finally {
       setSavingPolicies(false);
     }
@@ -254,7 +256,7 @@ export const ProjectDetailPage = () => {
       });
       void loadAll();
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Errore salvataggio");
+      toastError(e instanceof Error ? e.message : "Errore salvataggio");
     } finally {
       setSavingBranding(false);
     }
@@ -272,7 +274,7 @@ export const ProjectDetailPage = () => {
       });
       void loadAll();
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "Errore salvataggio");
+      toastError(e instanceof Error ? e.message : "Errore salvataggio");
     } finally {
       setSavingEmail(false);
     }
