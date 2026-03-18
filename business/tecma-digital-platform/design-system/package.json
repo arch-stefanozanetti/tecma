@@ -9,11 +9,15 @@
   "exports": {
     ".": {
       "import": "./dist/tokens/index.js",
+      "require": "./dist/tokens/index.js",
+      "default": "./dist/tokens/index.js",
       "types": "./dist/tokens/index.d.ts"
     },
     "./css": "./css/tokens.css",
     "./tailwind": {
       "import": "./dist/tailwind.theme.js",
+      "require": "./dist/tailwind.theme.js",
+      "default": "./dist/tailwind.theme.js",
       "types": "./dist/tailwind.theme.d.ts"
     }
   },
