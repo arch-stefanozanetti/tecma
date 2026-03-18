@@ -48,7 +48,7 @@ export type RequestStatus =
   | "won"
   | "lost";
 
-/** Allowed state transitions (macchina a stati in-process; sostituibile con be-tecma-status-automata). */
+/** Allowed state transitions (macchina a stati in-process). */
 const ALLOWED_TRANSITIONS: Record<RequestStatus, RequestStatus[]> = {
   new: ["contacted", "viewing", "lost"],
   contacted: ["viewing", "quote", "offer", "lost"],

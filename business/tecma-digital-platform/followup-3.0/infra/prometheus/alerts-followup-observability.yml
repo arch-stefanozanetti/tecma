@@ -1,0 +1,86 @@
+groups:
+  - name: followup-observability
+    interval: 30s
+    rules:
+      - alert: FollowupApiAvailabilityFastBurn
+        expr: |
+          (
+            sum(rate(followup_http_server_errors_total{http_route=~"/v1/(auth|clients|apartments|requests|calendar).*"}[5m]))
+            /
+            clamp_min(sum(rate(followup_http_server_requests_total{http_route=~"/v1/(auth|clients|apartments|requests|calendar).*"}[5m])), 1)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: be-followup-v3
+          slo: availability
+        annotations:
+          summary: "Followup API fast burn (availability)"
+          description: "5xx ratio > 5% for 5m on core endpoints. Error budget burn is critical."
+          runbook_url: "docs/RUNBOOK_OBSERVABILITY.md"
+
+      - alert: FollowupApiAvailabilitySlowBurn
+        expr: |
+          (
+            sum(rate(followup_http_server_errors_total{http_route=~"/v1/(auth|clients|apartments|requests|calendar).*"}[1h]))
+            /
+            clamp_min(sum(rate(followup_http_server_requests_total{http_route=~"/v1/(auth|clients|apartments|requests|calendar).*"}[1h])), 1)
+          ) > 0.01
+        for: 15m
+        labels:
+          severity: warning
+          service: be-followup-v3
+          slo: availability
+        annotations:
+          summary: "Followup API slow burn (availability)"
+          description: "5xx ratio > 1% for 1h on core endpoints."
+          runbook_url: "docs/RUNBOOK_OBSERVABILITY.md"
+
+      - alert: FollowupApiLatencyP95ReadCritical
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(followup_http_server_request_duration_ms_bucket{http_method="GET", http_route=~"/v1/(auth|clients|apartments|requests|calendar).*"}[5m])
+            )
+          ) > 400
+        for: 15m
+        labels:
+          severity: critical
+          service: be-followup-v3
+          slo: latency
+        annotations:
+          summary: "Followup API p95 read latency high"
+          description: "GET p95 latency > 400ms for 15m on core endpoints."
+          runbook_url: "docs/RUNBOOK_OBSERVABILITY.md"
+
+      - alert: FollowupApiLatencyP95WriteCritical
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (
+              rate(followup_http_server_request_duration_ms_bucket{http_method=~"POST|PATCH|DELETE", http_route=~"/v1/(auth|clients|apartments|requests|calendar).*"}[5m])
+            )
+          ) > 700
+        for: 15m
+        labels:
+          severity: critical
+          service: be-followup-v3
+          slo: latency
+        annotations:
+          summary: "Followup API p95 write latency high"
+          description: "Write p95 latency > 700ms for 15m on core endpoints."
+          runbook_url: "docs/RUNBOOK_OBSERVABILITY.md"
+
+      - alert: FollowupTelemetryPipelineStale
+        expr: |
+          max_over_time(up{job=~"followup-be|otel-collector"}[2m]) < 1
+        for: 3m
+        labels:
+          severity: warning
+          service: be-followup-v3
+          slo: telemetry_freshness
+        annotations:
+          summary: "Followup telemetry pipeline stale"
+          description: "Collector/scrape health indicates missing telemetry for >2m."
+          runbook_url: "docs/RUNBOOK_OBSERVABILITY.md"

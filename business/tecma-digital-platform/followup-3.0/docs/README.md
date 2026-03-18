@@ -18,6 +18,7 @@ Indice della documentazione di progetto. **Piano operativo unico:** [PLAN_UNIFIC
 |------|-----------|
 | [API_RIUSABILI.md](API_RIUSABILI.md) | API per uso esterno (riusabili): listati appartamenti, lista light clienti; contratti, auth, esempi; riferimento OpenAPI. |
 | [OBSERVABILITY.md](OBSERVABILITY.md) | Logging strutturato (`pino`), request correlation (`x-request-id`/`x-correlation-id`), OpenTelemetry (traces + metriche OTLP). |
+| [ACCEPTANCE_GATES.md](ACCEPTANCE_GATES.md) | Gate finali bloccanti: soglie CI hard, journey E2E core stabilizzati, verifica operativa post-release. |
 | [LEGACY_RUNTIME_POLICY.md](LEGACY_RUNTIME_POLICY.md) | Policy di cutover Big Bang: rimozione fallback legacy runtime nei servizi core e guard CI anti-regressione. |
 | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Design system condiviso: pacchetto `@tecma/design-system-tokens`, configurazione in fe-followup-v3, variabili CSS e Tailwind. |
 | [DESIGN_SYSTEM_COMPONENTS_WAVES.md](DESIGN_SYSTEM_COMPONENTS_WAVES.md) | Wave per l’import delle componenti Figma (Button, Input, ecc.); stato per componente. |

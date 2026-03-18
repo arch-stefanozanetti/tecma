@@ -1,0 +1,30 @@
+name: Post Release Acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      be_url:
+        description: "Backend base URL (es. https://api.example.com)"
+        required: true
+        type: string
+      fe_url:
+        description: "Frontend base URL (es. https://app.example.com)"
+        required: true
+        type: string
+      auth_bearer:
+        description: "Bearer token opzionale per check /v1/auth/me"
+        required: false
+        type: string
+
+jobs:
+  post-release-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run post-release verification
+        env:
+          BE_URL: ${{ inputs.be_url }}
+          FE_URL: ${{ inputs.fe_url }}
+          AUTH_BEARER: ${{ inputs.auth_bearer }}
+        run: bash scripts/post-release-verify.sh

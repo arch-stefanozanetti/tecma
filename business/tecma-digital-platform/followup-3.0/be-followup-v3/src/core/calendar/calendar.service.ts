@@ -64,96 +64,6 @@ const buildMatch = (q: ListQueryInput) => {
   return { $and: conditions };
 };
 
-type LegacyCalendarDoc = {
-  _id?: ObjectId | string;
-  project_id?: ObjectId | string;
-  startDate?: Date | string;
-  endDate?: Date | string;
-  typology?: string;
-  activityType?: string;
-  info?: string | null;
-  note?: string | null;
-  comment?: string | null;
-  client?: ObjectId | string | null;
-};
-
-const parseProjectIdsForLegacy = (projectIds: string[]) => {
-  const objectIds: ObjectId[] = [];
-  const asStrings = new Set<string>();
-  for (const projectId of projectIds) {
-    asStrings.add(projectId);
-    if (ObjectId.isValid(projectId)) objectIds.push(new ObjectId(projectId));
-  }
-  return { objectIds, asStrings: [...asStrings] };
-};
-
-const toIsoDate = (value: unknown): string => {
-  if (value instanceof Date) return value.toISOString();
-  if (typeof value === "string" && value) {
-    const parsed = new Date(value);
-    if (!Number.isNaN(parsed.valueOf())) return parsed.toISOString();
-  }
-  return new Date(0).toISOString();
-};
-
-const buildLegacyMatch = (q: ListQueryInput) => {
-  const { objectIds, asStrings } = parseProjectIdsForLegacy(q.projectIds);
-  const projectConditionValues: Array<ObjectId | string> = [...objectIds, ...asStrings];
-  const conditions: Record<string, unknown>[] = [{ project_id: { $in: projectConditionValues } }];
-
-  const dateFrom = q.filters?.dateFrom;
-  const dateTo = q.filters?.dateTo;
-  if (typeof dateFrom === "string" || typeof dateTo === "string") {
-    const range: Record<string, unknown> = {};
-    if (typeof dateFrom === "string" && dateFrom) range.$gte = new Date(dateFrom);
-    if (typeof dateTo === "string" && dateTo) range.$lte = new Date(dateTo);
-    conditions.push({ startDate: range });
-  }
-
-  if (q.searchText && q.searchText.trim()) {
-    const safe = q.searchText.trim();
-    conditions.push({
-      $or: [
-        { info: { $regex: safe, $options: "i" } },
-        { typology: { $regex: safe, $options: "i" } },
-        { activityType: { $regex: safe, $options: "i" } }
-      ]
-    });
-  }
-
-  if (conditions.length === 1) return conditions[0];
-  return { $and: conditions };
-};
-
-const mapLegacyToCalendarEvent = (doc: LegacyCalendarDoc): CalendarEvent => {
-  const projectId = doc.project_id instanceof ObjectId ? doc.project_id.toHexString() : typeof doc.project_id === "string" ? doc.project_id : "";
-  const startsAt = toIsoDate(doc.startDate);
-  const endsAt = toIsoDate(doc.endDate ?? doc.startDate);
-  const compact = (value: string) => {
-    const firstLine = value
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .find((line) => line.length > 0);
-    if (!firstLine) return "";
-    return firstLine.length > 90 ? `${firstLine.slice(0, 87)}...` : firstLine;
-  };
-  const infoTitle = typeof doc.info === "string" && doc.info.trim() ? compact(doc.info) : "";
-  const activityTitle = typeof doc.activityType === "string" && doc.activityType.trim() ? doc.activityType.trim() : "";
-  const typologyTitle = typeof doc.typology === "string" && doc.typology.trim() ? doc.typology.trim() : "";
-  const title = infoTitle || activityTitle || typologyTitle || "Attivita calendario";
-
-  return {
-    _id: String(doc._id ?? ""),
-    workspaceId: "legacy",
-    projectId,
-    title,
-    startsAt,
-    endsAt,
-    clientId: doc.client ? String(doc.client) : undefined,
-    source: "FOLLOWUP_SELL"
-  };
-};
-
 const queryPrimaryCalendarEvents = async (input: ListQueryInput): Promise<PaginatedResponse<CalendarEvent>> => {
   const db = getDb();
   const collection = db.collection<CalendarEvent>("calendar_events");
@@ -179,51 +89,9 @@ const queryPrimaryCalendarEvents = async (input: ListQueryInput): Promise<Pagina
   };
 };
 
-const queryLegacyCalendarEvents = async (input: ListQueryInput): Promise<PaginatedResponse<CalendarEvent>> => {
-  const db = getDb();
-  const collection = db.collection<LegacyCalendarDoc>("calendars");
-
-  const match = buildLegacyMatch(input);
-  const { skip, limit } = buildPagination(input.page, input.perPage);
-
-  const [rawData, total] = await Promise.all([
-    collection
-      .find(match)
-      .sort({ startDate: 1 })
-      .skip(skip)
-      .limit(limit)
-      .project({
-        _id: 1,
-        project_id: 1,
-        startDate: 1,
-        endDate: 1,
-        typology: 1,
-        activityType: 1,
-        info: 1,
-        note: 1,
-        comment: 1,
-        client: 1
-      })
-      .toArray(),
-    collection.countDocuments(match)
-  ]);
-
-  return {
-    data: rawData.map(mapLegacyToCalendarEvent),
-    pagination: {
-      page: input.page,
-      perPage: input.perPage,
-      total,
-      totalPages: Math.ceil(total / input.perPage)
-    }
-  };
-};
-
 export const queryCalendarEvents = async (rawInput: unknown): Promise<PaginatedResponse<CalendarEvent>> => {
   const input = ListQuerySchema.parse(rawInput);
-  const primary = await queryPrimaryCalendarEvents(input);
-  if (primary.pagination.total > 0) return primary;
-  return queryLegacyCalendarEvents(input);
+  return queryPrimaryCalendarEvents(input);
 };
 
 export const createCalendarEvent = async (rawInput: unknown): Promise<{ event: CalendarEvent }> => {
