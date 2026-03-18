@@ -38,7 +38,7 @@ Collegare il repo e il primo deploy richiedono **login su render.com**, **autori
 
 **BE:** build `npm ci && npm run build`, start `npm start`, health check `GET /v1/health`.
 
-**FE:** build **`NODE_ENV=development npm ci && npm run build`**: su Render `NODE_ENV=production` di default fa saltare i optional segnati `dev` nel lockfile (manca `@rollup/rollup-linux-x64-gnu`). Publish `dist`, rewrite SPA.
+**FE:** build `npm ci && npm run build`. Il `package.json` del FE dichiara **`optionalDependencies`** `@rollup/rollup-linux-x64-gnu` così su Render (Linux) `npm ci` installa il binario nativo Rollup (workaround bug npm optional + lockfile `dev:true`). Publish `dist`, rewrite SPA.
 
 Il **backend Node** usa **`plan: starter`** (e opz. `region: frankfurt`). Il **frontend static** nel Blueprint **non** ha `region` né `plan`: Render non li supporta su `runtime: static` (CDN globale).
 
