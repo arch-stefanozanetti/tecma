@@ -38,7 +38,7 @@ Collegare il repo e il primo deploy richiedono **login su render.com**, **autori
 
 **BE:** build `npm ci && npm run build`, start `npm start`, health check `GET /v1/health`.
 
-**FE:** build **`npm ci && npm run build`** (non `--omit=optional`: altrimenti manca il binario Rollup per Linux e Vite fallisce). Publish `dist`, rewrite SPA `/*` → `/index.html`.
+**FE:** build **`NODE_ENV=development npm ci && npm run build`**: su Render `NODE_ENV=production` di default fa saltare i optional segnati `dev` nel lockfile (manca `@rollup/rollup-linux-x64-gnu`). Publish `dist`, rewrite SPA.
 
 Il **backend Node** usa **`plan: starter`** (e opz. `region: frankfurt`). Il **frontend static** nel Blueprint **non** ha `region` né `plan`: Render non li supporta su `runtime: static` (CDN globale).
 
