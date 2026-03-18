@@ -7,7 +7,7 @@ services:
     name: followup-3-be
     runtime: node
     region: frankfurt
-    plan: free
+    plan: starter
     rootDir: business/tecma-digital-platform/followup-3.0/be-followup-v3
     buildCommand: npm ci && npm run build
     startCommand: npm start
@@ -26,11 +26,11 @@ services:
       - key: AUTH_REFRESH_EXPIRES_DAYS
         value: "7"
 
+  # Static sites: niente `region` nel Blueprint (Render non lo accetta).
   - type: web
     name: followup-3-fe
     runtime: static
-    region: frankfurt
-    plan: free
+    plan: starter
     rootDir: business/tecma-digital-platform/followup-3.0/fe-followup-v3
     buildCommand: npm ci --omit=optional && npm run build
     staticPublishPath: business/tecma-digital-platform/followup-3.0/fe-followup-v3/dist
