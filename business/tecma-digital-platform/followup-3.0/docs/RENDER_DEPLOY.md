@@ -33,12 +33,12 @@ Collegare il repo e il primo deploy richiedono **login su render.com**, **autori
 2. Collega il repo GitHub `arch-stefanozanetti/tecma` (branch desiderato).
 3. Render legge `render.yaml`. Compila le variabili **sync: false** (obbligatorie prima del build):
    - **BE:** `MONGO_URI`, `MONGO_DB_NAME`, `AUTH_JWT_SECRET`
-   - **FE:** `VITE_API_BASE_URL` — impostala **dopo** che il BE è live, con l’URL pubblico del BE (es. `https://followup-3-be.onrender.com`, senza path se l’API è su `/v1` alla root del dominio).
+   - **FE:** `VITE_API_BASE_URL` — dopo il BE live: `https://<nome-be>.onrender.com/v1` (deve includere **`/v1`**).
 4. Ordine consigliato: deploy prima il **BE**, poi imposta `VITE_API_BASE_URL` sul **FE** e rifai deploy del FE.
 
 **BE:** build `npm ci && npm run build`, start `npm start`, health check `GET /v1/health`.
 
-**FE:** build `npm ci --omit=optional && npm run build`, publish `dist`, rewrite SPA `/*` → `/index.html` (nel Blueprint).
+**FE:** build **`npm ci && npm run build`** (non `--omit=optional`: altrimenti manca il binario Rollup per Linux e Vite fallisce). Publish `dist`, rewrite SPA `/*` → `/index.html`.
 
 Il **backend Node** usa **`plan: starter`** (e opz. `region: frankfurt`). Il **frontend static** nel Blueprint **non** ha `region` né `plan`: Render non li supporta su `runtime: static` (CDN globale).
 
