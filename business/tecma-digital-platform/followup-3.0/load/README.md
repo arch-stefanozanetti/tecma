@@ -5,4 +5,4 @@
 
 **Requisito:** [k6](https://k6.io/docs/get-started/installation/) installato. Avviare il backend prima (`npm run dev:be`).
 
-Variabile opzionale: `BASE_URL` (default `http://localhost:5060`).
+Variabile opzionale: `BASE_URL` (default `http://localhost:8080`).

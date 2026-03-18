@@ -8,6 +8,10 @@ const appVersion =
   typeof process.env.VITE_APP_VERSION === "string" && process.env.VITE_APP_VERSION
     ? process.env.VITE_APP_VERSION
     : (pkg?.version ?? "0.0.0");
+const proxyTarget =
+  typeof process.env.VITE_PROXY_TARGET === "string" && process.env.VITE_PROXY_TARGET
+    ? process.env.VITE_PROXY_TARGET
+    : "http://localhost:8080";
 
 export default defineConfig({
   plugins: [react()],
@@ -23,7 +27,7 @@ export default defineConfig({
     port: 5177,
     proxy: {
       "/v1": {
-        target: "http://localhost:8080",
+        target: proxyTarget,
         changeOrigin: true
       }
     }
