@@ -117,8 +117,9 @@ const main = async () => {
       const targetUw = targetDb.collection(USER_WORKSPACES_COLLECTION);
       const memberships = await sourceUw.find({ userId: email }).toArray();
       for (const m of memberships) {
+        const workspaceId = (m as unknown as { workspaceId: string }).workspaceId;
         const existing = await targetUw.findOne({
-          workspaceId: (m as { workspaceId: string }).workspaceId,
+          workspaceId,
           userId: email,
         });
         if (!existing) {
