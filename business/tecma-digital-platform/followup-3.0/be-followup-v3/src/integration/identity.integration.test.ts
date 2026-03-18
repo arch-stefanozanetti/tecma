@@ -1,14 +1,12 @@
 /**
  * Identity MDOO: invito, set-password, login, permessi GET /users.
- * Richiede MongoDB in-memory (stesso pattern degli altri integration test).
+ * Nessun import statico di moduli che leggono ENV prima del beforeAll.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import express from "express";
 import request from "supertest";
 import bcrypt from "bcryptjs";
 import { MongoMemoryServer } from "mongodb-memory-server";
-import { signAccessToken } from "../core/auth/token.service.js";
-import { resetEmailMockOutbox, getEmailMockOutbox } from "../core/email/email.service.js";
 
 describe("integration: identity (MDOO)", () => {
   let mongod: MongoMemoryServer;
@@ -20,11 +18,17 @@ describe("integration: identity (MDOO)", () => {
     process.env.MONGO_DB_NAME = "test-identity";
     process.env.EMAIL_TRANSPORT = "mock";
     process.env.AUTH_JWT_SECRET = "integration-identity-secret";
-    const { connectDb, getDb } = await import("../config/db.js");
+    const { disconnectDb, connectDb, getDb } = await import("../config/db.js");
+    await disconnectDb();
     await connectDb();
     const { ensureDefaultRoleDefinitions } = await import("../core/rbac/roleDefinitions.service.js");
     await ensureDefaultRoleDefinitions();
     const db = getDb();
+    await db.collection("tz_users").deleteMany({
+      email: {
+        $in: ["admin-identity@test.local", "invonly@test.local", "invited-flow@test.local"]
+      }
+    });
     const hash = await bcrypt.hash("AdminPass123", 12);
     await db.collection("tz_users").insertOne({
       email: "admin-identity@test.local",
@@ -36,12 +40,15 @@ describe("integration: identity (MDOO)", () => {
   }, 45_000);
 
   afterAll(async () => {
+    const { disconnectDb } = await import("../config/db.js");
+    await disconnectDb();
     await mongod?.stop();
   });
 
   it("invited user without password cannot login", async () => {
     const { loginWithCredentials } = await import("../core/auth/auth.service.js");
     const { getDb } = await import("../config/db.js");
+    await getDb().collection("tz_users").deleteOne({ email: "invonly@test.local" });
     await getDb().collection("tz_users").insertOne({
       email: "invonly@test.local",
       role: "agent",
@@ -53,7 +60,10 @@ describe("integration: identity (MDOO)", () => {
   });
 
   it("invite → set password → login works", async () => {
+    const { resetEmailMockOutbox, getEmailMockOutbox } = await import("../core/email/email.service.js");
+    const { getDb } = await import("../config/db.js");
     resetEmailMockOutbox();
+    await getDb().collection("tz_users").deleteOne({ email: "invited-flow@test.local" });
     const { inviteUser, setPasswordFromInvite } = await import("../core/users/users-mutations.service.js");
     const { loginWithCredentials } = await import("../core/auth/auth.service.js");
     await inviteUser({
@@ -77,6 +87,7 @@ describe("integration: identity (MDOO)", () => {
   });
 
   it("GET /v1/users returns 403 without users.read", async () => {
+    const { signAccessToken } = await import("../core/auth/token.service.js");
     const { v1Router } = await import("../routes/v1.js");
     const app = express();
     app.use(express.json());
@@ -94,6 +105,7 @@ describe("integration: identity (MDOO)", () => {
   });
 
   it("GET /v1/users returns 200 for admin JWT", async () => {
+    const { signAccessToken } = await import("../core/auth/token.service.js");
     const { v1Router } = await import("../routes/v1.js");
     const app = express();
     app.use(express.json());

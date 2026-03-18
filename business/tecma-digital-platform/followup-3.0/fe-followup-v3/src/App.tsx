@@ -28,6 +28,7 @@ import { ApprovalsPage } from "./core/ai/ApprovalsPage";
 import { RequestsPage } from "./core/requests/RequestsPage";
 import { WorkspacesPage } from "./core/workspaces/WorkspacesPage";
 import { UsersPage } from "./core/users/UsersPage";
+import { EmailFlowsPage } from "./core/settings/EmailFlowsPage";
 import { ProjectDetailPage } from "./core/projects/ProjectDetailPage";
 import { AuditLogPage } from "./core/audit/AuditLogPage";
 import { ReportsPage } from "./core/reports/ReportsPage";
@@ -60,6 +61,7 @@ type Section =
   | "workflowConfig"
   | "workspaces"
   | "users"
+  | "emailFlows"
   | "audit"
   | "reports"
   | "releases"
@@ -210,6 +212,10 @@ const renderSection = (
     );
   }
 
+  if (section === "emailFlows") {
+    return <EmailFlowsPage />;
+  }
+
   if (section === "productDiscovery") {
     return (
       <PageSimple title="Product Discovery" description="Feedback clienti, opportunità, iniziative e feature (solo admin).">
@@ -300,7 +306,7 @@ const renderSection = (
 const SECTIONS: Section[] = [
   "cockpit", "calendar", "clients", "apartments", "requests", "projects", "inbox", "customer360",
   "createApartment", "createApartmentHC", "editApartmentHC", "associateAptClient",
-  "completeFlow", "catalogHC", "templateConfig", "aiApprovals", "workflowConfig", "workspaces", "users", "audit", "reports", "releases", "integrations", "priceAvailability", "productDiscovery",
+  "completeFlow", "catalogHC", "templateConfig", "aiApprovals", "workflowConfig", "workspaces", "users", "emailFlows", "audit", "reports", "releases", "integrations", "priceAvailability", "productDiscovery",
 ];
 
 /** Path puliti per le sezioni principali; le altre restano ?section=X */
@@ -316,6 +322,7 @@ const SECTION_TO_PATH: Partial<Record<Section, string>> = {
   workflowConfig: "/workflow-config",
   workspaces: "/workspace",
   users: "/users",
+  emailFlows: "/email-flows",
   audit: "/audit",
   reports: "/reports",
   releases: "/releases",

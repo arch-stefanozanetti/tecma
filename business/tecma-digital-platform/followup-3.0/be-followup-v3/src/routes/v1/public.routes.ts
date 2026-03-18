@@ -14,7 +14,7 @@ import { exchangeCodeForTokens } from "../../core/connectors/outlook.service.js"
 import { openApiV1 } from "../../docs/openapi.js";
 import { HttpError } from "../../types/http.js";
 import { handleAsync, sendError } from "../asyncHandler.js";
-import { authRateLimiter, publicApiRateLimiter } from "../rateLimitMiddleware.js";
+import { authRateLimiter, publicApiRateLimiter, refreshRateLimiter } from "../rateLimitMiddleware.js";
 import { getClientIp } from "../requestMeta.js";
 
 const SWAGGER_UI_HTML = `<!DOCTYPE html>
@@ -67,7 +67,7 @@ publicRoutes.post("/auth/login", authRateLimiter, handleAsync((req) =>
   loginWithCredentials(req.body, authMeta(req))
 ));
 publicRoutes.post("/auth/sso-exchange", authRateLimiter, handleAsync((req) => exchangeSsoJwt(req.body)));
-publicRoutes.post("/auth/refresh", handleAsync((req) => refreshAccessToken(req.body)));
+publicRoutes.post("/auth/refresh", refreshRateLimiter, handleAsync((req) => refreshAccessToken(req.body)));
 publicRoutes.post("/auth/logout", (req, res) => {
   logoutWithRefreshToken(req.body, authMeta(req))
     .then(() => res.status(204).end())

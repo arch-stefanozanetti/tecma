@@ -1,4 +1,6 @@
 import type { Request, Response, RequestHandler } from "express";
+import { ZodError } from "zod";
+import { isProductionLike } from "../config/env.js";
 
 const statusCodeFromError = (error: unknown): number =>
   typeof error === "object" && error !== null && "statusCode" in error
@@ -14,17 +16,28 @@ const messageFromError = (error: unknown): string => {
 
 /**
  * Sends error response with status from error.statusCode (e.g. HttpError) or 400.
+ * In produzione/staging: messaggi generici per 5xx e Zod, dettagli solo in log.
  */
 export const sendError = (res: Response, error: unknown): void => {
-  const statusCode = statusCodeFromError(error);
-  const message = messageFromError(error);
+  const strict = isProductionLike();
+  let statusCode = statusCodeFromError(error);
+  let message = messageFromError(error);
+
+  if (error instanceof ZodError) {
+    statusCode = 400;
+    message = strict
+      ? "Richiesta non valida"
+      : error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join("; ") || "Validazione fallita";
+  } else if (strict && statusCode >= 500) {
+    // eslint-disable-next-line no-console
+    console.error("[api] errore server:", error);
+    message =
+      statusCode === 503 ? "Servizio temporaneamente non disponibile" : "Errore interno del server";
+  }
+
   res.status(statusCode).json({ error: message });
 };
 
-/**
- * Wraps an async handler: on success sends JSON body (if not undefined); on throw calls sendError.
- * Use for all routes that return a single JSON body and throw on validation/business errors.
- */
 export const handleAsync = (
   handler: (req: Request) => Promise<unknown>
 ): RequestHandler => {

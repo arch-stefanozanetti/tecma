@@ -9,6 +9,8 @@ export const PERMISSIONS = {
   APARTMENTS_UPDATE: "apartments.update",
   DEALS_CREATE: "deals.create",
   DEALS_CLOSE: "deals.close",
+  /** Template email transazionali (admin) */
+  EMAIL_FLOWS_MANAGE: "email_flows.manage",
   /** Wildcard: tutti i permessi */
   ALL: "*"
 } as const;

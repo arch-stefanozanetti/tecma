@@ -16,6 +16,7 @@ import {
   Layers,
   Link2,
   LogOut,
+  Mail,
   Menu,
   Plug,
   Settings,
@@ -53,6 +54,7 @@ type Section =
   | "workflowConfig"
   | "workspaces"
   | "users"
+  | "emailFlows"
   | "audit"
   | "reports"
   | "releases"
@@ -106,6 +108,7 @@ const navItems: NavItem[] = [
   { id: "workflowConfig", label: "Config. workflow", icon: GitBranch, adminOnly: true, compact: true, group: "admin" },
   { id: "workspaces", label: "Workspaces", icon: FolderKanban, adminOnly: true, compact: true, group: "admin" },
   { id: "users", label: "User", icon: UserCircle, adminOnly: true, compact: true, group: "admin" },
+  { id: "emailFlows", label: "Email", icon: Mail, adminOnly: true, compact: true, group: "admin" },
   { id: "productDiscovery", label: "Product Discovery", icon: Layers, adminOnly: true, compact: true, group: "admin" },
   { id: "reports", label: "Report", icon: BarChart2, compact: true, group: "tools" },
 ];

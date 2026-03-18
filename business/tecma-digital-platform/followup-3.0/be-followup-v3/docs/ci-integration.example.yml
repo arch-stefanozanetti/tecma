@@ -1,0 +1,28 @@
+# Copia in .github/workflows/ (repo root) e adatta i path se la root del monorepo differisce.
+# Job: npm ci + npm run test:integration in be-followup-v3 (Vitest + MongoMemoryServer).
+
+name: BE followup-v3 integration
+
+on:
+  push:
+    paths:
+      - "followup-3.0/be-followup-v3/**"
+  pull_request:
+    paths:
+      - "followup-3.0/be-followup-v3/**"
+
+jobs:
+  test-integration:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: followup-3.0/be-followup-v3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: followup-3.0/be-followup-v3/package-lock.json
+      - run: npm ci
+      - run: npm run test:integration

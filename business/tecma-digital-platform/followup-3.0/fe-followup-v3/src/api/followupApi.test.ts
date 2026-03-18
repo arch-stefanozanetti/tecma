@@ -105,6 +105,47 @@ describe("followupApi", () => {
     expect(http.getJson).toHaveBeenCalledWith("/workspaces");
   });
 
+  it("inviteUser posta su /users con appPublicUrl esplicito e body completo", async () => {
+    await followupApi.inviteUser({
+      email: "inv@tecma.test",
+      role: "vendor",
+      projectId: "proj-99",
+      projectName: "Nome progetto",
+      appPublicUrl: "https://followup.custom.example/",
+    });
+    expect(http.postJson).toHaveBeenCalledWith("/users", {
+      email: "inv@tecma.test",
+      role: "vendor",
+      projectId: "proj-99",
+      projectName: "Nome progetto",
+      appPublicUrl: "https://followup.custom.example/",
+    });
+  });
+
+  it("inviteUser include appPublicUrl da window.location.origin se omesso", async () => {
+    Object.defineProperty(window, "location", {
+      value: { ...window.location, origin: "https://fe-origin.test" },
+      writable: true,
+      configurable: true,
+    });
+    await followupApi.inviteUser({
+      email: "auto@url.test",
+      role: "agent",
+      projectId: "p",
+      projectName: "P",
+    });
+    expect(http.postJson).toHaveBeenCalledWith(
+      "/users",
+      expect.objectContaining({
+        email: "auto@url.test",
+        role: "agent",
+        projectId: "p",
+        projectName: "P",
+        appPublicUrl: "https://fe-origin.test",
+      })
+    );
+  });
+
   it("getWorkspaceById chiama getJson", async () => {
     await followupApi.getWorkspaceById("w1");
     expect(http.getJson).toHaveBeenCalledWith("/workspaces/w1");

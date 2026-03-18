@@ -10,10 +10,13 @@ import {
   deleteInviteTokensForUserId
 } from "../auth/inviteToken.service.js";
 import { isInviteEmailDeliverable, sendInviteEmail } from "../email/email.service.js";
-import { PERMISSIONS } from "../rbac/permissions.js";
-import { resolveEffectivePermissions } from "../rbac/roleDefinitions.service.js";
 import { signAccessToken, type AccessTokenPayload } from "../auth/token.service.js";
 import { createSession } from "../auth/refreshSession.service.js";
+import {
+  USER_COLLECTION_CANDIDATES,
+  buildAccessPayloadFromUserDoc,
+  toAuthSessionUser
+} from "../auth/userAccessPayload.js";
 
 const COLLECTION_USERS = "tz_users";
 
@@ -63,27 +66,14 @@ export function isInvitedWithoutPassword(doc: TzUserDoc): boolean {
 }
 
 export async function buildAccessPayloadForUser(doc: TzUserDoc): Promise<AccessTokenPayload> {
-  const role = (doc.role || "").toLowerCase() || null;
-  const perms = await resolveEffectivePermissions(role, doc.permissions_override);
-  const isAdmin = perms.includes(PERMISSIONS.ALL);
-  const projectId =
-    Array.isArray(doc.project_ids) && doc.project_ids.length > 0 ? String(doc.project_ids[0]) : null;
-  return {
-    sub: doc._id.toHexString(),
-    email: normalizeEmail(doc.email || ""),
-    role,
-    isAdmin,
-    permissions: perms,
-    projectId
-  };
+  return buildAccessPayloadFromUserDoc(doc, normalizeEmail(doc.email || ""));
 }
 
 async function emailExistsInAnyUserCollection(email: string): Promise<boolean> {
   const e = normalizeEmail(email);
   const regex = new RegExp(`^${e.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
-  const candidates = ["tz_users", "users", "Users", "user", "User", "backoffice_users"];
   const db = getDb();
-  for (const name of candidates) {
+  for (const name of USER_COLLECTION_CANDIDATES) {
     const exists = await db.listCollections({ name }, { nameOnly: true }).hasNext();
     if (!exists) continue;
     const hit = await db.collection(name).findOne({ email: { $regex: regex } });
@@ -188,14 +178,7 @@ export async function setPasswordFromInvite(
     accessToken,
     refreshToken,
     expiresIn: ENV.AUTH_JWT_EXPIRES_IN,
-    user: {
-      id: payload.sub,
-      email: payload.email,
-      role: payload.role,
-      isAdmin: payload.isAdmin,
-      permissions: payload.permissions,
-      projectId: payload.projectId
-    }
+    user: toAuthSessionUser(payload)
   };
 }
 

@@ -143,6 +143,47 @@ export const postJson = async <T>(path: string, body: unknown): Promise<T> =>
     body: JSON.stringify(body)
   });
 
+/** POST multipart (es. upload); non imposta Content-Type così il browser aggiunge boundary. */
+export const postFormData = async <T>(path: string, form: FormData): Promise<T> => {
+  const token = getAccessToken();
+  const headers = new Headers();
+  if (!isPublicAuthPath(path) && token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, { method: "POST", headers, body: form });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "network error";
+    throw new Error(`Impossibile raggiungere le API. Dettaglio: ${message}`);
+  }
+  if (response.status === 401 && !isPublicAuthPath(path) && getRefreshToken()) {
+    try {
+      const data = await callRefresh();
+      setTokens(data.accessToken, data.refreshToken);
+      const h2 = new Headers();
+      const t2 = getAccessToken();
+      if (t2) h2.set("Authorization", `Bearer ${t2}`);
+      response = await fetch(`${API_BASE_URL}${path}`, { method: "POST", headers: h2, body: form });
+    } catch {
+      redirectToLogin();
+      throw new Error("Sessione scaduta. Effettua di nuovo l'accesso.");
+    }
+  }
+  if (!response.ok) {
+    const text = await response.text();
+    let message = text || `Errore API HTTP ${response.status}`;
+    try {
+      const j = JSON.parse(text) as { error?: string };
+      if (typeof j?.error === "string" && j.error.length > 0) message = j.error;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(message);
+  }
+  return response.json() as Promise<T>;
+};
+
 export const putJson = async <T>(path: string, body: unknown): Promise<T> =>
   requestJson<T>(path, {
     method: "PUT",

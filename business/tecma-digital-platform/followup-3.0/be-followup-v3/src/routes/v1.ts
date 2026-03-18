@@ -1,4 +1,5 @@
 import { Router } from "express";
+import multer from "multer";
 import { z } from "zod";
 import { queryCalendarEvents, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from "../core/calendar/calendar.service.js";
 import { queryClients, createClient, updateClient, getClientById } from "../core/clients/clients.service.js";
@@ -155,6 +156,23 @@ import {
   remove as removeWebhookConfig,
 } from "../core/automations/webhook-configs.service.js";
 import { runReport } from "../core/reports/reports.service.js";
+import {
+  listEmailFlows,
+  getEmailFlow,
+  upsertEmailFlow,
+  previewEmailFlow,
+  previewEmailFlowFromLayout,
+} from "../core/email/emailFlows.service.js";
+import { emailLayoutSchema } from "../core/email/emailLayout.schema.js";
+import { uploadEmailFlowAsset } from "../core/email/emailFlowAssetUpload.service.js";
+import { getSuggestedEmailTemplate } from "../core/email/email.service.js";
+
+const EmailFlowKeySchema = z.enum(["user_invite", "password_reset", "email_verification"]);
+
+const emailFlowUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 }
+});
 
 export const v1Router = Router();
 
@@ -751,6 +769,114 @@ v1Router.delete("/users/:id", requirePermission(PERMISSIONS.USERS_DELETE), handl
   if (!ok) throw new HttpError("Eliminazione non riuscita", 500);
   return { ok: true };
 }));
+
+// ─── Email transazionali (admin) ──────────────────────────────────────────────
+v1Router.get(
+  "/admin/email-flows",
+  requirePermission(PERMISSIONS.EMAIL_FLOWS_MANAGE),
+  handleAsync(() => listEmailFlows())
+);
+
+v1Router.get(
+  "/admin/email-flows/:flowKey/suggested",
+  requirePermission(PERMISSIONS.EMAIL_FLOWS_MANAGE),
+  handleAsync(async (req) => {
+    const flowKey = EmailFlowKeySchema.parse(req.params.flowKey);
+    return getSuggestedEmailTemplate(flowKey);
+  })
+);
+
+v1Router.get(
+  "/admin/email-flows/:flowKey",
+  requirePermission(PERMISSIONS.EMAIL_FLOWS_MANAGE),
+  handleAsync(async (req) => {
+    const flowKey = EmailFlowKeySchema.parse(req.params.flowKey);
+    const item = await getEmailFlow(flowKey);
+    if (!item) throw new HttpError("Flusso non trovato", 404);
+    return item;
+  })
+);
+
+v1Router.put(
+  "/admin/email-flows/:flowKey",
+  requirePermission(PERMISSIONS.EMAIL_FLOWS_MANAGE),
+  handleAsync(async (req) => {
+    const flowKey = EmailFlowKeySchema.parse(req.params.flowKey);
+    const raw = req.body as Record<string, unknown>;
+    const enabled = z.boolean().parse(raw.enabled);
+    const subject = z.string().max(500).parse(raw.subject);
+    const editorMode =
+      raw.editorMode === "blocks" ? ("blocks" as const) : ("html" as const);
+    let payload:
+      | { editorMode: "html"; enabled: boolean; subject: string; bodyHtml: string }
+      | { editorMode: "blocks"; enabled: boolean; subject: string; layout: z.infer<typeof emailLayoutSchema> };
+    if (editorMode === "blocks") {
+      const layout = emailLayoutSchema.parse(raw.layout);
+      payload = { editorMode: "blocks", enabled, subject, layout };
+    } else {
+      const bodyHtml = z.string().max(200_000).parse(raw.bodyHtml ?? "");
+      payload = { editorMode: "html", enabled, subject, bodyHtml };
+    }
+    if (payload.enabled && !subject.trim()) {
+      throw new HttpError("Con template attivo serve un oggetto non vuoto", 400);
+    }
+    const updatedBy = req.user!.email || req.user!.sub;
+    let item;
+    try {
+      item = await upsertEmailFlow(flowKey, payload, updatedBy);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      throw new HttpError(msg, 400);
+    }
+    await writeAuditLog({
+      userId: req.user!.sub,
+      action: "email_flow.update",
+      entityType: "email_flow",
+      entityId: flowKey,
+      changes: { after: { enabled: payload.enabled, editorMode: payload.editorMode } },
+      projectId: req.user!.projectId
+    });
+    return item;
+  })
+);
+
+v1Router.post(
+  "/admin/email-flows/upload-asset",
+  requirePermission(PERMISSIONS.EMAIL_FLOWS_MANAGE),
+  emailFlowUpload.single("file"),
+  handleAsync(async (req) => {
+    const f = req.file;
+    if (!f?.buffer) throw new HttpError("Nessun file (campo: file)", 400);
+    try {
+      const url = await uploadEmailFlowAsset(f.buffer, f.mimetype);
+      return { url };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      throw new HttpError(msg, 400);
+    }
+  })
+);
+
+v1Router.post(
+  "/admin/email-flows/:flowKey/preview",
+  requirePermission(PERMISSIONS.EMAIL_FLOWS_MANAGE),
+  handleAsync(async (req) => {
+    const flowKey = EmailFlowKeySchema.parse(req.params.flowKey);
+    const body = z
+      .object({
+        subject: z.string(),
+        bodyHtml: z.string().optional(),
+        layout: emailLayoutSchema.optional(),
+        sampleVars: z.record(z.string()).optional()
+      })
+      .parse(req.body);
+    if (body.layout) {
+      return previewEmailFlowFromLayout(flowKey, body.subject, body.layout, body.sampleVars ?? {});
+    }
+    const html = body.bodyHtml ?? "";
+    return previewEmailFlow(flowKey, body.subject, html, body.sampleVars ?? {});
+  })
+);
 
 // ─── Workspaces ──────────────────────────────────────────────────────────────
 v1Router.get("/workspaces", handleAsync(async (req) => {

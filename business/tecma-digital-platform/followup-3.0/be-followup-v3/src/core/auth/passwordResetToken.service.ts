@@ -26,6 +26,7 @@ export function generatePasswordResetRawToken(): string {
 }
 
 export async function createPasswordResetToken(userId: string, email: string): Promise<string> {
+  await coll().deleteMany({ userId, used: false });
   const raw = generatePasswordResetRawToken();
   const expiresAt = new Date();
   expiresAt.setMinutes(expiresAt.getMinutes() + ENV.PASSWORD_RESET_TOKEN_EXPIRES_MINUTES);
@@ -43,12 +44,10 @@ export async function createPasswordResetToken(userId: string, email: string): P
 
 export async function consumePasswordResetToken(rawToken: string): Promise<PasswordResetTokenDoc | null> {
   const tokenHash = hashToken(rawToken);
-  const doc = await coll().findOne({
-    tokenHash,
-    used: false,
-    expiresAt: { $gt: new Date() }
-  });
-  if (!doc) return null;
-  await coll().updateOne({ _id: doc._id }, { $set: { used: true } });
+  const doc = await coll().findOneAndUpdate(
+    { tokenHash, used: false, expiresAt: { $gt: new Date() } },
+    { $set: { used: true } },
+    { returnDocument: "before" }
+  );
   return doc;
 }

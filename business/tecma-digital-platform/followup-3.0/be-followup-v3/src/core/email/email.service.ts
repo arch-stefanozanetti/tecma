@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
 import { ENV } from "../../config/env.js";
+import { resolveCustomEmail } from "./emailFlows.service.js";
 
 export type SentEmailRecord = {
   to: string;
@@ -72,7 +73,7 @@ export function getEmailMockOutbox(): readonly SentEmailRecord[] {
   return mockOutbox;
 }
 
-function escapeHtml(s: string): string {
+export function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -90,6 +91,16 @@ export async function sendInviteEmail(params: {
 }): Promise<void> {
   const base = params.appPublicBaseUrl.replace(/\/$/, "");
   const link = `${base}/set-password?token=${encodeURIComponent(params.token)}`;
+  const vars = {
+    inviteLink: link,
+    roleLabel: escapeHtml(params.roleLabel),
+    projectName: escapeHtml(params.projectName)
+  }; /* link non escapato per href; testi escapati */
+  const custom = await resolveCustomEmail("user_invite", vars);
+  if (custom) {
+    await sendHtml(params.to, custom.subject, custom.html, "invite");
+    return;
+  }
   const html = `
 <!DOCTYPE html>
 <html><body style="font-family: system-ui, sans-serif; max-width: 560px;">
@@ -103,6 +114,12 @@ export async function sendInviteEmail(params: {
 
 export async function sendPasswordResetEmail(params: { to: string; token: string }): Promise<void> {
   const link = `${ENV.APP_PUBLIC_URL.replace(/\/$/, "")}/reset-password?token=${encodeURIComponent(params.token)}`;
+  const vars = { resetLink: link };
+  const custom = await resolveCustomEmail("password_reset", vars);
+  if (custom) {
+    await sendHtml(params.to, custom.subject, custom.html, "password_reset");
+    return;
+  }
   const html = `
 <!DOCTYPE html>
 <html><body style="font-family: system-ui, sans-serif; max-width: 560px;">
@@ -116,6 +133,15 @@ export async function sendPasswordResetEmail(params: { to: string; token: string
 
 export async function sendEmailVerificationEmail(params: { to: string; token: string; projectName: string }): Promise<void> {
   const link = `${ENV.APP_PUBLIC_URL.replace(/\/$/, "")}/verify-email?token=${encodeURIComponent(params.token)}`;
+  const vars = {
+    verifyLink: link,
+    projectName: escapeHtml(params.projectName)
+  };
+  const custom = await resolveCustomEmail("email_verification", vars);
+  if (custom) {
+    await sendHtml(params.to, custom.subject, custom.html, "email_verification");
+    return;
+  }
   const html = `
 <!DOCTYPE html>
 <html><body style="font-family: system-ui, sans-serif; max-width: 560px;">
@@ -124,4 +150,45 @@ export async function sendEmailVerificationEmail(params: { to: string; token: st
   <p><a href="${escapeHtml(link)}">Verifica email</a></p>
 </body></html>`;
   await sendHtml(params.to, "Verifica email Followup", html, "email_verification");
+}
+
+/** Template suggerito (placeholder) per UI admin / documentazione */
+export function getSuggestedEmailTemplate(flowKey: "user_invite" | "password_reset" | "email_verification"): {
+  subject: string;
+  bodyHtml: string;
+} {
+  switch (flowKey) {
+    case "user_invite":
+      return {
+        subject: "Invito Followup — {{projectName}}",
+        bodyHtml: `<!DOCTYPE html>
+<html><body style="font-family: system-ui, sans-serif; max-width: 560px;">
+  <h1>Invito a Followup</h1>
+  <p>Sei stato invitato come <strong>{{roleLabel}}</strong> sul progetto <strong>{{projectName}}</strong>.</p>
+  <p><a href="{{inviteLink}}" style="display:inline-block;padding:12px 24px;background:#1a1a2e;color:#fff;text-decoration:none;border-radius:8px;">Imposta la password</a></p>
+  <p style="color:#666;font-size:14px;">Se non ti aspettavi questa email, ignoralo.</p>
+</body></html>`
+      };
+    case "password_reset":
+      return {
+        subject: "Reimposta password Followup",
+        bodyHtml: `<!DOCTYPE html>
+<html><body style="font-family: system-ui, sans-serif; max-width: 560px;">
+  <h1>Reimposta password</h1>
+  <p>Hai richiesto il reset della password. Clicca il link qui sotto.</p>
+  <p><a href="{{resetLink}}" style="display:inline-block;padding:12px 24px;background:#1a1a2e;color:#fff;text-decoration:none;border-radius:8px;">Reimposta password</a></p>
+  <p style="color:#666;font-size:14px;">Se non hai richiesto il reset, ignora questa email.</p>
+</body></html>`
+      };
+    case "email_verification":
+      return {
+        subject: "Verifica email Followup",
+        bodyHtml: `<!DOCTYPE html>
+<html><body style="font-family: system-ui, sans-serif; max-width: 560px;">
+  <h1>Verifica email</h1>
+  <p>Conferma il tuo indirizzo per <strong>{{projectName}}</strong>.</p>
+  <p><a href="{{verifyLink}}">Verifica email</a></p>
+</body></html>`
+      };
+  }
 }

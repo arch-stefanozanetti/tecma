@@ -9,7 +9,10 @@ export interface AuthSessionDoc {
   _id: import("mongodb").ObjectId;
   userId: string;
   email?: string;
-  token: string;
+  /** SHA-256 hex del refresh token opaco */
+  tokenHash: string;
+  /** @deprecated sessioni legacy prima dell’hash-at-rest */
+  token?: string;
   expiresAt: Date;
   createdAt: Date;
   revoked?: boolean;
@@ -21,58 +24,51 @@ function now(): Date {
   return new Date();
 }
 
-function expiresAt(): Date {
+function expiresAtDate(): Date {
   const d = new Date();
   d.setDate(d.getDate() + ENV.AUTH_REFRESH_EXPIRES_DAYS);
   return d;
 }
 
-/**
- * Generate a secure opaque refresh token (64 hex chars).
- */
+function hashRefreshToken(raw: string): string {
+  return crypto.createHash("sha256").update(raw, "utf8").digest("hex");
+}
+
 export function generateRefreshToken(): string {
   return crypto.randomBytes(32).toString("hex");
 }
 
-/**
- * Create a new refresh session for the user. Returns the opaque token (store this, not a hash).
- */
 export async function createSession(userId: string, email?: string): Promise<string> {
   const token = generateRefreshToken();
+  const tokenHash = hashRefreshToken(token);
   const doc: OptionalId<AuthSessionDoc> = {
     userId,
     email,
-    token,
-    expiresAt: expiresAt(),
+    tokenHash,
+    expiresAt: expiresAtDate(),
     createdAt: now()
   };
   await getCollection().insertOne(doc as AuthSessionDoc);
   return token;
 }
 
-/**
- * Find session by token. Returns null if not found or expired.
- */
 export async function getSession(token: string): Promise<AuthSessionDoc | null> {
-  const session = await getCollection().findOne({
-    token,
+  const h = hashRefreshToken(token);
+  return getCollection().findOne({
     expiresAt: { $gt: now() },
-    $or: [{ revoked: { $exists: false } }, { revoked: false }]
+    $or: [{ tokenHash: h }, { token }],
+    revoked: { $ne: true }
   });
-  return session;
 }
 
-/**
- * Delete a single session by token.
- */
 export async function deleteSession(token: string): Promise<boolean> {
-  const result = await getCollection().deleteOne({ token });
+  const h = hashRefreshToken(token);
+  const result = await getCollection().deleteMany({
+    $or: [{ tokenHash: h }, { token }]
+  });
   return (result.deletedCount ?? 0) > 0;
 }
 
-/**
- * Delete all sessions for a user (e.g. on password change or security event).
- */
 export async function deleteSessionsByUser(userId: string): Promise<number> {
   const result = await getCollection().deleteMany({ userId });
   return result.deletedCount ?? 0;

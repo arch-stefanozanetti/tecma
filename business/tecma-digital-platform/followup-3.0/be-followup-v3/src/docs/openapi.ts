@@ -336,6 +336,80 @@ export const openApiV1 = {
         responses: { "200": {}, "404": {} }
       }
     },
+    "/admin/email-flows": {
+      get: {
+        tags: ["admin"],
+        operationId: "listEmailFlows",
+        summary: "Template email transazionali (email_flows.manage)",
+        security: [{ bearerAuth: [] }],
+        responses: { "200": { description: "Lista flussi" }, "403": {} }
+      }
+    },
+    "/admin/email-flows/{flowKey}": {
+      parameters: [{ name: "flowKey", in: "path", required: true, schema: { type: "string" } }],
+      get: {
+        tags: ["admin"],
+        operationId: "getEmailFlow",
+        summary: "Dettaglio flusso email",
+        security: [{ bearerAuth: [] }],
+        responses: { "200": {}, "403": {}, "404": {} }
+      },
+      put: {
+        tags: ["admin"],
+        operationId: "putEmailFlow",
+        summary: "Salva template (enabled, subject, bodyHtml)",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["enabled", "subject", "bodyHtml"],
+                properties: {
+                  enabled: { type: "boolean" },
+                  subject: { type: "string" },
+                  bodyHtml: { type: "string" }
+                }
+              }
+            }
+          }
+        },
+        responses: { "200": {}, "400": {}, "403": {} }
+      }
+    },
+    "/admin/email-flows/{flowKey}/suggested": {
+      parameters: [{ name: "flowKey", in: "path", required: true, schema: { type: "string" } }],
+      get: {
+        tags: ["admin"],
+        summary: "Template HTML suggerito con placeholder",
+        security: [{ bearerAuth: [] }],
+        responses: { "200": {}, "403": {} }
+      }
+    },
+    "/admin/email-flows/{flowKey}/preview": {
+      parameters: [{ name: "flowKey", in: "path", required: true, schema: { type: "string" } }],
+      post: {
+        tags: ["admin"],
+        summary: "Anteprima con variabili di esempio",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["subject", "bodyHtml"],
+                properties: {
+                  subject: { type: "string" },
+                  bodyHtml: { type: "string" },
+                  sampleVars: { type: "object", additionalProperties: { type: "string" } }
+                }
+              }
+            }
+          }
+        },
+        responses: { "200": {}, "403": {} }
+      }
+    },
     "/session/projects-by-email": {
       post: {
         tags: ["session"],

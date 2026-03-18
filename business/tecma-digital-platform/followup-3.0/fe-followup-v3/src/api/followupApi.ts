@@ -1,4 +1,14 @@
-import { deleteJson, getJson, getAccessToken, API_BASE_URL, patchJson, postJson, putJson, setTokens } from "./http";
+import {
+  deleteJson,
+  getJson,
+  getAccessToken,
+  API_BASE_URL,
+  patchJson,
+  postJson,
+  postFormData,
+  putJson,
+  setTokens
+} from "./http";
 import type {
   AdditionalInfoCreateInput,
   AdditionalInfoRow,
@@ -323,6 +333,91 @@ export const followupApi = {
     }>("/audit/query", query),
   // Workspaces (tz_workspaces)
   listUsersWithVisibility: () => getJson<{ users: UserWithVisibilityRow[] }>("/users"),
+  listEmailFlows: () =>
+    getJson<
+      Array<{
+        flowKey: string;
+        label: string;
+        description: string;
+        placeholders: string[];
+        enabled: boolean;
+        subject: string;
+        bodyHtml: string;
+        hasCustomTemplate: boolean;
+        editorMode: "html" | "blocks";
+        layout: {
+          logoUrl: string;
+          primaryColor: string;
+          blocks: Array<
+            | { type: "heading"; text: string }
+            | { type: "text"; text: string }
+            | { type: "button"; label: string; href: string }
+            | { type: "image"; src: string; alt: string }
+          >;
+        } | null;
+        updatedAt: string | null;
+        updatedBy: string | null;
+      }>
+    >("/admin/email-flows"),
+  getEmailFlowSuggested: (flowKey: string) =>
+    getJson<{ subject: string; bodyHtml: string }>(`/admin/email-flows/${flowKey}/suggested`),
+  updateEmailFlow: (
+    flowKey: string,
+    body:
+      | { editorMode: "html"; enabled: boolean; subject: string; bodyHtml: string }
+      | {
+          editorMode: "blocks";
+          enabled: boolean;
+          subject: string;
+          layout: {
+            logoUrl: string;
+            primaryColor: string;
+            blocks: Array<
+              | { type: "heading"; text: string }
+              | { type: "text"; text: string }
+              | { type: "button"; label: string; href: string }
+              | { type: "image"; src: string; alt: string }
+            >;
+          };
+        }
+  ) =>
+    putJson<{
+      flowKey: string;
+      label: string;
+      description: string;
+      placeholders: string[];
+      enabled: boolean;
+      subject: string;
+      bodyHtml: string;
+      hasCustomTemplate: boolean;
+      editorMode: "html" | "blocks";
+      layout: unknown;
+      updatedAt: string | null;
+      updatedBy: string | null;
+    }>(`/admin/email-flows/${flowKey}`, body),
+  uploadEmailFlowAsset: (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return postFormData<{ url: string }>("/admin/email-flows/upload-asset", fd);
+  },
+  previewEmailFlow: (
+    flowKey: string,
+    body: {
+      subject: string;
+      bodyHtml?: string;
+      layout?: {
+        logoUrl: string;
+        primaryColor: string;
+        blocks: Array<
+          | { type: "heading"; text: string }
+          | { type: "text"; text: string }
+          | { type: "button"; label: string; href: string }
+          | { type: "image"; src: string; alt: string }
+        >;
+      };
+      sampleVars?: Record<string, string>;
+    }
+  ) => postJson<{ subject: string; html: string }>(`/admin/email-flows/${flowKey}/preview`, body),
   /** Invito MDOO: crea utente invited + email set-password; richiede permesso users.invite. */
   inviteUser: (body: {
     email: string;

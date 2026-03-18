@@ -56,12 +56,10 @@ export async function deleteInviteTokensForUserId(userId: string): Promise<void>
 
 export async function consumeInviteToken(rawToken: string): Promise<InviteTokenDoc | null> {
   const tokenHash = hashToken(rawToken);
-  const doc = await coll().findOne({
-    tokenHash,
-    used: false,
-    expiresAt: { $gt: new Date() }
-  });
-  if (!doc) return null;
-  await coll().updateOne({ _id: doc._id }, { $set: { used: true } });
+  const doc = await coll().findOneAndUpdate(
+    { tokenHash, used: false, expiresAt: { $gt: new Date() } },
+    { $set: { used: true } },
+    { returnDocument: "before" }
+  );
   return doc;
 }
