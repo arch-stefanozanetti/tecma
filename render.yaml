@@ -31,7 +31,8 @@ services:
     name: followup-3-fe
     runtime: static
     rootDir: business/tecma-digital-platform/followup-3.0/fe-followup-v3
-    buildCommand: npm ci && npm run build
+    # npm install (non ci): npm ci + bug optional omette @rollup/rollup-linux-x64-gnu su Render.
+    buildCommand: npm install --no-audit --no-fund && npm run build
     staticPublishPath: business/tecma-digital-platform/followup-3.0/fe-followup-v3/dist
     routes:
       - type: rewrite
