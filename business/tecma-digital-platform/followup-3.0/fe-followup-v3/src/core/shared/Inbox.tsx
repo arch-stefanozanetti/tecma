@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bell } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../../components/ui/sheet";
+import { SidePanel, SidePanelBody, SidePanelContent, SidePanelHeader, SidePanelTitle } from "../../components/ui/side-panel";
 import { Button } from "../../components/ui/button";
 import { followupApi } from "../../api/followupApi";
 import type { NotificationRow } from "../../types/domain";
@@ -122,12 +122,12 @@ export function Inbox({ workspaceId, onSectionChange, navigate }: InboxProps) {
           </span>
         )}
       </button>
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="flex w-full flex-col sm:max-w-md">
-          <SheetHeader>
-            <SheetTitle>Inbox</SheetTitle>
-          </SheetHeader>
-          <div className="flex-1 overflow-y-auto py-4">
+      <SidePanel variant="preview" open={open} onOpenChange={setOpen}>
+        <SidePanelContent side="right" size="md" className="flex w-full flex-col">
+          <SidePanelHeader>
+            <SidePanelTitle>Inbox</SidePanelTitle>
+          </SidePanelHeader>
+          <SidePanelBody className="py-4">
             {loading && (
               <p className="text-center text-sm text-muted-foreground">Caricamento...</p>
             )}
@@ -154,16 +154,16 @@ export function Inbox({ workspaceId, onSectionChange, navigate }: InboxProps) {
                   <span className="text-xs text-muted-foreground">{formatNotificationDate(n.createdAt)}</span>
                 </button>
               ))}
-          </div>
+          </SidePanelBody>
           {!loading && notifications.some((n) => !n.read) && (
-            <div className="border-t border-border pt-3">
+            <div className="border-t border-border px-6 py-4">
               <Button variant="outline" size="sm" className="w-full" onClick={handleMarkAllRead}>
                 Segna tutti come letti
               </Button>
             </div>
           )}
-        </SheetContent>
-      </Sheet>
+        </SidePanelContent>
+      </SidePanel>
     </>
   );
 }

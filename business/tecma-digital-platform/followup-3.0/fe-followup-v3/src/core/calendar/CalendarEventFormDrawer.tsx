@@ -4,14 +4,14 @@ import { followupApi } from "../../api/followupApi";
 import type { CalendarEvent } from "../../types/domain";
 import { Button } from "../../components/ui/button";
 import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerBody,
-  DrawerFooter,
-  DrawerCloseButton,
-} from "../../components/ui/drawer";
+  SidePanel,
+  SidePanelBody,
+  SidePanelClose,
+  SidePanelContent,
+  SidePanelFooter,
+  SidePanelHeader,
+  SidePanelTitle,
+} from "../../components/ui/side-panel";
 import { Input } from "../../components/ui/input";
 import {
   Select,
@@ -179,13 +179,13 @@ export const CalendarEventFormDrawer = ({
     drawerTitle ?? (mode === "edit" ? "Modifica evento" : "Nuovo evento");
 
   return (
-    <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
-      <DrawerContent side="right" className="sm:max-w-md">
-        <DrawerHeader actions={<DrawerCloseButton />}>
-          <DrawerTitle>{titleLabel}</DrawerTitle>
-        </DrawerHeader>
+    <SidePanel variant="operational" open={open} onOpenChange={(o) => !o && onClose()}>
+      <SidePanelContent side="right" size="md">
+        <SidePanelHeader actions={<SidePanelClose />}>
+          <SidePanelTitle>{titleLabel}</SidePanelTitle>
+        </SidePanelHeader>
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-          <DrawerBody className="space-y-4">
+          <SidePanelBody className="space-y-4">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">Titolo *</label>
               <Input
@@ -292,17 +292,17 @@ export const CalendarEventFormDrawer = ({
               <p className="text-sm text-amber-600">{noScopeMessage}</p>
             )}
             {formError && <p className="text-sm text-destructive">{formError}</p>}
-          </DrawerBody>
-          <DrawerFooter>
+          </SidePanelBody>
+          <SidePanelFooter>
             <Button type="button" variant="outline" onClick={onClose}>
               Annulla
             </Button>
             <Button type="submit" disabled={saving || (mode === "create" && !canCreate)}>
               {saving ? "Salvataggio..." : mode === "edit" ? "Salva" : "Crea"}
             </Button>
-          </DrawerFooter>
+          </SidePanelFooter>
         </form>
-      </DrawerContent>
-    </Drawer>
+      </SidePanelContent>
+    </SidePanel>
   );
 };

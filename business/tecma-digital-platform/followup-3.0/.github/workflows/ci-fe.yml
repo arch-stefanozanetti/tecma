@@ -1,0 +1,35 @@
+name: CI FE Core Strict
+
+on:
+  push:
+    paths:
+      - "fe-followup-v3/**"
+      - ".github/workflows/ci-fe.yml"
+  pull_request:
+    paths:
+      - "fe-followup-v3/**"
+      - ".github/workflows/ci-fe.yml"
+
+jobs:
+  fe-core-strict:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: fe-followup-v3
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run check:panels
+      - run: pnpm run test:panels
+      - run: pnpm run test:lint:core
+      - run: pnpm run build
+      - run: pnpm run test:coverage:core

@@ -31,6 +31,7 @@ export * from "./scroll-area";
 export * from "./select";
 export * from "./separator";
 export * from "./sheet";
+export * from "./side-panel";
 export * from "./sidebar-menu";
 export * from "./slider";
 export * from "./snackbar";

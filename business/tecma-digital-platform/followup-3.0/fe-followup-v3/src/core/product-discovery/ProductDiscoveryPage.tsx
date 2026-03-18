@@ -21,11 +21,14 @@ import {
   TableRow,
 } from "../../components/ui/table";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "../../components/ui/sheet";
+  SidePanel,
+  SidePanelBody,
+  SidePanelClose,
+  SidePanelContent,
+  SidePanelFooter,
+  SidePanelHeader,
+  SidePanelTitle,
+} from "../../components/ui/side-panel";
 import { Input } from "../../components/ui/input";
 import {
   Select,
@@ -566,12 +569,12 @@ export const ProductDiscoveryPage = () => {
       </Tabs>
 
       {/* Sheet: Nuovo feedback cliente */}
-      <Sheet open={newNeedOpen} onOpenChange={setNewNeedOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-md">
-          <SheetHeader>
-            <SheetTitle>Nuovo feedback cliente</SheetTitle>
-          </SheetHeader>
-          <div className="mt-6 space-y-4">
+      <SidePanel variant="operational" open={newNeedOpen} onOpenChange={setNewNeedOpen}>
+        <SidePanelContent side="right" size="md">
+          <SidePanelHeader actions={<SidePanelClose />}>
+            <SidePanelTitle>Nuovo feedback cliente</SidePanelTitle>
+          </SidePanelHeader>
+          <SidePanelBody className="space-y-4">
             <div>
               <label className="mb-1 block text-sm font-medium">Problema osservato *</label>
               <Input
@@ -694,26 +697,28 @@ export const ProductDiscoveryPage = () => {
                 placeholder="Come risolvono oggi"
               />
             </div>
+          </SidePanelBody>
+          <SidePanelFooter>
+            <Button variant="outline" onClick={() => setNewNeedOpen(false)}>
+              Annulla
+            </Button>
             <Button
-              className="w-full"
               onClick={handleCreateNeed}
-              disabled={
-                newNeedSaving || !newNeedForm.title.trim() || !newNeedForm.problem.trim()
-              }
+              disabled={newNeedSaving || !newNeedForm.title.trim() || !newNeedForm.problem.trim()}
             >
               {newNeedSaving ? "Salvataggio…" : "Salva feedback"}
             </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
+          </SidePanelFooter>
+        </SidePanelContent>
+      </SidePanel>
 
       {/* Sheet: Nuova opportunity */}
-      <Sheet open={newOpportunityOpen} onOpenChange={setNewOpportunityOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-md">
-          <SheetHeader>
-            <SheetTitle>Nuova opportunity</SheetTitle>
-          </SheetHeader>
-          <div className="mt-6 space-y-4">
+      <SidePanel variant="operational" open={newOpportunityOpen} onOpenChange={setNewOpportunityOpen}>
+        <SidePanelContent side="right" size="md">
+          <SidePanelHeader actions={<SidePanelClose />}>
+            <SidePanelTitle>Nuova opportunity</SidePanelTitle>
+          </SidePanelHeader>
+          <SidePanelBody className="space-y-4">
             <div>
               <label className="mb-1 block text-sm font-medium">Titolo *</label>
               <Input
@@ -757,24 +762,25 @@ export const ProductDiscoveryPage = () => {
                 </SelectContent>
               </Select>
             </div>
-            <Button
-              className="w-full"
-              onClick={handleCreateOpportunity}
-              disabled={newOpportunitySaving || !newOpportunityForm.title.trim()}
-            >
+          </SidePanelBody>
+          <SidePanelFooter>
+            <Button variant="outline" onClick={() => setNewOpportunityOpen(false)}>
+              Annulla
+            </Button>
+            <Button onClick={handleCreateOpportunity} disabled={newOpportunitySaving || !newOpportunityForm.title.trim()}>
               {newOpportunitySaving ? "Salvataggio…" : "Crea opportunity"}
             </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
+          </SidePanelFooter>
+        </SidePanelContent>
+      </SidePanel>
 
       {/* Sheet: Nuova initiative */}
-      <Sheet open={newInitiativeOpen} onOpenChange={setNewInitiativeOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-md">
-          <SheetHeader>
-            <SheetTitle>Nuova initiative</SheetTitle>
-          </SheetHeader>
-          <div className="mt-6 space-y-4">
+      <SidePanel variant="operational" open={newInitiativeOpen} onOpenChange={setNewInitiativeOpen}>
+        <SidePanelContent side="right" size="md">
+          <SidePanelHeader actions={<SidePanelClose />}>
+            <SidePanelTitle>Nuova initiative</SidePanelTitle>
+          </SidePanelHeader>
+          <SidePanelBody className="space-y-4">
             <div>
               <label className="mb-1 block text-sm font-medium">Titolo *</label>
               <Input
@@ -855,24 +861,25 @@ export const ProductDiscoveryPage = () => {
                 placeholder="Es. 9"
               />
             </div>
-            <Button
-              className="w-full"
-              onClick={handleCreateInitiative}
-              disabled={newInitiativeSaving || !newInitiativeForm.title.trim()}
-            >
+          </SidePanelBody>
+          <SidePanelFooter>
+            <Button variant="outline" onClick={() => setNewInitiativeOpen(false)}>
+              Annulla
+            </Button>
+            <Button onClick={handleCreateInitiative} disabled={newInitiativeSaving || !newInitiativeForm.title.trim()}>
               {newInitiativeSaving ? "Salvataggio…" : "Crea initiative"}
             </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
+          </SidePanelFooter>
+        </SidePanelContent>
+      </SidePanel>
 
       {/* Sheet: Nuova feature */}
-      <Sheet open={newFeatureOpen} onOpenChange={setNewFeatureOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-md">
-          <SheetHeader>
-            <SheetTitle>Nuova feature</SheetTitle>
-          </SheetHeader>
-          <div className="mt-6 space-y-4">
+      <SidePanel variant="operational" open={newFeatureOpen} onOpenChange={setNewFeatureOpen}>
+        <SidePanelContent side="right" size="md">
+          <SidePanelHeader actions={<SidePanelClose />}>
+            <SidePanelTitle>Nuova feature</SidePanelTitle>
+          </SidePanelHeader>
+          <SidePanelBody className="space-y-4">
             <div>
               <label className="mb-1 block text-sm font-medium">Titolo *</label>
               <Input
@@ -926,26 +933,27 @@ export const ProductDiscoveryPage = () => {
                 </SelectContent>
               </Select>
             </div>
-            <Button
-              className="w-full"
-              onClick={handleCreateFeature}
-              disabled={newFeatureSaving || !newFeatureForm.title.trim()}
-            >
+          </SidePanelBody>
+          <SidePanelFooter>
+            <Button variant="outline" onClick={() => setNewFeatureOpen(false)}>
+              Annulla
+            </Button>
+            <Button onClick={handleCreateFeature} disabled={newFeatureSaving || !newFeatureForm.title.trim()}>
               {newFeatureSaving ? "Salvataggio…" : "Crea feature"}
             </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
+          </SidePanelFooter>
+        </SidePanelContent>
+      </SidePanel>
 
       {/* Sheet: Dettaglio Customer Need */}
-      <Sheet open={!!selectedNeed} onOpenChange={(open) => !open && setSelectedNeed(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-lg">
+      <SidePanel variant="operational" open={!!selectedNeed} onOpenChange={(open) => !open && setSelectedNeed(null)}>
+        <SidePanelContent side="right" size="lg">
           {selectedNeed && (
             <>
-              <SheetHeader>
-                <SheetTitle>Feedback cliente</SheetTitle>
-              </SheetHeader>
-              <div className="mt-6 space-y-3 text-sm">
+              <SidePanelHeader actions={<SidePanelClose />}>
+                <SidePanelTitle>Feedback cliente</SidePanelTitle>
+              </SidePanelHeader>
+              <SidePanelBody className="space-y-3 text-sm">
                 <p><span className="font-medium">Problema:</span> {selectedNeed.title || selectedNeed.problem}</p>
                 <p><span className="font-medium">Cliente:</span> {selectedNeed.customer_name ?? "—"}</p>
                 <p><span className="font-medium">Segmento:</span> {selectedNeed.customer_segment ?? "—"}</p>
@@ -962,24 +970,29 @@ export const ProductDiscoveryPage = () => {
                     {opportunityById(selectedNeed.opportunity_id)?.title ?? selectedNeed.opportunity_id}
                   </p>
                 )}
-              </div>
+              </SidePanelBody>
+              <SidePanelFooter>
+                <Button variant="outline" onClick={() => setSelectedNeed(null)}>
+                  Chiudi
+                </Button>
+              </SidePanelFooter>
             </>
           )}
-        </SheetContent>
-      </Sheet>
+        </SidePanelContent>
+      </SidePanel>
 
       {/* Sheet: Dettaglio Opportunity */}
-      <Sheet
+      <SidePanel variant="operational"
         open={!!selectedOpportunity}
         onOpenChange={(open) => !open && setSelectedOpportunity(null)}
       >
-        <SheetContent side="right" className="w-full sm:max-w-lg">
+        <SidePanelContent side="right" size="lg">
           {selectedOpportunity && (
             <>
-              <SheetHeader>
-                <SheetTitle>{selectedOpportunity.title}</SheetTitle>
-              </SheetHeader>
-              <div className="mt-6 space-y-3 text-sm">
+              <SidePanelHeader actions={<SidePanelClose />}>
+                <SidePanelTitle>{selectedOpportunity.title}</SidePanelTitle>
+              </SidePanelHeader>
+              <SidePanelBody className="space-y-3 text-sm">
                 <p><span className="font-medium">Problema:</span> {selectedOpportunity.problem_statement ?? "—"}</p>
                 <p><span className="font-medium">Feedback collegati:</span> {selectedOpportunity.feedback_count}</p>
                 <p><span className="font-medium">Impatto:</span> {selectedOpportunity.impact_score ?? "—"}</p>
@@ -989,8 +1002,8 @@ export const ProductDiscoveryPage = () => {
                     {initiativeById(selectedOpportunity.initiative_id)?.title ?? selectedOpportunity.initiative_id}
                   </p>
                 )}
-              </div>
-              <div className="mt-4">
+              </SidePanelBody>
+              <SidePanelBody className="pt-0">
                 <p className="mb-2 font-medium">Feedback in questa opportunity</p>
                 <ul className="list-inside list-disc space-y-1 text-sm">
                   {needs
@@ -999,14 +1012,19 @@ export const ProductDiscoveryPage = () => {
                       <li key={n._id}>{n.title || n.problem}</li>
                     ))}
                 </ul>
-              </div>
+              </SidePanelBody>
+              <SidePanelFooter>
+                <Button variant="outline" onClick={() => setSelectedOpportunity(null)}>
+                  Chiudi
+                </Button>
+              </SidePanelFooter>
             </>
           )}
-        </SheetContent>
-      </Sheet>
+        </SidePanelContent>
+      </SidePanel>
 
       {/* Sheet: Dettaglio Initiative */}
-      <Sheet
+      <SidePanel variant="operational"
         open={!!selectedInitiative}
         onOpenChange={(open) => {
           if (!open) {
@@ -1016,13 +1034,13 @@ export const ProductDiscoveryPage = () => {
           }
         }}
       >
-        <SheetContent side="right" className="w-full sm:max-w-lg">
+        <SidePanelContent side="right" size="lg">
           {selectedInitiative && (
             <>
-              <SheetHeader>
-                <SheetTitle>{selectedInitiative.title}</SheetTitle>
-              </SheetHeader>
-              <div className="mt-6 space-y-3 text-sm">
+              <SidePanelHeader actions={<SidePanelClose />}>
+                <SidePanelTitle>{selectedInitiative.title}</SidePanelTitle>
+              </SidePanelHeader>
+              <SidePanelBody className="space-y-3 text-sm">
                 <p><span className="font-medium">Descrizione:</span> {selectedInitiative.description ?? "—"}</p>
                 <p><span className="font-medium">Area:</span> {selectedInitiative.product_area ?? "—"}</p>
                 <p><span className="font-medium">ROI Score:</span> {selectedInitiative.roi_score ?? "—"} (Impact / Effort)</p>
@@ -1030,8 +1048,8 @@ export const ProductDiscoveryPage = () => {
                 <p><span className="font-medium">Estimated business impact:</span> {selectedInitiative.estimated_business_impact ?? "—"}</p>
                 <p><span className="font-medium">Priority:</span> {selectedInitiative.priority ?? "—"}</p>
                 <p><span className="font-medium">Status:</span> {selectedInitiative.status ?? "—"}</p>
-              </div>
-              <div className="mt-4 space-y-2">
+              </SidePanelBody>
+              <SidePanelBody className="space-y-2 pt-0">
                 <p className="font-medium">Aggiorna Effort / Impact (per ROI)</p>
                 <div className="flex gap-2">
                   <Input
@@ -1077,8 +1095,8 @@ export const ProductDiscoveryPage = () => {
                 >
                   {initiativeSaving ? "Salvataggio…" : "Salva Effort/Impact"}
                 </Button>
-              </div>
-              <div className="mt-4">
+              </SidePanelBody>
+              <SidePanelBody className="pt-0">
                 <p className="mb-2 font-medium">Opportunities collegate</p>
                 <ul className="list-inside list-disc space-y-1 text-sm">
                   {opportunities
@@ -1087,24 +1105,29 @@ export const ProductDiscoveryPage = () => {
                       <li key={o._id}>{o.title}</li>
                     ))}
                 </ul>
-              </div>
+              </SidePanelBody>
+              <SidePanelFooter>
+                <Button variant="outline" onClick={() => setSelectedInitiative(null)}>
+                  Chiudi
+                </Button>
+              </SidePanelFooter>
             </>
           )}
-        </SheetContent>
-      </Sheet>
+        </SidePanelContent>
+      </SidePanel>
 
       {/* Sheet: Dettaglio Feature */}
-      <Sheet
+      <SidePanel variant="operational"
         open={!!selectedFeature}
         onOpenChange={(open) => !open && setSelectedFeature(null)}
       >
-        <SheetContent side="right" className="w-full sm:max-w-lg">
+        <SidePanelContent side="right" size="lg">
           {selectedFeature && (
             <>
-              <SheetHeader>
-                <SheetTitle>{selectedFeature.title}</SheetTitle>
-              </SheetHeader>
-              <div className="mt-6 space-y-3 text-sm">
+              <SidePanelHeader actions={<SidePanelClose />}>
+                <SidePanelTitle>{selectedFeature.title}</SidePanelTitle>
+              </SidePanelHeader>
+              <SidePanelBody className="space-y-3 text-sm">
                 <p><span className="font-medium">Descrizione:</span> {selectedFeature.description ?? "—"}</p>
                 <p><span className="font-medium">Status:</span> {selectedFeature.status ?? "—"}</p>
                 {selectedFeature.initiative_id && (
@@ -1113,11 +1136,16 @@ export const ProductDiscoveryPage = () => {
                     {initiativeById(selectedFeature.initiative_id)?.title ?? selectedFeature.initiative_id}
                   </p>
                 )}
-              </div>
+              </SidePanelBody>
+              <SidePanelFooter>
+                <Button variant="outline" onClick={() => setSelectedFeature(null)}>
+                  Chiudi
+                </Button>
+              </SidePanelFooter>
             </>
           )}
-        </SheetContent>
-      </Sheet>
+        </SidePanelContent>
+      </SidePanel>
     </div>
   );
 };

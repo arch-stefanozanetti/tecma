@@ -9,15 +9,14 @@ import { useWorkspace } from "../../auth/projectScope";
 import { cn } from "../../lib/utils";
 import { Button } from "../../components/ui/button";
 import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerBody,
-  DrawerFooter,
-  DrawerCloseButton,
-} from "../../components/ui/drawer";
-import { Sheet, SheetContent } from "../../components/ui/sheet";
+  SidePanel,
+  SidePanelBody,
+  SidePanelClose,
+  SidePanelContent,
+  SidePanelFooter,
+  SidePanelHeader,
+  SidePanelTitle,
+} from "../../components/ui/side-panel";
 import {
   Select,
   SelectContent,
@@ -98,15 +97,15 @@ const EventDrawer = ({
   };
 
   return (
-    <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
-      <DrawerContent side="right" className="sm:max-w-md">
-        <DrawerHeader actions={<DrawerCloseButton />}>
-          <DrawerTitle className="flex items-center gap-2">
+    <SidePanel variant="operational" open={open} onOpenChange={(o) => !o && onClose()}>
+      <SidePanelContent side="right" size="md">
+        <SidePanelHeader actions={<SidePanelClose />}>
+          <SidePanelTitle className="flex items-center gap-2">
             <span className="inline-block h-3 w-3 rounded-full flex-shrink-0" style={{ background: border }} />
             {event.title}
-          </DrawerTitle>
-        </DrawerHeader>
-        <DrawerBody className="space-y-3">
+          </SidePanelTitle>
+        </SidePanelHeader>
+        <SidePanelBody className="space-y-3">
           <div className="flex items-center gap-3 text-sm">
             <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <span className="capitalize">{startM.format("dddd D MMMM YYYY")}</span>
@@ -127,8 +126,8 @@ const EventDrawer = ({
               {sourceLabel[event.source]}
             </span>
           </div>
-        </DrawerBody>
-        <DrawerFooter>
+        </SidePanelBody>
+        <SidePanelFooter>
           {onEdit && (
             <Button variant="outline" size="sm" className="flex-1" onClick={() => { onClose(); onEdit(); }}>
               Modifica
@@ -139,9 +138,9 @@ const EventDrawer = ({
               {deleting ? "Eliminazione..." : "Elimina"}
             </Button>
           )}
-        </DrawerFooter>
-      </DrawerContent>
-    </Drawer>
+        </SidePanelFooter>
+      </SidePanelContent>
+    </SidePanel>
   );
 };
 
@@ -562,10 +561,12 @@ export const CalendarPage = (_props: CalendarPageProps) => {
         </>
       )}
 
-      <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-        <SheetContent side="right" className="sm:max-w-xs">
-          <h2 className="text-lg font-semibold text-foreground border-b border-border pb-3">Filtri calendario</h2>
-          <div className="mt-4 space-y-4">
+      <SidePanel variant="operational" open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <SidePanelContent side="right" size="sm">
+          <SidePanelHeader actions={<SidePanelClose />}>
+            <SidePanelTitle>Filtri calendario</SidePanelTitle>
+          </SidePanelHeader>
+          <SidePanelBody className="space-y-4">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">Tipo evento</label>
               <Select value={filterSource} onValueChange={(v) => setFilterSource(v as "all" | CalendarEvent["source"])}>
@@ -594,9 +595,22 @@ export const CalendarPage = (_props: CalendarPageProps) => {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-        </SheetContent>
-      </Sheet>
+          </SidePanelBody>
+          <SidePanelFooter>
+            <Button variant="outline" onClick={() => setFiltersOpen(false)}>
+              Chiudi
+            </Button>
+            <Button
+              onClick={() => {
+                setFilterSource("all");
+                setFilterProjectId("all");
+              }}
+            >
+              Reset filtri
+            </Button>
+          </SidePanelFooter>
+        </SidePanelContent>
+      </SidePanel>
 
       <EventDrawer
         event={selectedEvent}

@@ -36,7 +36,7 @@ const sheetVariants = cva(
   }
 );
 
-interface SheetContentProps
+export interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
     VariantProps<typeof sheetVariants> {}
 
@@ -66,6 +66,11 @@ const SheetFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
 );
 SheetFooter.displayName = "SheetFooter";
 
+const SheetBody = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto", className)} {...props} />
+);
+SheetBody.displayName = "SheetBody";
+
 const SheetTitle = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Title>
@@ -82,4 +87,4 @@ const SheetDescription = React.forwardRef<
 ));
 SheetDescription.displayName = SheetPrimitive.Description.displayName;
 
-export { Sheet, SheetPortal, SheetOverlay, SheetTrigger, SheetClose, SheetContent, SheetHeader, SheetFooter, SheetTitle, SheetDescription };
+export { Sheet, SheetPortal, SheetOverlay, SheetTrigger, SheetClose, SheetContent, SheetHeader, SheetBody, SheetFooter, SheetTitle, SheetDescription };
