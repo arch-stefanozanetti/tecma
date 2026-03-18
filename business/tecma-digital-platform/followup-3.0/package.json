@@ -21,6 +21,7 @@
     "test:performance": "k6 run performance/basic.js",
     "test:load": "k6 run load/load.js",
     "test:stress": "k6 run load/stress.js",
+    "check:phase1": "./scripts/check-phase1-readiness.sh",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f --tail=200",
