@@ -33,3 +33,4 @@ jobs:
       - run: pnpm run test:lint:core
       - run: pnpm run build
       - run: pnpm run test:coverage:core
+      - run: pnpm run check:coverage:core:floor

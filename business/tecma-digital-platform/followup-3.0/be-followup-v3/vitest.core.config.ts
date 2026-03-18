@@ -21,6 +21,8 @@ export default defineConfig({
         "src/core/requests/**/*.ts",
         "src/core/workflow/**/*.ts",
         "src/core/calendar/**/*.ts",
+        "src/core/pricing/**/*.ts",
+        "src/core/rbac/**/*.ts",
       ],
       exclude: ["src/**/*.test.ts"],
       thresholds: {

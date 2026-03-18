@@ -11,6 +11,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run -c vitest.coverage.config.ts --coverage",
     "test:coverage:core": "vitest run -c vitest.core.config.ts --coverage",
+    "check:coverage:core:floor": "node ./scripts/check-core-coverage.mjs floor",
+    "check:coverage:core:target": "node ./scripts/check-core-coverage.mjs target",
     "test:unit": "vitest run",
     "test:api": "vitest run src/routes",
     "test:api:gateway": "vitest run src/api-gateway",
@@ -28,7 +30,8 @@
     "clone-adminusers-to-tz-users": "tsx src/utils/cloneAdminUsersToTzUsers.ts",
     "migrate:request-workflow": "tsx src/utils/migrateRequestWorkflowIds.ts",
     "migrate:apartments-to-inventory-pricing": "tsx src/utils/migrate-apartments-to-inventory-pricing.ts",
-    "check:no-legacy-runtime": "bash scripts/check-no-legacy-runtime.sh"
+    "check:no-legacy-runtime": "bash scripts/check-no-legacy-runtime.sh",
+    "test:mutation:critical": "stryker run stryker.critical.conf.json"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1011.0",
@@ -63,6 +66,9 @@
     "@types/nodemailer": "^7.0.11",
     "@types/sanitize-html": "^2.16.1",
     "@types/supertest": "^6.0.2",
+    "@stryker-mutator/core": "^8.6.0",
+    "@stryker-mutator/typescript-checker": "^8.6.0",
+    "@stryker-mutator/vitest-runner": "^8.6.0",
     "@vitest/coverage-v8": "^3.2.4",
     "eslint": "^9.15.0",
     "globals": "^15.12.0",
