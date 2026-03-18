@@ -2,6 +2,7 @@ import cors from "cors";
 import express from "express";
 import { ENV, isProductionLike } from "./config/env.js";
 import { connectDb } from "./config/db.js";
+import { ensureIndexes } from "./config/ensureIndexes.js";
 import { v1Router } from "./routes/v1.js";
 import { runDueScheduled } from "./core/communications/scheduled-communications.service.js";
 import { ensureDefaultRoleDefinitions } from "./core/rbac/roleDefinitions.service.js";
@@ -46,6 +47,7 @@ function buildCorsOriginChecker(): (origin: string | undefined, cb: (err: Error 
 const bootstrap = async () => {
   await initOtel();
   await connectDb();
+  await ensureIndexes();
   await ensureDefaultRoleDefinitions().catch((err) => {
     logger.error({ err }, "[rbac] ensureDefaultRoleDefinitions failed");
   });
