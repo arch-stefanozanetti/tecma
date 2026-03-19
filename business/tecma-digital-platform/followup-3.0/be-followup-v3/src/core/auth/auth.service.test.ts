@@ -21,8 +21,9 @@ const mocks = vi.hoisted(() => {
 
   const usersCollection = {
     findOne: vi.fn(async (query: Record<string, unknown>) => {
-      if (query._id instanceof ObjectId) {
-        return users.find((u) => (u._id as ObjectId).toHexString() === query._id.toHexString()) ?? null;
+      const queryId = query._id;
+      if (queryId instanceof ObjectId) {
+        return users.find((u) => (u._id as ObjectId).toHexString() === queryId.toHexString()) ?? null;
       }
       const emailRegex = (query.email as { $regex?: string })?.$regex;
       if (emailRegex) {

@@ -2,7 +2,10 @@ import cors from "cors";
 import express from "express";
 import { ENV, isProductionLike } from "./config/env.js";
 import { connectDb } from "./config/db.js";
+import { ensureCoreIndexes } from "./config/ensureIndexes.js";
 import { v1Router } from "./routes/v1.js";
+import { platformRoutes } from "./routes/v1/platform.routes.js";
+import { realtimeRoutes } from "./routes/v1/realtime.routes.js";
 import { runDueScheduled } from "./core/communications/scheduled-communications.service.js";
 import { ensureDefaultRoleDefinitions } from "./core/rbac/roleDefinitions.service.js";
 import { logger } from "./observability/logger.js";
@@ -46,6 +49,10 @@ function buildCorsOriginChecker(): (origin: string | undefined, cb: (err: Error 
 const bootstrap = async () => {
   await initOtel();
   await connectDb();
+  await ensureCoreIndexes().catch((err) => {
+    logger.error({ err }, "[db] ensureCoreIndexes failed");
+    throw err;
+  });
   await ensureDefaultRoleDefinitions().catch((err) => {
     logger.error({ err }, "[rbac] ensureDefaultRoleDefinitions failed");
   });
@@ -66,6 +73,8 @@ const bootstrap = async () => {
   );
   app.use(express.json({ limit: "2mb" }));
 
+  app.use("/v1/platform", platformRoutes);
+  app.use("/v1", realtimeRoutes);
   app.use("/v1", v1Router);
 
   const server = app.listen(ENV.PORT, () => {

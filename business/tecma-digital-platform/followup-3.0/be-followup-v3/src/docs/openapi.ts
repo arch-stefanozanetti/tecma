@@ -23,6 +23,8 @@ export const openApiV1 = {
     { name: "projects", description: "Configurazione progetti (policies, email, PDF)" },
     { name: "audit", description: "Log audit e eventi per entità" },
     { name: "reports", description: "Report pipeline, clienti, appartamenti" },
+    { name: "platform", description: "Platform API riusabili per consumer esterni via API key" },
+    { name: "realtime", description: "Realtime stream (SSE) con envelope versionato" },
     { name: "Riusabili", description: "API per uso esterno (listings, integrazioni)" },
     { name: "hc", description: "Home Config (appartamenti HC)" },
     { name: "associations", description: "Associazioni appartamento-cliente" },
@@ -1123,9 +1125,9 @@ export const openApiV1 = {
     "/reports/{reportType}": {
       post: {
         tags: ["reports"],
-        summary: "Genera report (pipeline, clients-by-status, apartments-by-availability)",
+        summary: "Genera report (pipeline, clients-by-status, apartments-by-availability, kpi-summary)",
         security: [{ bearerAuth: [] }],
-        parameters: [{ name: "reportType", in: "path", required: true, schema: { type: "string" } }],
+        parameters: [{ name: "reportType", in: "path", required: true, schema: { type: "string", enum: ["pipeline", "clients_by_status", "apartments_by_availability", "kpi_summary"] } }],
         requestBody: {
           content: {
             "application/json": {
@@ -1142,6 +1144,74 @@ export const openApiV1 = {
           }
         },
         responses: { "200": { description: "Dati report" } }
+      }
+    },
+    "/platform/capabilities": {
+      get: {
+        tags: ["platform", "Riusabili"],
+        summary: "Capabilities della Platform API per la API key corrente",
+        security: [{ apiKeyAuth: [] }],
+        responses: { "200": { description: "Consumer, workspace scope, project scope, endpoint disponibili" }, "401": { description: "Missing/invalid API key" } }
+      }
+    },
+    "/platform/listings/query": {
+      post: {
+        tags: ["platform", "Riusabili"],
+        summary: "Query listings scoped by API key (workspaceId/projectIds enforced)",
+        security: [{ apiKeyAuth: [] }],
+        requestBody: {
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  projectIds: { type: "array", items: { type: "string" } },
+                  page: { type: "integer", minimum: 1, default: 1 },
+                  perPage: { type: "integer", minimum: 1, maximum: 200, default: 25 },
+                  searchText: { type: "string" },
+                  status: { type: "string" },
+                  mode: { type: "string", enum: ["rent", "sell"] }
+                }
+              }
+            }
+          }
+        },
+        responses: { "200": { description: "Paginated listings" }, "401": { description: "Missing/invalid API key" }, "403": { description: "No allowed projectIds for key scope" } }
+      }
+    },
+    "/platform/reports/kpi-summary": {
+      post: {
+        tags: ["platform", "reports", "Riusabili"],
+        summary: "KPI summary operativo (5 metriche minime) scoped by API key",
+        security: [{ apiKeyAuth: [] }],
+        requestBody: {
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  dateFrom: { type: "string" },
+                  dateTo: { type: "string" }
+                }
+              }
+            }
+          }
+        },
+        responses: { "200": { description: "KPI summary data" }, "401": { description: "Missing/invalid API key" } }
+      }
+    },
+    "/realtime/stream": {
+      get: {
+        tags: ["realtime"],
+        summary: "SSE realtime stream (requires access token)",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "workspaceId", in: "query", required: true, schema: { type: "string" } },
+          { name: "projectId", in: "query", required: false, schema: { type: "string" } },
+          { name: "eventTypes", in: "query", required: false, schema: { type: "string", description: "CSV di eventType" } },
+          { name: "accessToken", in: "query", required: false, schema: { type: "string", description: "Alternativa a Authorization header per EventSource browser" } }
+        ],
+        responses: { "200": { description: "text/event-stream con eventi domain-event/heartbeat/hello" }, "401": { description: "Missing/invalid token" }, "400": { description: "workspaceId mancante" } }
       }
     },
     "/projects/{projectId}": {
@@ -1164,6 +1234,12 @@ export const openApiV1 = {
         scheme: "bearer",
         bearerFormat: "JWT",
         description: "JWT access token from login or refresh"
+      },
+      apiKeyAuth: {
+        type: "apiKey",
+        in: "header",
+        name: "x-api-key",
+        description: "Platform consumer API key (scoped by workspace/project)."
       }
     },
     schemas: {

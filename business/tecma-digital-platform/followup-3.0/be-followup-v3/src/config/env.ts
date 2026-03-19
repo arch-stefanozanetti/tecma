@@ -33,7 +33,10 @@ const EnvSchema = z.object({
   /** Audience attesa (opzionale) */
   SSO_JWT_AUDIENCE: z.string().optional(),
   /** Alternativa a JWKS: segreto HMAC condiviso con il gateway (solo se fidato) */
-  SSO_JWT_HS256_SECRET: z.string().optional()
+  SSO_JWT_HS256_SECRET: z.string().optional(),
+  /** API keys per consumer esterni platform API, JSON object: {"<key>":{"workspaceId":"...","projectIds":["..."]}} */
+  PLATFORM_API_KEYS: z.string().default("{}"),
+  PLATFORM_RATE_LIMIT_PER_MIN: z.coerce.number().min(10).max(5000).default(120)
 });
 
 const parsed = EnvSchema.parse({

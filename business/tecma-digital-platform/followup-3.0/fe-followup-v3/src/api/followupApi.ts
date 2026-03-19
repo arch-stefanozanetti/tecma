@@ -279,6 +279,7 @@ export const followupApi = {
       | "pipeline"
       | "clients_by_status"
       | "apartments_by_availability"
+      | "kpi_summary"
       | "activity_per_period"
       | "conversions_per_project"
       | "avg_times",
@@ -537,6 +538,28 @@ export const followupApi = {
     patchJson<{ notification: NotificationRow }>(`/notifications/${id}`, { read: true }),
   markAllNotificationsRead: (workspaceId: string) =>
     postJson<{ count: number }>("/notifications/read-all", { workspaceId }),
+  subscribeRealtimeEvents: (
+    workspaceId: string,
+    options: { projectId?: string; eventTypes?: string[] },
+    onEvent: (event: { eventType: string; payload: Record<string, unknown> }) => void
+  ) => {
+    const params = new URLSearchParams({ workspaceId });
+    if (options.projectId) params.set("projectId", options.projectId);
+    if (options.eventTypes && options.eventTypes.length > 0) {
+      params.set("eventTypes", options.eventTypes.join(","));
+    }
+    const token = getAccessToken();
+    if (token) params.set("accessToken", token);
+    const source = new EventSource(`${API_BASE_URL}/realtime/stream?${params.toString()}`);
+    source.addEventListener("domain-event", (evt) => {
+      try {
+        onEvent(JSON.parse((evt as MessageEvent).data) as { eventType: string; payload: Record<string, unknown> });
+      } catch {
+        // ignore invalid payloads
+      }
+    });
+    return () => source.close();
+  },
   listAutomationRules: (workspaceId: string) =>
     getJson<{ data: AutomationRuleRow[] }>(`/workspaces/${encodeURIComponent(workspaceId)}/automation-rules`),
   createAutomationRule: (workspaceId: string, payload: Omit<AutomationRuleRow, "_id" | "workspaceId" | "createdAt" | "updatedAt">) =>

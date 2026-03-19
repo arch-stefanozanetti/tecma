@@ -1,4 +1,5 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+import { ENV } from "../config/env.js";
 
 const skipRateLimit =
   process.env.NODE_ENV === "test" ||
@@ -33,4 +34,15 @@ export const refreshRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => skipRateLimit
+});
+
+/** Limite per consumer esterni via API key piattaforma. */
+export const platformApiKeyRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: ENV.PLATFORM_RATE_LIMIT_PER_MIN,
+  message: { error: "Platform API rate limit exceeded, retry in one minute." },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => skipRateLimit,
+  keyGenerator: (req) => req.get("x-api-key") ?? ipKeyGenerator(req.ip ?? "")
 });

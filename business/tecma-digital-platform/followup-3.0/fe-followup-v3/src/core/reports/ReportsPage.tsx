@@ -18,6 +18,7 @@ type ReportType =
   | "pipeline"
   | "clients_by_status"
   | "apartments_by_availability"
+  | "kpi_summary"
   | "activity_per_period"
   | "conversions_per_project"
   | "avg_times";
@@ -26,6 +27,7 @@ const REPORT_LABELS: Record<ReportType, string> = {
   pipeline: "Pipeline vendita/affitto",
   clients_by_status: "Clienti per stato",
   apartments_by_availability: "Appartamenti per disponibilità",
+  kpi_summary: "KPI sintetici (5 metriche core)",
   activity_per_period: "Attività per periodo",
   conversions_per_project: "Conversioni per progetto",
   avg_times: "Tempi medi (giorni a vinto)",
@@ -81,7 +83,7 @@ export const ReportsPage = () => {
       <div className="px-5 pb-10 pt-8 lg:px-20">
         <h1 className="text-2xl font-semibold text-foreground">Report</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Pipeline, clienti per stato, appartamenti per disponibilità.
+          Pipeline, KPI sintetici, clienti per stato, appartamenti per disponibilità.
         </p>
 
         <div className="mt-6 flex flex-wrap gap-4 items-end">

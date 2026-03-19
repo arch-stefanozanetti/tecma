@@ -5,6 +5,8 @@ import { ObjectId } from "mongodb";
 import { getDb } from "../../config/db.js";
 import { HttpError } from "../../types/http.js";
 import type { PaginatedResponse } from "../../types/http.js";
+import { publishRealtimeEvent } from "../realtime/realtime-bus.service.js";
+import { REALTIME_PAYLOAD_VERSION } from "../realtime/realtime-events.js";
 
 const COLLECTION = "tz_notifications";
 
@@ -167,7 +169,7 @@ export const createNotification = async (
   };
   const insertResult = await coll.insertOne(doc);
   const _id = insertResult.insertedId.toHexString();
-  return {
+  const createdNotification: NotificationRow = {
     _id,
     workspaceId: doc.workspaceId,
     userId: input.userId,
@@ -180,4 +182,20 @@ export const createNotification = async (
     entityType: input.entityType,
     entityId: input.entityId,
   };
+  publishRealtimeEvent({
+    eventType: "notification.created",
+    entityId: createdNotification._id,
+    workspaceId: createdNotification.workspaceId,
+    projectId: null,
+    actorId: createdNotification.userId ?? null,
+    timestamp: createdNotification.createdAt,
+    payloadVersion: REALTIME_PAYLOAD_VERSION,
+    payload: {
+      type: createdNotification.type,
+      title: createdNotification.title,
+      entityType: createdNotification.entityType ?? null,
+      entityId: createdNotification.entityId ?? null,
+    },
+  });
+  return createdNotification;
 };
