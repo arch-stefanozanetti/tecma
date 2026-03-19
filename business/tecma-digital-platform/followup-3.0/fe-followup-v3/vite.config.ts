@@ -1,8 +1,8 @@
 import { defineConfig } from "vitest/config";
-import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
-import path from "path";
 import { readFileSync } from "fs";
+import path from "path";
+import { baseVitePlugins } from "./vite.base-plugins";
 
 const pkg = JSON.parse(readFileSync(path.resolve(__dirname, "package.json"), "utf-8"));
 const appVersion =
@@ -16,7 +16,7 @@ const proxyTarget =
 
 export default defineConfig({
   plugins: [
-    react(),
+    ...baseVitePlugins(),
     VitePWA({
       registerType: "prompt",
       injectRegister: null,
@@ -82,17 +82,6 @@ export default defineConfig({
   ],
   define: {
     "import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion),
-  },
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-      // Risoluzione esplicita per CI: il pacchetto file:../../design-system può non risolversi in tutti gli ambienti
-      "@tecma/design-system-tokens/button": path.resolve(__dirname, "../../design-system/src/components/Button/Button.tsx"),
-      "@tecma/design-system-tokens/button-group": path.resolve(__dirname, "../../design-system/src/components/ButtonGroup/ButtonGroup.tsx"),
-      "@tecma/design-system-tokens/avatar": path.resolve(__dirname, "../../design-system/src/components/Avatar/Avatar.tsx"),
-      "@tecma/design-system-tokens/inline-edit-text": path.resolve(__dirname, "../../design-system/src/components/InlineEdit/InlineEditText.tsx"),
-      "@tecma/design-system-tokens/inline-edit-select": path.resolve(__dirname, "../../design-system/src/components/InlineEdit/InlineEditSelect.tsx"),
-    },
   },
   server: {
     port: 5177,

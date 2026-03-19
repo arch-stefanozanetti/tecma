@@ -1,4 +1,10 @@
-import type { CSSProperties, ReactNode } from "react";
+import type {
+  ButtonHTMLAttributes,
+  CSSProperties,
+  InputHTMLAttributes,
+  ReactNode,
+  Ref,
+} from "react";
 import { Icon } from "../Icon";
 import { cn } from "../../utils/cn";
 
@@ -63,7 +69,7 @@ export function SelectMenuLink({
   children,
   className,
   ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+}: ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       type="button"
@@ -108,7 +114,7 @@ export function SelectMenuSearch({
   ...rest
 }: Omit<InputHTMLAttributes<HTMLInputElement>, "className"> & {
   onClear?: () => void;
-  inputRef?: React.Ref<HTMLInputElement>;
+  inputRef?: Ref<HTMLInputElement>;
 }) {
   return (
     <div className="tecma-select-menu__search">

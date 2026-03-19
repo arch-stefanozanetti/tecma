@@ -1,4 +1,5 @@
 {
+  // Path @tecma/design-system-tokens/*: unica fonte; Vite/Vitest li leggono via vite-tsconfig-paths.
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
