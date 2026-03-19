@@ -14,12 +14,7 @@
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@tecma/design-system-tokens/button": ["../../design-system/src/components/Button/Button.tsx"],
-      "@tecma/design-system-tokens/button-group": ["../../design-system/src/components/ButtonGroup/ButtonGroup.tsx"],
-      "@tecma/design-system-tokens/avatar": ["../../design-system/src/components/Avatar/Avatar.tsx"],
-      "@tecma/design-system-tokens/inline-edit-text": ["../../design-system/src/components/InlineEdit/InlineEditText.tsx"],
-      "@tecma/design-system-tokens/inline-edit-select": ["../../design-system/src/components/InlineEdit/InlineEditSelect.tsx"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"],

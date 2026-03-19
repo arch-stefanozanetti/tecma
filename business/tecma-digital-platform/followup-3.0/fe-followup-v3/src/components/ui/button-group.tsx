@@ -7,7 +7,7 @@ import {
   ButtonGroup as DSButtonGroup,
   type ButtonGroupLayout,
   type ButtonGroupType,
-} from "@tecma/design-system-tokens/button-group";
+} from "@/tecma-ds/button-group";
 import { Button, type ButtonProps } from "./button";
 import { cn } from "../../lib/utils";
 

@@ -14,9 +14,9 @@ import type {
   RequestActionRow,
   RequestActionType,
 } from "../../types/domain";
-import { Avatar } from "@tecma/design-system-tokens/avatar";
-import { InlineEditText } from "@tecma/design-system-tokens/inline-edit-text";
-import { InlineEditSelect } from "@tecma/design-system-tokens/inline-edit-select";
+import { Avatar } from "@/tecma-ds/avatar";
+import { InlineEditText } from "@/tecma-ds/inline-edit-text";
+import { InlineEditSelect } from "@/tecma-ds/inline-edit-select";
 import { Button } from "../../components/ui/button";
 import { ButtonGroup } from "../../components/ui/button-group";
 import { Tabs, TabsContent } from "../../components/ui/tabs";

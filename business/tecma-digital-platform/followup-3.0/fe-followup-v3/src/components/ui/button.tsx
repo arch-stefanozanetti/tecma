@@ -1,5 +1,5 @@
 /**
- * Button — adapter verso il componente Tecma DS (`@tecma/design-system-tokens/button`).
+ * Button — adapter verso il componente Tecma DS (`@/tecma-ds/button`).
  * Mantiene l’API legacy (variant default | destructive | outline | …, size default | sm | lg | icon, asChild).
  * Preferire import diretto dal DS per nuove schermate (variant primary | danger | …, loading, icone).
  */
@@ -9,7 +9,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import {
   Button as TecmaButton,
   type ButtonVariant as TecmaVariant,
-} from "@tecma/design-system-tokens/button";
+} from "@/tecma-ds/button";
 import { cn } from "../../lib/utils";
 
 export const buttonVariants = cva("tecma-button", {
