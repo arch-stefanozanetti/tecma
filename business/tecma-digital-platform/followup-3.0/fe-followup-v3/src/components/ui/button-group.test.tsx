@@ -18,24 +18,24 @@ describe("ButtonGroup", () => {
     expect(screen.getByRole("button", { name: /^b$/i })).toBeInTheDocument();
   });
 
-  it("orientamento orizzontale applica classi inline-flex", () => {
+  it("orientamento orizzontale applica classi DS tecma-button-group--horizontal", () => {
     render(
       <ButtonGroup orientation="horizontal">
         <Button>Uno</Button>
       </ButtonGroup>
     );
     const group = screen.getByRole("group");
-    expect(group.className).toMatch(/inline-flex/);
+    expect(group.className).toMatch(/tecma-button-group--horizontal/);
   });
 
-  it("orientamento verticale applica flex-col gap", () => {
+  it("orientamento verticale applica classi DS tecma-button-group--vertical", () => {
     render(
       <ButtonGroup orientation="vertical">
         <Button>Uno</Button>
       </ButtonGroup>
     );
     const group = screen.getByRole("group");
-    expect(group.className).toMatch(/flex-col|gap-2/);
+    expect(group.className).toMatch(/tecma-button-group--vertical/);
   });
 
   it("accetta figli non-Button (renderizzati come sono)", () => {

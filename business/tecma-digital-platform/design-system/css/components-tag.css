@@ -1,0 +1,324 @@
+/**
+ * Tag — Figma 599:7479 (tipografia: Lato xs / medium)
+ * Importato da components.css
+ */
+
+.tecma-tag {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  max-width: 100%;
+  border-radius: var(--tecma-values-border-radius-standard);
+  font-family: var(--tecma-typography-typeface-sans-serif), "Segoe UI", sans-serif;
+  font-size: var(--tecma-typography-size-standard-xs);
+  line-height: var(--tecma-typography-height-standard-xs);
+  font-weight: var(--tecma-typography-weight-medium);
+  border: 1px solid transparent;
+  vertical-align: middle;
+}
+
+.tecma-tag:not(.tecma-tag--compound) {
+  padding: 0.1875rem 0.5rem;
+  min-height: 1.5rem;
+}
+
+button.tecma-tag {
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.tecma-tag--compound {
+  gap: 0.125rem;
+  padding: 0.125rem 0.125rem 0.125rem 0.4375rem;
+  min-height: 1.5rem;
+}
+
+.tecma-tag__label {
+  display: inline-block;
+  padding: 0.0625rem 0.25rem;
+  min-width: 0;
+}
+
+.tecma-tag__main {
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  padding: 0.0625rem 0.25rem;
+  border-radius: calc(var(--tecma-values-border-radius-standard) - 1px);
+  text-align: left;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.tecma-tag__main:disabled {
+  cursor: not-allowed;
+}
+
+.tecma-tag__dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--tecma-values-border-radius-standard);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.tecma-tag__dismiss:hover:not(:disabled) {
+  background: hsl(0 0% 0% / 0.08);
+}
+
+.tecma-tag--appearance-filled .tecma-tag__dismiss:hover:not(:disabled) {
+  background: hsl(0 0% 100% / 0.18);
+}
+
+.tecma-tag--variant-default.tecma-tag--appearance-filled .tecma-tag__dismiss:hover:not(:disabled) {
+  background: hsl(0 0% 0% / 0.06);
+}
+
+.tecma-tag--disabled {
+  opacity: 0.38;
+  pointer-events: none;
+}
+
+.tecma-tag--interactive:focus-visible,
+.tecma-tag__main:focus-visible,
+.tecma-tag__dismiss:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px hsl(0 0% 0%);
+  z-index: 1;
+  position: relative;
+}
+
+/* ——— default ——— */
+.tecma-tag--variant-default.tecma-tag--appearance-outline {
+  background: hsl(var(--tecma-color-neutral-general));
+  border-color: hsl(var(--tecma-color-neutral-general-border));
+  color: hsl(var(--tecma-color-neutral-on-general-sub));
+}
+
+.tecma-tag--variant-default.tecma-tag--appearance-outline.tecma-tag--interactive:hover:not(:disabled),
+.tecma-tag--variant-default.tecma-tag--appearance-outline.tecma-tag--compound:has(.tecma-tag__main:hover):not(.tecma-tag--disabled) {
+  background: hsl(var(--tecma-color-neutral-general-hover));
+}
+
+.tecma-tag--variant-default.tecma-tag--appearance-outline.tecma-tag--interactive:active:not(:disabled),
+.tecma-tag--variant-default.tecma-tag--appearance-outline.tecma-tag--compound:has(.tecma-tag__main:active):not(.tecma-tag--disabled) {
+  background: hsl(var(--tecma-color-neutral-general-active));
+}
+
+.tecma-tag--variant-default.tecma-tag--appearance-filled {
+  background: hsl(var(--tecma-color-main-primary));
+  border-color: hsl(var(--tecma-color-main-primary-border));
+  color: hsl(var(--tecma-color-main-on-primary));
+}
+
+.tecma-tag--variant-default.tecma-tag--appearance-filled.tecma-tag--interactive:hover:not(:disabled),
+.tecma-tag--variant-default.tecma-tag--appearance-filled.tecma-tag--compound:has(.tecma-tag__main:hover):not(.tecma-tag--disabled) {
+  background: hsl(var(--tecma-color-main-primary-hover));
+}
+
+.tecma-tag--variant-default.tecma-tag--appearance-filled.tecma-tag--interactive:active:not(:disabled),
+.tecma-tag--variant-default.tecma-tag--appearance-filled.tecma-tag--compound:has(.tecma-tag__main:active):not(.tecma-tag--disabled) {
+  background: hsl(var(--tecma-color-main-primary-active));
+}
+
+/* ——— primary ——— */
+.tecma-tag--variant-primary.tecma-tag--appearance-outline {
+  background: hsl(var(--tecma-color-neutral-general));
+  border-color: hsl(var(--tecma-color-main-accent-border));
+  color: hsl(var(--tecma-color-main-on-accent-light));
+}
+
+.tecma-tag--variant-primary.tecma-tag--appearance-outline.tecma-tag--interactive:hover:not(:disabled),
+.tecma-tag--variant-primary.tecma-tag--appearance-outline.tecma-tag--compound:has(.tecma-tag__main:hover):not(.tecma-tag--disabled) {
+  background: hsl(var(--tecma-color-main-accent-light-hover));
+}
+
+.tecma-tag--variant-primary.tecma-tag--appearance-outline.tecma-tag--interactive:active:not(:disabled),
+.tecma-tag--variant-primary.tecma-tag--appearance-outline.tecma-tag--compound:has(.tecma-tag__main:active):not(.tecma-tag--disabled) {
+  background: hsl(var(--tecma-color-main-accent-light-active));
+}
+
+.tecma-tag--variant-primary.tecma-tag--appearance-filled {
+  background: hsl(var(--tecma-color-main-accent));
+  border-color: hsl(var(--tecma-color-main-accent));
+  color: hsl(var(--tecma-color-main-on-accent));
+}
+
+.tecma-tag--variant-primary.tecma-tag--appearance-filled.tecma-tag--interactive:hover:not(:disabled),
+.tecma-tag--variant-primary.tecma-tag--appearance-filled.tecma-tag--compound:has(.tecma-tag__main:hover):not(.tecma-tag--disabled) {
+  background: hsl(var(--tecma-color-main-accent-hover));
+  border-color: hsl(var(--tecma-color-main-accent-hover));
+}
+
+.tecma-tag--variant-primary.tecma-tag--appearance-filled.tecma-tag--interactive:active:not(:disabled),
+.tecma-tag--variant-primary.tecma-tag--appearance-filled.tecma-tag--compound:has(.tecma-tag__main:active):not(.tecma-tag--disabled) {
+  background: hsl(var(--tecma-color-main-accent-active));
+  border-color: hsl(var(--tecma-color-main-accent-active));
+}
+
+/* ——— accent light (outline = sfondo accent light; filled = come primary) ——— */
+.tecma-tag--variant-accent-light.tecma-tag--appearance-outline {
+  background: hsl(var(--tecma-color-main-accent-light));
+  border-color: hsl(var(--tecma-color-main-accent-border));
+  color: hsl(var(--tecma-color-main-on-accent-light));
+}
+
+.tecma-tag--variant-accent-light.tecma-tag--appearance-outline.tecma-tag--interactive:hover:not(:disabled),
+.tecma-tag--variant-accent-light.tecma-tag--appearance-outline.tecma-tag--compound:has(.tecma-tag__main:hover):not(.tecma-tag--disabled) {
+  background: hsl(var(--tecma-color-main-accent-light-hover));
+}
+
+.tecma-tag--variant-accent-light.tecma-tag--appearance-outline.tecma-tag--interactive:active:not(:disabled),
+.tecma-tag--variant-accent-light.tecma-tag--appearance-outline.tecma-tag--compound:has(.tecma-tag__main:active):not(.tecma-tag--disabled) {
+  background: hsl(var(--tecma-color-main-accent-light-active));
+}
+
+.tecma-tag--variant-accent-light.tecma-tag--appearance-filled {
+  background: hsl(var(--tecma-color-main-accent));
+  border-color: hsl(var(--tecma-color-main-accent));
+  color: hsl(var(--tecma-color-main-on-accent));
+}
+
+.tecma-tag--variant-accent-light.tecma-tag--appearance-filled.tecma-tag--interactive:hover:not(:disabled),
+.tecma-tag--variant-accent-light.tecma-tag--appearance-filled.tecma-tag--compound:has(.tecma-tag__main:hover):not(.tecma-tag--disabled) {
+  background: hsl(var(--tecma-color-main-accent-hover));
+  border-color: hsl(var(--tecma-color-main-accent-hover));
+}
+
+.tecma-tag--variant-accent-light.tecma-tag--appearance-filled.tecma-tag--interactive:active:not(:disabled),
+.tecma-tag--variant-accent-light.tecma-tag--appearance-filled.tecma-tag--compound:has(.tecma-tag__main:active):not(.tecma-tag--disabled) {
+  background: hsl(var(--tecma-color-main-accent-active));
+  border-color: hsl(var(--tecma-color-main-accent-active));
+}
+
+/* ——— info ——— */
+.tecma-tag--variant-info.tecma-tag--appearance-outline {
+  background: hsl(var(--tecma-color-semantic-info-info-light));
+  border-color: hsl(var(--tecma-color-semantic-info-info-border));
+  color: hsl(var(--tecma-color-semantic-info-on-info-light));
+}
+
+.tecma-tag--variant-info.tecma-tag--appearance-outline.tecma-tag--interactive:hover:not(:disabled),
+.tecma-tag--variant-info.tecma-tag--appearance-outline.tecma-tag--compound:has(.tecma-tag__main:hover):not(.tecma-tag--disabled) {
+  filter: brightness(0.97);
+}
+
+.tecma-tag--variant-info.tecma-tag--appearance-filled {
+  background: hsl(var(--tecma-color-semantic-info-info));
+  border-color: hsl(var(--tecma-color-semantic-info-info));
+  color: hsl(var(--tecma-color-semantic-info-on-info));
+}
+
+.tecma-tag--variant-info.tecma-tag--appearance-filled.tecma-tag--interactive:hover:not(:disabled),
+.tecma-tag--variant-info.tecma-tag--appearance-filled.tecma-tag--compound:has(.tecma-tag__main:hover):not(.tecma-tag--disabled) {
+  background: hsl(var(--tecma-color-semantic-info-info-hover));
+  border-color: hsl(var(--tecma-color-semantic-info-info-hover));
+}
+
+.tecma-tag--variant-info.tecma-tag--appearance-filled.tecma-tag--interactive:active:not(:disabled),
+.tecma-tag--variant-info.tecma-tag--appearance-filled.tecma-tag--compound:has(.tecma-tag__main:active):not(.tecma-tag--disabled) {
+  background: hsl(var(--tecma-color-semantic-info-info-active));
+  border-color: hsl(var(--tecma-color-semantic-info-info-active));
+}
+
+/* ——— success ——— */
+.tecma-tag--variant-success.tecma-tag--appearance-outline {
+  background: hsl(var(--tecma-color-semantic-success-success-light));
+  border-color: hsl(var(--tecma-color-semantic-success-success-border));
+  color: hsl(var(--tecma-color-semantic-success-on-success-light));
+}
+
+.tecma-tag--variant-success.tecma-tag--appearance-outline.tecma-tag--interactive:hover:not(:disabled),
+.tecma-tag--variant-success.tecma-tag--appearance-outline.tecma-tag--compound:has(.tecma-tag__main:hover):not(.tecma-tag--disabled) {
+  filter: brightness(0.97);
+}
+
+.tecma-tag--variant-success.tecma-tag--appearance-filled {
+  background: hsl(var(--tecma-color-semantic-success-success));
+  border-color: hsl(var(--tecma-color-semantic-success-success));
+  color: hsl(var(--tecma-color-semantic-success-on-success));
+}
+
+.tecma-tag--variant-success.tecma-tag--appearance-filled.tecma-tag--interactive:hover:not(:disabled),
+.tecma-tag--variant-success.tecma-tag--appearance-filled.tecma-tag--compound:has(.tecma-tag__main:hover):not(.tecma-tag--disabled) {
+  background: hsl(var(--tecma-color-semantic-success-success-hover));
+  border-color: hsl(var(--tecma-color-semantic-success-success-hover));
+}
+
+.tecma-tag--variant-success.tecma-tag--appearance-filled.tecma-tag--interactive:active:not(:disabled),
+.tecma-tag--variant-success.tecma-tag--appearance-filled.tecma-tag--compound:has(.tecma-tag__main:active):not(.tecma-tag--disabled) {
+  background: hsl(var(--tecma-color-semantic-success-success-active));
+  border-color: hsl(var(--tecma-color-semantic-success-success-active));
+}
+
+/* ——— warning ——— */
+.tecma-tag--variant-warning.tecma-tag--appearance-outline {
+  background: hsl(var(--tecma-color-semantic-warning-warning-light));
+  border-color: hsl(var(--tecma-color-semantic-warning-warning-border));
+  color: hsl(var(--tecma-color-semantic-warning-on-warning-light));
+}
+
+.tecma-tag--variant-warning.tecma-tag--appearance-outline.tecma-tag--interactive:hover:not(:disabled),
+.tecma-tag--variant-warning.tecma-tag--appearance-outline.tecma-tag--compound:has(.tecma-tag__main:hover):not(.tecma-tag--disabled) {
+  filter: brightness(0.97);
+}
+
+.tecma-tag--variant-warning.tecma-tag--appearance-filled {
+  background: hsl(var(--tecma-color-semantic-warning-warning));
+  border-color: hsl(var(--tecma-color-semantic-warning-warning));
+  color: hsl(var(--tecma-color-semantic-warning-on-warning));
+}
+
+.tecma-tag--variant-warning.tecma-tag--appearance-filled.tecma-tag--interactive:hover:not(:disabled),
+.tecma-tag--variant-warning.tecma-tag--appearance-filled.tecma-tag--compound:has(.tecma-tag__main:hover):not(.tecma-tag--disabled) {
+  background: hsl(var(--tecma-color-semantic-warning-warning-hover));
+  border-color: hsl(var(--tecma-color-semantic-warning-warning-hover));
+}
+
+.tecma-tag--variant-warning.tecma-tag--appearance-filled.tecma-tag--interactive:active:not(:disabled),
+.tecma-tag--variant-warning.tecma-tag--appearance-filled.tecma-tag--compound:has(.tecma-tag__main:active):not(.tecma-tag--disabled) {
+  background: hsl(var(--tecma-color-semantic-warning-warning-active));
+  border-color: hsl(var(--tecma-color-semantic-warning-warning-active));
+}
+
+/* ——— danger ——— */
+.tecma-tag--variant-danger.tecma-tag--appearance-outline {
+  background: hsl(var(--tecma-color-semantic-danger-danger-light));
+  border-color: hsl(var(--tecma-color-semantic-danger-danger-border));
+  color: hsl(var(--tecma-color-semantic-danger-on-danger-light));
+}
+
+.tecma-tag--variant-danger.tecma-tag--appearance-outline.tecma-tag--interactive:hover:not(:disabled),
+.tecma-tag--variant-danger.tecma-tag--appearance-outline.tecma-tag--compound:has(.tecma-tag__main:hover):not(.tecma-tag--disabled) {
+  filter: brightness(0.97);
+}
+
+.tecma-tag--variant-danger.tecma-tag--appearance-filled {
+  background: hsl(var(--tecma-color-semantic-danger-danger));
+  border-color: hsl(var(--tecma-color-semantic-danger-danger));
+  color: hsl(var(--tecma-color-semantic-danger-on-danger));
+}
+
+.tecma-tag--variant-danger.tecma-tag--appearance-filled.tecma-tag--interactive:hover:not(:disabled),
+.tecma-tag--variant-danger.tecma-tag--appearance-filled.tecma-tag--compound:has(.tecma-tag__main:hover):not(.tecma-tag--disabled) {
+  background: hsl(var(--tecma-color-semantic-danger-danger-hover));
+  border-color: hsl(var(--tecma-color-semantic-danger-danger-hover));
+}
+
+.tecma-tag--variant-danger.tecma-tag--appearance-filled.tecma-tag--interactive:active:not(:disabled),
+.tecma-tag--variant-danger.tecma-tag--appearance-filled.tecma-tag--compound:has(.tecma-tag__main:active):not(.tecma-tag--disabled) {
+  background: hsl(var(--tecma-color-semantic-danger-danger-active));
+  border-color: hsl(var(--tecma-color-semantic-danger-danger-active));
+}

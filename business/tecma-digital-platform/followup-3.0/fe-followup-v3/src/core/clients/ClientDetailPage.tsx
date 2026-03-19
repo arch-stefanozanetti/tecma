@@ -14,8 +14,12 @@ import type {
   RequestActionRow,
   RequestActionType,
 } from "../../types/domain";
+import { Avatar } from "@/tecma-ds/avatar";
+import { InlineEditText } from "@/tecma-ds/inline-edit-text";
+import { InlineEditSelect } from "@/tecma-ds/inline-edit-select";
 import { Button } from "../../components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { ButtonGroup } from "../../components/ui/button-group";
+import { Tabs, TabsContent } from "../../components/ui/tabs";
 import {
   Drawer,
   DrawerContent,
@@ -47,6 +51,7 @@ import { MatchingCandidatesList } from "../../components/MatchingCandidatesList"
 import { RequestStatusRoadmap } from "../../components/RequestStatusRoadmap";
 import { useWorkflowConfig } from "../../hooks/useWorkflowConfig";
 import { CalendarEventFormDrawer } from "../calendar/CalendarEventFormDrawer";
+import { mergeCalendarEventsAfterRefetch } from "./calendarEventsMerge";
 import { ClientProfilationCard } from "./ClientProfilationCard";
 import { useClientDetailData } from "./useClientDetailData";
 import { useToast } from "../../contexts/ToastContext";
@@ -113,6 +118,8 @@ export const ClientDetailPage = () => {
     projectId?: string;
   }>({});
   const [calendarEventsRefreshKey, setCalendarEventsRefreshKey] = useState(0);
+  /** Id evento aggiunto ottimisticamente: al refetch lo teniamo in lista se l'API non lo restituisce ancora. */
+  const lastOptimisticEventIdRef = useRef<string | null>(null);
   const [clientDocuments, setClientDocuments] = useState<ClientDocumentRow[]>([]);
   const [clientDocumentsLoading, setClientDocumentsLoading] = useState(false);
   const [documentUploading, setDocumentUploading] = useState(false);
@@ -170,8 +177,17 @@ export const ClientDetailPage = () => {
         sort: { field: "startsAt", direction: -1 },
         filters: { dateFrom: from.toISOString(), dateTo: to.toISOString(), clientId },
       })
-      .then((r) => setCalendarEvents(r.data ?? []))
-      .catch(() => setCalendarEvents([]));
+      .then((r) => {
+        const idToKeep = lastOptimisticEventIdRef.current;
+        setCalendarEvents((prev) => mergeCalendarEventsAfterRefetch(r.data ?? [], prev, idToKeep));
+        lastOptimisticEventIdRef.current = null;
+      })
+      .catch(() => {
+        setCalendarEvents((prev) => {
+          if (lastOptimisticEventIdRef.current && prev.some((e) => e._id === lastOptimisticEventIdRef.current)) return prev;
+          return [];
+        });
+      });
   }, [workspaceId, clientId, client?.projectId, selectedProjectIds, calendarEventsRefreshKey]);
 
   useEffect(() => {
@@ -546,6 +562,22 @@ export const ClientDetailPage = () => {
     }
   };
 
+  const handleOwnerChange = async (newUserId: string) => {
+    if (!clientId || !workspaceId) return;
+    const prevUserId = assignments[0]?.userId;
+    try {
+      if (prevUserId) await followupApi.unassignEntity(workspaceId, "client", clientId, prevUserId);
+      await followupApi.assignEntity(workspaceId, "client", clientId, newUserId);
+      setAssignments((prev) => {
+        const next = prev.filter((a) => a.userId !== prevUserId);
+        next.unshift({ userId: newUserId });
+        return next;
+      });
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : "Errore modifica owner");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-1 flex-col gap-4 p-6">
@@ -572,33 +604,120 @@ export const ClientDetailPage = () => {
 
   if (!client) return null;
 
+  /* Layout da Figma FW-CROSS Mockup node 4351:21787 — padding 40px, griglia 512px + 24px gap + main */
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="ghost" size="sm" className="gap-2" onClick={goBack}>
+    <div className="flex flex-1 flex-col pt-[40px] px-[40px] gap-[32px]">
+      {/* Breadcrumb + titolo + azioni: gap 16px */}
+      <div className="flex flex-wrap items-center gap-4">
+        <Button variant="outline" size="sm" className="gap-2 shrink-0" onClick={goBack}>
           <ArrowLeft className="h-4 w-4" />
           Torna a Clienti
         </Button>
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => setEditDialogOpen(true)}>
+        <div className="flex-1 min-w-0 text-lg text-muted-foreground truncate">
+          Clienti / Scheda cliente
+        </div>
+        <Button variant="outline" size="sm" className="gap-2 shrink-0" onClick={() => setEditDialogOpen(true)}>
           <Pencil className="h-4 w-4" />
           Modifica
         </Button>
       </div>
 
-      <header className="flex flex-wrap items-start gap-3 border-b border-border pb-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">{client.fullName}</h1>
-          <span
-            className={cn(
-              "mt-1 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium",
-              "bg-muted text-muted-foreground"
-            )}
+      {/* Due colonne: spalla 512px, gap 24px, main flex-1 */}
+      <div className="flex flex-1 gap-[24px] min-h-0">
+        {/* Spalla sinistra — Figma: 512px, gap 16px tra card, padding card 24px, rounded 4px, shadow */}
+        <aside className="w-[512px] shrink-0 flex flex-col gap-4 pb-6">
+          {/* Card 1: Profilo — Avatar e InlineEditText da @tecma/design-system-tokens */}
+          <div
+            className="rounded-[4px] border border-border bg-card p-6 shadow-[2px_2px_8px_4px_rgba(223,225,230,0.25)] flex flex-col gap-4"
+            data-name="profile-details"
           >
-            {statusLabel(client.status)}
-          </span>
-        </div>
-      </header>
+            <div className="flex gap-4 items-start">
+              <Avatar
+                variant={client.fullName?.trim() ? "text" : "icon"}
+                size="lg"
+                contentText={client.fullName?.trim() ? client.fullName.trim().split(/\s+/).map((s) => s[0]).join("").slice(0, 2).toUpperCase() : "MR"}
+                aria-label={client.fullName ? `Avatar di ${client.fullName}` : "Avatar utente"}
+                className="shrink-0"
+              />
+              <div className="flex-1 min-w-0 flex flex-col gap-2">
+                <h2 className="text-base font-semibold text-foreground truncate">{client.fullName}</h2>
+                <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-muted text-muted-foreground w-fit">
+                  {statusLabel(client.status)}
+                </span>
+                <p className="text-xs text-muted-foreground">Registrazione: {formatDate(client.createdAt)}</p>
+                <p className="text-xs text-muted-foreground">Ultimo aggiornamento: {formatDate(client.updatedAt)}</p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-4 w-full">
+              <InlineEditText
+                className="w-full max-w-none"
+                label="E-mail"
+                value={client.email ?? ""}
+                placeholder="Aggiungi e-mail"
+                onSave={async (value: string) => {
+                  try {
+                    const res = await followupApi.updateClient(client._id, { email: value || undefined });
+                    setClient(res.client);
+                  } catch (e) {
+                    toastError(e instanceof Error ? e.message : "Errore aggiornamento e-mail");
+                  }
+                }}
+              />
+              <InlineEditText
+                className="w-full max-w-none"
+                label="Telefono"
+                value={client.phone ?? ""}
+                placeholder="Aggiungi telefono"
+                onSave={async (value: string) => {
+                  try {
+                    const res = await followupApi.updateClient(client._id, { phone: value || undefined });
+                    setClient(res.client);
+                  } catch (e) {
+                    toastError(e instanceof Error ? e.message : "Errore aggiornamento telefono");
+                  }
+                }}
+              />
+              {isAdmin && workspaceUsers.length > 0 ? (
+                <InlineEditSelect
+                  className="w-full max-w-none"
+                  label="Progetto / Owner"
+                  value={assignments[0]?.userId ?? ""}
+                  options={workspaceUsers.map((u) => ({ value: u.userId, label: u.userId }))}
+                  placeholder="Seleziona venditore"
+                  onChange={handleOwnerChange}
+                />
+              ) : (
+                <InlineEditText
+                  className="w-full max-w-none"
+                  label="Progetto / Owner"
+                  value={assignments[0]?.userId ? assignments[0].userId : "—"}
+                  placeholder="—"
+                />
+              )}
+            </div>
+          </div>
+          {/* Card 2: Key info (placeholder) */}
+          <div
+            className="rounded-[4px] border border-border bg-card p-6 shadow-[2px_2px_8px_4px_rgba(223,225,230,0.25)] flex flex-col gap-4"
+            data-name="key-info"
+          >
+            <h3 className="text-lg font-bold text-foreground">Key info</h3>
+            <p className="text-sm text-muted-foreground">
+              I dettagli della sezione Info aggiuntive appariranno qui per riferimento rapido.
+            </p>
+          </div>
+          {/* Card 3: Note (placeholder) */}
+          <div
+            className="rounded-[4px] border border-border bg-card p-6 shadow-[2px_2px_8px_4px_rgba(223,225,230,0.25)] flex flex-col gap-4"
+            data-name="notes"
+          >
+            <h3 className="text-lg font-bold text-foreground">Note</h3>
+            <p className="text-sm text-muted-foreground italic">Aggiungi note</p>
+          </div>
+        </aside>
 
+        {/* Area principale: Overview + tab */}
+        <div className="min-w-0 flex-1 flex flex-col gap-8">
       {/* Blocco Prossimi appuntamenti + Riepilogo trattative (Customer 360) */}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-chrome border border-border bg-card p-3 shadow-sm">
@@ -782,23 +901,62 @@ export const ClientDetailPage = () => {
       </Drawer>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="w-full flex flex-wrap border-b border-border bg-transparent p-0">
-          <TabsTrigger value="profilo" icon={<User className="h-4 w-4" />}>
+        <ButtonGroup type="segmented" orientation="horizontal" size="default" className="w-full flex [&_.tecma-button]:flex-1">
+          <Button
+            variant={activeTab === "profilo" ? "default" : "outline"}
+            onClick={() => setActiveTab("profilo")}
+            type="button"
+            className="gap-2"
+          >
+            <User className="h-4 w-4" />
             Profilo
-          </TabsTrigger>
-          <TabsTrigger value="trattative" icon={<Calendar className="h-4 w-4" />}>
+          </Button>
+          <Button
+            variant={activeTab === "trattative" ? "default" : "outline"}
+            onClick={() => setActiveTab("trattative")}
+            type="button"
+            className="gap-2"
+          >
+            <Calendar className="h-4 w-4" />
             Trattative
-          </TabsTrigger>
-          <TabsTrigger value="appartamenti" icon={<Home className="h-4 w-4" />}>
+          </Button>
+          <Button
+            variant={activeTab === "appartamenti" ? "default" : "outline"}
+            onClick={() => setActiveTab("appartamenti")}
+            type="button"
+            className="gap-2"
+          >
+            <Home className="h-4 w-4" />
             Appartamenti
-          </TabsTrigger>
-          <TabsTrigger value="timeline" icon={<History className="h-4 w-4" />}>
+          </Button>
+          <Button
+            variant={activeTab === "timeline" ? "default" : "outline"}
+            onClick={() => setActiveTab("timeline")}
+            type="button"
+            className="gap-2"
+          >
+            <History className="h-4 w-4" />
             Timeline
-          </TabsTrigger>
-          <TabsTrigger value="documenti" icon={<FileText className="h-4 w-4" />}>
+          </Button>
+          <Button
+            variant={activeTab === "documenti" ? "default" : "outline"}
+            onClick={() => setActiveTab("documenti")}
+            type="button"
+            className="gap-2"
+          >
+            <FileText className="h-4 w-4" />
             Documenti
-          </TabsTrigger>
-        </TabsList>
+          </Button>
+          <Button
+            variant={activeTab === "appuntamenti" ? "default" : "outline"}
+            onClick={() => setActiveTab("appuntamenti")}
+            type="button"
+            className="gap-2"
+          >
+            <CalendarCheck className="h-4 w-4" />
+            Appuntamenti
+          </Button>
+        </ButtonGroup>
 
         {/* Tab Profilo — allineato a scheda cliente e match: Contatti, Profilazione, Dettaglio/Info, Date e ID */}
         <TabsContent value="profilo" className="space-y-6 mt-4">
@@ -1546,7 +1704,57 @@ export const ClientDetailPage = () => {
             )}
           </section>
         </TabsContent>
+
+        {/* Tab Appuntamenti — TB-415: elenco appuntamenti del cliente con colonna appartamenti */}
+        <TabsContent value="appuntamenti" className="space-y-6 mt-4">
+          <section className="rounded-lg border border-border bg-card p-4">
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <h2 className="text-sm font-semibold text-foreground">Appuntamenti</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => {
+                  setCalendarDrawerPrefill({ clientId: client._id, projectId: client.projectId ?? undefined });
+                  setCalendarDrawerOpen(true);
+                }}
+              >
+                Fissa in calendario
+              </Button>
+            </div>
+            {calendarEvents.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nessun appuntamento associato al cliente.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Data / Ora</th>
+                      <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Titolo</th>
+                      <th className="text-left py-2 pr-4 font-medium text-muted-foreground">Appartamenti</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {calendarEvents.map((ev) => (
+                      <tr key={ev._id} className="border-b border-border/60 last:border-0">
+                        <td className="py-2 pr-4 tabular-nums text-foreground">
+                          {moment(ev.startsAt).format("DD MMM YYYY HH:mm")}
+                        </td>
+                        <td className="py-2 pr-4 text-foreground">{ev.title || "—"}</td>
+                        <td className="py-2 pr-4 text-muted-foreground">
+                          {ev.apartmentId ?? "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </TabsContent>
       </Tabs>
+        </div>
+      </div>
 
       {/* Drawer Nuova / Modifica azione (tab Timeline) */}
       <Drawer open={actionDrawerOpen} onOpenChange={setActionDrawerOpen}>
@@ -1666,7 +1874,15 @@ export const ClientDetailPage = () => {
         projects={projects}
         open={calendarDrawerOpen}
         onClose={() => setCalendarDrawerOpen(false)}
-        onSaved={() => {
+        onSaved={(savedEvent) => {
+          if (savedEvent) {
+            lastOptimisticEventIdRef.current = savedEvent._id;
+            setCalendarEvents((prev) => {
+              const idx = prev.findIndex((e) => e._id === savedEvent._id);
+              if (idx >= 0) return prev.map((e, i) => (i === idx ? savedEvent : e));
+              return [savedEvent, ...prev];
+            });
+          }
           setCalendarEventsRefreshKey((k) => k + 1);
           setCalendarDrawerOpen(false);
         }}

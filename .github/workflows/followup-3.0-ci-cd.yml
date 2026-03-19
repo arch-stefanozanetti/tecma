@@ -32,6 +32,9 @@ jobs:
   ci:
     name: Build & Test FE + BE
     runs-on: ubuntu-latest
+    env:
+      # Soddisfa ${NPM_TECMA_TOKEN} in fe-followup-v3/.npmrc per tutti gli step pnpm (evita warning/fail)
+      NPM_TECMA_TOKEN: ${{ secrets.NPM_TECMA_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -46,6 +49,11 @@ jobs:
           node-version: "20"
           cache: "pnpm"
           cache-dependency-path: ${{ env.FOLLOWUP_FE_DIR }}/pnpm-lock.yaml
+
+      - name: Install dependencies (design-system)
+        # Necessario per tsc: il FE re-esporta sorgenti DS; TypeScript risolve `react` da design-system/node_modules
+        working-directory: business/tecma-digital-platform/design-system
+        run: npm ci
 
       - name: Install dependencies (FE)
         working-directory: ${{ env.FOLLOWUP_FE_DIR }}

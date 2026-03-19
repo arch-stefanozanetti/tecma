@@ -1,0 +1,34 @@
+import { Meta, Canvas } from '@storybook/blocks';
+import * as ButtonGroupStories from './ButtonGroup.stories';
+
+<Meta of={ButtonGroupStories} />
+
+# Button Group
+
+[Figma](https://www.figma.com/design/ZRftnYLwNGRshiXEkS7WGM/DS---Tecma-Software-Suite?node-id=456-10239) · Source: `src/components/ButtonGroup`
+
+Bottoni attaccati (0px gap), bordi condivisi, angoli arrotondati solo all’esterno. Type **Default** (solid active) o **Segmented** (outlined). Layout **Horizontal** o **Vertical**.
+
+## Default
+
+<Canvas of={ButtonGroupStories.Default} />
+
+## Orizzontale — tre bottoni
+
+<Canvas of={ButtonGroupStories.DefaultHorizontalThree} />
+
+## Segmented
+
+<Canvas of={ButtonGroupStories.SegmentedHorizontal} />
+
+## Verticale
+
+<Canvas of={ButtonGroupStories.DefaultVertical} />
+
+## Dimensioni
+
+<Canvas of={ButtonGroupStories.AllSizes} />
+
+## Riferimenti
+
+- [Figma — Button Group](https://www.figma.com/design/ZRftnYLwNGRshiXEkS7WGM/DS---Tecma-Software-Suite?node-id=456-10239)

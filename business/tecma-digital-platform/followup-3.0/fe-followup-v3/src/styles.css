@@ -1,4 +1,6 @@
 @import "@tecma/design-system-tokens/css";
+/* Stili componenti DS (Button, Tag, Select, …) — necessario affinché tecma-button* sia visibile */
+@import "@tecma/design-system-tokens/components.css";
 
 /* Lato (sans) — percorsi da public/fonts, serviti alla root */
 @font-face {
@@ -25,7 +27,7 @@
   font-display: swap;
 }
 
-/* Ivy Journal (serif) — usata dai token --tecma-font-serif */
+/* Ivy Journal (serif) — allineata a --tecma-typography-typeface-serif */
 @font-face {
   font-family: "Ivy Journal";
   src: url("/fonts/IvyJournal/IvyJournal-Regular.ttf") format("truetype");
@@ -65,10 +67,8 @@
     --border: 220 17% 86%;
     --input: 220 17% 86%;
     --ring: 238 64% 58%;
-    /* Raggio angoli: unica fonte di verità (:root vince su token importati prima) */
     --radius-ui: 8px;
     --radius: var(--radius-ui);
-    --tecma-radius: var(--radius-ui);
     --radius-chrome: var(--radius-ui);
     --sidebar: 222 24% 90%;
     --sidebar-foreground: 224 20% 26%;
@@ -78,8 +78,8 @@
     --app-bg: #f8f8f9;
     --panel-bg: rgba(255, 255, 255, 0.85);
     --panel-border: #dbe2ef;
-    --title-font: var(--tecma-font-title);
-    --body-font: var(--tecma-font-body);
+    --title-font: var(--tecma-typography-typeface-sans-serif), system-ui, sans-serif;
+    --body-font: var(--tecma-typography-typeface-sans-serif), system-ui, sans-serif;
     --scrollbar-thumb: #d3d4da;
     --scrollbar-thumb-hover: #b0b3bf;
   }
