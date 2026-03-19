@@ -25,6 +25,7 @@ Indice della documentazione di progetto. **Piano operativo unico:** [PLAN_UNIFIC
 | [fe-followup-v3/ARCHITECTURE.md](../fe-followup-v3/ARCHITECTURE.md) | Architettura frontend: struttura `src/`, come aggiungere una pagina o un endpoint, hook `usePaginatedList` e `useAsync`. |
 | [REFACTORING.md](REFACTORING.md) | Refactoring strutturale (sprint): split project-config BE, route v1, IntegrationsPage (catalog/tab), pagine FE (costanti/hook/componenti), toast per errori API. |
 | [archive/plans-2025-2026/2025-03-07-unificazione-api-aws-gateway-followup.md](archive/plans-2025-2026/2025-03-07-unificazione-api-aws-gateway-followup.md) | Storico: unificazione API Followup con aws-api-gateway (merge spec, test, Postman, FE). |
+| [plans/](plans/README.md) | Design attivi: confine email operative vs connettori, mappa eventi, scope workspace/progetto. |
 
 ---
 
