@@ -44,10 +44,10 @@ Indici utili: `{ userId: 1, at: -1 }`, `{ at: -1 }`, `{ eventType: 1, at: -1 }`.
 
 ---
 
-## Collection: `tz_auditLogs`
+## Collection: `tz_audit_log`
 
 - Audit **mutazioni** su entità critiche (es. invito utente, update/delete utente).
-- Campi: `userId` (attore), `action`, `entityType`, `entityId`, `changes` (before/after JSON), `projectId`, `createdAt`.
+- Campi: `at`, `workspaceId`, `actor`, `userId`, `action`, `entityType`, `entityId`, `changes` (before/after JSON), `projectId`, `createdAt`.
 - Non includere segreti nei `changes`.
 
 ---

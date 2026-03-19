@@ -79,6 +79,11 @@ export interface ApartmentListRow extends Omit<ApartmentRow, "rawPrice"> {
   normalizedPrice: ReturnType<typeof normalizePrice>;
 }
 
+export interface EntityScope {
+  workspaceId?: string;
+  projectIds?: string[];
+}
+
 const buildMatch = (q: ListQueryInput) => {
   const match: Record<string, unknown> = {
     workspaceId: q.workspaceId,
@@ -159,10 +164,16 @@ export const queryApartments = async (rawInput: unknown): Promise<PaginatedRespo
   return queryPrimaryApartments(input);
 };
 
-export const getApartmentById = async (rawApartmentId: unknown): Promise<{ apartment: ReturnType<typeof mapApartment> }> => {
+export const getApartmentById = async (
+  rawApartmentId: unknown,
+  scope?: EntityScope
+): Promise<{ apartment: ReturnType<typeof mapApartment> }> => {
   const apartmentId = toObjectId(z.string().parse(rawApartmentId));
   const db = getDb();
-  const tzDoc = await db.collection<RawApartment>(TZ_APARTMENTS_COLLECTION).findOne({ _id: apartmentId });
+  const filter: Record<string, unknown> = { _id: apartmentId };
+  if (scope?.workspaceId) filter.workspaceId = scope.workspaceId;
+  if (scope?.projectIds?.length) filter.projectId = { $in: scope.projectIds };
+  const tzDoc = await db.collection<RawApartment>(TZ_APARTMENTS_COLLECTION).findOne(filter);
   if (tzDoc) {
     const apartment = mapApartment(tzDoc);
     return { apartment };
@@ -232,10 +243,13 @@ export const createApartment = async (rawInput: unknown) => {
   return { apartmentId, apartment: mapApartment({ _id: insertedId, ...doc }) };
 };
 
-export const updateApartment = async (rawInput: unknown) => {
+export const updateApartment = async (rawInput: unknown, scope?: EntityScope) => {
   const input = ApartmentUpdateSchema.parse(rawInput);
   const collection = getDb().collection<RawApartment>(TZ_APARTMENTS_COLLECTION);
   const apartmentId = toObjectId(input.apartmentId);
+  const filter: Record<string, unknown> = { _id: apartmentId };
+  if (scope?.workspaceId) filter.workspaceId = scope.workspaceId;
+  if (scope?.projectIds?.length) filter.projectId = { $in: scope.projectIds };
 
   const updateDoc: Record<string, unknown> = { updatedAt: new Date().toISOString() };
   if (input.name !== undefined) updateDoc.name = input.name;
@@ -245,7 +259,7 @@ export const updateApartment = async (rawInput: unknown) => {
   if (input.surfaceMq !== undefined) updateDoc.surfaceMq = input.surfaceMq;
   if (input.planimetryUrl !== undefined) updateDoc.planimetryUrl = input.planimetryUrl;
   if (input.price !== undefined || input.mode !== undefined) {
-    const existing = await collection.findOne({ _id: apartmentId });
+    const existing = await collection.findOne(filter);
     if (!existing) throw new HttpError("Apartment not found", 404);
     updateDoc.rawPrice = {
       mode: input.mode ?? existing.mode,
@@ -253,11 +267,11 @@ export const updateApartment = async (rawInput: unknown) => {
     };
   }
 
-  const current = await collection.findOne({ _id: apartmentId });
+  const current = await collection.findOne(filter);
   if (!current) throw new HttpError("Apartment not found", 404);
 
-  await collection.updateOne({ _id: apartmentId }, { $set: updateDoc });
-  const updated = await collection.findOne({ _id: apartmentId });
+  await collection.updateOne(filter, { $set: updateDoc });
+  const updated = await collection.findOne(filter);
   if (!updated) throw new HttpError("Apartment not found", 404);
 
   return { apartment: mapApartment(updated) };

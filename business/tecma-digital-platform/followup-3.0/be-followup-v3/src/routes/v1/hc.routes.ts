@@ -22,11 +22,16 @@ import { getClientCandidates, getApartmentCandidates } from "../../core/matching
 import { handleAsync } from "../asyncHandler.js";
 import { record as auditRecord } from "../../core/audit/audit-log.service.js";
 import { safeAsync } from "../../core/shared/safeAsync.js";
+import { HttpError } from "../../types/http.js";
 
 export const hcRoutes = Router();
 
 hcRoutes.post("/hc/apartments", handleAsync((req) => upsertHCApartment(req.body)));
-hcRoutes.get("/hc/apartments/:apartmentId", handleAsync((req) => getHCApartment(req.params.apartmentId)));
+hcRoutes.get("/hc/apartments/:apartmentId", handleAsync((req) => {
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+  if (!workspaceId) throw new HttpError("workspaceId query required", 400, { code: "WORKSPACE_REQUIRED" });
+  return getHCApartment(req.params.apartmentId, workspaceId);
+}));
 hcRoutes.patch(
   "/hc/apartments/:apartmentId",
   handleAsync((req) => upsertHCApartment({ ...req.body, apartmentId: req.params.apartmentId }))
@@ -63,7 +68,9 @@ hcRoutes.post("/associations/query", handleAsync((req) => queryAssociations(req.
 hcRoutes.delete(
   "/associations/:id",
   handleAsync(async (req) => {
-    const result = await deleteAssociation(req.params.id);
+    const scopedWorkspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+    if (!scopedWorkspaceId) throw new HttpError("workspaceId query required", 400, { code: "WORKSPACE_REQUIRED" });
+    const result = await deleteAssociation(req.params.id, scopedWorkspaceId);
     const workspaceId = (result as { workspaceId?: string }).workspaceId ?? "";
     if (workspaceId) {
       safeAsync(auditRecord({
@@ -93,9 +100,17 @@ hcRoutes.post("/hc-master/:entity/query", handleAsync((req) => queryHCMaster(req
 hcRoutes.post("/hc-master/:entity", handleAsync((req) => createHCMaster(req.params.entity, req.body)));
 hcRoutes.patch(
   "/hc-master/:entity/:id",
-  handleAsync((req) => updateHCMaster(req.params.entity, req.params.id, req.body))
+  handleAsync((req) => {
+    const workspaceId = typeof req.body?.workspaceId === "string" ? req.body.workspaceId.trim() : "";
+    if (!workspaceId) throw new HttpError("workspaceId required in body", 400, { code: "WORKSPACE_REQUIRED" });
+    return updateHCMaster(req.params.entity, req.params.id, req.body, workspaceId);
+  })
 );
-hcRoutes.delete("/hc-master/:entity/:id", handleAsync((req) => deleteHCMaster(req.params.entity, req.params.id)));
+hcRoutes.delete("/hc-master/:entity/:id", handleAsync((req) => {
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+  if (!workspaceId) throw new HttpError("workspaceId query required", 400, { code: "WORKSPACE_REQUIRED" });
+  return deleteHCMaster(req.params.entity, req.params.id, workspaceId);
+}));
 
 hcRoutes.get("/templates/configuration", handleAsync((req) => getTemplateConfiguration(req.query.projectId)));
 hcRoutes.put(
@@ -129,6 +144,7 @@ hcRoutes.get(
             .map((p) => p.trim())
             .filter(Boolean)
         : [];
+    if (!workspaceId) throw new HttpError("workspaceId query required", 400, { code: "WORKSPACE_REQUIRED" });
     return getClientCandidates(clientId, workspaceId, projectIds);
   })
 );
@@ -145,6 +161,7 @@ hcRoutes.get(
             .map((p) => p.trim())
             .filter(Boolean)
         : [];
+    if (!workspaceId) throw new HttpError("workspaceId query required", 400, { code: "WORKSPACE_REQUIRED" });
     return getApartmentCandidates(apartmentId, workspaceId, projectIds);
   })
 );

@@ -1,11 +1,14 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
+import { z } from "zod";
 import { connectDb, getDb } from "../config/db.js";
 
 const USER_COLLECTION_CANDIDATES = ["tz_users", "users", "Users", "user", "User", "backoffice_users"];
 
-const EMAIL = "s.zanetti@tecmasolutions.com";
-const PASSWORD = "JJUbbsuy3339!";
+const ScriptEnvSchema = z.object({
+  ADMIN_EMAIL: z.string().email(),
+  ADMIN_PASSWORD: z.string().min(12, "ADMIN_PASSWORD must be at least 12 characters")
+});
 
 const detectUserCollectionName = async (): Promise<string> => {
   const db = getDb();
@@ -24,15 +27,16 @@ const main = async () => {
   const db = getDb();
   const collectionName = await detectUserCollectionName();
   const users = db.collection(collectionName);
+  const scriptEnv = ScriptEnvSchema.parse(process.env);
 
-  const email = EMAIL.trim().toLowerCase();
+  const email = scriptEnv.ADMIN_EMAIL.trim().toLowerCase();
   const normalizedRegex = `^${email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`;
 
   const existing = await users.findOne({
     email: { $regex: normalizedRegex, $options: "i" }
   });
 
-  const passwordHash = await bcrypt.hash(PASSWORD, 10);
+  const passwordHash = await bcrypt.hash(scriptEnv.ADMIN_PASSWORD, 10);
 
   if (existing) {
     await users.updateOne(
@@ -74,4 +78,3 @@ main()
     console.error(err);
     process.exit(1);
   });
-

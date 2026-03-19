@@ -113,7 +113,7 @@ export function InboxPage({ workspaceId, onSectionChange, navigate }: InboxPageP
         onSectionChange(link.section, link.state);
       }
       if (!n.read) {
-        followupApi.markNotificationRead(n._id).then(() => load()).catch(() => {});
+        followupApi.markNotificationRead(n._id, workspaceId).then(() => load()).catch(() => {});
       }
     },
     [navigate, onSectionChange, load]
@@ -123,7 +123,7 @@ export function InboxPage({ workspaceId, onSectionChange, navigate }: InboxPageP
     (e: React.MouseEvent, n: NotificationRow) => {
       e.stopPropagation();
       if (n.read) return;
-      followupApi.markNotificationRead(n._id).then(() => load()).catch(() => {});
+      followupApi.markNotificationRead(n._id, workspaceId).then(() => load()).catch(() => {});
     },
     [load]
   );

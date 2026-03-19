@@ -2,10 +2,13 @@ import type { OptionalId } from "mongodb";
 import { getDb } from "../../config/db.js";
 import { logger } from "../../observability/logger.js";
 
-const COLLECTION = "tz_auditLogs";
+const COLLECTION = "tz_audit_log";
 
 export interface AuditLogDoc {
   _id?: import("mongodb").ObjectId;
+  at: Date;
+  workspaceId: string;
+  actor: { type: "user" | "system"; userId?: string };
   userId: string;
   action: string;
   entityType: string;
@@ -22,11 +25,15 @@ export async function writeAuditLog(params: {
   action: string;
   entityType: string;
   entityId: string;
+  workspaceId?: string;
   changes?: { before?: unknown; after?: unknown } | null;
   projectId?: string | null;
 }): Promise<void> {
   try {
     const doc: OptionalId<AuditLogDoc> = {
+      at: new Date(),
+      workspaceId: params.workspaceId ?? "global",
+      actor: { type: "user", userId: params.userId },
       userId: params.userId,
       action: params.action,
       entityType: params.entityType,

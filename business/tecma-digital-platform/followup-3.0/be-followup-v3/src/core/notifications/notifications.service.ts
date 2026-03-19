@@ -111,7 +111,7 @@ export const queryNotifications = async (
   };
 };
 
-export const markRead = async (id: string): Promise<NotificationRow | null> => {
+export const markRead = async (id: string, workspaceId?: string): Promise<NotificationRow | null> => {
   const db = getDb();
   const coll = db.collection(COLLECTION);
   let oid: ObjectId;
@@ -121,7 +121,7 @@ export const markRead = async (id: string): Promise<NotificationRow | null> => {
     throw new HttpError("Invalid notification id", 400);
   }
   const result = await coll.findOneAndUpdate(
-    { _id: oid },
+    { _id: oid, ...(workspaceId ? { workspaceId } : {}) },
     { $set: { read: true } },
     { returnDocument: "after" }
   );

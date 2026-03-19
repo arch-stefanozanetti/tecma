@@ -27,7 +27,8 @@ export function useApartmentDetailData(
     isLoading: loading,
     error: loadApartmentError,
   } = useAsync(async (id: string) => {
-    const response = await followupApi.getApartmentById(id);
+    if (!workspaceId) throw new Error("workspaceId required");
+    const response = await followupApi.getApartmentById(id, workspaceId, selectedProjectIds);
     return response.apartment;
   });
   const {
@@ -46,7 +47,7 @@ export function useApartmentDetailData(
   }));
 
   useEffect(() => {
-    if (!apartmentId) return;
+    if (!apartmentId || !workspaceId) return;
     setError(null);
     void loadApartment(apartmentId).then((loadedApartment) => {
       if (!loadedApartment) {
@@ -55,7 +56,7 @@ export function useApartmentDetailData(
       }
       setApartment(loadedApartment);
     });
-  }, [apartmentId, loadApartment]);
+  }, [apartmentId, workspaceId, loadApartment]);
 
   useEffect(() => {
     if (!loadApartmentError) return;

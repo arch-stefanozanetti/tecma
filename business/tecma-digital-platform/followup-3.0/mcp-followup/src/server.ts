@@ -4,9 +4,16 @@ import express, { Request, Response } from "express";
 import fetch from "node-fetch";
 import { z } from "zod";
 
-const PORT = Number(process.env.MCP_PORT || 5070);
-const API_BASE_URL = process.env.FOLLOWUP_API_BASE_URL || "http://localhost:5060/v1";
-const MCP_API_KEY = process.env.MCP_API_KEY || "change-me";
+const EnvSchema = z.object({
+  MCP_PORT: z.coerce.number().default(5070),
+  FOLLOWUP_API_BASE_URL: z.string().url().default("http://localhost:8080/v1"),
+  MCP_API_KEY: z.string().min(24, "MCP_API_KEY must be configured with a strong value")
+});
+
+const ENV = EnvSchema.parse(process.env);
+const PORT = ENV.MCP_PORT;
+const API_BASE_URL = ENV.FOLLOWUP_API_BASE_URL;
+const MCP_API_KEY = ENV.MCP_API_KEY;
 const AUDIT_FILE = join(process.cwd(), "logs", "audit.log");
 
 const app = express();

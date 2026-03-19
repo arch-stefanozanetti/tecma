@@ -26,6 +26,13 @@ import { safeAsync } from "../../core/shared/safeAsync.js";
 
 export const apartmentsRoutes = Router();
 
+const parseScopeQuery = (req: { query: Record<string, unknown> }): { workspaceId: string; projectIds: string[] } => {
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+  const projectIdsRaw = typeof req.query.projectIds === "string" ? req.query.projectIds : "";
+  const projectIds = projectIdsRaw ? projectIdsRaw.split(",").map((s) => s.trim()).filter(Boolean) : [];
+  return { workspaceId, projectIds };
+};
+
 apartmentsRoutes.post("/apartments/query", handleAsync((req) => queryApartments(req.body)));
 
 apartmentsRoutes.post("/apartments", handleAsync(async (req) => {
@@ -52,20 +59,26 @@ apartmentsRoutes.post("/apartments", handleAsync(async (req) => {
 }));
 
 apartmentsRoutes.patch("/apartments/:id", handleAsync(async (req) => {
-  const result = await updateApartment({ ...req.body, apartmentId: req.params.id });
-  if (req.body.workspaceId) {
+  const workspaceId = typeof req.body?.workspaceId === "string" ? req.body.workspaceId.trim() : "";
+  if (!workspaceId) throw new HttpError("workspaceId required", 400, { code: "WORKSPACE_REQUIRED" });
+  const projectId = typeof req.body?.projectId === "string" ? req.body.projectId.trim() : "";
+  const result = await updateApartment(
+    { ...req.body, apartmentId: req.params.id },
+    { workspaceId, projectIds: projectId ? [projectId] : undefined }
+  );
+  if (workspaceId) {
     safeAsync(auditRecord({
       action: "apartment.updated",
-      workspaceId: req.body.workspaceId,
-      projectId: req.body.projectId,
+      workspaceId,
+      projectId,
       entityType: "apartment",
       entityId: req.params.id,
       actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
       payload: req.body,
     }), {
       operation: "audit.apartment.updated",
-      workspaceId: req.body.workspaceId,
-      projectId: req.body.projectId,
+      workspaceId,
+      projectId,
       entityType: "apartment",
       entityId: req.params.id,
       userId: req.user?.sub,
@@ -74,7 +87,11 @@ apartmentsRoutes.patch("/apartments/:id", handleAsync(async (req) => {
   return result;
 }));
 
-apartmentsRoutes.get("/apartments/:id", handleAsync((req) => getApartmentById(req.params.id)));
+apartmentsRoutes.get("/apartments/:id", handleAsync((req) => {
+  const { workspaceId, projectIds } = parseScopeQuery(req);
+  if (!workspaceId) throw new HttpError("workspaceId query required", 400, { code: "WORKSPACE_REQUIRED" });
+  return getApartmentById(req.params.id, { workspaceId, projectIds });
+}));
 
 apartmentsRoutes.get("/apartments/:id/prices", handleAsync(async (req) => {
   const unitId = req.params.id;

@@ -54,6 +54,9 @@ const CORE_INDEXES: IndexDefinition[] = [
   { collection: "tz_operational_alerts", keys: { workspaceId: 1, acknowledgedAt: 1, createdAt: -1 } },
   { collection: "tz_operational_alerts", keys: { source: 1, severity: 1, createdAt: -1 } },
   { collection: "tz_portal_access_audit", keys: { at: -1 } },
+  { collection: "tz_audit_log", keys: { workspaceId: 1, at: -1 } },
+  { collection: "tz_audit_log", keys: { entityType: 1, entityId: 1, at: -1 } },
+  { collection: "tz_audit_log", keys: { "actor.userId": 1, at: -1 } },
 ];
 
 function createIndexName(collection: string, keys: IndexDefinition["keys"]): string {

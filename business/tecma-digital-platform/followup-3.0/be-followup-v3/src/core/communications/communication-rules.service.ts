@@ -173,10 +173,13 @@ export const listByWorkspace = async (
   return docs.map((d) => docToRow(d as Record<string, unknown>));
 };
 
-export const getById = async (id: string): Promise<CommunicationRuleRow | null> => {
+export const getById = async (id: string, workspaceId?: string): Promise<CommunicationRuleRow | null> => {
   if (!ObjectId.isValid(id)) return null;
   const db = getDb();
-  const doc = await db.collection(COLLECTION).findOne({ _id: new ObjectId(id) });
+  const doc = await db.collection(COLLECTION).findOne({
+    _id: new ObjectId(id),
+    ...(workspaceId ? { workspaceId } : {}),
+  });
   return doc ? docToRow(doc as Record<string, unknown>) : null;
 };
 
@@ -202,7 +205,8 @@ export const create = async (input: z.infer<typeof CreateRuleSchema>): Promise<C
 
 export const update = async (
   id: string,
-  input: z.infer<typeof UpdateRuleSchema>
+  input: z.infer<typeof UpdateRuleSchema>,
+  workspaceId?: string
 ): Promise<CommunicationRuleRow | null> => {
   if (!ObjectId.isValid(id)) return null;
   const parsed = UpdateRuleSchema.parse(input);
@@ -214,16 +218,19 @@ export const update = async (
   if (parsed.actions !== undefined) updateFields.actions = parsed.actions;
   if (parsed.schedules !== undefined) updateFields.schedules = parsed.schedules;
   const result = await db.collection(COLLECTION).findOneAndUpdate(
-    { _id: new ObjectId(id) },
+    { _id: new ObjectId(id), ...(workspaceId ? { workspaceId } : {}) },
     { $set: updateFields },
     { returnDocument: "after" }
   );
   return result ? docToRow(result as Record<string, unknown>) : null;
 };
 
-export const remove = async (id: string): Promise<boolean> => {
+export const remove = async (id: string, workspaceId?: string): Promise<boolean> => {
   if (!ObjectId.isValid(id)) return false;
   const db = getDb();
-  const result = await db.collection(COLLECTION).deleteOne({ _id: new ObjectId(id) });
+  const result = await db.collection(COLLECTION).deleteOne({
+    _id: new ObjectId(id),
+    ...(workspaceId ? { workspaceId } : {}),
+  });
   return (result.deletedCount ?? 0) > 0;
 };

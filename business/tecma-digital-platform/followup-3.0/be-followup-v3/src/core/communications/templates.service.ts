@@ -87,10 +87,13 @@ export const listByWorkspace = async (
   return docs.map((d) => docToRow(d as Record<string, unknown>));
 };
 
-export const getById = async (id: string): Promise<CommunicationTemplateRow | null> => {
+export const getById = async (id: string, workspaceId?: string): Promise<CommunicationTemplateRow | null> => {
   if (!ObjectId.isValid(id)) return null;
   const db = getDb();
-  const doc = await db.collection(COLLECTION).findOne({ _id: new ObjectId(id) });
+  const doc = await db.collection(COLLECTION).findOne({
+    _id: new ObjectId(id),
+    ...(workspaceId ? { workspaceId } : {}),
+  });
   return doc ? docToRow(doc as Record<string, unknown>) : null;
 };
 
@@ -117,7 +120,8 @@ export const create = async (input: z.infer<typeof CreateSchema>): Promise<Commu
 
 export const update = async (
   id: string,
-  input: z.infer<typeof UpdateSchema>
+  input: z.infer<typeof UpdateSchema>,
+  workspaceId?: string
 ): Promise<CommunicationTemplateRow | null> => {
   if (!ObjectId.isValid(id)) return null;
   const parsed = UpdateSchema.parse(input);
@@ -130,17 +134,20 @@ export const update = async (
   if (parsed.variables !== undefined) updateFields.variables = parsed.variables;
   if (parsed.projectId !== undefined) updateFields.projectId = parsed.projectId || null;
   const result = await db.collection(COLLECTION).findOneAndUpdate(
-    { _id: new ObjectId(id) },
+    { _id: new ObjectId(id), ...(workspaceId ? { workspaceId } : {}) },
     { $set: updateFields },
     { returnDocument: "after" }
   );
   return result ? docToRow(result as Record<string, unknown>) : null;
 };
 
-export const remove = async (id: string): Promise<boolean> => {
+export const remove = async (id: string, workspaceId?: string): Promise<boolean> => {
   if (!ObjectId.isValid(id)) return false;
   const db = getDb();
-  const result = await db.collection(COLLECTION).deleteOne({ _id: new ObjectId(id) });
+  const result = await db.collection(COLLECTION).deleteOne({
+    _id: new ObjectId(id),
+    ...(workspaceId ? { workspaceId } : {}),
+  });
   return (result.deletedCount ?? 0) > 0;
 };
 

@@ -139,7 +139,8 @@ export const createCalendarEvent = async (rawInput: unknown): Promise<{ event: C
 
 export const updateCalendarEvent = async (
   eventId: string,
-  rawInput: unknown
+  rawInput: unknown,
+  scope?: { workspaceId?: string }
 ): Promise<{ event: CalendarEvent }> => {
   const input = CalendarEventUpdateSchema.parse(rawInput);
   const db = getDb();
@@ -148,7 +149,8 @@ export const updateCalendarEvent = async (
     throw new HttpError("Event not found", 404);
   }
   const _id = new ObjectId(eventId);
-  const existing = await collection.findOne({ _id } as never);
+  const existingFilter: Record<string, unknown> = { _id, ...(scope?.workspaceId ? { workspaceId: scope.workspaceId } : {}) };
+  const existing = await collection.findOne(existingFilter as never);
   if (!existing) {
     throw new HttpError("Event not found", 404);
   }
@@ -169,8 +171,8 @@ export const updateCalendarEvent = async (
   }
   if (Object.keys(update).length === 0 && Object.keys(unset).length === 0) return { event: existing as CalendarEvent };
   const updateOp = Object.keys(unset).length > 0 ? { $set: update, $unset: unset } : { $set: update };
-  await collection.updateOne({ _id } as never, updateOp);
-  const updated = await collection.findOne({ _id } as never);
+  await collection.updateOne(existingFilter as never, updateOp);
+  const updated = await collection.findOne(existingFilter as never);
   const event: CalendarEvent = {
     _id: String(updated!._id),
     workspaceId: String(updated!.workspaceId ?? existing.workspaceId),
@@ -198,14 +200,17 @@ export const updateCalendarEvent = async (
   return { event };
 };
 
-export const deleteCalendarEvent = async (eventId: string): Promise<{ deleted: boolean }> => {
+export const deleteCalendarEvent = async (
+  eventId: string,
+  scope?: { workspaceId?: string }
+): Promise<{ deleted: boolean }> => {
   if (!ObjectId.isValid(eventId)) {
     throw new HttpError("Event not found", 404);
   }
   const db = getDb();
   const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("calendar_events");
   const _id = new ObjectId(eventId);
-  const result = await collection.deleteOne({ _id } as never);
+  const result = await collection.deleteOne({ _id, ...(scope?.workspaceId ? { workspaceId: scope.workspaceId } : {}) } as never);
   if (result.deletedCount === 0) {
     throw new HttpError("Event not found", 404);
   }

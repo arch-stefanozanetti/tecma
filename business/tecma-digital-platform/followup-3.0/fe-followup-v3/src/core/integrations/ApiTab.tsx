@@ -304,9 +304,10 @@ export function ApiTab({ workspaceId, isAdmin }: ApiTabProps) {
   };
 
   const ackAlert = async (id: string) => {
+    if (!workspaceId) return;
     setError("");
     try {
-      await followupApi.acknowledgeOperationalAlert(id);
+      await followupApi.acknowledgeOperationalAlert(id, workspaceId);
       await fetchEnterpriseData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Acknowledge alert fallito");

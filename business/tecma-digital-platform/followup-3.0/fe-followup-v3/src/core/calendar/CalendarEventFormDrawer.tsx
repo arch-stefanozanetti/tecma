@@ -142,6 +142,7 @@ export const CalendarEventFormDrawer = ({
     try {
       if (mode === "edit" && event) {
         await followupApi.updateCalendarEvent(event._id, {
+          workspaceId: workspaceId || undefined,
           title: title.trim(),
           startsAt: fromDatetimeLocal(startsAt),
           endsAt: fromDatetimeLocal(endsAt),

@@ -52,14 +52,13 @@ export const listOperationalAlerts = async (workspaceId: string): Promise<{ data
   };
 };
 
-export const acknowledgeOperationalAlert = async (id: string): Promise<{ ok: boolean }> => {
+export const acknowledgeOperationalAlert = async (id: string, workspaceId?: string): Promise<{ ok: boolean }> => {
   const db = getDb();
   if (!ObjectId.isValid(id)) return { ok: false };
   const now = nowIso();
   await db.collection(COLLECTION).updateOne(
-    { _id: new ObjectId(id) },
+    { _id: new ObjectId(id), ...(workspaceId ? { workspaceId } : {}) },
     { $set: { acknowledgedAt: now, updatedAt: now } },
   );
   return { ok: true };
 };
-

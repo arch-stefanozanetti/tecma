@@ -103,13 +103,17 @@ export const RequestsPage = () => {
       setRequestActions([]);
       return;
     }
+    if (!workspaceId) {
+      setRequestTransitions([]);
+      return;
+    }
     setTransitionsLoading(true);
     requestsApi
-      .getRequestTransitions(selectedRequest._id)
+      .getRequestTransitions(selectedRequest._id, workspaceId, selectedProjectIds)
       .then((r) => setRequestTransitions(r.transitions ?? []))
       .catch(() => setRequestTransitions([]))
       .finally(() => setTransitionsLoading(false));
-  }, [selectedRequest?._id]);
+  }, [selectedRequest?._id, workspaceId, selectedProjectIds]);
 
   useEffect(() => {
     if (!workspaceId) {
@@ -127,9 +131,9 @@ export const RequestsPage = () => {
   // Apri drawer dettaglio se arriviamo da scheda cliente con openRequestId
   useEffect(() => {
     const openRequestId = (location.state as { openRequestId?: string } | null)?.openRequestId;
-    if (!openRequestId) return;
+    if (!openRequestId || !workspaceId) return;
     requestsApi
-      .getRequestById(openRequestId)
+      .getRequestById(openRequestId, workspaceId, selectedProjectIds)
       .then((r) => {
         setSelectedRequest(r.request);
         navigate(location.pathname, { replace: true, state: {} });
@@ -137,7 +141,7 @@ export const RequestsPage = () => {
       .catch(() => {
         navigate(location.pathname, { replace: true, state: {} });
       });
-  }, [location.state, location.pathname, navigate]);
+  }, [location.state, location.pathname, navigate, workspaceId, selectedProjectIds]);
 
   useEffect(() => {
     if (!newRequestOpen || !workspaceId || selectedProjectIds.length === 0) return;
@@ -271,7 +275,12 @@ export const RequestsPage = () => {
   const handleStatusChange = async (requestId: string, newStatus: RequestStatus) => {
     setStatusChangingId(requestId);
     try {
-      await requestsApi.updateRequestStatus(requestId, { status: newStatus });
+      if (!workspaceId) throw new Error("Workspace non selezionato.");
+      await requestsApi.updateRequestStatus(requestId, {
+        status: newStatus,
+        workspaceId,
+        projectIds: selectedProjectIds,
+      });
       refetch();
       setSelectedRequest((prev) => (prev?._id === requestId ? { ...prev, status: newStatus } : prev));
     } catch (err) {
@@ -295,10 +304,20 @@ export const RequestsPage = () => {
     if (!selectedRequest) return;
     setRevertingTransitionId(transitionId);
     try {
-      const { request } = await requestsApi.revertRequestStatus(selectedRequest._id, transitionId);
+      if (!workspaceId) throw new Error("Workspace non selezionato.");
+      const { request } = await requestsApi.revertRequestStatus(
+        selectedRequest._id,
+        transitionId,
+        workspaceId,
+        selectedProjectIds
+      );
       setSelectedRequest(request);
       refetch();
-      const { transitions } = await requestsApi.getRequestTransitions(selectedRequest._id);
+      const { transitions } = await requestsApi.getRequestTransitions(
+        selectedRequest._id,
+        workspaceId,
+        selectedProjectIds
+      );
       setRequestTransitions(transitions ?? []);
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Errore durante il ripristino dello stato.");
@@ -353,7 +372,7 @@ export const RequestsPage = () => {
     setActionFormSaving(true);
     try {
       if (actionDrawerMode === "edit" && editingAction) {
-        await requestsApi.updateRequestAction(editingAction._id, {
+        await requestsApi.updateRequestAction(editingAction._id, workspaceId, {
           type: actionFormType,
           title: actionFormTitle.trim() || undefined,
           description: actionFormDescription.trim() || undefined,
@@ -382,7 +401,7 @@ export const RequestsPage = () => {
     if (!window.confirm("Eliminare questa azione?")) return;
     setDeletingActionId(actionId);
     try {
-      await requestsApi.deleteRequestAction(actionId);
+      await requestsApi.deleteRequestAction(actionId, workspaceId);
       setRequestActions((prev) => prev.filter((a) => a._id !== actionId));
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Errore durante l'eliminazione.");

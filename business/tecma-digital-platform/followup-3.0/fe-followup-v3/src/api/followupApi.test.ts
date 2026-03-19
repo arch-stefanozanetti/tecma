@@ -33,9 +33,9 @@ describe("followupApi", () => {
   });
 
   it("getClientById chiama getJson con path client", async () => {
-    await followupApi.getClientById("client-1");
+    await followupApi.getClientById("client-1", "ws1", ["p1"]);
 
-    expect(http.getJson).toHaveBeenCalledWith("/clients/client-1");
+    expect(http.getJson).toHaveBeenCalledWith("/clients/client-1?workspaceId=ws1&projectIds=p1");
   });
 
   it("updateClient chiama patchJson con path client", async () => {
@@ -45,9 +45,9 @@ describe("followupApi", () => {
   });
 
   it("deleteCalendarEvent chiama deleteJson", async () => {
-    await followupApi.deleteCalendarEvent("e1");
+    await followupApi.deleteCalendarEvent("e1", "ws1");
 
-    expect(http.deleteJson).toHaveBeenCalledWith("/calendar/events/e1");
+    expect(http.deleteJson).toHaveBeenCalledWith("/calendar/events/e1?workspaceId=ws1");
   });
 
   it("getTemplateConfiguration chiama getJson con projectId in query", async () => {
@@ -96,8 +96,8 @@ describe("followupApi", () => {
   });
 
   it("getRequestById chiama getJson", async () => {
-    await followupApi.getRequestById("r1");
-    expect(http.getJson).toHaveBeenCalledWith("/requests/r1");
+    await followupApi.getRequestById("r1", "ws1", ["p1"]);
+    expect(http.getJson).toHaveBeenCalledWith("/requests/r1?workspaceId=ws1&projectIds=p1");
   });
 
   it("listWorkspaces chiama getJson", async () => {
@@ -192,13 +192,13 @@ describe("followupApi", () => {
   });
 
   it("updateAdditionalInfo chiama patchJson", async () => {
-    await followupApi.updateAdditionalInfo("id1", { value: "v2" });
-    expect(http.patchJson).toHaveBeenCalledWith("/additional-infos/id1", { value: "v2" });
+    await followupApi.updateAdditionalInfo("id1", "ws1", { value: "v2" });
+    expect(http.patchJson).toHaveBeenCalledWith("/additional-infos/id1", { value: "v2", workspaceId: "ws1" });
   });
 
   it("deleteAdditionalInfo chiama deleteJson", async () => {
-    await followupApi.deleteAdditionalInfo("id1");
-    expect(http.deleteJson).toHaveBeenCalledWith("/additional-infos/id1");
+    await followupApi.deleteAdditionalInfo("id1", "ws1");
+    expect(http.deleteJson).toHaveBeenCalledWith("/additional-infos/id1?workspaceId=ws1");
   });
 
   it("getWorkflowConfig chiama getJson con flowType", async () => {
@@ -212,8 +212,29 @@ describe("followupApi", () => {
   });
 
   it("updateRequestStatus chiama patchJson", async () => {
-    await followupApi.updateRequestStatus("r1", { status: "approved" });
-    expect(http.patchJson).toHaveBeenCalledWith("/requests/r1/status", { status: "approved" });
+    await followupApi.updateRequestStatus("r1", { status: "approved", workspaceId: "ws1", projectIds: ["p1"] });
+    expect(http.patchJson).toHaveBeenCalledWith("/requests/r1/status", {
+      status: "approved",
+      workspaceId: "ws1",
+      projectIds: ["p1"],
+    });
+  });
+
+  it("request actions by-id sono scope-aware", async () => {
+    await followupApi.updateRequestAction("a1", "ws1", { title: "Aggiorna" });
+    await followupApi.deleteRequestAction("a1", "ws1");
+    expect(http.patchJson).toHaveBeenCalledWith("/requests/actions/a1?workspaceId=ws1", { title: "Aggiorna" });
+    expect(http.deleteJson).toHaveBeenCalledWith("/requests/actions/a1?workspaceId=ws1");
+  });
+
+  it("markNotificationRead include workspaceId in query", async () => {
+    await followupApi.markNotificationRead("n1", "ws1");
+    expect(http.patchJson).toHaveBeenCalledWith("/notifications/n1?workspaceId=ws1", { read: true });
+  });
+
+  it("acknowledgeOperationalAlert include workspaceId in query", async () => {
+    await followupApi.acknowledgeOperationalAlert("al1", "ws1");
+    expect(http.postJson).toHaveBeenCalledWith("/ops/alerts/al1/ack?workspaceId=ws1", {});
   });
 
   it("getProjectsByEmail chiama postJson", async () => {
@@ -257,8 +278,8 @@ describe("followupApi", () => {
   });
 
   it("getApartmentById chiama getJson", async () => {
-    await followupApi.getApartmentById("a1");
-    expect(http.getJson).toHaveBeenCalledWith("/apartments/a1");
+    await followupApi.getApartmentById("a1", "ws1", ["p1"]);
+    expect(http.getJson).toHaveBeenCalledWith("/apartments/a1?workspaceId=ws1&projectIds=p1");
   });
 
   it("getApartmentRequests chiama getJson", async () => {

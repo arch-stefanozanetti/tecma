@@ -11,7 +11,15 @@ import { safeAsync } from "../../core/shared/safeAsync.js";
 export const clientsRoutes = Router();
 
 clientsRoutes.post("/clients/query", handleAsync((req) => queryClients(req.body)));
-clientsRoutes.get("/clients/:id", handleAsync((req) => getClientById(req.params.id)));
+clientsRoutes.get("/clients/:id", handleAsync((req) => {
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+  const projectIdsRaw = typeof req.query.projectIds === "string" ? req.query.projectIds : "";
+  const projectIds = projectIdsRaw ? projectIdsRaw.split(",").map((s) => s.trim()).filter(Boolean) : [];
+  if (!workspaceId) {
+    throw new HttpError("Missing workspaceId query param", 400, { code: "WORKSPACE_REQUIRED" });
+  }
+  return getClientById(req.params.id, { workspaceId, projectIds });
+}));
 
 clientsRoutes.get(
   "/clients/:id/requests",
@@ -71,12 +79,20 @@ clientsRoutes.post("/clients", handleAsync(async (req) => {
 }));
 
 clientsRoutes.patch("/clients/:id", handleAsync(async (req) => {
-  const result = await updateClient(req.params.id, req.body);
-  const workspaceId = result.workspaceId ?? "";
-  if (workspaceId) {
+  const workspaceId = typeof req.body?.workspaceId === "string" ? req.body.workspaceId.trim() : "";
+  if (!workspaceId) {
+    throw new HttpError("workspaceId required in body", 400, { code: "WORKSPACE_REQUIRED" });
+  }
+  const projectIdFromBody = typeof req.body?.projectId === "string" ? req.body.projectId.trim() : "";
+  const result = await updateClient(req.params.id, req.body, {
+    workspaceId,
+    projectIds: projectIdFromBody ? [projectIdFromBody] : undefined,
+  });
+  const persistedWorkspaceId = result.workspaceId ?? workspaceId;
+  if (persistedWorkspaceId) {
     safeAsync(auditRecord({
       action: "client.updated",
-      workspaceId,
+      workspaceId: persistedWorkspaceId,
       projectId: result.client.projectId || undefined,
       entityType: "client",
       entityId: req.params.id,
@@ -84,7 +100,7 @@ clientsRoutes.patch("/clients/:id", handleAsync(async (req) => {
       payload: req.body,
     }), {
       operation: "audit.client.updated",
-      workspaceId,
+      workspaceId: persistedWorkspaceId,
       projectId: result.client.projectId || undefined,
       entityType: "client",
       entityId: req.params.id,
@@ -97,7 +113,11 @@ clientsRoutes.patch("/clients/:id", handleAsync(async (req) => {
 clientsRoutes.post("/clients/:clientId/actions", handleAsync(async (req) => {
   const clientId = req.params.clientId;
   const body = z.object({ type: z.enum(["mail_received", "mail_sent", "call_completed", "meeting_scheduled"]) }).parse(req.body);
-  const clientRes = await getClientById(clientId).catch(() => null);
+  const workspaceIdFromBody = typeof req.body?.workspaceId === "string" ? req.body.workspaceId.trim() : "";
+  if (!workspaceIdFromBody) {
+    throw new HttpError("workspaceId required in body", 400, { code: "WORKSPACE_REQUIRED" });
+  }
+  const clientRes = await getClientById(clientId, { workspaceId: workspaceIdFromBody }).catch(() => null);
   const workspaceId = clientRes?.client?.workspaceId ?? "";
   const { getDb } = await import("../../config/db.js");
   const db = getDb();

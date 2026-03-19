@@ -31,7 +31,9 @@ notificationsRoutes.get("/notifications", handleAsync(async (req) => {
 }));
 
 notificationsRoutes.patch("/notifications/:id", handleAsync(async (req) => {
-  const notification = await markNotificationRead(req.params.id);
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+  if (!workspaceId) throw new HttpError("workspaceId query required", 400, { code: "WORKSPACE_REQUIRED" });
+  const notification = await markNotificationRead(req.params.id, workspaceId);
   if (!notification) throw new HttpError("Notification not found", 404);
   return { notification };
 }));

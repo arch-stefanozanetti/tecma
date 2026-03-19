@@ -1,0 +1,72 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e5]:
+    - img [ref=e7]
+    - generic [ref=e10]:
+      - button "Collapse menu" [ref=e12] [cursor=pointer]:
+        - img [ref=e13]
+      - navigation [ref=e15]:
+        - button "Home" [ref=e16] [cursor=pointer]:
+          - img [ref=e17]
+          - generic [ref=e20]: Home
+        - button "Appartamenti" [ref=e21] [cursor=pointer]:
+          - img [ref=e23]
+          - generic [ref=e27]: Appartamenti
+        - button "Clienti" [ref=e28] [cursor=pointer]:
+          - img [ref=e29]
+          - generic [ref=e34]: Clienti
+        - button "Trattative" [ref=e35] [cursor=pointer]:
+          - img [ref=e36]
+          - generic [ref=e41]: Trattative
+        - button "Calendario" [ref=e42] [cursor=pointer]:
+          - img [ref=e43]
+          - generic [ref=e45]: Calendario
+        - button "Inbox" [ref=e46] [cursor=pointer]:
+          - img [ref=e47]
+          - generic [ref=e50]: Inbox
+        - button "Customer 360" [ref=e51] [cursor=pointer]:
+          - img [ref=e52]
+          - generic [ref=e56]: Customer 360
+        - button "Progetti" [ref=e57] [cursor=pointer]:
+          - img [ref=e58]
+          - generic [ref=e62]: Progetti
+        - button "Strumenti" [ref=e63] [cursor=pointer]:
+          - img [ref=e64]
+          - generic [ref=e67]: Strumenti
+          - img [ref=e68]
+    - generic [ref=e71]:
+      - generic [ref=e72]: Powered by
+      - img "TECMA" [ref=e73]
+  - generic [ref=e74]:
+    - banner [ref=e75]:
+      - generic [ref=e76]:
+        - button "Dev 1" [ref=e78] [cursor=pointer]:
+          - img [ref=e79]
+          - generic [ref=e81]: Dev 1
+          - img [ref=e82]
+        - button "All projects" [ref=e85] [cursor=pointer]:
+          - img [ref=e86]
+          - generic [ref=e90]: All projects
+          - img [ref=e91]
+        - button "Apri inbox notifiche" [ref=e93] [cursor=pointer]:
+          - img [ref=e94]
+        - button "Settings" [ref=e98] [cursor=pointer]:
+          - img [ref=e99]
+          - text: Settings
+        - button "detail e2e" [ref=e103] [cursor=pointer]:
+          - img [ref=e104]
+          - generic [ref=e108]: detail e2e
+          - img [ref=e109]
+    - generic [ref=e111]: Ambiente di sviluppo – non produzione
+    - main [ref=e112]:
+      - generic [ref=e113]:
+        - button "Torna a Appartamenti" [ref=e114] [cursor=pointer]:
+          - img
+          - text: Torna a Appartamenti
+        - paragraph [ref=e115]: Caricamento...
+    - contentinfo [ref=e116]:
+      - button "Audit log" [ref=e117] [cursor=pointer]
+      - button "Release notes" [ref=e118] [cursor=pointer]
+```

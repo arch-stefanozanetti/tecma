@@ -109,6 +109,32 @@ describe("request-actions.service", () => {
     expect(result.action.type).toBe("email");
   });
 
+  it("updateRequestAction applies workspace scope when provided", async () => {
+    const id = new ObjectId();
+    mocks.findOneMock
+      .mockResolvedValueOnce({ _id: id, workspaceId: "ws1", requestIds: ["r1"], type: "note" })
+      .mockResolvedValueOnce({
+        _id: id,
+        workspaceId: "ws1",
+        requestIds: ["r1"],
+        type: "note",
+        title: "Scoped",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+    await updateRequestAction(id.toHexString(), { title: "Scoped" }, { workspaceId: "ws1" });
+
+    expect(mocks.findOneMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ _id: expect.any(ObjectId), workspaceId: "ws1" })
+    );
+    expect(mocks.updateOneMock).toHaveBeenCalledWith(
+      expect.objectContaining({ _id: expect.any(ObjectId), workspaceId: "ws1" }),
+      expect.any(Object)
+    );
+  });
+
   it("deleteRequestAction handles invalid/missing/success", async () => {
     await expect(deleteRequestAction("bad")).rejects.toMatchObject({ statusCode: 404 } as Partial<HttpError>);
 
@@ -117,5 +143,15 @@ describe("request-actions.service", () => {
 
     mocks.deleteOneMock.mockResolvedValueOnce({ deletedCount: 1 });
     await expect(deleteRequestAction(new ObjectId().toHexString())).resolves.toEqual({ deleted: true });
+  });
+
+  it("deleteRequestAction applies workspace scope when provided", async () => {
+    mocks.deleteOneMock.mockResolvedValueOnce({ deletedCount: 1 });
+    await expect(deleteRequestAction(new ObjectId().toHexString(), { workspaceId: "ws1" })).resolves.toEqual({
+      deleted: true,
+    });
+    expect(mocks.deleteOneMock).toHaveBeenCalledWith(
+      expect.objectContaining({ _id: expect.any(ObjectId), workspaceId: "ws1" })
+    );
   });
 });

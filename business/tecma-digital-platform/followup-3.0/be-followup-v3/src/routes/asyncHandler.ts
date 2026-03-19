@@ -4,6 +4,7 @@ import { ZodError } from "zod";
 import { isProductionLike } from "../config/env.js";
 import { logger } from "../observability/logger.js";
 import { getRequestContext } from "../observability/request-context.js";
+import { HttpError } from "../types/http.js";
 
 const statusCodeFromError = (error: unknown): number =>
   typeof error === "object" && error !== null && "statusCode" in error
@@ -37,6 +38,7 @@ export const sendError = (res: Response, error: unknown): void => {
   let statusCode = statusCodeFromError(error);
   let message = messageFromError(error);
   const errorCode = codeFromError(error);
+  const isScopeViolation = error instanceof HttpError && error.scopeViolation === true;
   const span = trace.getActiveSpan();
 
   if (error instanceof ZodError) {
@@ -64,6 +66,8 @@ export const sendError = (res: Response, error: unknown): void => {
 
   res.status(statusCode).json({
     error: message,
+    code: errorCode,
+    ...(isScopeViolation ? { scopeViolation: true } : {}),
     ...(context?.requestId ? { requestId: context.requestId } : {})
   });
 };

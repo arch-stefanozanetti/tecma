@@ -135,7 +135,8 @@ export const createAdditionalInfo = async (rawInput: unknown): Promise<{ additio
 /** Aggiorna additional info (admin). */
 export const updateAdditionalInfo = async (
   rawId: unknown,
-  rawInput: unknown
+  rawInput: unknown,
+  workspaceId?: string
 ): Promise<{ additionalInfo: AdditionalInfoRow }> => {
   const id = typeof rawId === "string" ? rawId : String(rawId);
   const input = UpdateSchema.parse(rawInput);
@@ -157,7 +158,7 @@ export const updateAdditionalInfo = async (
   if (input.active !== undefined) update.active = input.active;
 
   const result = await coll.findOneAndUpdate(
-    { _id: new ObjectId(id) },
+    { _id: new ObjectId(id), ...(workspaceId ? { workspaceId } : {}) },
     { $set: update },
     { returnDocument: "after" }
   );
@@ -166,11 +167,14 @@ export const updateAdditionalInfo = async (
 };
 
 /** Elimina additional info (admin). */
-export const deleteAdditionalInfo = async (rawId: unknown): Promise<{ deleted: boolean }> => {
+export const deleteAdditionalInfo = async (
+  rawId: unknown,
+  workspaceId?: string
+): Promise<{ deleted: boolean }> => {
   const id = typeof rawId === "string" ? rawId : String(rawId);
   if (!ObjectId.isValid(id)) throw new HttpError("Not found", 404);
   const db = getDb();
-  const result = await db.collection(COLLECTION).deleteOne({ _id: new ObjectId(id) });
+  const result = await db.collection(COLLECTION).deleteOne({ _id: new ObjectId(id), ...(workspaceId ? { workspaceId } : {}) });
   if (result.deletedCount === 0) throw new HttpError("Not found", 404);
   return { deleted: true };
 };

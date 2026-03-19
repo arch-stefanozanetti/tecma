@@ -27,7 +27,8 @@ export function useClientDetailData(
     isLoading: loading,
     error: loadClientError,
   } = useAsync(async (id: string) => {
-    const response = await followupApi.getClientById(id);
+    if (!workspaceId) throw new Error("workspaceId required");
+    const response = await followupApi.getClientById(id, workspaceId, selectedProjectIds);
     return response.client;
   });
   const {
@@ -46,7 +47,7 @@ export function useClientDetailData(
   }));
 
   useEffect(() => {
-    if (!clientId) return;
+    if (!clientId || !workspaceId) return;
     setError(null);
     void loadClient(clientId)
       .then((loadedClient) => {
@@ -56,7 +57,7 @@ export function useClientDetailData(
         }
         setClient(loadedClient);
       });
-  }, [clientId, loadClient]);
+  }, [clientId, workspaceId, loadClient]);
 
   useEffect(() => {
     if (!loadClientError) return;

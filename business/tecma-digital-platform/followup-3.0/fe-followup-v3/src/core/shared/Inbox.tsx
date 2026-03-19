@@ -88,7 +88,7 @@ export function Inbox({ workspaceId, onSectionChange, navigate }: InboxProps) {
         onSectionChange(link.section, link.state);
       }
       if (!n.read) {
-        followupApi.markNotificationRead(n._id).catch(() => {}).finally(loadUnreadCount);
+        followupApi.markNotificationRead(n._id, workspaceId).catch(() => {}).finally(loadUnreadCount);
         setNotifications((prev) => prev.map((x) => (x._id === n._id ? { ...x, read: true } : x)));
         setUnreadCount((c) => Math.max(0, c - 1));
       }

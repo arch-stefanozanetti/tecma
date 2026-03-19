@@ -75,6 +75,11 @@ export interface ClientRow {
   nReserved?: number;
 }
 
+export interface EntityScope {
+  workspaceId?: string;
+  projectIds?: string[];
+}
+
 const buildMatch = (q: ListQueryInput) => {
   const conditions: Record<string, unknown>[] = [
     {
@@ -211,14 +216,17 @@ const mapDocToClientRow = (item: Record<string, unknown>): ClientRow => ({
   createdBy: typeof item.createdBy === "string" ? item.createdBy : undefined,
 });
 
-export const getClientById = async (rawId: unknown): Promise<{ client: ClientRow }> => {
+export const getClientById = async (rawId: unknown, scope?: EntityScope): Promise<{ client: ClientRow }> => {
   const id = z.string().min(1).parse(rawId);
   const _id = ObjectId.isValid(id) ? new ObjectId(id) : null;
   if (!_id) {
     throw new HttpError("Client not found", 404);
   }
   const db = getDb();
-  const doc = await db.collection("tz_clients").findOne({ _id });
+  const filter: Record<string, unknown> = { _id };
+  if (scope?.workspaceId) filter.workspaceId = scope.workspaceId;
+  if (scope?.projectIds?.length) filter.projectId = { $in: scope.projectIds };
+  const doc = await db.collection("tz_clients").findOne(filter);
   if (!doc) {
     throw new HttpError("Client not found", 404);
   }
@@ -298,7 +306,8 @@ export const createClient = async (rawInput: unknown): Promise<{ client: ClientR
 
 export const updateClient = async (
   clientId: string,
-  rawInput: unknown
+  rawInput: unknown,
+  scope?: EntityScope
 ): Promise<{ client: ClientRow; workspaceId?: string }> => {
   const input = ClientUpdateSchema.parse(rawInput) as ClientUpdateInput;
   const db = getDb();
@@ -307,7 +316,10 @@ export const updateClient = async (
   if (!_id) {
     throw new HttpError("Client not found", 404);
   }
-  const existing = await collection.findOne({ _id });
+  const filter: Record<string, unknown> = { _id };
+  if (scope?.workspaceId) filter.workspaceId = scope.workspaceId;
+  if (scope?.projectIds?.length) filter.projectId = { $in: scope.projectIds };
+  const existing = await collection.findOne(filter);
   if (!existing) {
     throw new HttpError("Client not found", 404);
   }
@@ -320,8 +332,8 @@ export const updateClient = async (
   if (input.status !== undefined && CLIENT_STATUSES.includes(input.status as (typeof CLIENT_STATUSES)[number]))
     updateDoc.status = input.status;
   if (input.city !== undefined) updateDoc.city = (input.city || "").trim() || undefined;
-  await collection.updateOne({ _id }, { $set: updateDoc });
-  const updated = await collection.findOne({ _id });
+  await collection.updateOne(filter, { $set: updateDoc });
+  const updated = await collection.findOne(filter);
   const row: ClientRow = {
     _id: String(updated!._id),
     projectId: String(updated!.projectId ?? existing.projectId),

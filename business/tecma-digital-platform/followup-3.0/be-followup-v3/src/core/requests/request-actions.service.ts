@@ -125,14 +125,14 @@ export async function createRequestAction(
 export async function updateRequestAction(
   rawId: unknown,
   rawBody: unknown,
-  options?: { userId?: string }
+  options?: { userId?: string; workspaceId?: string }
 ): Promise<{ action: RequestActionRow }> {
   const id = typeof rawId === "string" ? rawId : String(rawId);
   const body = UpdateSchema.parse(rawBody);
   if (!ObjectId.isValid(id)) throw new HttpError("Action not found", 404);
   const db = getDb();
   const coll = db.collection(COLLECTION);
-  const doc = await coll.findOne({ _id: new ObjectId(id) });
+  const doc = await coll.findOne({ _id: new ObjectId(id), ...(options?.workspaceId ? { workspaceId: options.workspaceId } : {}) });
   if (!doc) throw new HttpError("Action not found", 404);
   const now = new Date().toISOString();
   const update: Record<string, unknown> = { updatedAt: now };
@@ -140,8 +140,8 @@ export async function updateRequestAction(
   if (body.type !== undefined) update.type = body.type;
   if (body.title !== undefined) update.title = body.title;
   if (body.description !== undefined) update.description = body.description;
-  await coll.updateOne({ _id: new ObjectId(id) }, { $set: update });
-  const updated = await coll.findOne({ _id: new ObjectId(id) });
+  await coll.updateOne({ _id: new ObjectId(id), ...(options?.workspaceId ? { workspaceId: options.workspaceId } : {}) }, { $set: update });
+  const updated = await coll.findOne({ _id: new ObjectId(id), ...(options?.workspaceId ? { workspaceId: options.workspaceId } : {}) });
   if (!updated) throw new HttpError("Failed to read updated action", 500);
   return { action: toRow(updated as Parameters<typeof toRow>[0]) };
 }
@@ -149,12 +149,12 @@ export async function updateRequestAction(
 /**
  * Elimina un'azione.
  */
-export async function deleteRequestAction(rawId: unknown): Promise<{ deleted: true }> {
+export async function deleteRequestAction(rawId: unknown, options?: { workspaceId?: string }): Promise<{ deleted: true }> {
   const id = typeof rawId === "string" ? rawId : String(rawId);
   if (!ObjectId.isValid(id)) throw new HttpError("Action not found", 404);
   const db = getDb();
   const coll = db.collection(COLLECTION);
-  const result = await coll.deleteOne({ _id: new ObjectId(id) });
+  const result = await coll.deleteOne({ _id: new ObjectId(id), ...(options?.workspaceId ? { workspaceId: options.workspaceId } : {}) });
   if (result.deletedCount === 0) throw new HttpError("Action not found", 404);
   return { deleted: true };
 }

@@ -1,9 +1,9 @@
 # Security Runbook — Followup 3.0
 
 ## 1) Immediate secret leak response
-- Revoke compromised credentials immediately (MongoDB URI user, SMTP/API tokens).
-- Rotate secrets in secret manager / deployment platform.
-- Validate all environments (dev/stage/prod) use rotated values.
+- Remove exposed credentials from tracked files and docs immediately.
+- Replace unsafe defaults (`change-me`, embedded passwords, hardcoded API keys) with mandatory env vars.
+- Validate all environments (dev/stage/prod) use secret manager values and no cleartext in repo.
 - Audit access logs around leak window.
 
 ## 2) Repository hardening policy

@@ -9,7 +9,12 @@ export const apartmentsApi = {
     getJson<PaginatedResponse<RequestRow>>(
       `/apartments/${apartmentId}/requests?workspaceId=${encodeURIComponent(workspaceId)}&projectIds=${projectIds.map((p) => encodeURIComponent(p)).join(",")}&page=${page}&perPage=${perPage}`
     ),
-  getApartmentById: (id: string) => getJson<{ apartment: ApartmentRow }>(`/apartments/${id}`),
+  getApartmentById: (id: string, workspaceId: string, projectIds?: string[]) =>
+    getJson<{ apartment: ApartmentRow }>(
+      workspaceId
+        ? `/apartments/${id}?workspaceId=${encodeURIComponent(workspaceId)}${projectIds?.length ? `&projectIds=${projectIds.map((p) => encodeURIComponent(p)).join(",")}` : ""}`
+        : `/apartments/${id}`
+    ),
   getApartmentPrices: (id: string) =>
     getJson<{ current: unknown; salePrices: unknown[]; monthlyRents: unknown[] }>(`/apartments/${id}/prices`),
   getApartmentInventory: (id: string) =>

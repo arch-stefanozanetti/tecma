@@ -45,17 +45,23 @@ communicationsRoutes.post("/workspaces/:workspaceId/communication-templates", ha
   return { template };
 }));
 communicationsRoutes.get("/communication-templates/:id", handleAsync(async (req) => {
-  const template = await getCommunicationTemplateById(req.params.id);
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+  if (!workspaceId) throw new HttpError("workspaceId query required", 400, { code: "WORKSPACE_REQUIRED" });
+  const template = await getCommunicationTemplateById(req.params.id, workspaceId);
   if (!template) throw new HttpError("Template not found", 404);
   return { template };
 }));
 communicationsRoutes.patch("/communication-templates/:id", handleAsync(async (req) => {
-  const template = await updateCommunicationTemplate(req.params.id, req.body);
+  const workspaceId = typeof req.body?.workspaceId === "string" ? req.body.workspaceId.trim() : "";
+  if (!workspaceId) throw new HttpError("workspaceId required in body", 400, { code: "WORKSPACE_REQUIRED" });
+  const template = await updateCommunicationTemplate(req.params.id, req.body, workspaceId);
   if (!template) throw new HttpError("Template not found", 404);
   return { template };
 }));
 communicationsRoutes.delete("/communication-templates/:id", handleAsync(async (req) => {
-  const ok = await removeCommunicationTemplate(req.params.id);
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+  if (!workspaceId) throw new HttpError("workspaceId query required", 400, { code: "WORKSPACE_REQUIRED" });
+  const ok = await removeCommunicationTemplate(req.params.id, workspaceId);
   if (!ok) throw new HttpError("Template not found", 404);
   return { deleted: true };
 }));
@@ -75,17 +81,23 @@ communicationsRoutes.post("/workspaces/:workspaceId/communication-rules", handle
   return { rule };
 }));
 communicationsRoutes.get("/communication-rules/:id", handleAsync(async (req) => {
-  const rule = await getCommunicationRuleById(req.params.id);
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+  if (!workspaceId) throw new HttpError("workspaceId query required", 400, { code: "WORKSPACE_REQUIRED" });
+  const rule = await getCommunicationRuleById(req.params.id, workspaceId);
   if (!rule) throw new HttpError("Communication rule not found", 404);
   return { rule };
 }));
 communicationsRoutes.patch("/communication-rules/:id", handleAsync(async (req) => {
-  const rule = await updateCommunicationRule(req.params.id, req.body);
+  const workspaceId = typeof req.body?.workspaceId === "string" ? req.body.workspaceId.trim() : "";
+  if (!workspaceId) throw new HttpError("workspaceId required in body", 400, { code: "WORKSPACE_REQUIRED" });
+  const rule = await updateCommunicationRule(req.params.id, req.body, workspaceId);
   if (!rule) throw new HttpError("Communication rule not found", 404);
   return { rule };
 }));
 communicationsRoutes.delete("/communication-rules/:id", handleAsync(async (req) => {
-  const ok = await removeCommunicationRule(req.params.id);
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+  if (!workspaceId) throw new HttpError("workspaceId query required", 400, { code: "WORKSPACE_REQUIRED" });
+  const ok = await removeCommunicationRule(req.params.id, workspaceId);
   if (!ok) throw new HttpError("Communication rule not found", 404);
   return { deleted: true };
 }));

@@ -122,7 +122,7 @@ export const listByWorkspace = async (workspaceId: string): Promise<AutomationRu
   return docs.map((d) => docToRow(d as Record<string, unknown>));
 };
 
-export const getById = async (id: string): Promise<AutomationRuleRow | null> => {
+export const getById = async (id: string, workspaceId?: string): Promise<AutomationRuleRow | null> => {
   let oid: ObjectId;
   try {
     oid = new ObjectId(id);
@@ -130,7 +130,10 @@ export const getById = async (id: string): Promise<AutomationRuleRow | null> => 
     return null;
   }
   const db = getDb();
-  const doc = await db.collection(COLLECTION).findOne({ _id: oid });
+  const doc = await db.collection(COLLECTION).findOne({
+    _id: oid,
+    ...(workspaceId ? { workspaceId } : {}),
+  });
   if (!doc) return null;
   return docToRow(doc as Record<string, unknown>);
 };
@@ -159,7 +162,8 @@ export const create = async (rawInput: unknown): Promise<AutomationRuleRow> => {
 
 export const update = async (
   id: string,
-  rawInput: unknown
+  rawInput: unknown,
+  workspaceId?: string
 ): Promise<AutomationRuleRow | null> => {
   const input = UpdateRuleSchema.parse(rawInput);
   let oid: ObjectId;
@@ -177,12 +181,16 @@ export const update = async (
 
   const result = await db
     .collection(COLLECTION)
-    .findOneAndUpdate({ _id: oid }, { $set: updateFields }, { returnDocument: "after" });
+    .findOneAndUpdate(
+      { _id: oid, ...(workspaceId ? { workspaceId } : {}) },
+      { $set: updateFields },
+      { returnDocument: "after" }
+    );
   if (!result) return null;
   return docToRow(result as Record<string, unknown>);
 };
 
-export const remove = async (id: string): Promise<boolean> => {
+export const remove = async (id: string, workspaceId?: string): Promise<boolean> => {
   let oid: ObjectId;
   try {
     oid = new ObjectId(id);
@@ -190,6 +198,6 @@ export const remove = async (id: string): Promise<boolean> => {
     return false;
   }
   const db = getDb();
-  const result = await db.collection(COLLECTION).deleteOne({ _id: oid });
+  const result = await db.collection(COLLECTION).deleteOne({ _id: oid, ...(workspaceId ? { workspaceId } : {}) });
   return result.deletedCount === 1;
 };

@@ -25,6 +25,11 @@ import { batchLoadApartmentCodes, batchLoadClientNames } from "../shared/batch-e
 /** Ruolo del cliente rispetto all'immobile (compravendita: venditore vs acquirente). */
 export type ClientRole = "buyer" | "seller" | "tenant" | "landlord";
 
+export interface RequestEntityScope {
+  workspaceId?: string;
+  projectIds?: string[];
+}
+
 const RequestCreateSchema = z.object({
   workspaceId: z.string().min(1),
   projectId: z.string().min(1),
@@ -236,14 +241,17 @@ export const queryRequests = async (
  * Get a single request by id. Throws HttpError 404 if not found.
  * Enriches with clientName and apartmentCode when available.
  */
-export const getRequestById = async (rawId: unknown): Promise<{ request: RequestRow }> => {
+export const getRequestById = async (rawId: unknown, scope?: RequestEntityScope): Promise<{ request: RequestRow }> => {
   const id = typeof rawId === "string" ? rawId : String(rawId);
   if (!ObjectId.isValid(id)) {
     throw new HttpError("Request not found", 404);
   }
   const db = getDb();
   const collection = db.collection(COLLECTION_NAME);
-  const doc = await collection.findOne({ _id: new ObjectId(id) });
+  const filter: Record<string, unknown> = { _id: new ObjectId(id) };
+  if (scope?.workspaceId) filter.workspaceId = scope.workspaceId;
+  if (scope?.projectIds?.length) filter.projectId = { $in: scope.projectIds };
+  const doc = await collection.findOne(filter);
   if (!doc) {
     throw new HttpError("Request not found", 404);
   }
@@ -252,7 +260,10 @@ export const getRequestById = async (rawId: unknown): Promise<{ request: Request
   let apartmentCode: string | undefined;
   if (row.clientId && ObjectId.isValid(row.clientId)) {
     const client = await db.collection("tz_clients").findOne(
-      { _id: new ObjectId(row.clientId) },
+      {
+        _id: new ObjectId(row.clientId),
+        ...(scope?.workspaceId ? { workspaceId: scope.workspaceId } : {}),
+      },
       { projection: { fullName: 1 } }
     );
     if (client && typeof (client as unknown as { fullName?: string }).fullName === "string") {
@@ -261,7 +272,10 @@ export const getRequestById = async (rawId: unknown): Promise<{ request: Request
   }
   if (row.apartmentId && ObjectId.isValid(row.apartmentId)) {
     const apt = await db.collection("tz_apartments").findOne(
-      { _id: new ObjectId(row.apartmentId) },
+      {
+        _id: new ObjectId(row.apartmentId),
+        ...(scope?.workspaceId ? { workspaceId: scope.workspaceId } : {}),
+      },
       { projection: { code: 1 } }
     );
     if (apt && typeof (apt as unknown as { code?: string }).code === "string") {
@@ -331,7 +345,7 @@ const RequestStatusChangeSchema = z.object({
 export const updateRequestStatus = async (
   rawId: unknown,
   rawBody: unknown,
-  options?: { userId?: string }
+  options?: { userId?: string; workspaceId?: string; projectIds?: string[] }
 ): Promise<{ request: RequestRow }> => {
   const id = typeof rawId === "string" ? rawId : String(rawId);
   const body = RequestStatusChangeSchema.parse(rawBody);
@@ -343,7 +357,10 @@ export const updateRequestStatus = async (
   const db = getDb();
   const collection = db.collection(COLLECTION_NAME);
   const _id = new ObjectId(id);
-  const doc = await collection.findOne({ _id });
+  const scopeFilter: Record<string, unknown> = { _id };
+  if (options?.workspaceId) scopeFilter.workspaceId = options.workspaceId;
+  if (options?.projectIds?.length) scopeFilter.projectId = { $in: options.projectIds };
+  const doc = await collection.findOne(scopeFilter);
   if (!doc) {
     throw new HttpError("Request not found", 404);
   }
@@ -401,7 +418,7 @@ export const updateRequestStatus = async (
   const session = client.startSession();
   try {
     await session.withTransaction(async () => {
-      await collection.updateOne({ _id }, { $set: update }, { session });
+      await collection.updateOne(scopeFilter, { $set: update }, { session });
       const transitionsColl = db.collection(TRANSITIONS_COLLECTION);
       await transitionsColl.insertOne(
         {
@@ -466,7 +483,7 @@ export const updateRequestStatus = async (
     }).catch((err) => logger.error({ err }, "[requests] dispatch contract.signed failed"));
   }
 
-  return getRequestById(id);
+  return getRequestById(id, { workspaceId: options?.workspaceId, projectIds: options?.projectIds });
 };
 
 /** Singola transizione di stato (record in tz_request_transitions). */

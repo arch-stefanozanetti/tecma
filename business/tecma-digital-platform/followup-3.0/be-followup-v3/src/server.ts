@@ -17,6 +17,7 @@ import { logger } from "./observability/logger.js";
 import { initOtel, shutdownOtel } from "./observability/otel.js";
 import { requestContextMiddleware } from "./routes/requestContextMiddleware.js";
 import { requireAuth } from "./routes/authMiddleware.js";
+import { securityHeadersMiddleware } from "./routes/securityHeadersMiddleware.js";
 
 const SCHEDULED_COMMS_INTERVAL_MS = 2 * 60 * 1000;
 const MARKETING_AUTOMATION_INTERVAL_MS = 2 * 60 * 1000;
@@ -110,6 +111,7 @@ const bootstrap = async () => {
 
   const app = express();
   app.use(requestContextMiddleware);
+  app.use(securityHeadersMiddleware);
   app.use(
     cors({
       origin: buildCorsOriginChecker(),

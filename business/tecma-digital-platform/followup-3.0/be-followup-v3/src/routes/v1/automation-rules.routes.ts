@@ -24,19 +24,25 @@ automationRulesRoutes.post("/workspaces/:workspaceId/automation-rules", handleAs
 }));
 
 automationRulesRoutes.get("/automation-rules/:id", handleAsync(async (req) => {
-  const rule = await getAutomationRuleById(req.params.id);
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+  if (!workspaceId) throw new HttpError("workspaceId query required", 400, { code: "WORKSPACE_REQUIRED" });
+  const rule = await getAutomationRuleById(req.params.id, workspaceId);
   if (!rule) throw new HttpError("Rule not found", 404);
   return { rule };
 }));
 
 automationRulesRoutes.patch("/automation-rules/:id", handleAsync(async (req) => {
-  const rule = await updateAutomationRule(req.params.id, req.body);
+  const workspaceId = typeof req.body?.workspaceId === "string" ? req.body.workspaceId.trim() : "";
+  if (!workspaceId) throw new HttpError("workspaceId required in body", 400, { code: "WORKSPACE_REQUIRED" });
+  const rule = await updateAutomationRule(req.params.id, req.body, workspaceId);
   if (!rule) throw new HttpError("Rule not found", 404);
   return { rule };
 }));
 
 automationRulesRoutes.delete("/automation-rules/:id", handleAsync(async (req) => {
-  const ok = await removeAutomationRule(req.params.id);
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+  if (!workspaceId) throw new HttpError("workspaceId query required", 400, { code: "WORKSPACE_REQUIRED" });
+  const ok = await removeAutomationRule(req.params.id, workspaceId);
   if (!ok) throw new HttpError("Rule not found", 404);
   return { deleted: true };
 }));

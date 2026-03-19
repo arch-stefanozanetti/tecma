@@ -10,6 +10,11 @@ const REQUESTS_COLLECTION = "tz_requests";
 const TRANSITIONS_COLLECTION = "tz_request_transitions";
 const CALENDAR_COLLECTION = "calendar_events";
 const AUDIT_COLLECTION = "tz_audit_log";
+const AUTH_EVENTS_COLLECTION = "tz_authEvents";
+const ACCESS_LOGS_COLLECTION = "tz_accessLogs";
+const PORTAL_AUDIT_COLLECTION = "tz_portal_access_audit";
+const PORTAL_SESSIONS_COLLECTION = "tz_portal_sessions";
+const MAGIC_LINKS_COLLECTION = "tz_magic_links";
 
 const nowIso = (): string => new Date().toISOString();
 
@@ -138,17 +143,47 @@ export const eraseClientData = async (rawInput: unknown): Promise<{ ok: boolean;
     },
   );
 
+  await db.collection(CALENDAR_COLLECTION).updateMany(
+    { workspaceId: input.workspaceId, clientId: input.clientId },
+    {
+      $set: {
+        clientName: "Deleted Client",
+        notes: null,
+        updatedAt: erasedAt,
+      },
+    },
+  );
+
+  await db.collection(CONSENTS_COLLECTION).deleteMany({ workspaceId: input.workspaceId, clientId: input.clientId });
+  await db.collection(PORTAL_SESSIONS_COLLECTION).deleteMany({ workspaceId: input.workspaceId, clientId: input.clientId });
+  await db.collection(MAGIC_LINKS_COLLECTION).deleteMany({ workspaceId: input.workspaceId, clientId: input.clientId });
+
   return { ok: true, erasedAt };
 };
 
 export const runPrivacyRetentionJob = async (
   rawInput: unknown,
-): Promise<{ ok: boolean; olderThanDays: number; deletedAuditRows: number; runAt: string }> => {
+): Promise<{
+  ok: boolean;
+  olderThanDays: number;
+  deletedAuditRows: number;
+  deletedAuthRows: number;
+  deletedAccessRows: number;
+  deletedPortalAuditRows: number;
+  deletedMagicLinks: number;
+  deletedPortalSessions: number;
+  runAt: string;
+}> => {
   const input = RetentionSchema.parse(rawInput ?? {});
   const db = getDb();
   const runAt = nowIso();
-  const threshold = new Date(Date.now() - input.olderThanDays * 24 * 60 * 60 * 1000).toISOString();
+  const threshold = new Date(Date.now() - input.olderThanDays * 24 * 60 * 60 * 1000);
   const auditDelete = await db.collection(AUDIT_COLLECTION).deleteMany({ at: { $lt: threshold } });
+  const authDelete = await db.collection(AUTH_EVENTS_COLLECTION).deleteMany({ at: { $lt: threshold } });
+  const accessDelete = await db.collection(ACCESS_LOGS_COLLECTION).deleteMany({ createdAt: { $lt: threshold } });
+  const portalAuditDelete = await db.collection(PORTAL_AUDIT_COLLECTION).deleteMany({ at: { $lt: threshold } });
+  const magicLinksDelete = await db.collection(MAGIC_LINKS_COLLECTION).deleteMany({ expiresAt: { $lt: threshold } });
+  const portalSessionsDelete = await db.collection(PORTAL_SESSIONS_COLLECTION).deleteMany({ expiresAt: { $lt: threshold } });
   if ((auditDelete.deletedCount ?? 0) === 0) {
     await createOperationalAlert({
       workspaceId: "global",
@@ -163,6 +198,11 @@ export const runPrivacyRetentionJob = async (
     ok: true,
     olderThanDays: input.olderThanDays,
     deletedAuditRows: auditDelete.deletedCount ?? 0,
+    deletedAuthRows: authDelete.deletedCount ?? 0,
+    deletedAccessRows: accessDelete.deletedCount ?? 0,
+    deletedPortalAuditRows: portalAuditDelete.deletedCount ?? 0,
+    deletedMagicLinks: magicLinksDelete.deletedCount ?? 0,
+    deletedPortalSessions: portalSessionsDelete.deletedCount ?? 0,
     runAt,
   };
 };

@@ -22,14 +22,14 @@ describe("apartmentsApi", () => {
   it("query/update/get by id", () => {
     apartmentsApi.queryApartments({ workspaceId: "ws1", projectIds: ["p1"], page: 1, perPage: 10 } as never);
     apartmentsApi.updateApartment("a1", { name: "APT" });
-    apartmentsApi.getApartmentById("a1");
+    apartmentsApi.getApartmentById("a1", "ws1", ["p1"]);
 
     expect(mocks.postJson).toHaveBeenCalledWith(
       "/apartments/query",
       expect.objectContaining({ workspaceId: "ws1", projectIds: ["p1"] })
     );
     expect(mocks.patchJson).toHaveBeenCalledWith("/apartments/a1", { name: "APT" });
-    expect(mocks.getJson).toHaveBeenCalledWith("/apartments/a1");
+    expect(mocks.getJson).toHaveBeenCalledWith("/apartments/a1?workspaceId=ws1&projectIds=p1");
   });
 
   it("requests/prices/inventory endpoints", () => {

@@ -32,8 +32,15 @@ jobs:
           cache-dependency-path: be-followup-v3/package-lock.json
 
       - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm sbom --sbom-format cyclonedx --output be-sbom.cdx.json
       - run: npm run test:lint:core
       - run: npm run check:openapi
       - run: npm run check:no-legacy-runtime
       - run: npm run build
       - run: npm run test:coverage:core
+      - name: Upload BE SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: be-sbom
+          path: be-followup-v3/be-sbom.cdx.json

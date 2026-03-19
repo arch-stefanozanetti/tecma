@@ -61,17 +61,31 @@ export const followupApi = {
   queryCalendar: (query: ListQuery) => postJson<PaginatedResponse<CalendarEvent>>("/calendar/events/query", query),
   createCalendarEvent: (payload: CalendarEventCreateInput) =>
     postJson<{ event: CalendarEvent }>("/calendar/events", payload),
-  updateCalendarEvent: (eventId: string, payload: CalendarEventUpdateInput) =>
-    patchJson<{ event: CalendarEvent }>(`/calendar/events/${eventId}`, payload),
-  deleteCalendarEvent: (eventId: string) =>
-    deleteJson<{ deleted: boolean }>(`/calendar/events/${eventId}`),
+  updateCalendarEvent: (eventId: string, payload: CalendarEventUpdateInput & { workspaceId?: string }) =>
+    patchJson<{ event: CalendarEvent }>(
+      `/calendar/events/${eventId}${payload.workspaceId ? `?workspaceId=${encodeURIComponent(payload.workspaceId)}` : ""}`,
+      payload
+    ),
+  deleteCalendarEvent: (eventId: string, workspaceId?: string) =>
+    deleteJson<{ deleted: boolean }>(
+      `/calendar/events/${eventId}${workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : ""}`
+    ),
   queryClients: (query: ListQuery) => postJson<PaginatedResponse<ClientRow>>("/clients/query", query),
   createClient: (payload: ClientCreateInput) => postJson<{ client: ClientRow }>("/clients", payload),
   updateClient: (clientId: string, payload: ClientUpdateInput) =>
     patchJson<{ client: ClientRow }>(`/clients/${clientId}`, payload),
-  getClientById: (clientId: string) => getJson<{ client: ClientRow }>(`/clients/${clientId}`),
-  createClientAction: (clientId: string, type: "mail_received" | "mail_sent" | "call_completed" | "meeting_scheduled") =>
-    postJson<{ action: { _id: string; type: string; at: string } }>(`/clients/${clientId}/actions`, { type }),
+  getClientById: (clientId: string, workspaceId: string, projectIds?: string[]) =>
+    getJson<{ client: ClientRow }>(
+      workspaceId
+        ? `/clients/${clientId}?workspaceId=${encodeURIComponent(workspaceId)}${projectIds?.length ? `&projectIds=${projectIds.map((p) => encodeURIComponent(p)).join(",")}` : ""}`
+        : `/clients/${clientId}`
+    ),
+  createClientAction: (
+    clientId: string,
+    type: "mail_received" | "mail_sent" | "call_completed" | "meeting_scheduled",
+    workspaceId: string
+  ) =>
+    postJson<{ action: { _id: string; type: string; at: string } }>(`/clients/${clientId}/actions`, { type, workspaceId }),
   getApartmentCandidates: (apartmentId: string, workspaceId: string, projectIds: string[]) =>
     getJson<{ data: Array<{ item: Pick<ApartmentRow, "_id" | "code" | "name" | "status" | "mode" | "surfaceMq" | "updatedAt">; score: number; reasons: string[] }> }>(
       `/matching/apartments/${apartmentId}/candidates?workspaceId=${encodeURIComponent(workspaceId)}&projectIds=${projectIds.map((p) => encodeURIComponent(p)).join(",")}`
@@ -110,11 +124,29 @@ export const followupApi = {
     ),
   queryApartments: (query: ListQuery) => postJson<PaginatedResponse<ApartmentRow>>("/apartments/query", query),
   queryRequests: (query: ListQuery) => postJson<PaginatedResponse<RequestRow>>("/requests/query", query),
-  getRequestById: (id: string) => getJson<{ request: RequestRow }>(`/requests/${id}`),
-  getRequestTransitions: (requestId: string) =>
-    getJson<{ transitions: RequestTransitionRow[] }>(`/requests/${requestId}/transitions`),
-  revertRequestStatus: (requestId: string, transitionId: string) =>
-    postJson<{ request: RequestRow }>(`/requests/${requestId}/revert`, { transitionId }),
+  getRequestById: (id: string, workspaceId: string, projectIds?: string[]) =>
+    getJson<{ request: RequestRow }>(
+      workspaceId
+        ? `/requests/${id}?workspaceId=${encodeURIComponent(workspaceId)}${projectIds?.length ? `&projectIds=${projectIds.map((p) => encodeURIComponent(p)).join(",")}` : ""}`
+        : `/requests/${id}`
+    ),
+  getRequestTransitions: (requestId: string, workspaceId: string, projectIds?: string[]) =>
+    getJson<{ transitions: RequestTransitionRow[] }>(
+      workspaceId
+        ? `/requests/${requestId}/transitions?workspaceId=${encodeURIComponent(workspaceId)}${projectIds?.length ? `&projectIds=${projectIds.map((p) => encodeURIComponent(p)).join(",")}` : ""}`
+        : `/requests/${requestId}/transitions`
+    ),
+  revertRequestStatus: (
+    requestId: string,
+    transitionId: string,
+    workspaceId: string,
+    projectIds?: string[]
+  ) =>
+    postJson<{ request: RequestRow }>(`/requests/${requestId}/revert`, {
+      transitionId,
+      workspaceId,
+      ...(projectIds?.length ? { projectIds } : {}),
+    }),
   getRequestActions: (workspaceId: string, requestId?: string) =>
     getJson<{ actions: RequestActionRow[] }>(
       `/requests/actions?workspaceId=${encodeURIComponent(workspaceId)}${requestId ? `&requestId=${encodeURIComponent(requestId)}` : ""}`
@@ -128,10 +160,17 @@ export const followupApi = {
   }) => postJson<{ action: RequestActionRow }>("/requests/actions", payload),
   updateRequestAction: (
     actionId: string,
+    workspaceId: string,
     payload: { requestIds?: string[]; type?: RequestActionType; title?: string; description?: string }
-  ) => patchJson<{ action: RequestActionRow }>(`/requests/actions/${actionId}`, payload),
-  deleteRequestAction: (actionId: string) =>
-    deleteJson<{ deleted: boolean }>(`/requests/actions/${actionId}`),
+  ) =>
+    patchJson<{ action: RequestActionRow }>(
+      `/requests/actions/${actionId}?workspaceId=${encodeURIComponent(workspaceId)}`,
+      payload
+    ),
+  deleteRequestAction: (actionId: string, workspaceId: string) =>
+    deleteJson<{ deleted: boolean }>(
+      `/requests/actions/${actionId}?workspaceId=${encodeURIComponent(workspaceId)}`
+    ),
   // Projects (admin)
   createProject: (payload: {
     name: string;
@@ -519,9 +558,17 @@ export const followupApi = {
     ),
   createAdditionalInfo: (payload: AdditionalInfoCreateInput) =>
     postJson<{ additionalInfo: AdditionalInfoRow }>("/additional-infos", payload),
-  updateAdditionalInfo: (id: string, payload: Partial<AdditionalInfoCreateInput>) =>
-    patchJson<{ additionalInfo: AdditionalInfoRow }>(`/additional-infos/${id}`, payload),
-  deleteAdditionalInfo: (id: string) => deleteJson<{ deleted: boolean }>(`/additional-infos/${id}`),
+  updateAdditionalInfo: (
+    id: string,
+    workspaceId: string,
+    payload: Partial<AdditionalInfoCreateInput>
+  ) =>
+    patchJson<{ additionalInfo: AdditionalInfoRow }>(`/additional-infos/${id}`, {
+      ...payload,
+      workspaceId,
+    }),
+  deleteAdditionalInfo: (id: string, workspaceId: string) =>
+    deleteJson<{ deleted: boolean }>(`/additional-infos/${id}?workspaceId=${encodeURIComponent(workspaceId)}`),
   getWorkflowConfig: (workspaceId: string, projectId: string, flowType: "rent" | "sell" = "sell") =>
     getJson<{ flowType: "rent" | "sell"; states: Array<{ id: string; label?: string; isTerminal?: boolean }>; transitions: Array<{ fromState: string; toState: string; event: string }>; version?: number }>(
       `/workflow/config?workspaceId=${encodeURIComponent(workspaceId)}&projectId=${encodeURIComponent(projectId)}&flowType=${flowType}`
@@ -544,8 +591,10 @@ export const followupApi = {
   createWorkflowTransition: (payload: { workflowId: string; fromStateId: string; toStateId: string }) =>
     postJson<{ transition: WorkflowTransitionRow }>("/workflows/transitions", payload),
   createRequest: (payload: RequestCreateInput) => postJson<{ request: RequestRow }>("/requests", payload),
-  updateRequestStatus: (requestId: string, payload: { status: string; reason?: string; quoteId?: string }) =>
-    patchJson<{ request: RequestRow }>(`/requests/${requestId}/status`, payload),
+  updateRequestStatus: (
+    requestId: string,
+    payload: { status: string; reason?: string; quoteId?: string; workspaceId: string; projectIds?: string[] }
+  ) => patchJson<{ request: RequestRow }>(`/requests/${requestId}/status`, payload),
   getProjectsByEmail: (email: string) => postJson<ProjectAccessResponse>("/session/projects-by-email", { email }),
   getUserPreferences: (email: string) =>
     getJson<UserPreferences>(`/session/preferences?email=${encodeURIComponent(email)}`),
@@ -564,8 +613,11 @@ export const followupApi = {
     if (params?.perPage !== undefined) q.set("perPage", String(params.perPage));
     return getJson<PaginatedResponse<NotificationRow>>(`/notifications?${q.toString()}`);
   },
-  markNotificationRead: (id: string) =>
-    patchJson<{ notification: NotificationRow }>(`/notifications/${id}`, { read: true }),
+  markNotificationRead: (id: string, workspaceId: string) =>
+    patchJson<{ notification: NotificationRow }>(
+      `/notifications/${id}?workspaceId=${encodeURIComponent(workspaceId)}`,
+      { read: true }
+    ),
   markAllNotificationsRead: (workspaceId: string) =>
     postJson<{ count: number }>("/notifications/read-all", { workspaceId }),
   subscribeRealtimeEvents: (
@@ -743,8 +795,11 @@ export const followupApi = {
     getJson<{ data: Array<Record<string, unknown>> }>(
       `/workspaces/${encodeURIComponent(workspaceId)}/ops/alerts`
     ),
-  acknowledgeOperationalAlert: (id: string) =>
-    postJson<{ ok: boolean }>(`/ops/alerts/${encodeURIComponent(id)}/ack`, {}),
+  acknowledgeOperationalAlert: (id: string, workspaceId: string) =>
+    postJson<{ ok: boolean }>(
+      `/ops/alerts/${encodeURIComponent(id)}/ack?workspaceId=${encodeURIComponent(workspaceId)}`,
+      {}
+    ),
   /** Log comunicazioni inviate (Notification Center). */
   listCommunicationDeliveries: (workspaceId: string, limit?: number) =>
     getJson<{ data: Array<{ _id: string; channel: string; templateId: string; recipientMasked: string; status: string; sentAt: string }> }>(
@@ -827,7 +882,12 @@ export const followupApi = {
   createApartment: (payload: ApartmentCreateInput) => postJson<{ apartmentId: string; apartment: ApartmentRow }>("/apartments", payload),
   updateApartment: (apartmentId: string, payload: Partial<ApartmentCreateInput>) =>
     patchJson<{ apartment: ApartmentRow }>(`/apartments/${apartmentId}`, payload),
-  getApartmentById: (apartmentId: string) => getJson<{ apartment: ApartmentRow }>(`/apartments/${apartmentId}`),
+  getApartmentById: (apartmentId: string, workspaceId: string, projectIds?: string[]) =>
+    getJson<{ apartment: ApartmentRow }>(
+      workspaceId
+        ? `/apartments/${apartmentId}?workspaceId=${encodeURIComponent(workspaceId)}${projectIds?.length ? `&projectIds=${projectIds.map((p) => encodeURIComponent(p)).join(",")}` : ""}`
+        : `/apartments/${apartmentId}`
+    ),
   getApartmentPrices: (apartmentId: string) =>
     getJson<{
       current: { source: string; amount: number; currency: string; mode: string; validFrom?: string; validTo?: string; deposit?: number } | null;

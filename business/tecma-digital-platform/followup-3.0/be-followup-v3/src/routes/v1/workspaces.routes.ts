@@ -245,5 +245,13 @@ workspacesRoutes.get(
   })
 );
 workspacesRoutes.post("/additional-infos", requireAdmin, handleAsync((req) => createAdditionalInfo(req.body)));
-workspacesRoutes.patch("/additional-infos/:id", requireAdmin, handleAsync((req) => updateAdditionalInfo(req.params.id, req.body)));
-workspacesRoutes.delete("/additional-infos/:id", requireAdmin, handleAsync((req) => deleteAdditionalInfo(req.params.id)));
+workspacesRoutes.patch("/additional-infos/:id", requireAdmin, handleAsync((req) => {
+  const workspaceId = typeof req.body?.workspaceId === "string" ? req.body.workspaceId.trim() : "";
+  if (!workspaceId) throw new HttpError("workspaceId required in body", 400, { code: "WORKSPACE_REQUIRED" });
+  return updateAdditionalInfo(req.params.id, req.body, workspaceId);
+}));
+workspacesRoutes.delete("/additional-infos/:id", requireAdmin, handleAsync((req) => {
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+  if (!workspaceId) throw new HttpError("workspaceId query required", 400, { code: "WORKSPACE_REQUIRED" });
+  return deleteAdditionalInfo(req.params.id, workspaceId);
+}));

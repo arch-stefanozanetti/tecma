@@ -86,7 +86,7 @@ const EventDrawer = ({
     if (!window.confirm("Eliminare questo evento?")) return;
     setDeleting(true);
     try {
-      await followupApi.deleteCalendarEvent(event._id);
+      await followupApi.deleteCalendarEvent(event._id, event.workspaceId);
       onDelete();
       onClose();
     } catch {

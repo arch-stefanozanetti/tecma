@@ -96,6 +96,19 @@ vi.mock("../core/requests/requests.service.js", () => ({
   })
 }));
 
+vi.mock("../core/requests/request-actions.service.js", () => ({
+  listRequestActions: vi.fn(),
+  createRequestAction: vi.fn(),
+  updateRequestAction: vi.fn(),
+  deleteRequestAction: vi.fn(),
+}));
+
+vi.mock("../core/notifications/notifications.service.js", () => ({
+  queryNotifications: vi.fn(),
+  markRead: vi.fn(),
+  markAllRead: vi.fn(),
+}));
+
 import { v1Router } from "./v1.js";
 
 const app = express();
@@ -330,6 +343,59 @@ describe("v1 routes", () => {
     });
   });
 
+  describe("scope-required secondary by-id endpoints", () => {
+    it("PATCH /v1/requests/actions/:id returns 400 without workspaceId query", async () => {
+      const token = makeToken();
+      const res = await request(app)
+        .patch("/v1/requests/actions/a1")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ title: "x" });
+      expect(res.status).toBe(400);
+    });
+
+    it("PATCH /v1/notifications/:id returns 400 without workspaceId query", async () => {
+      const token = makeToken();
+      const res = await request(app)
+        .patch("/v1/notifications/n1")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ read: true });
+      expect(res.status).toBe(400);
+    });
+
+    it("DELETE /v1/additional-infos/:id returns 400 without workspaceId query", async () => {
+      const adminToken = makeToken({ isAdmin: true, role: "admin", permissions: ["*"] });
+      const res = await request(app)
+        .delete("/v1/additional-infos/id1")
+        .set("Authorization", `Bearer ${adminToken}`);
+      expect(res.status).toBe(400);
+    });
+
+    it("PATCH /v1/additional-infos/:id returns 400 without workspaceId body", async () => {
+      const adminToken = makeToken({ isAdmin: true, role: "admin", permissions: ["*"] });
+      const res = await request(app)
+        .patch("/v1/additional-infos/id1")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ label: "Nuovo" });
+      expect(res.status).toBe(400);
+    });
+
+    it("GET /v1/hc/apartments/:id returns 400 without workspaceId query", async () => {
+      const token = makeToken();
+      const res = await request(app)
+        .get("/v1/hc/apartments/a1")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(400);
+    });
+
+    it("GET /v1/matching/clients/:id/candidates returns 400 without workspaceId query", async () => {
+      const token = makeToken();
+      const res = await request(app)
+        .get("/v1/matching/clients/c1/candidates")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(400);
+    });
+  });
+
   describe("GET /v1/clients/:id", () => {
     it("returns 401 when no token", async () => {
       const res = await request(app).get("/v1/clients/c1");
@@ -340,7 +406,7 @@ describe("v1 routes", () => {
     it("returns 200 with client when id is valid and JWT present", async () => {
       const token = makeToken();
       const res = await request(app)
-        .get("/v1/clients/c1")
+        .get("/v1/clients/c1?workspaceId=ws1")
         .set("Authorization", `Bearer ${token}`);
       expect(res.status).toBe(200);
       expect(res.body.client).toBeDefined();
@@ -353,7 +419,7 @@ describe("v1 routes", () => {
     it("returns 404 when client not found", async () => {
       const token = makeToken();
       const res = await request(app)
-        .get("/v1/clients/404")
+        .get("/v1/clients/404?workspaceId=ws1")
         .set("Authorization", `Bearer ${token}`);
       expect(res.status).toBe(404);
       expect(res.body.error).toBeDefined();

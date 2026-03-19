@@ -132,9 +132,9 @@ export const upsertHCApartment = async (rawInput: unknown) => {
   return { config: result };
 };
 
-export const getHCApartment = async (rawApartmentId: unknown) => {
+export const getHCApartment = async (rawApartmentId: unknown, workspaceId?: string) => {
   const apartmentId = z.string().parse(rawApartmentId);
-  const config = await getHCApartmentsCollection().findOne({ apartmentId });
+  const config = await getHCApartmentsCollection().findOne({ apartmentId, ...(workspaceId ? { workspaceId } : {}) });
   if (!config) {
     throw new HttpError("HC apartment config not found", 404);
   }
@@ -264,16 +264,16 @@ export const queryAssociations = async (rawInput: unknown) => {
   };
 };
 
-export const deleteAssociation = async (rawAssociationId: unknown) => {
+export const deleteAssociation = async (rawAssociationId: unknown, workspaceId?: string) => {
   const id = toObjectId(z.string().parse(rawAssociationId));
   const collection = getAssociationsCollection();
-  const existing = await collection.findOne({ _id: id });
+  const existing = await collection.findOne({ _id: id, ...(workspaceId ? { workspaceId } : {}) });
   if (!existing) {
     throw new HttpError("Association not found", 404);
   }
   const now = new Date().toISOString();
-  await collection.updateOne({ _id: id }, { $set: { active: false, updatedAt: now } });
-  const updated = await collection.findOne({ _id: id });
+  await collection.updateOne({ _id: id, ...(workspaceId ? { workspaceId } : {}) }, { $set: { active: false, updatedAt: now } });
+  const updated = await collection.findOne({ _id: id, ...(workspaceId ? { workspaceId } : {}) });
   if (!updated) {
     throw new HttpError("Association not found", 404);
   }
@@ -389,13 +389,18 @@ export const createHCMaster = async (rawEntity: unknown, rawInput: unknown) => {
   return { id: insert.insertedId.toHexString() };
 };
 
-export const updateHCMaster = async (rawEntity: unknown, rawId: unknown, rawInput: unknown) => {
+export const updateHCMaster = async (
+  rawEntity: unknown,
+  rawId: unknown,
+  rawInput: unknown,
+  workspaceId?: string
+) => {
   const entity = HCMasterEntitySchema.parse(rawEntity);
   const id = toObjectId(z.string().parse(rawId));
   const input = HCMasterUpsertSchema.partial().parse(rawInput);
   const collection = getHCMasterCollection(entity);
   const updated = await collection.findOneAndUpdate(
-    { _id: id },
+    { _id: id, ...(workspaceId ? { workspaceId } : {}) },
     { $set: { ...input, updatedAt: new Date().toISOString() } },
     { returnDocument: "after" }
   );
@@ -410,11 +415,11 @@ export const updateHCMaster = async (rawEntity: unknown, rawId: unknown, rawInpu
   return { entity: updated };
 };
 
-export const deleteHCMaster = async (rawEntity: unknown, rawId: unknown) => {
+export const deleteHCMaster = async (rawEntity: unknown, rawId: unknown, workspaceId?: string) => {
   const entity = HCMasterEntitySchema.parse(rawEntity);
   const id = toObjectId(z.string().parse(rawId));
   const collection = getHCMasterCollection(entity);
-  const deletion = await collection.deleteOne({ _id: id });
+  const deletion = await collection.deleteOne({ _id: id, ...(workspaceId ? { workspaceId } : {}) });
   if (deletion.deletedCount === 0) {
     throw new HttpError("HC master entity not found", 404);
   }

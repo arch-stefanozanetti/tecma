@@ -1,11 +1,17 @@
 /** Error with HTTP status for route handlers; use so sendError can set res.status(statusCode). */
 export class HttpError extends Error {
+  public readonly code?: string;
+  public readonly scopeViolation?: boolean;
+
   constructor(
     message: string,
-    public readonly statusCode: number = 400
+    public readonly statusCode: number = 400,
+    options?: { code?: string; scopeViolation?: boolean }
   ) {
     super(message);
     this.name = "HttpError";
+    this.code = options?.code;
+    this.scopeViolation = options?.scopeViolation;
   }
 }
 

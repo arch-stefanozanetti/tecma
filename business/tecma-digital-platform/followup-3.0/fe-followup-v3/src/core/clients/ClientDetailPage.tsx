@@ -123,10 +123,10 @@ export const ClientDetailPage = () => {
   }, [clientId, client?.projectId, workspaceId, selectedProjectIds.length]);
 
   const logAction = async (type: "mail_received" | "mail_sent" | "call_completed" | "meeting_scheduled") => {
-    if (!clientId) return;
+    if (!clientId || !workspaceId) return;
     setActionLogging(type);
     try {
-      await followupApi.createClientAction(clientId, type);
+      await followupApi.createClientAction(clientId, type, workspaceId);
       await followupApi.getAuditForEntity("client", clientId, workspaceId ?? "", 25).then((r) => setAuditEvents(r.data ?? []));
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Errore durante la registrazione dell'azione.");
@@ -168,10 +168,16 @@ export const ClientDetailPage = () => {
   }, [workspaceId, clientId, client?.projectId, selectedProjectIds, calendarEventsRefreshKey]);
 
   useEffect(() => {
-    if ((activeTab !== "timeline" && activeTab !== "trattative") || requests.length === 0) return;
+    if ((activeTab !== "timeline" && activeTab !== "trattative") || requests.length === 0 || !workspaceId) return;
     const toLoad = requests.filter((r) => transitionsByRequestId[r._id] === undefined);
     if (toLoad.length === 0) return;
-    Promise.all(toLoad.map((r) => followupApi.getRequestTransitions(r._id).then((res) => ({ requestId: r._id, transitions: res.transitions ?? [] }))))
+    Promise.all(
+      toLoad.map((r) =>
+        followupApi
+          .getRequestTransitions(r._id, workspaceId, selectedProjectIds)
+          .then((res) => ({ requestId: r._id, transitions: res.transitions ?? [] }))
+      )
+    )
       .then((arr) => {
         setTransitionsByRequestId((prev) => ({
           ...prev,
@@ -179,7 +185,7 @@ export const ClientDetailPage = () => {
         }));
       })
       .catch(() => {});
-  }, [activeTab, requests, transitionsByRequestId]);
+  }, [activeTab, requests, transitionsByRequestId, workspaceId, selectedProjectIds]);
 
   const timelineSorted = useMemo(
     () =>
@@ -308,7 +314,7 @@ export const ClientDetailPage = () => {
       setActionFormSaving(true);
       try {
         if (actionDrawerMode === "edit" && editingAction) {
-          await followupApi.updateRequestAction(editingAction._id, {
+          await followupApi.updateRequestAction(editingAction._id, workspaceId, {
             type: actionFormType,
             title: actionFormTitle.trim() || undefined,
             description: actionFormDescription.trim() || undefined,
@@ -347,7 +353,7 @@ export const ClientDetailPage = () => {
     if (!window.confirm("Eliminare questa azione?")) return;
     setDeletingActionId(actionId);
     try {
-      await followupApi.deleteRequestAction(actionId);
+      await followupApi.deleteRequestAction(actionId, workspaceId);
       setTimelineActions((prev) => prev.filter((a) => a._id !== actionId));
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Errore durante l'eliminazione.");
@@ -369,7 +375,12 @@ export const ClientDetailPage = () => {
   const handleRequestStatusChange = async (requestId: string, newStatus: RequestStatus) => {
     setRequestStatusChangingId(requestId);
     try {
-      await followupApi.updateRequestStatus(requestId, { status: newStatus });
+      if (!workspaceId) throw new Error("Workspace non selezionato.");
+      await followupApi.updateRequestStatus(requestId, {
+        status: newStatus,
+        workspaceId,
+        projectIds: selectedProjectIds,
+      });
       reloadRequests();
     } catch (err) {
       let msg = err instanceof Error ? err.message : "Errore durante l'aggiornamento dello stato della trattativa.";

@@ -28,18 +28,22 @@ describe("requestsApi", () => {
   });
 
   it("getRequestById usa GET su /requests/:id", () => {
-    requestsApi.getRequestById("r1");
-    expect(mocks.getJson).toHaveBeenCalledWith("/requests/r1");
+    requestsApi.getRequestById("r1", "ws1", ["p1"]);
+    expect(mocks.getJson).toHaveBeenCalledWith("/requests/r1?workspaceId=ws1&projectIds=p1");
   });
 
   it("transitions/revert/actions usano endpoint corretti", () => {
-    requestsApi.getRequestTransitions("r1");
-    requestsApi.revertRequestStatus("r1", "t1");
+    requestsApi.getRequestTransitions("r1", "ws1", ["p1"]);
+    requestsApi.revertRequestStatus("r1", "t1", "ws1", ["p1"]);
     requestsApi.getRequestActions("ws1");
     requestsApi.getRequestActions("ws 1", "r/1");
 
-    expect(mocks.getJson).toHaveBeenCalledWith("/requests/r1/transitions");
-    expect(mocks.postJson).toHaveBeenCalledWith("/requests/r1/revert", { transitionId: "t1" });
+    expect(mocks.getJson).toHaveBeenCalledWith("/requests/r1/transitions?workspaceId=ws1&projectIds=p1");
+    expect(mocks.postJson).toHaveBeenCalledWith("/requests/r1/revert", {
+      transitionId: "t1",
+      workspaceId: "ws1",
+      projectIds: ["p1"],
+    });
     expect(mocks.getJson).toHaveBeenCalledWith("/requests/actions?workspaceId=ws1");
     expect(mocks.getJson).toHaveBeenCalledWith(
       "/requests/actions?workspaceId=ws%201&requestId=r%2F1"
@@ -48,21 +52,26 @@ describe("requestsApi", () => {
 
   it("actions CRUD usa endpoint corretti", () => {
     requestsApi.createRequestAction({ workspaceId: "ws1", requestIds: ["r1"], type: "note" });
-    requestsApi.updateRequestAction("a1", { title: "X" });
-    requestsApi.deleteRequestAction("a1");
+    requestsApi.updateRequestAction("a1", "ws1", { title: "X" });
+    requestsApi.deleteRequestAction("a1", "ws1");
 
     expect(mocks.postJson).toHaveBeenCalledWith("/requests/actions", {
       workspaceId: "ws1",
       requestIds: ["r1"],
       type: "note",
     });
-    expect(mocks.patchJson).toHaveBeenCalledWith("/requests/actions/a1", { title: "X" });
-    expect(mocks.deleteJson).toHaveBeenCalledWith("/requests/actions/a1");
+    expect(mocks.patchJson).toHaveBeenCalledWith("/requests/actions/a1?workspaceId=ws1", { title: "X" });
+    expect(mocks.deleteJson).toHaveBeenCalledWith("/requests/actions/a1?workspaceId=ws1");
   });
 
   it("create/update status e query helper usano endpoint corretti", () => {
     requestsApi.createRequest({ workspaceId: "ws1", projectId: "p1", clientId: "c1", type: "sell" } as never);
-    requestsApi.updateRequestStatus("r1", { status: "won", reason: "ok" });
+    requestsApi.updateRequestStatus("r1", {
+      status: "won",
+      reason: "ok",
+      workspaceId: "ws1",
+      projectIds: ["p1"],
+    });
     requestsApi.queryClientsLite("ws 1", ["p1", "p/2"]);
     requestsApi.queryApartments({ workspaceId: "ws1", projectIds: ["p1"], page: 1, perPage: 20 } as never);
 
@@ -70,7 +79,12 @@ describe("requestsApi", () => {
       "/requests",
       expect.objectContaining({ workspaceId: "ws1", projectId: "p1", clientId: "c1" })
     );
-    expect(mocks.patchJson).toHaveBeenCalledWith("/requests/r1/status", { status: "won", reason: "ok" });
+    expect(mocks.patchJson).toHaveBeenCalledWith("/requests/r1/status", {
+      status: "won",
+      reason: "ok",
+      workspaceId: "ws1",
+      projectIds: ["p1"],
+    });
     expect(mocks.postJson).toHaveBeenCalledWith("/clients/lite/query", {
       workspaceId: "ws 1",
       projectIds: ["p1", "p/2"],
