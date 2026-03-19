@@ -40,7 +40,7 @@ import {
 } from "../../components/ui/drawer";
 import { FiltersDrawer } from "../../components/ui/filters-drawer";
 import type { ClientCreateInput } from "../../types/domain";
-import { STATUS_FILTER_OPTIONS, TABLE_TYPE_OPTIONS, type ClientTableType } from "./constants";
+import { STATUS_FILTER_OPTIONS, STATUS_SELECT_OPTIONS, TABLE_TYPE_OPTIONS, type ClientTableType } from "./constants";
 import {
   ClientsFiltersDrawerContent,
   getDefaultFiltersDraft,
@@ -48,6 +48,10 @@ import {
   type TimeFrameDraft,
 } from "./ClientsFiltersDrawerContent";
 import { formatDate, statusLabel } from "./ClientsPage.utils";
+import { ViewModeToggle, loadViewModeFromStorage, type ViewMode } from "../shared/ViewModeToggle";
+import { Badge } from "../../components/ui/badge";
+import { EditableFieldText, EditableFieldSelect } from "../shared/EditableField";
+import { useToast } from "../../contexts/ToastContext";
 
 const CLIENTS_PER_PAGE = 50;
 
@@ -55,6 +59,7 @@ type ClientFormMode = "create" | "edit";
 
 export const ClientsPage = () => {
   const navigate = useNavigate();
+  const { toastError } = useToast();
   const { workspaceId, selectedProjectIds, projects } = useWorkspace();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -65,6 +70,7 @@ export const ClientsPage = () => {
   const [filtersDraft, setFiltersDraft] = useState<ClientsFiltersDraft>(getDefaultFiltersDraft);
   const [appliedTimeFrame, setAppliedTimeFrame] = useState<TimeFrameDraft>({ activity: "", fromDate: "", toDate: "" });
   const [tableType, setTableType] = useState<ClientTableType>("contacts");
+  const [viewMode, setViewMode] = useState<ViewMode>(() => loadViewModeFromStorage("clients", "table"));
   const [clientFormOpen, setClientFormOpen] = useState(false);
   const [clientFormMode, setClientFormMode] = useState<ClientFormMode>("create");
   const [editingClient, setEditingClient] = useState<ClientRow | null>(null);
@@ -77,6 +83,7 @@ export const ClientsPage = () => {
   const [formAdditionalInfo, setFormAdditionalInfo] = useState<Record<string, unknown>>({});
   const [formSubmitError, setFormSubmitError] = useState<string | null>(null);
   const [formSaving, setFormSaving] = useState(false);
+  const [wizardStep, setWizardStep] = useState<1 | 2>(1);
   const [additionalInfos, setAdditionalInfos] = useState<AdditionalInfoRow[]>([]);
   const otherOptionsRef = useRef<HTMLDivElement>(null);
 
@@ -103,6 +110,7 @@ export const ClientsPage = () => {
   useEffect(() => {
     if (!clientFormOpen) return;
     setFormSubmitError(null);
+    setWizardStep(1);
     const customInfos = additionalInfos.filter((ai) => (ai.path ?? "additionalInfo") === "additionalInfo");
     if (clientFormMode === "edit" && editingClient) {
       setFormFullName(editingClient.fullName ?? "");
@@ -144,6 +152,10 @@ export const ClientsPage = () => {
   const handleClientFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormSubmitError(null);
+    if (clientFormMode === "create" && wizardStep === 1) {
+      setWizardStep(2);
+      return;
+    }
     setFormSaving(true);
     try {
       const additionalInfoPayload = Object.keys(formAdditionalInfo).length > 0
@@ -270,6 +282,19 @@ export const ClientsPage = () => {
     setFiltersDraft(getDefaultFiltersDraft());
   };
 
+  const handleInlineUpdate = async (
+    clientId: string,
+    field: "fullName" | "email" | "phone" | "status",
+    value: string
+  ) => {
+    try {
+      await clientsApi.updateClient(clientId, { [field]: value || undefined } as Partial<ClientRow>);
+      refetch();
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Errore aggiornamento");
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(total / CLIENTS_PER_PAGE));
   const pageStart = total === 0 ? 0 : (page - 1) * CLIENTS_PER_PAGE + 1;
   const pageEnd = Math.min(total, page * CLIENTS_PER_PAGE);
@@ -348,6 +373,17 @@ export const ClientsPage = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="shrink-0">
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">Vista</label>
+                    <ViewModeToggle
+                      value={viewMode}
+                      onValueChange={(v) => {
+                        setViewMode(v);
+                        setPage(1);
+                      }}
+                      storageKey="clients"
+                    />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <label className="mb-1 block text-xs font-medium text-muted-foreground">Cerca</label>
                     <div className="relative">
@@ -400,98 +436,164 @@ export const ClientsPage = () => {
             )}
 
             {/* Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px]">
-                <thead>
-                  <tr className="border-b border-border text-left text-sm font-normal text-muted-foreground">
-                    <th className="w-10 px-4 py-4 font-normal" />
-                    <th className="px-4 py-4 font-normal">Nome</th>
-                    <th className="px-4 py-4 font-normal">Creato il</th>
-                    <th className="px-4 py-4 font-normal">Aggiornato il</th>
-                    <th className="px-4 py-4 font-normal">Telefono</th>
-                    <th className="px-4 py-4 font-normal">Email</th>
-                    <th className="px-4 py-4 font-normal">Stato</th>
-                    <th className="w-10 px-4 py-4 font-normal" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {isLoading && clients.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="px-4 py-16 text-center text-sm text-muted-foreground">
-                        Loading clients...
-                      </td>
+            {viewMode === "table" && (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px]">
+                  <thead>
+                    <tr className="border-b border-border text-left text-sm font-normal text-muted-foreground">
+                      <th className="w-10 px-4 py-4 font-normal" />
+                      <th className="px-4 py-4 font-normal">Nome</th>
+                      <th className="px-4 py-4 font-normal">Creato il</th>
+                      <th className="px-4 py-4 font-normal">Aggiornato il</th>
+                      <th className="px-4 py-4 font-normal">Telefono</th>
+                      <th className="px-4 py-4 font-normal">Email</th>
+                      <th className="px-4 py-4 font-normal">Stato</th>
+                      <th className="w-10 px-4 py-4 font-normal" />
                     </tr>
-                  ) : clients.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="px-4 py-16 text-center text-sm text-muted-foreground">
-                        {committedSearch ? "No results for this search" : "No clients found"}
-                      </td>
-                    </tr>
-                  ) : (
-                    clients.map((client) => (
-                      <tr
-                        key={client._id}
-                        role="button"
-                        tabIndex={0}
-                        className="group cursor-pointer border-b border-border text-sm text-foreground hover:bg-muted"
-                        onClick={() => navigate(`/clients/${client._id}`)}
-                        onKeyDown={(e) => e.key === "Enter" && navigate(`/clients/${client._id}`)}
-                      >
-                        <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
-                          <span className="inline-flex h-6 w-6 items-center justify-center text-muted-foreground opacity-40">
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </span>
-                        </td>
-
-                        <td className="px-4 py-4">
-                          <span className="text-left font-medium text-primary group-hover:underline">
-                            {client.fullName}
-                          </span>
-                          {client.city && (
-                            <div className="text-xs text-muted-foreground">{client.city}</div>
-                          )}
-                        </td>
-
-                        {/* Created on */}
-                        <td className="px-4 py-4 text-foreground">
-                          {formatDate(client.createdAt)}
-                        </td>
-
-                        {/* Updated on */}
-                        <td className="px-4 py-4 text-foreground">
-                          {formatDate(client.updatedAt)}
-                        </td>
-
-                        {/* Phone */}
-                        <td className="px-4 py-4">
-                          {client.phone ?? "—"}
-                        </td>
-
-                        {/* Email */}
-                        <td className="px-4 py-4">
-                          {client.email ?? "—"}
-                        </td>
-
-                        {/* Status — plain text, no badge */}
-                        <td className="px-4 py-4">
-                          {statusLabel(client.status)}
-                        </td>
-
-                        <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            className="inline-flex h-6 w-6 items-center justify-center text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-                            aria-label="Altre opzioni"
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </button>
+                  </thead>
+                  <tbody>
+                    {isLoading && clients.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-16 text-center text-sm text-muted-foreground">
+                          Loading clients...
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ) : clients.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-16 text-center text-sm text-muted-foreground">
+                          {committedSearch ? "No results for this search" : "No clients found"}
+                        </td>
+                      </tr>
+                    ) : (
+                      clients.map((client) => (
+                        <tr
+                          key={client._id}
+                          role="button"
+                          tabIndex={0}
+                          className="group cursor-pointer border-b border-border text-sm text-foreground hover:bg-muted"
+                          onClick={() => navigate(`/clients/${client._id}`)}
+                          onKeyDown={(e) => e.key === "Enter" && navigate(`/clients/${client._id}`)}
+                        >
+                          <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                            <span className="inline-flex h-6 w-6 items-center justify-center text-muted-foreground opacity-40">
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </span>
+                          </td>
+
+                          <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                            <EditableFieldText
+                              value={client.fullName ?? ""}
+                              onSave={(v) => handleInlineUpdate(client._id, "fullName", v)}
+                              placeholder="Nome"
+                            />
+                            {client.city && (
+                              <div className="text-xs text-muted-foreground">{client.city}</div>
+                            )}
+                          </td>
+
+                          {/* Created on */}
+                          <td className="px-4 py-4 text-foreground">
+                            {formatDate(client.createdAt)}
+                          </td>
+
+                          {/* Updated on */}
+                          <td className="px-4 py-4 text-foreground">
+                            {formatDate(client.updatedAt)}
+                          </td>
+
+                          {/* Phone */}
+                          <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                            <EditableFieldText
+                              value={client.phone ?? ""}
+                              onSave={(v) => handleInlineUpdate(client._id, "phone", v)}
+                              placeholder="Telefono"
+                            />
+                          </td>
+
+                          {/* Email */}
+                          <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                            <EditableFieldText
+                              value={client.email ?? ""}
+                              onSave={(v) => handleInlineUpdate(client._id, "email", v)}
+                              placeholder="Email"
+                            />
+                          </td>
+
+                          {/* Status */}
+                          <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                            <EditableFieldSelect
+                              value={client.status ?? "lead"}
+                              onSave={(v) => handleInlineUpdate(client._id, "status", v)}
+                              options={STATUS_SELECT_OPTIONS}
+                            />
+                          </td>
+
+                          <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              className="inline-flex h-6 w-6 items-center justify-center text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                              aria-label="Altre opzioni"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Card grid */}
+            {viewMode === "card" && (
+              <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
+                {isLoading && clients.length === 0 ? (
+                  <p className="col-span-full py-16 text-center text-sm text-muted-foreground">Caricamento...</p>
+                ) : clients.length === 0 ? (
+                  <p className="col-span-full py-16 text-center text-sm text-muted-foreground">
+                    {committedSearch ? "Nessun risultato" : "Nessun cliente"}
+                  </p>
+                ) : (
+                  clients.map((client) => (
+                    <div
+                      key={client._id}
+                      role="button"
+                      tabIndex={0}
+                      className="glass-panel rounded-ui flex cursor-pointer flex-col gap-2 border border-border p-4 transition-colors hover:bg-muted/30 focus:outline-none focus:ring-2 focus:ring-ring"
+                      onClick={() => navigate(`/clients/${client._id}`)}
+                      onKeyDown={(e) => e.key === "Enter" && navigate(`/clients/${client._id}`)}
+                    >
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <EditableFieldText
+                          value={client.fullName ?? ""}
+                          onSave={(v) => handleInlineUpdate(client._id, "fullName", v)}
+                          placeholder="Nome"
+                          className="font-medium text-foreground"
+                        />
+                      </div>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <EditableFieldText
+                          value={client.email ?? ""}
+                          onSave={(v) => handleInlineUpdate(client._id, "email", v)}
+                          placeholder="Email"
+                          className="text-sm text-muted-foreground"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+                        <EditableFieldSelect
+                          value={client.status ?? "lead"}
+                          onSave={(v) => handleInlineUpdate(client._id, "status", v)}
+                          options={STATUS_SELECT_OPTIONS}
+                          className="text-xs"
+                        />
+                        <span className="text-xs text-muted-foreground shrink-0">{formatDate(client.createdAt)}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
 
             {/* Pagination */}
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">
@@ -639,126 +741,171 @@ export const ClientsPage = () => {
       </Sheet>
 
       {/* Drawer Crea/Modifica cliente */}
-      <Drawer open={clientFormOpen} onOpenChange={setClientFormOpen}>
+      <Drawer open={clientFormOpen} onOpenChange={(open) => { setClientFormOpen(open); if (!open) setWizardStep(1); }}>
         <DrawerContent side="right" className="sm:max-w-md">
           <DrawerHeader actions={<DrawerCloseButton />}>
-            <DrawerTitle>{clientFormMode === "edit" ? "Modifica cliente" : "Nuovo cliente"}</DrawerTitle>
+            <DrawerTitle>
+              {clientFormMode === "edit" ? "Modifica cliente" : `Nuovo cliente ${wizardStep === 1 ? "— Step 1" : "— Step 2"}`}
+            </DrawerTitle>
           </DrawerHeader>
           <form onSubmit={handleClientFormSubmit} className="flex flex-col flex-1 min-h-0">
             <DrawerBody className="space-y-4">
-            {clientFormMode === "create" && (
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-foreground">Progetto</label>
-                <Select value={formProjectId} onValueChange={setFormProjectId} required>
-                  <SelectTrigger className="h-10 rounded-lg border-border">
-                    <SelectValue placeholder="Seleziona progetto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects
-                      .filter((p) => selectedProjectIds.includes(p.id))
-                      .map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.displayName || p.name || p.id}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Nome *</label>
-              <Input
-                className="h-10 rounded-lg border-border"
-                value={formFullName}
-                onChange={(e) => setFormFullName(e.target.value)}
-                required
-                placeholder="Nome e cognome"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Email</label>
-              <Input
-                type="email"
-                className="h-10 rounded-lg border-border"
-                value={formEmail}
-                onChange={(e) => setFormEmail(e.target.value)}
-                placeholder="email@esempio.it"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Telefono</label>
-              <Input
-                className="h-10 rounded-lg border-border"
-                value={formPhone}
-                onChange={(e) => setFormPhone(e.target.value)}
-                placeholder="+39 ..."
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Città</label>
-              <Input
-                className="h-10 rounded-lg border-border"
-                value={formCity}
-                onChange={(e) => setFormCity(e.target.value)}
-                placeholder="Città"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Stato</label>
-              <Select value={formStatus} onValueChange={setFormStatus}>
-                <SelectTrigger className="h-10 rounded-lg border-border">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUS_FILTER_OPTIONS.filter((o) => o.value !== "all").map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {additionalInfos
-              .filter((ai) => (ai.path ?? "additionalInfo") === "additionalInfo" && ai.active !== false)
-              .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-              .map((ai) => (
-                <div key={ai._id}>
-                  <label className="mb-1.5 block text-sm font-medium text-foreground">
-                    {ai.label}
-                    {ai.required && <span className="ml-0.5 text-destructive">*</span>}
-                  </label>
-                  {ai.type === "radio" && ai.options && ai.options.length > 0 ? (
-                    <Select
-                      value={String(formAdditionalInfo[ai.name] ?? "")}
-                      onValueChange={(v) => setFormAdditionalInfo((prev) => ({ ...prev, [ai.name]: v }))}
-                    >
-                      <SelectTrigger className="h-10 rounded-lg border-border">
-                        <SelectValue placeholder={`Seleziona ${ai.label}`} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ai.options.map((opt) => (
-                          <SelectItem key={opt} value={opt}>
-                            {opt}
+            {clientFormMode === "create" && wizardStep === 1 && (
+              <>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">Nome *</label>
+                  <Input
+                    className="h-10 rounded-lg border-border"
+                    value={formFullName}
+                    onChange={(e) => setFormFullName(e.target.value)}
+                    required
+                    placeholder="Nome e cognome"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">Progetto *</label>
+                  <Select value={formProjectId} onValueChange={setFormProjectId} required>
+                    <SelectTrigger className="h-10 rounded-lg border-border">
+                      <SelectValue placeholder="Seleziona progetto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects
+                        .filter((p) => selectedProjectIds.includes(p.id))
+                        .map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.displayName || p.name || p.id}
                           </SelectItem>
                         ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Input
-                      className="h-10 rounded-lg border-border"
-                      type={ai.type === "number" ? "number" : "text"}
-                      value={String(formAdditionalInfo[ai.name] ?? "")}
-                      onChange={(e) =>
-                        setFormAdditionalInfo((prev) => ({
-                          ...prev,
-                          [ai.name]: ai.type === "number" ? (e.target.value ? Number(e.target.value) : "") : e.target.value,
-                        }))
-                      }
-                      placeholder={ai.label}
-                    />
-                  )}
+                    </SelectContent>
+                  </Select>
                 </div>
-              ))}
+              </>
+            )}
+            {(clientFormMode === "edit" || (clientFormMode === "create" && wizardStep === 2)) && (
+              <>
+                {clientFormMode === "create" && wizardStep === 2 && (
+                  <div className="glass-panel rounded-ui space-y-2 border border-border p-3 text-sm">
+                    <p><span className="text-muted-foreground">Nome:</span> {formFullName}</p>
+                    <p><span className="text-muted-foreground">Progetto:</span> {projects.find((p) => p.id === formProjectId)?.displayName || formProjectId}</p>
+                  </div>
+                )}
+                {clientFormMode === "edit" && (
+                  <>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-foreground">Nome *</label>
+                      <Input
+                        className="h-10 rounded-lg border-border"
+                        value={formFullName}
+                        onChange={(e) => setFormFullName(e.target.value)}
+                        required
+                        placeholder="Nome e cognome"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-foreground">Progetto *</label>
+                      <Select value={formProjectId} onValueChange={setFormProjectId} required>
+                        <SelectTrigger className="h-10 rounded-lg border-border">
+                          <SelectValue placeholder="Seleziona progetto" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {projects
+                            .filter((p) => selectedProjectIds.includes(p.id))
+                            .map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.displayName || p.name || p.id}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">Email</label>
+                  <Input
+                    type="email"
+                    className="h-10 rounded-lg border-border"
+                    value={formEmail}
+                    onChange={(e) => setFormEmail(e.target.value)}
+                    placeholder="email@esempio.it"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">Telefono</label>
+                  <Input
+                    className="h-10 rounded-lg border-border"
+                    value={formPhone}
+                    onChange={(e) => setFormPhone(e.target.value)}
+                    placeholder="+39 ..."
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">Città</label>
+                  <Input
+                    className="h-10 rounded-lg border-border"
+                    value={formCity}
+                    onChange={(e) => setFormCity(e.target.value)}
+                    placeholder="Città"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">Stato</label>
+                  <Select value={formStatus} onValueChange={setFormStatus}>
+                    <SelectTrigger className="h-10 rounded-lg border-border">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUS_FILTER_OPTIONS.filter((o) => o.value !== "all").map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {additionalInfos
+                  .filter((ai) => (ai.path ?? "additionalInfo") === "additionalInfo" && ai.active !== false)
+                  .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+                  .map((ai) => (
+                    <div key={ai._id}>
+                      <label className="mb-1.5 block text-sm font-medium text-foreground">
+                        {ai.label}
+                        {ai.required && <span className="ml-0.5 text-destructive">*</span>}
+                      </label>
+                      {ai.type === "radio" && ai.options && ai.options.length > 0 ? (
+                        <Select
+                          value={String(formAdditionalInfo[ai.name] ?? "")}
+                          onValueChange={(v) => setFormAdditionalInfo((prev) => ({ ...prev, [ai.name]: v }))}
+                        >
+                          <SelectTrigger className="h-10 rounded-lg border-border">
+                            <SelectValue placeholder={`Seleziona ${ai.label}`} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ai.options.map((opt) => (
+                              <SelectItem key={opt} value={opt}>
+                                {opt}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          className="h-10 rounded-lg border-border"
+                          type={ai.type === "number" ? "number" : "text"}
+                          value={String(formAdditionalInfo[ai.name] ?? "")}
+                          onChange={(e) =>
+                            setFormAdditionalInfo((prev) => ({
+                              ...prev,
+                              [ai.name]: ai.type === "number" ? (e.target.value ? Number(e.target.value) : "") : e.target.value,
+                            }))
+                          }
+                          placeholder={ai.label}
+                        />
+                      )}
+                    </div>
+                  ))}
+              </>
+            )}
             {formSubmitError && (
               <p className="text-sm text-destructive">{formSubmitError}</p>
             )}
@@ -768,8 +915,13 @@ export const ClientsPage = () => {
                 <Button type="button" variant="outline" onClick={() => setClientFormOpen(false)}>
                   Annulla
                 </Button>
+                {clientFormMode === "create" && wizardStep === 2 && (
+                  <Button type="button" variant="outline" onClick={() => setWizardStep(1)}>
+                    Indietro
+                  </Button>
+                )}
                 <Button type="submit" disabled={formSaving}>
-                  {formSaving ? "Salvataggio..." : clientFormMode === "edit" ? "Salva" : "Crea"}
+                  {formSaving ? "Salvataggio..." : clientFormMode === "edit" ? "Salva" : wizardStep === 1 ? "Avanti" : "Crea"}
                 </Button>
               </div>
             </DrawerFooter>

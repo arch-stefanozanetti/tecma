@@ -17,6 +17,9 @@ export const PERMISSIONS = {
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
+/** Tutti i permessi validi per override utente (escluso ALL, riservato ad admin). */
+export const ALL_PERMISSION_IDS: string[] = Object.values(PERMISSIONS).filter((p) => p !== PERMISSIONS.ALL);
+
 /** Fallback se `tz_roleDefinitions` non ha il ruolo. Solo ruoli spec: owner, admin, collaborator, viewer (+ user). */
 export const BUILTIN_ROLE_PERMISSIONS: Record<string, string[] | typeof PERMISSIONS.ALL> = {
   admin: PERMISSIONS.ALL,

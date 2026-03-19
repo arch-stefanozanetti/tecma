@@ -16,6 +16,8 @@ export const STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: "RENTED", label: "Affittato" },
 ];
 
+export const STATUS_SELECT_OPTIONS = STATUS_FILTER_OPTIONS.filter((o) => o.value !== "all");
+
 export const formatDate = (value: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";

@@ -12,5 +12,7 @@ authRoutes.get("/auth/me", handleAsync((req) => {
     isAdmin: payload.isAdmin,
     permissions: payload.permissions,
     projectId: payload.projectId,
+    system_role: payload.system_role ?? undefined,
+    isTecmaAdmin: payload.isTecmaAdmin === true,
   });
 }));

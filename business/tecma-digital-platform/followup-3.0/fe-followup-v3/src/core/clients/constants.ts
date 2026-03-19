@@ -10,6 +10,9 @@ export const STATUS_FILTER_OPTIONS: { value: string; label: string }[] = [
   { value: "lost", label: "Perso" },
 ];
 
+/** Opzioni status per select/edit (senza "all") */
+export const STATUS_SELECT_OPTIONS = STATUS_FILTER_OPTIONS.filter((o) => o.value !== "all");
+
 /** Tipologia tabella lista clienti (come in fe-tecma-followup) */
 export type ClientTableType = "contacts" | "myHome" | "crm" | "otherInfo";
 

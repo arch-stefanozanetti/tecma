@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { followupApi } from "../../api/followupApi";
 import type { WorkspaceRow, WorkspaceProjectRow, ProjectAccessProject, WorkspaceUserRow, WorkspaceUserRole, AccessScope } from "../../types/domain";
+import { useWorkspaceRoles } from "../../hooks/useWorkspaceRoles";
 import { useWorkspace } from "../../auth/projectScope";
 import { useToast } from "../../contexts/ToastContext";
 import { Button } from "../../components/ui/button";
@@ -172,6 +173,8 @@ export const WorkspacesPage = () => {
   const [userFormRole, setUserFormRole] = useState<WorkspaceUserRole>("collaborator");
   const [userFormAccessScope, setUserFormAccessScope] = useState<AccessScope>("all");
   const [userFormProjectIds, setUserFormProjectIds] = useState<string[]>([]);
+
+  const { roles: workspaceRoles } = useWorkspaceRoles();
 
   useEffect(() => {
     const t = setTimeout(() => setAssociateSearchDebounced(associateSearch), 300);
@@ -632,10 +635,11 @@ export const WorkspacesPage = () => {
                                   disabled={saving}
                                   className="h-7 rounded border border-border bg-background px-2 text-xs"
                                 >
-                                  <option value="owner">Owner</option>
-                                  <option value="admin">Admin</option>
-                                  <option value="collaborator">Collaborator</option>
-                                  <option value="viewer">Viewer</option>
+                                  {workspaceRoles.map((r) => (
+                                    <option key={r.roleKey} value={r.roleKey}>
+                                      {r.label}
+                                    </option>
+                                  ))}
                                 </select>
                                 {wu.access_scope != null && (
                                   <span className="text-xs text-muted-foreground">
@@ -1109,10 +1113,11 @@ export const WorkspacesPage = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="owner">Owner</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="collaborator">Collaborator</SelectItem>
-                  <SelectItem value="viewer">Viewer</SelectItem>
+                  {workspaceRoles.map((r) => (
+                    <SelectItem key={r.roleKey} value={r.roleKey}>
+                      {r.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </Field>

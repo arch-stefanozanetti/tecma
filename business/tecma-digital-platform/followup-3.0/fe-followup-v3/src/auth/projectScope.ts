@@ -1,5 +1,22 @@
 import { createContext, useContext } from "react";
+import { z } from "zod";
 import type { ProjectAccessProject } from "../types/domain";
+
+const ProjectAccessProjectSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  displayName: z.string().optional(),
+});
+
+const ProjectScopeSchema = z.object({
+  email: z.string(),
+  role: z.string().nullable(),
+  isAdmin: z.boolean(),
+  workspaceId: z.string(),
+  apiEnvironment: z.enum(["dev-1", "demo", "prod"]).optional(),
+  projects: z.array(ProjectAccessProjectSchema),
+  selectedProjectIds: z.array(z.string()),
+});
 
 /** Override per workspace/progetti filtrati (da App/PageTemplate). Usato da ClientsPage, ApartmentsPage, ecc. */
 export interface WorkspaceOverride {
@@ -54,7 +71,17 @@ export const loadProjectScope = (): ProjectScopeState | null => {
   const raw = storage.getItem(STORAGE_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as ProjectScopeState;
+    const parsed = ProjectScopeSchema.safeParse(JSON.parse(raw));
+    if (!parsed.success) return null;
+    const data = parsed.data;
+    return {
+      ...data,
+      projects: data.projects.map((p) => ({
+        id: p.id,
+        name: p.name,
+        displayName: p.displayName ?? p.name,
+      })),
+    };
   } catch {
     return null;
   }

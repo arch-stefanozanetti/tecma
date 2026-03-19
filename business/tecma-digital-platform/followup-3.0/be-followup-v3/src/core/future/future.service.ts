@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
+import { escapeRegex } from "../../utils/escapeRegex.js";
 import { HttpError } from "../../types/http.js";
 import { ListQuerySchema, buildPagination } from "../shared/list-query.js";
 import { emitDomainEvent } from "../events/event-log.service.js";
@@ -151,7 +152,7 @@ export const queryHCApartments = async (rawInput: unknown) => {
     projectId: { $in: input.projectIds }
   };
   if (input.searchText?.trim()) {
-    match.apartmentId = { $regex: input.searchText.trim(), $options: "i" };
+    match.apartmentId = { $regex: escapeRegex(input.searchText.trim()), $options: "i" };
   }
 
   const [data, total] = await Promise.all([
@@ -364,7 +365,8 @@ export const queryHCMaster = async (rawEntity: unknown, rawInput: unknown) => {
   const { skip, limit } = buildPagination(input.page, input.perPage);
   const match: Record<string, unknown> = { workspaceId: input.workspaceId, projectId: { $in: input.projectIds } };
   if (input.searchText?.trim()) {
-    match.$or = [{ code: { $regex: input.searchText.trim(), $options: "i" } }, { name: { $regex: input.searchText.trim(), $options: "i" } }];
+    const safe = escapeRegex(input.searchText.trim());
+    match.$or = [{ code: { $regex: safe, $options: "i" } }, { name: { $regex: safe, $options: "i" } }];
   }
   const [data, total] = await Promise.all([
     collection.find(match).sort({ updatedAt: -1 }).skip(skip).limit(limit).toArray(),

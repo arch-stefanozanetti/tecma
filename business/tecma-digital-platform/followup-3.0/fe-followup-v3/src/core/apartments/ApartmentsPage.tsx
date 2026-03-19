@@ -12,7 +12,7 @@ import {
   Upload,
 } from "lucide-react";
 import { apartmentsApi } from "../../api/domains/apartmentsApi";
-import type { ApartmentRow } from "../../types/domain";
+import type { ApartmentRow, ApartmentCreateInput } from "../../types/domain";
 import { useWorkspace } from "../../auth/projectScope";
 import { usePaginatedList } from "../shared/usePaginatedList";
 import { cn } from "../../lib/utils";
@@ -45,15 +45,21 @@ import {
   pseudoFloor,
   roomLabel,
   STATUS_FILTER_OPTIONS,
+  STATUS_SELECT_OPTIONS,
   statusInfo,
   statusLabelMap,
   type ModeFilter,
 } from "./ApartmentsPage.utils";
+import { ViewModeToggle, loadViewModeFromStorage, type ViewMode } from "../shared/ViewModeToggle";
+import { Badge } from "../../components/ui/badge";
+import { EditableFieldText, EditableFieldSelect } from "../shared/EditableField";
+import { useToast } from "../../contexts/ToastContext";
 
 const APARTMENTS_PER_PAGE = 10;
 
 export const ApartmentsPage = () => {
   const navigate = useNavigate();
+  const { toastError } = useToast();
   const { workspaceId, selectedProjectIds } = useWorkspace();
   const [search, setSearch] = useState("");
   const [modeFilter, setModeFilter] = useState<ModeFilter>("all");
@@ -71,6 +77,7 @@ export const ApartmentsPage = () => {
   const [importExcelOpen, setImportExcelOpen] = useState(false);
   const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false);
   const [statusDraft, setStatusDraft] = useState("all");
+  const [viewMode, setViewMode] = useState<ViewMode>(() => loadViewModeFromStorage("apartments", "table"));
   const otherOptionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -180,6 +187,29 @@ export const ApartmentsPage = () => {
     setPage(1);
   };
 
+  const handleInlineUpdate = async (
+    apartmentId: string,
+    field: "code" | "name" | "status" | "price",
+    value: string
+  ) => {
+    try {
+      const payload: Record<string, unknown> = {};
+      if (field === "status") {
+        payload.status = value as ApartmentRow["status"];
+      } else if (field === "price") {
+        const num = Number(String(value).replace(/\s/g, "").replace(/\./g, "").replace(",", "."));
+        if (!Number.isNaN(num) && num >= 0) payload.price = num;
+        else return;
+      } else {
+        payload[field] = value;
+      }
+      await apartmentsApi.updateApartment(apartmentId, payload as Partial<ApartmentCreateInput>);
+      refetch();
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Errore aggiornamento");
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(total / APARTMENTS_PER_PAGE));
   const pageStart = total === 0 ? 0 : (page - 1) * APARTMENTS_PER_PAGE + 1;
   const pageEnd = Math.min(total, page * APARTMENTS_PER_PAGE);
@@ -284,6 +314,14 @@ export const ApartmentsPage = () => {
                     onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                   />
                 </div>
+                <ViewModeToggle
+                  value={viewMode}
+                  onValueChange={(v) => {
+                    setViewMode(v);
+                    setPage(1);
+                  }}
+                  storageKey="apartments"
+                />
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
@@ -328,8 +366,9 @@ export const ApartmentsPage = () => {
             )}
 
             {/* Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1020px]">
+            {viewMode === "table" && (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1020px]">
                 <thead>
                   <tr className="border-b border-border text-left text-sm font-normal text-muted-foreground">
                     <th className="w-10 px-4 py-4 font-normal" />
@@ -384,17 +423,18 @@ export const ApartmentsPage = () => {
                             </button>
                           </td>
 
-                          <td className="px-4 py-4">
-                            <button
-                              type="button"
-                              className="text-left font-normal text-primary hover:underline"
-                              onClick={(e) => { e.stopPropagation(); navigate(`/apartments/${apt._id}`); }}
-                            >
-                              {apt.code}
-                            </button>
-                            {apt.name && apt.name !== apt.code && (
-                              <div className="text-xs text-muted-foreground">{apt.name}</div>
-                            )}
+                          <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                            <EditableFieldText
+                              value={apt.code}
+                              onSave={(v) => handleInlineUpdate(apt._id, "code", v)}
+                              placeholder="Codice"
+                            />
+                            <EditableFieldText
+                              value={apt.name && apt.name !== apt.code ? apt.name : ""}
+                              onSave={(v) => handleInlineUpdate(apt._id, "name", v)}
+                              placeholder="Nome"
+                              className="text-xs text-muted-foreground mt-0.5"
+                            />
                           </td>
 
                           {/* Updated on */}
@@ -410,7 +450,13 @@ export const ApartmentsPage = () => {
                           <td className="px-4 py-4">{pseudoFloor(apt.code)}</td>
 
                           {/* Price */}
-                          <td className="px-4 py-4">{apt.normalizedPrice?.display ?? "—"}</td>
+                          <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                            <EditableFieldText
+                              value={apt.rawPrice?.amount != null ? String(apt.rawPrice.amount) : ""}
+                              onSave={(v) => handleInlineUpdate(apt._id, "price", v)}
+                              placeholder="Prezzo"
+                            />
+                          </td>
 
                           {/* Availability */}
                           <td className="px-4 py-4">
@@ -420,15 +466,12 @@ export const ApartmentsPage = () => {
                           </td>
 
                           {/* Status */}
-                          <td className="px-4 py-4">
-                            <span className="inline-flex items-center gap-2">
-                              <span
-                                className="h-2.5 w-2.5 rounded-full"
-                                style={{ backgroundColor: status.dot }}
-                                aria-hidden="true"
-                              />
-                              {status.label}
-                            </span>
+                          <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                            <EditableFieldSelect
+                              value={apt.status}
+                              onSave={(v) => handleInlineUpdate(apt._id, "status", v)}
+                              options={STATUS_SELECT_OPTIONS}
+                            />
                           </td>
 
                           {/* Row overflow menu */}
@@ -448,6 +491,64 @@ export const ApartmentsPage = () => {
                 </tbody>
               </table>
             </div>
+            )}
+
+            {/* Card grid */}
+            {viewMode === "card" && (
+              <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
+                {isLoading && apartments.length === 0 ? (
+                  <p className="col-span-full py-16 text-center text-sm text-muted-foreground">Caricamento...</p>
+                ) : apartments.length === 0 ? (
+                  <p className="col-span-full py-16 text-center text-sm text-muted-foreground">
+                    {committedSearch ? "Nessun risultato" : "Nessun appartamento"}
+                  </p>
+                ) : (
+                  apartments.map((apt) => (
+                    <div
+                      key={apt._id}
+                      role="button"
+                      tabIndex={0}
+                      className="glass-panel rounded-ui flex cursor-pointer flex-col gap-2 border border-border p-4 transition-colors hover:bg-muted/30 focus:outline-none focus:ring-2 focus:ring-ring"
+                      onClick={() => navigate(`/apartments/${apt._id}`)}
+                      onKeyDown={(e) => e.key === "Enter" && navigate(`/apartments/${apt._id}`)}
+                    >
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <EditableFieldText
+                          value={apt.code}
+                          onSave={(v) => handleInlineUpdate(apt._id, "code", v)}
+                          placeholder="Codice"
+                          className="font-medium text-foreground"
+                        />
+                        <EditableFieldText
+                          value={apt.name && apt.name !== apt.code ? apt.name : ""}
+                          onSave={(v) => handleInlineUpdate(apt._id, "name", v)}
+                          placeholder="Nome"
+                          className="text-sm text-muted-foreground"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                        <span>{apt.surfaceMq} mq</span>
+                        <EditableFieldText
+                          value={apt.rawPrice?.amount != null ? String(apt.rawPrice.amount) : ""}
+                          onSave={(v) => handleInlineUpdate(apt._id, "price", v)}
+                          placeholder="Prezzo"
+                          className="text-right"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+                        <EditableFieldSelect
+                          value={apt.status}
+                          onSave={(v) => handleInlineUpdate(apt._id, "status", v)}
+                          options={STATUS_SELECT_OPTIONS}
+                          className="text-xs"
+                        />
+                        <span className="text-xs text-muted-foreground shrink-0">{formatDate(apt.updatedAt)}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
 
             {/* Pagination */}
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">

@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
+import { escapeRegex } from "../../utils/escapeRegex.js";
 import { ListQuerySchema, type ListQueryInput, buildPagination } from "../shared/list-query.js";
 import { HttpError, PaginatedResponse } from "../../types/http.js";
 import { dispatchEvent } from "../automations/automation-events.service.js";
@@ -52,7 +53,8 @@ const buildMatch = (q: ListQueryInput) => {
   }
 
   if (q.searchText && q.searchText.trim()) {
-    conditions.push({ $or: [{ title: { $regex: q.searchText.trim(), $options: "i" } }] });
+    const safe = escapeRegex(q.searchText.trim());
+    conditions.push({ $or: [{ title: { $regex: safe, $options: "i" } }] });
   }
 
   const clientId = q.filters?.clientId;
@@ -111,7 +113,7 @@ const buildLegacyMatch = (q: ListQueryInput) => {
   }
 
   if (q.searchText && q.searchText.trim()) {
-    const safe = q.searchText.trim();
+    const safe = escapeRegex(q.searchText.trim());
     conditions.push({
       $or: [
         { info: { $regex: safe, $options: "i" } },
@@ -154,11 +156,29 @@ const mapLegacyToCalendarEvent = (doc: LegacyCalendarDoc): CalendarEvent => {
   };
 };
 
+const toIsoString = (v: unknown): string => {
+  if (v instanceof Date) return v.toISOString();
+  if (typeof v === "string" && v) return v;
+  return new Date(0).toISOString();
+};
+
+const toCalendarEvent = (doc: CalendarEvent & { _id?: ObjectId; startsAt?: Date | string; endsAt?: Date | string }): CalendarEvent => ({
+  _id: doc._id instanceof ObjectId ? doc._id.toHexString() : String(doc._id ?? ""),
+  workspaceId: doc.workspaceId,
+  projectId: doc.projectId,
+  title: doc.title,
+  startsAt: toIsoString(doc.startsAt),
+  endsAt: toIsoString(doc.endsAt),
+  source: doc.source,
+  ...(doc.clientId && { clientId: doc.clientId }),
+  ...(doc.apartmentId && { apartmentId: doc.apartmentId }),
+});
+
 const queryPrimaryCalendarEvents = async (input: ListQueryInput): Promise<PaginatedResponse<CalendarEvent>> => {
   const db = getDb();
-  const collection = db.collection<CalendarEvent>("calendar_events");
+  const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("calendar_events");
 
-  const [data, total] = await Promise.all([
+  const [rawData, total] = await Promise.all([
     collection
       .find(buildMatch(input))
       .sort({ startsAt: 1 })
@@ -169,7 +189,7 @@ const queryPrimaryCalendarEvents = async (input: ListQueryInput): Promise<Pagina
   ]);
 
   return {
-    data,
+    data: rawData.map(toCalendarEvent),
     pagination: {
       page: input.page,
       perPage: input.perPage,
@@ -222,6 +242,9 @@ const queryLegacyCalendarEvents = async (input: ListQueryInput): Promise<Paginat
 export const queryCalendarEvents = async (rawInput: unknown): Promise<PaginatedResponse<CalendarEvent>> => {
   const input = ListQuerySchema.parse(rawInput);
   const primary = await queryPrimaryCalendarEvents(input);
+  // #region agent log
+  fetch("http://127.0.0.1:7857/ingest/45821bd5-f1c6-412c-97d1-2d1ee6a22e0e", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "94c3ac" }, body: JSON.stringify({ sessionId: "94c3ac", location: "calendar.service.ts:queryCalendarEvents", message: "query result", data: { projectIds: input.projectIds, dateFrom: input.filters?.dateFrom, dateTo: input.filters?.dateTo, primaryTotal: primary.pagination.total, primaryDataLength: primary.data.length }, hypothesisId: "H1_H2", timestamp: Date.now() }) }).catch(() => {});
+  // #endregion
   if (primary.pagination.total > 0) return primary;
   return queryLegacyCalendarEvents(input);
 };
@@ -230,25 +253,30 @@ export const createCalendarEvent = async (rawInput: unknown): Promise<{ event: C
   const input = CalendarEventCreateSchema.parse(rawInput);
   const db = getDb();
   const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("calendar_events");
-  const doc: Omit<CalendarEvent, "_id"> & { _id?: ObjectId } = {
+  const startsAtDate = new Date(input.startsAt);
+  const endsAtDate = new Date(input.endsAt);
+  const doc: Omit<CalendarEvent, "_id"> & { _id?: ObjectId; startsAt: Date; endsAt: Date } = {
     workspaceId: input.workspaceId,
     projectId: input.projectId,
     title: input.title.trim(),
-    startsAt: new Date(input.startsAt).toISOString(),
-    endsAt: new Date(input.endsAt).toISOString(),
+    startsAt: startsAtDate,
+    endsAt: endsAtDate,
     source: input.source,
     ...(input.clientId && input.clientId.trim() && { clientId: input.clientId.trim() }),
     ...(input.apartmentId && input.apartmentId.trim() && { apartmentId: input.apartmentId.trim() }),
   };
   const result = await collection.insertOne(doc as never);
   const _id = result.insertedId.toHexString();
+  // #region agent log
+  fetch("http://127.0.0.1:7857/ingest/45821bd5-f1c6-412c-97d1-2d1ee6a22e0e", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "94c3ac" }, body: JSON.stringify({ sessionId: "94c3ac", location: "calendar.service.ts:createCalendarEvent", message: "inserted", data: { projectId: input.projectId, startsAt: doc.startsAt, endsAt: doc.endsAt, _id }, hypothesisId: "H2", timestamp: Date.now() }) }).catch(() => {});
+  // #endregion
   const event: CalendarEvent = {
     _id,
     workspaceId: doc.workspaceId,
     projectId: doc.projectId,
     title: doc.title,
-    startsAt: doc.startsAt,
-    endsAt: doc.endsAt,
+    startsAt: startsAtDate.toISOString(),
+    endsAt: endsAtDate.toISOString(),
     source: doc.source,
     ...(doc.clientId && { clientId: doc.clientId }),
     ...(doc.apartmentId && { apartmentId: doc.apartmentId }),
@@ -287,8 +315,8 @@ export const updateCalendarEvent = async (
   const update: Record<string, unknown> = {};
   const unset: Record<string, 1> = {};
   if (input.title !== undefined) update.title = input.title.trim();
-  if (input.startsAt !== undefined) update.startsAt = new Date(input.startsAt).toISOString();
-  if (input.endsAt !== undefined) update.endsAt = new Date(input.endsAt).toISOString();
+  if (input.startsAt !== undefined) update.startsAt = new Date(input.startsAt);
+  if (input.endsAt !== undefined) update.endsAt = new Date(input.endsAt);
   if (input.projectId !== undefined) update.projectId = input.projectId;
   if (input.source !== undefined) update.source = input.source;
   if (input.clientId !== undefined) {
@@ -308,8 +336,8 @@ export const updateCalendarEvent = async (
     workspaceId: String(updated!.workspaceId ?? existing.workspaceId),
     projectId: String(updated!.projectId ?? existing.projectId),
     title: String(updated!.title ?? existing.title),
-    startsAt: String(updated!.startsAt ?? existing.startsAt),
-    endsAt: String(updated!.endsAt ?? existing.endsAt),
+    startsAt: toIsoString(updated!.startsAt ?? existing.startsAt),
+    endsAt: toIsoString(updated!.endsAt ?? existing.endsAt),
     source: (updated!.source ?? existing.source) as CalendarEvent["source"],
     ...(updated!.clientId != null && { clientId: String(updated!.clientId) }),
     ...(updated!.apartmentId != null && { apartmentId: String(updated!.apartmentId) }),

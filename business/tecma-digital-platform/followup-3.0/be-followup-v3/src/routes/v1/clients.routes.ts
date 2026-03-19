@@ -6,14 +6,36 @@ import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
 import { record as auditRecord } from "../../core/audit/audit-log.service.js";
 import { dispatchEvent } from "../../core/automations/automation-events.service.js";
+import { requireCanAccessWorkspace } from "../accessMiddleware.js";
+import { canAccess } from "../../core/access/canAccess.js";
 
 export const clientsRoutes = Router();
 
-clientsRoutes.post("/clients/query", handleAsync((req) => queryClients(req.body)));
-clientsRoutes.get("/clients/:id", handleAsync((req) => getClientById(req.params.id)));
+function toAccessUser(req: { user?: { sub?: string; email?: string; system_role?: string | null; isTecmaAdmin?: boolean } }): { sub: string; email: string; system_role?: string | null; isTecmaAdmin?: boolean } | null {
+  const u = req.user;
+  if (!u) return null;
+  return { sub: u.sub ?? "", email: u.email ?? "", system_role: u.system_role ?? undefined, isTecmaAdmin: u.isTecmaAdmin };
+}
+
+clientsRoutes.post("/clients/query", requireCanAccessWorkspace("workspaceId"), handleAsync((req) => queryClients(req.body)));
+clientsRoutes.get(
+  "/clients/:id",
+  handleAsync(async (req) => {
+    const result = await getClientById(req.params.id);
+    const workspaceId = result.client?.workspaceId;
+    if (workspaceId) {
+      const user = toAccessUser(req);
+      if (!user) throw new HttpError("Unauthorized", 401);
+      const ok = await canAccess(user, { type: "workspace", workspaceId });
+      if (!ok) throw new HttpError("Accesso al workspace non consentito", 403);
+    }
+    return result;
+  })
+);
 
 clientsRoutes.get(
   "/clients/:id/requests",
+  requireCanAccessWorkspace("workspaceId"),
   handleAsync(async (req) => {
     const clientId = req.params.id;
     const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";
@@ -34,7 +56,7 @@ clientsRoutes.get(
   })
 );
 
-clientsRoutes.post("/clients", handleAsync(async (req) => {
+clientsRoutes.post("/clients", requireCanAccessWorkspace("workspaceId"), handleAsync(async (req) => {
   const result = await createClient(req.body);
   const workspaceId = req.body.workspaceId as string;
   auditRecord({
@@ -45,38 +67,56 @@ clientsRoutes.post("/clients", handleAsync(async (req) => {
     entityId: result.client._id,
     actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
     payload: { fullName: result.client.fullName },
-  }).catch(() => {});
+  }).catch((err) => console.warn("[audit] failed", err));
   dispatchEvent(workspaceId, "client.created", {
     workspaceId,
     projectId: req.body.projectId,
     entityType: "client",
     entityId: result.client._id,
-  }).catch(() => {});
+  }).catch((err) => console.warn("[event] failed", err));
   return result;
 }));
 
-clientsRoutes.patch("/clients/:id", handleAsync(async (req) => {
-  const result = await updateClient(req.params.id, req.body);
-  const workspaceId = result.workspaceId ?? "";
-  if (workspaceId) {
-    auditRecord({
-      action: "client.updated",
-      workspaceId,
-      projectId: result.client.projectId || undefined,
-      entityType: "client",
-      entityId: req.params.id,
-      actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
-      payload: req.body,
-    }).catch(() => {});
-  }
-  return { client: result.client };
-}));
+clientsRoutes.patch(
+  "/clients/:id",
+  handleAsync(async (req) => {
+    const existing = await getClientById(req.params.id);
+    const workspaceId = existing.client?.workspaceId ?? "";
+    if (workspaceId) {
+      const user = toAccessUser(req);
+      if (!user) throw new HttpError("Unauthorized", 401);
+      const ok = await canAccess(user, { type: "workspace", workspaceId });
+      if (!ok) throw new HttpError("Accesso al workspace non consentito", 403);
+    }
+    const result = await updateClient(req.params.id, req.body);
+    const wsId = result.workspaceId ?? result.client?.workspaceId ?? "";
+    if (wsId) {
+      auditRecord({
+        action: "client.updated",
+        workspaceId: wsId,
+        projectId: result.client.projectId || undefined,
+        entityType: "client",
+        entityId: req.params.id,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+        payload: req.body,
+      }).catch((err) => console.warn("[audit] failed", err));
+    }
+    return { client: result.client };
+  })
+);
 
 clientsRoutes.post("/clients/:clientId/actions", handleAsync(async (req) => {
   const clientId = req.params.clientId;
   const body = z.object({ type: z.enum(["mail_received", "mail_sent", "call_completed", "meeting_scheduled"]) }).parse(req.body);
   const clientRes = await getClientById(clientId).catch(() => null);
-  const workspaceId = clientRes?.client?.workspaceId ?? "";
+  if (!clientRes?.client) throw new HttpError("Client not found", 404);
+  const workspaceId = clientRes.client.workspaceId ?? "";
+  if (workspaceId) {
+    const user = toAccessUser(req);
+    if (!user) throw new HttpError("Unauthorized", 401);
+    const ok = await canAccess(user, { type: "workspace", workspaceId });
+    if (!ok) throw new HttpError("Accesso al workspace non consentito", 403);
+  }
   const { getDb } = await import("../../config/db.js");
   const db = getDb();
   const now = new Date();
@@ -84,7 +124,7 @@ clientsRoutes.post("/clients/:clientId/actions", handleAsync(async (req) => {
     at: now,
     action: `client.${body.type}`,
     workspaceId,
-    projectId: clientRes?.client?.projectId,
+    projectId: clientRes.client.projectId,
     entityType: "client",
     entityId: clientId,
     actor: { type: "user" as const, userId: req.user?.sub, email: req.user?.email },

@@ -31,6 +31,7 @@
     "migrate:request-workflow": "tsx src/utils/migrateRequestWorkflowIds.ts",
     "migrate:apartments-to-inventory-pricing": "tsx src/utils/migrate-apartments-to-inventory-pricing.ts",
     "check:no-legacy-runtime": "bash scripts/check-no-legacy-runtime.sh",
+    "script:tecma-admin-testzanetti": "MONGO_DB_NAME=test-zanetti tsx scripts/set-tecma-admin-by-domain.ts",
     "test:mutation:critical": "stryker run stryker.critical.conf.json"
   },
   "dependencies": {

@@ -34,6 +34,12 @@ vi.mock("../../api/followupApi", () => ({
     inviteUser: vi.fn(),
     addWorkspaceUser: vi.fn(),
     updateWorkspaceUser: vi.fn(),
+    getWorkspaceRoles: vi.fn().mockResolvedValue([
+      { roleKey: "owner", label: "Owner" },
+      { roleKey: "admin", label: "Admin" },
+      { roleKey: "collaborator", label: "Collaborator" },
+      { roleKey: "viewer", label: "Viewer" },
+    ]),
   },
 }));
 

@@ -71,6 +71,17 @@ function toRow(d: {
 }
 
 /**
+ * Recupera un'azione per id (per access check).
+ */
+export async function getRequestActionById(rawId: unknown): Promise<RequestActionRow | null> {
+  const id = typeof rawId === "string" ? rawId : String(rawId);
+  if (!ObjectId.isValid(id)) return null;
+  const db = getDb();
+  const doc = await db.collection(COLLECTION).findOne({ _id: new ObjectId(id) });
+  return doc ? toRow(doc as Parameters<typeof toRow>[0]) : null;
+}
+
+/**
  * Lista azioni del workspace, opzionalmente filtrate per una trattativa.
  * Ordine: dalla più recente alla più vecchia.
  */

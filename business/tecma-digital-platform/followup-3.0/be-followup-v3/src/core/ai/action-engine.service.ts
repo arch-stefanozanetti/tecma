@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
+import { escapeRegex } from "../../utils/escapeRegex.js";
 import { HttpError } from "../../types/http.js";
 import { emitDomainEvent } from "../events/event-log.service.js";
 import { ListQuerySchema, buildPagination } from "../shared/list-query.js";
@@ -81,7 +82,7 @@ export const queryAiActionDrafts = async (rawInput: unknown) => {
     projectId: { $in: input.projectIds }
   };
   if (input.searchText?.trim()) {
-    const text = input.searchText.trim();
+    const text = escapeRegex(input.searchText.trim());
     match.$or = [
       { title: { $regex: text, $options: "i" } },
       { message: { $regex: text, $options: "i" } },

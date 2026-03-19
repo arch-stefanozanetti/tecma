@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { ENV } from "../../config/env.js";
 import { getDb } from "../../config/db.js";
+import { logger } from "../../observability/logger.js";
 import { HttpError } from "../../types/http.js";
 import { sendPasswordResetEmail } from "../email/email.service.js";
 import { logAuthEvent } from "./authAudit.service.js";
@@ -123,23 +124,28 @@ export const loginWithCredentials = async (rawInput: unknown, meta: AuthRequestM
     return null as never;
   }
 
-  const payload = await buildAccessPayloadFromUserDoc(user, email);
-  const accessToken = signAccessToken(payload);
-  const refreshToken = await createSession(payload.sub, payload.email);
-  await logAuthEvent("login_success", {
-    userId: payload.sub,
-    email: payload.email,
-    ipAddress: meta.ipAddress,
-    userAgent: meta.userAgent,
-    success: true
-  });
+  try {
+    const payload = await buildAccessPayloadFromUserDoc(user, email);
+    const accessToken = signAccessToken(payload);
+    const refreshToken = await createSession(payload.sub, payload.email);
+    await logAuthEvent("login_success", {
+      userId: payload.sub,
+      email: payload.email,
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+      success: true
+    });
 
-  return {
-    accessToken,
-    refreshToken,
-    expiresIn: ENV.AUTH_JWT_EXPIRES_IN,
-    user: toAuthSessionUser(payload)
-  };
+    return {
+      accessToken,
+      refreshToken,
+      expiresIn: ENV.AUTH_JWT_EXPIRES_IN,
+      user: toAuthSessionUser(payload)
+    };
+  } catch (err) {
+    logger.error({ err, email: email.toLowerCase() }, "[auth] login success path failed");
+    throw new HttpError("Errore durante l'accesso. Riprova più tardi.", 500);
+  }
 };
 
 const extractEmailFromSsoPayload = (payload: Record<string, unknown>): string | null => {

@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb, getMongoClient } from "../../config/db.js";
+import { escapeRegex } from "../../utils/escapeRegex.js";
 
 import { ListQuerySchema, type ListQueryInput, buildPagination } from "../shared/list-query.js";
 import { HttpError, PaginatedResponse } from "../../types/http.js";
@@ -126,12 +127,13 @@ const buildMatch = (q: ListQueryInput) => {
   }
 
   if (q.searchText && q.searchText.trim()) {
-    const safe = q.searchText.trim();
+    const raw = q.searchText.trim();
+    const safe = escapeRegex(raw);
     const orConditions: Record<string, unknown>[] = [
       { clientId: { $regex: safe, $options: "i" } }
     ];
-    if (ObjectId.isValid(safe)) {
-      orConditions.push({ _id: new ObjectId(safe) });
+    if (ObjectId.isValid(raw)) {
+      orConditions.push({ _id: new ObjectId(raw) });
     }
     conditions.push({ $or: orConditions });
   }

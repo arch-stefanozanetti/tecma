@@ -14,6 +14,12 @@ vi.mock("../../api/followupApi", () => ({
     deleteWorkspace: vi.fn().mockResolvedValue({}),
     associateProjectToWorkspace: vi.fn().mockResolvedValue({}),
     dissociateProjectFromWorkspace: vi.fn().mockResolvedValue({}),
+    getWorkspaceRoles: vi.fn().mockResolvedValue([
+      { roleKey: "owner", label: "Owner" },
+      { roleKey: "admin", label: "Admin" },
+      { roleKey: "collaborator", label: "Collaborator" },
+      { roleKey: "viewer", label: "Viewer" },
+    ]),
   },
 }));
 

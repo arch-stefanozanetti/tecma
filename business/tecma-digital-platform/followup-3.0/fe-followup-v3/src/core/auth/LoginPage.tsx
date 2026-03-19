@@ -23,21 +23,11 @@ const BUSINESS_PLATFORM_LOGIN_URL =
 const FORGOT_CREDENTIALS_URL = import.meta.env.VITE_FORGOT_CREDENTIALS_URL ?? "#";
 
 const STORAGE_EMAIL = "followup3.rememberedEmail";
-const STORAGE_PASSWORD = "followup3.rememberedPassword";
 
 function getStoredEmail(): string {
   if (typeof window === "undefined") return "";
   try {
     return window.localStorage.getItem(STORAGE_EMAIL) ?? "";
-  } catch {
-    return "";
-  }
-}
-
-function getStoredPassword(): string {
-  if (typeof window === "undefined") return "";
-  try {
-    return window.localStorage.getItem(STORAGE_PASSWORD) ?? "";
   } catch {
     return "";
   }
@@ -53,10 +43,10 @@ const WORKSPACE_OPTIONS: { value: WorkspaceId; label: string }[] = [
 
 export const LoginPage = () => {
   const [email, setEmail] = useState(getStoredEmail);
-  const [password, setPassword] = useState(getStoredPassword);
+  const [password, setPassword] = useState("");
   const [projectId, setProjectId] = useState("");
   const [rememberCredentials, setRememberCredentials] = useState<boolean>(
-    () => typeof window !== "undefined" && (!!getStoredEmail() || !!getStoredPassword())
+    () => typeof window !== "undefined" && !!getStoredEmail()
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,14 +102,12 @@ export const LoginPage = () => {
         if (rememberCredentials) {
           try {
             window.localStorage.setItem(STORAGE_EMAIL, email.trim());
-            window.localStorage.setItem(STORAGE_PASSWORD, password);
           } catch {
             // ignore quota or disabled localStorage
           }
         } else {
           try {
             window.localStorage.removeItem(STORAGE_EMAIL);
-            window.localStorage.removeItem(STORAGE_PASSWORD);
           } catch {
             // ignore
           }
@@ -292,7 +280,7 @@ export const LoginPage = () => {
                 </div>
               )}
               <CheckboxWithLabel
-                label="Ricordami le credenziali"
+                label="Ricordami l'email"
                 checked={rememberCredentials}
                 onCheckedChange={setRememberCredentials}
                 className="mt-1"

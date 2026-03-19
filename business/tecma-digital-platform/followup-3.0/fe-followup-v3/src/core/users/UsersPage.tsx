@@ -6,6 +6,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { followupApi } from "../../api/followupApi";
 import type { UserWithVisibilityRow, WorkspaceRow, WorkspaceUserRole } from "../../types/domain";
+import { getMaxWorkspaceRole } from "../../constants/workspaceRoles";
+import { useWorkspaceRoles } from "../../hooks/useWorkspaceRoles";
 import { useWorkspace } from "../../auth/projectScope";
 import { useToast } from "../../contexts/ToastContext";
 import { Button } from "../../components/ui/button";
@@ -65,6 +67,8 @@ export const UsersPage = () => {
   const [inviteProjectId, setInviteProjectId] = useState("");
   const [loadingWorkspaceProjects, setLoadingWorkspaceProjects] = useState(false);
   const [savingRoleWorkspaceId, setSavingRoleWorkspaceId] = useState<string | null>(null);
+
+  const { roles: workspaceRoles, getRoleLabel } = useWorkspaceRoles();
 
   const load = () => {
     setLoading(true);
@@ -434,10 +438,11 @@ export const UsersPage = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="owner">Owner</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="collaborator">Collaborator</SelectItem>
-                  <SelectItem value="viewer">Viewer</SelectItem>
+                  {workspaceRoles.map((r) => (
+                    <SelectItem key={r.roleKey} value={r.roleKey}>
+                      {r.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -471,7 +476,7 @@ export const UsersPage = () => {
                         email,
                         projectId: inviteProjectId,
                         projectName,
-                        roleLabel: addUserRole === "admin" ? "Admin" : addUserRole === "owner" ? "Owner" : addUserRole === "viewer" ? "Viewer" : "Collaborator"
+                        roleLabel: getRoleLabel(addUserRole)
                       });
                       try {
                         await followupApi.addWorkspaceUser(addUserWorkspaceId, { userId: email, role: addUserRole });
@@ -516,15 +521,7 @@ export const UsersPage = () => {
                 <p className="font-medium text-foreground">{selectedUser.email}</p>
                 <p className="text-xs text-muted-foreground">
                   {selectedUser.workspaces.length} workspace · ruolo max:{" "}
-                  {selectedUser.workspaces.reduce(
-                    (best, w) => {
-                      const order: Record<string, number> = { owner: 4, admin: 3, collaborator: 2, viewer: 1 };
-                      const o = order[w.role] ?? 0;
-                      const bestOrder = order[best] ?? 0;
-                      return o > bestOrder ? w.role : best;
-                    },
-                    "viewer" as string
-                  )}
+                  {getMaxWorkspaceRole(selectedUser.workspaces.map((w) => w.role))}
                 </p>
               </div>
 
@@ -562,10 +559,11 @@ export const UsersPage = () => {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="owner">Owner</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="collaborator">Collaborator</SelectItem>
-                            <SelectItem value="viewer">Viewer</SelectItem>
+                            {workspaceRoles.map((r) => (
+                              <SelectItem key={r.roleKey} value={r.roleKey}>
+                                {r.label}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </li>

@@ -1,6 +1,24 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { z } from "zod";
 import { followupApi } from "../../api/followupApi";
 import type { ApartmentCreateInput } from "../../types/domain";
+
+const CreateApartmentFormSchema = z.object({
+  name: z.string(),
+  code: z.string(),
+  price: z.string(),
+  deposit: z.string(),
+  floor: z.string(),
+  surfaceMq: z.string(),
+  planimetryUrl: z.string(),
+  mode: z.enum(["RENT", "SELL"]),
+  status: z.enum(["AVAILABLE", "RESERVED", "SOLD", "RENTED"]),
+});
+
+const CreateApartmentSessionSchema = z.object({
+  step: z.number().min(1).max(3),
+  form: CreateApartmentFormSchema,
+});
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import {
@@ -17,7 +35,7 @@ interface CreateApartmentPageProps {
   onCreated?: (apartmentId: string) => void;
 }
 
-type WizardStep = 1 | 2 | 3;
+type WizardStep = 1 | 2 | 3; // 1=dati base, 2=dati dettaglio, 3=esito
 
 type CreateApartmentForm = {
   name: string;
@@ -54,15 +72,19 @@ export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: Crea
   const [existingNames, setExistingNames] = useState<string[]>([]);
 
   const projectId = useMemo(() => projectIds[0] ?? "", [projectIds]);
-  const progress = step === 1 ? 25 : step === 2 ? 70 : 100;
+  const progress = step === 1 ? 33 : step === 2 ? 66 : 100;
 
   useEffect(() => {
     const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) return;
     try {
-      const parsed = JSON.parse(raw) as { step: number; form: CreateApartmentForm };
-      if (parsed.form) setForm({ ...initialForm, ...parsed.form });
-      if (parsed.step >= 1 && parsed.step <= 3) setStep(parsed.step as WizardStep);
+      const parsed = CreateApartmentSessionSchema.safeParse(JSON.parse(raw));
+      if (parsed.success) {
+        setForm({ ...initialForm, ...parsed.data.form });
+        setStep(parsed.data.step as WizardStep);
+      } else {
+        sessionStorage.removeItem(SESSION_KEY);
+      }
     } catch {
       sessionStorage.removeItem(SESSION_KEY);
     }
@@ -98,6 +120,15 @@ export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: Crea
     return null;
   };
 
+  const goToStep2 = () => {
+    if (!form.name.trim() || !form.code.trim()) {
+      setError("Nome e codice sono obbligatori");
+      return;
+    }
+    setError(null);
+    setStep(2);
+  };
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     const validationError = validate();
@@ -107,7 +138,6 @@ export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: Crea
     }
     setIsLoading(true);
     setError(null);
-    setStep(2);
     try {
       const payload: ApartmentCreateInput = {
         workspaceId,
@@ -127,12 +157,11 @@ export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: Crea
       }
       const response = await followupApi.createApartment(payload);
       setCreatedApartmentId(response.apartmentId);
-      setStep(3);
+      setStep(3); // esito
       sessionStorage.removeItem(SESSION_KEY);
       onCreated?.(response.apartmentId);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Errore creazione appartamento");
-      setStep(1);
     } finally {
       setIsLoading(false);
     }
@@ -169,21 +198,52 @@ export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: Crea
         </div>
 
         <div className="hc-stepper">
-          <span className={step >= 1 ? "active" : ""}>1. Dati</span>
-          <span className={step >= 2 ? "active" : ""}>2. Processing</span>
+          <span className={step >= 1 ? "active" : ""}>1. Dati base</span>
+          <span className={step >= 2 ? "active" : ""}>2. Dettaglio</span>
           <span className={step >= 3 ? "active" : ""}>3. Esito</span>
         </div>
 
         {step === 1 && (
+          <form className="hc-grid" onSubmit={(e) => { e.preventDefault(); goToStep2(); }}>
+            <label>
+              Nome appartamento *
+              <Input value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} className="w-full" required />
+            </label>
+            <label>
+              Codice *
+              <Input value={form.code} onChange={(e) => setForm((s) => ({ ...s, code: e.target.value }))} className="w-full" required />
+            </label>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium text-foreground">Modalità</label>
+              <Select value={form.mode} onValueChange={(v) => setForm((s) => ({ ...s, mode: v as "RENT" | "SELL" }))}>
+                <SelectTrigger className="h-10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SELL">Vendita</SelectItem>
+                  <SelectItem value="RENT">Affitto</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="hc-actions">
+              <Button variant="outline" type="button" onClick={saveSession}>
+                Salva sessione
+              </Button>
+              <Button type="submit">
+                Avanti
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {step === 2 && (
           <form className="hc-grid" onSubmit={submit}>
-            <label>
-              Nome appartamento
-              <Input value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} className="w-full" />
-            </label>
-            <label>
-              Codice
-              <Input value={form.code} onChange={(e) => setForm((s) => ({ ...s, code: e.target.value }))} className="w-full" />
-            </label>
+            <div className="col-span-full rounded-lg border border-border bg-muted/30 p-3 text-sm">
+              <p><span className="text-muted-foreground">Nome:</span> {form.name}</p>
+              <p><span className="text-muted-foreground">Codice:</span> {form.code}</p>
+              <p><span className="text-muted-foreground">Modalità:</span> {form.mode === "RENT" ? "Affitto" : "Vendita"}</p>
+            </div>
             <label>
               {form.mode === "RENT" ? "Canone mensile (€)" : "Prezzo vendita (€)"}
               <Input value={form.price} onChange={(e) => setForm((s) => ({ ...s, price: e.target.value }))} className="w-full" />
@@ -203,21 +263,9 @@ export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: Crea
               <Input value={form.surfaceMq} onChange={(e) => setForm((s) => ({ ...s, surfaceMq: e.target.value }))} className="w-full" />
             </label>
             <label>
-              URL planimetria
-              <Input value={form.planimetryUrl} onChange={(e) => setForm((s) => ({ ...s, planimetryUrl: e.target.value }))} className="w-full" />
+              URL planimetria *
+              <Input value={form.planimetryUrl} onChange={(e) => setForm((s) => ({ ...s, planimetryUrl: e.target.value }))} className="w-full" required />
             </label>
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-foreground">Modalità</label>
-              <Select value={form.mode} onValueChange={(v) => setForm((s) => ({ ...s, mode: v as "RENT" | "SELL" }))}>
-                <SelectTrigger className="h-10 w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="SELL">Vendita</SelectItem>
-                  <SelectItem value="RENT">Affitto</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
             <div className="space-y-1">
               <label className="block text-sm font-medium text-foreground">Stato</label>
               <Select value={form.status} onValueChange={(v) => setForm((s) => ({ ...s, status: v as "AVAILABLE" | "RESERVED" | "SOLD" | "RENTED" }))}>
@@ -234,21 +282,14 @@ export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: Crea
             </div>
 
             <div className="hc-actions">
-              <Button variant="outline" type="button" onClick={saveSession}>
-                Salva sessione
+              <Button variant="outline" type="button" onClick={() => setStep(1)}>
+                Indietro
               </Button>
               <Button type="submit" disabled={isLoading}>
-                Avvia creazione
+                {isLoading ? "Creazione in corso..." : "Crea appartamento"}
               </Button>
             </div>
           </form>
-        )}
-
-        {step === 2 && (
-          <div className="hc-processing">
-            <div className="hc-dot-loader" />
-            <p>Creazione apartment in corso...</p>
-          </div>
         )}
 
         {step === 3 && (

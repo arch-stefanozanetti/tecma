@@ -39,7 +39,7 @@ futureRoutes.post("/associations/apartment-client", handleAsync(async (req) => {
       entityId: String(result.association._id),
       actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
       payload: { apartmentId: req.body.apartmentId, clientId: req.body.clientId },
-    }).catch(() => {});
+    }).catch((err) => console.warn("[audit] failed", err));
   }
   return result;
 }));
@@ -55,7 +55,7 @@ futureRoutes.delete("/associations/:id", handleAsync(async (req) => {
       entityType: "association",
       entityId: req.params.id,
       actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
-    }).catch(() => {});
+    }).catch((err) => console.warn("[audit] failed", err));
   }
   return { deleted: true };
 }));

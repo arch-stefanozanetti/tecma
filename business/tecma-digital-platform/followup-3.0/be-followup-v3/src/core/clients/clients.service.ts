@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
+import { escapeRegex } from "../../utils/escapeRegex.js";
 import { ListQuerySchema, type ListQueryInput, buildPagination } from "../shared/list-query.js";
 import { HttpError, PaginatedResponse } from "../../types/http.js";
 
@@ -108,7 +109,7 @@ const buildMatch = (q: ListQueryInput) => {
   }
 
   if (q.searchText && q.searchText.trim()) {
-    const safe = q.searchText.trim();
+    const safe = escapeRegex(q.searchText.trim());
     conditions.push({
       $or: [
         { fullName: { $regex: safe, $options: "i" } },

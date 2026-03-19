@@ -47,7 +47,8 @@ export interface CalendarEventFormDrawerProps {
   projects: { id: string; name: string; displayName: string }[];
   open: boolean;
   onClose: () => void;
-  onSaved: () => void;
+  /** Called after create/edit; for create, the new event is passed so the parent can show it immediately. */
+  onSaved: (createdEvent?: CalendarEvent) => void;
   /** Prefill per modalità create (es. da Timeline). */
   prefill?: CalendarEventFormPrefill;
   /** Titolo drawer personalizzato (es. "Fissa in calendario"). */
@@ -141,30 +142,46 @@ export const CalendarEventFormDrawer = ({
     setSaving(true);
     try {
       if (mode === "edit" && event) {
+        let editEndsAt = endsAt;
+        if (moment(editEndsAt).isSameOrBefore(moment(startsAt))) {
+          editEndsAt = moment(startsAt).add(1, "hour").format("YYYY-MM-DDTHH:mm");
+          setEndsAt(editEndsAt);
+        }
         await followupApi.updateCalendarEvent(event._id, {
           title: title.trim(),
           startsAt: fromDatetimeLocal(startsAt),
-          endsAt: fromDatetimeLocal(endsAt),
+          endsAt: fromDatetimeLocal(editEndsAt),
           projectId: projectId || undefined,
           source,
           ...(clientId.trim() ? { clientId: clientId.trim() } : { clientId: null }),
         });
+        onSaved();
       } else {
         if (!canCreate) {
           setFormError(noScopeMessage ?? "Seleziona un progetto.");
           return;
         }
-        await followupApi.createCalendarEvent({
+        let endsAtValue = endsAt;
+        if (moment(endsAtValue).isSameOrBefore(moment(startsAt))) {
+          endsAtValue = moment(startsAt).add(1, "hour").format("YYYY-MM-DDTHH:mm");
+          setEndsAt(endsAtValue);
+        }
+        const startsAtIso = fromDatetimeLocal(startsAt);
+        const endsAtIso = fromDatetimeLocal(endsAtValue);
+        const { event: createdEvent } = await followupApi.createCalendarEvent({
           workspaceId: workspaceId!,
           projectId,
           title: title.trim(),
-          startsAt: fromDatetimeLocal(startsAt),
-          endsAt: fromDatetimeLocal(endsAt),
+          startsAt: startsAtIso,
+          endsAt: endsAtIso,
           source,
           ...(clientId.trim() && { clientId: clientId.trim() }),
         });
+        // #region agent log
+        fetch("http://127.0.0.1:7857/ingest/45821bd5-f1c6-412c-97d1-2d1ee6a22e0e", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "94c3ac" }, body: JSON.stringify({ sessionId: "94c3ac", location: "CalendarEventFormDrawer.tsx:createDone", message: "create response", data: { payloadProjectId: projectId, payloadStartsAt: startsAtIso, payloadEndsAt: endsAtIso, createdId: createdEvent?._id, createdProjectId: createdEvent?.projectId, createdStartsAt: createdEvent?.startsAt }, hypothesisId: "H1_H2", timestamp: Date.now() }) }).catch(() => {});
+        // #endregion
+        onSaved(createdEvent);
       }
-      onSaved();
       onClose();
     } catch (err) {
       setFormError(parseApiErrorMessage(err));
@@ -202,7 +219,15 @@ export const CalendarEventFormDrawer = ({
                 type="datetime-local"
                 className="h-10 rounded-lg border-border"
                 value={startsAt}
-                onChange={(e) => setStartsAt(e.target.value)}
+                onChange={(e) => {
+                  const nextStart = e.target.value;
+                  setStartsAt(nextStart);
+                  const startM = moment(nextStart);
+                  const endM = moment(endsAt);
+                  if (!endM.isValid() || endM.isSameOrBefore(startM)) {
+                    setEndsAt(startM.clone().add(1, "hour").format("YYYY-MM-DDTHH:mm"));
+                  }
+                }}
                 required
               />
             </div>
@@ -212,7 +237,11 @@ export const CalendarEventFormDrawer = ({
                 type="datetime-local"
                 className="h-10 rounded-lg border-border"
                 value={endsAt}
-                onChange={(e) => setEndsAt(e.target.value)}
+                onChange={(e) => {
+                  const nextEnd = e.target.value;
+                  setEndsAt(nextEnd);
+                }}
+                min={startsAt}
                 required
               />
             </div>

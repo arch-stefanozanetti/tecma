@@ -34,6 +34,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.13.1",
+    date: "2026-03-18",
+    title: "Calendario, release notes e deploy",
+    releaseType: "patch",
+    changes: [
+      {
+        type: "fix",
+        text: "Calendario: l'appuntamento creato ora compare subito in vista (aggiornamento ottimistico + refetch); il backend salva correttamente in calendar_events.",
+      },
+      {
+        type: "improvement",
+        text: "Release notes: convenzione aggiornata — aggiornare sempre changelog.ts (e version in package.json FE/BE) a ogni release; regola in .cursor/rules per l'agente.",
+      },
+    ],
+  },
+  {
     version: "0.13.0",
     date: "2026-03-06",
     title: "Connettori reali (n8n, Outlook, Looker) e Communication Engine — Touchpoint multicanale",

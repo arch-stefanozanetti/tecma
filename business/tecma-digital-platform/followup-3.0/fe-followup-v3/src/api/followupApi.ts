@@ -437,6 +437,15 @@ export const followupApi = {
       appPublicUrl: body.appPublicUrl ?? (typeof window !== "undefined" ? window.location.origin : undefined)
     }),
   listWorkspaces: () => getJson<WorkspaceRow[]>("/workspaces"),
+  /** Ruoli per membership workspace (da DB). In caso errore restituisce array vuoto. */
+  getWorkspaceRoles: async (): Promise<{ roleKey: string; label: string }[]> => {
+    try {
+      const res = await getJson<{ data: { roleKey: string; label: string }[] }>("/workspace-roles");
+      return Array.isArray(res?.data) ? res.data : [];
+    } catch {
+      return [];
+    }
+  },
   getWorkspaceById: (id: string) => getJson<{ workspace: WorkspaceRow }>(`/workspaces/${id}`),
   createWorkspace: (payload: { name: string }) => postJson<{ workspace: WorkspaceRow }>("/workspaces", payload),
   updateWorkspace: (id: string, payload: { name?: string }) =>

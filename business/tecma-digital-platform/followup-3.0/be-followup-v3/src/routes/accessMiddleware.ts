@@ -4,6 +4,7 @@
  */
 import type { Request, Response, NextFunction } from "express";
 import { canAccess, type AccessUser } from "../core/access/canAccess.js";
+import { logger } from "../observability/logger.js";
 import { HttpError } from "../types/http.js";
 import { sendError } from "./asyncHandler.js";
 
@@ -57,6 +58,10 @@ export function requireCanAccessWorkspace(paramKey = "workspaceId") {
     try {
       const ok = await canAccess(user, { type: "workspace", workspaceId });
       if (!ok) {
+        logger.warn(
+          { email: user.email, workspaceId, system_role: user.system_role, isTecmaAdmin: user.isTecmaAdmin },
+          "[access] workspace access denied"
+        );
         sendError(res, new HttpError("Accesso al workspace non consentito", 403));
         return;
       }

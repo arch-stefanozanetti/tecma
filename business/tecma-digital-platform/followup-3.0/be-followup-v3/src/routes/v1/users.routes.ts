@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { HttpError } from "../../types/http.js";
-import { PERMISSIONS } from "../../core/rbac/permissions.js";
+import { PERMISSIONS, ALL_PERMISSION_IDS, hasPermission } from "../../core/rbac/permissions.js";
 import { writeAuditLog } from "../../core/audit/audit.service.js";
 import { listUsersWithVisibility } from "../../core/users/users-admin.service.js";
 import { inviteUser, findUserById, updateUserById, deleteUserById } from "../../core/users/users-mutations.service.js";
@@ -61,6 +61,20 @@ usersRoutes.patch("/users/:id", requirePermission(PERMISSIONS.USERS_UPDATE), han
       workspaceId: z.string().optional()
     })
     .parse(req.body);
+  if (body.permissions_override !== undefined) {
+    const granted = (req.user?.permissions as string[]) ?? [];
+    const isAdmin =
+      req.user?.system_role === "admin" ||
+      req.user?.system_role === "tecma_admin" ||
+      hasPermission(granted, PERMISSIONS.ALL);
+    for (const p of body.permissions_override) {
+      if (p === PERMISSIONS.ALL || p === "*") {
+        if (!isAdmin) throw new HttpError("Solo gli admin possono assegnare il permesso '*'", 403);
+      } else if (!ALL_PERMISSION_IDS.includes(p)) {
+        throw new HttpError(`Permesso non valido: ${p}`, 400);
+      }
+    }
+  }
   const after = await updateUserById(id, body);
   const safe = (u: typeof before) => ({
     email: u.email,

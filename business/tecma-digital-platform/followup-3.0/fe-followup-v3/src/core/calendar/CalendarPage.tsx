@@ -359,6 +359,8 @@ export const CalendarPage = (_props: CalendarPageProps) => {
   const [filterSource, setFilterSource] = useState<"all" | CalendarEvent["source"]>("all");
   const [filterProjectId, setFilterProjectId] = useState<string>("all");
 
+  const hasScope = Boolean(workspaceId && selectedProjectIds.length > 0);
+
   const filteredEvents = useMemo(() => {
     return events.filter((ev) => {
       if (filterSource !== "all" && ev.source !== filterSource) return false;
@@ -388,6 +390,11 @@ export const CalendarPage = (_props: CalendarPageProps) => {
     if (!workspaceId || selectedProjectIds.length === 0) return;
     setIsLoading(true);
     setError(null);
+    const dateFrom = queryDateRange.from.toISOString();
+    const dateTo = queryDateRange.to.toISOString();
+    // #region agent log
+    fetch("http://127.0.0.1:7857/ingest/45821bd5-f1c6-412c-97d1-2d1ee6a22e0e", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "94c3ac" }, body: JSON.stringify({ sessionId: "94c3ac", location: "CalendarPage.tsx:effect", message: "calendar query start", data: { workspaceId, selectedProjectIds, dateFrom, dateTo, view }, hypothesisId: "H1_H2", timestamp: Date.now() }) }).catch(() => {});
+    // #endregion
     followupApi
       .queryCalendar({
         workspaceId,
@@ -396,12 +403,15 @@ export const CalendarPage = (_props: CalendarPageProps) => {
         perPage: 200,
         searchText: "",
         sort: { field: "startsAt", direction: 1 },
-        filters: {
-          dateFrom: queryDateRange.from.toISOString(),
-          dateTo: queryDateRange.to.toISOString()
-        }
+        filters: { dateFrom, dateTo }
       })
-      .then((res) => { if (!ignore) setEvents(res.data); })
+      .then((res) => {
+        const data = res?.data ?? [];
+        // #region agent log
+        fetch("http://127.0.0.1:7857/ingest/45821bd5-f1c6-412c-97d1-2d1ee6a22e0e", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "94c3ac" }, body: JSON.stringify({ sessionId: "94c3ac", location: "CalendarPage.tsx:queryThen", message: "calendar query result", data: { dataLength: data.length, firstId: data[0]?._id, firstProjectId: data[0]?.projectId, firstStartsAt: data[0]?.startsAt }, hypothesisId: "H1_H2_H4", timestamp: Date.now() }) }).catch(() => {});
+        // #endregion
+        if (!ignore) setEvents(data);
+      })
       .catch((e) => { if (!ignore) setError(e instanceof Error ? e.message : "Errore caricamento eventi"); })
       .finally(() => { if (!ignore) setIsLoading(false); });
     return () => { ignore = true; };
@@ -435,7 +445,19 @@ export const CalendarPage = (_props: CalendarPageProps) => {
     }
   };
 
-  const handleEventFormSaved = () => {
+  const handleEventFormSaved = (createdEvent?: CalendarEvent) => {
+    // #region agent log
+    if (createdEvent) fetch("http://127.0.0.1:7857/ingest/45821bd5-f1c6-412c-97d1-2d1ee6a22e0e", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "94c3ac" }, body: JSON.stringify({ sessionId: "94c3ac", location: "CalendarPage.tsx:handleEventFormSaved", message: "optimistic add", data: { createdId: createdEvent._id, projectId: createdEvent.projectId, startsAt: createdEvent.startsAt, selectedProjectIds }, hypothesisId: "H1_H3", timestamp: Date.now() }) }).catch(() => {});
+    // #endregion
+    if (createdEvent) {
+      setEvents((prev) => {
+        const exists = prev.some((e) => e._id === createdEvent._id);
+        if (exists) return prev;
+        return [...prev, createdEvent].sort(
+          (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()
+        );
+      });
+    }
     setRefreshKey((k) => k + 1);
   };
 
@@ -511,19 +533,40 @@ export const CalendarPage = (_props: CalendarPageProps) => {
         </div>
       </div>
 
-      {isLoading && (
+      {!hasScope && (
+        <div className="mx-6 mt-6 rounded-chrome border border-amber-200 bg-amber-50 px-4 py-4 shadow-sm">
+          <p className="text-sm font-medium text-amber-900">
+            Per vedere gli eventi seleziona un workspace e almeno un progetto.
+          </p>
+          <p className="mt-1 text-xs text-amber-800">
+            Vai alla pagina Progetti per scegliere l’ambito di lavoro.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3 border-amber-300 bg-white hover:bg-amber-100"
+            onClick={() => navigate("/projects")}
+          >
+            Vai a Progetti
+          </Button>
+        </div>
+      )}
+
+      {hasScope && isLoading && (
         <div className="border-b border-border bg-blue-50 px-6 py-2 text-xs text-[#585bd7]">
           Caricamento eventi...
         </div>
       )}
-      {error && (
+      {hasScope && error && (
         <div className="border-b border-red-200 bg-red-50 px-6 py-2 text-xs text-red-700">{error}</div>
       )}
 
       {/* Calendar body */}
-      {view === "month" ? (
+      {hasScope && view === "month" && (
         <MonthView currentDate={currentDate} events={filteredEvents} onEventClick={handleEventClick} />
-      ) : (
+      )}
+      {hasScope && view !== "month" && (
         <>
           {/* Days header */}
           <div
@@ -559,6 +602,12 @@ export const CalendarPage = (_props: CalendarPageProps) => {
             />
           </div>
         </>
+      )}
+
+      {hasScope && !isLoading && !error && events.length === 0 && (
+        <div className="mx-6 mt-4 rounded-chrome border border-border bg-muted/30 px-4 py-3 text-center text-sm text-muted-foreground">
+          Nessun evento in questo periodo. Prova a cambiare vista o data, oppure crea un nuovo evento.
+        </div>
       )}
 
       <SidePanel variant="operational" open={filtersOpen} onOpenChange={setFiltersOpen}>

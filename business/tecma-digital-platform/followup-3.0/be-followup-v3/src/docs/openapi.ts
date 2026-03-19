@@ -926,6 +926,42 @@ export const openApiV1 = {
         responses: { "200": { description: "Preferenze salvate" } }
       }
     },
+    "/workspace-roles": {
+      get: {
+        tags: ["workspaces"],
+        operationId: "getWorkspaceRoles",
+        summary: "Lista ruoli per membership workspace (roleKey + label per UI)",
+        description: "Restituisce i ruoli usabili in un workspace (owner, admin, collaborator, viewer) con label da DB.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": {
+            description: "Lista ruoli con label",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["data"],
+                  properties: {
+                    data: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        required: ["roleKey", "label"],
+                        properties: {
+                          roleKey: { type: "string", description: "Chiave ruolo (owner, admin, collaborator, viewer)" },
+                          label: { type: "string", description: "Label per UI" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { description: "Non autenticato" }
+        }
+      }
+    },
     "/workspaces": {
       get: {
         tags: ["workspaces"],

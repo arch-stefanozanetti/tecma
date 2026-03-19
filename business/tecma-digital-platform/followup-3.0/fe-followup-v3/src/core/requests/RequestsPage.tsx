@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ExternalLink, Filter, Link2, MoreHorizontal, Pencil, Plus, RefreshCcw, RotateCcw, Search, Trash2 } from "lucide-react";
+import { ExternalLink, Filter, LayoutGrid, Link2, List, MoreHorizontal, Pencil, Plus, RefreshCcw, RotateCcw, Search, Trash2 } from "lucide-react";
 import { requestsApi } from "../../api/domains/requestsApi";
 import type {
   RequestRow,
@@ -49,6 +49,7 @@ import {
   REQUESTS_PER_PAGE,
   type ViewMode,
 } from "./requestsPageConstants";
+import { Badge } from "../../components/ui/badge";
 
 export const RequestsPage = () => {
   const navigate = useNavigate();
@@ -58,7 +59,15 @@ export const RequestsPage = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    try {
+      const v = localStorage.getItem("crm-view-mode-requests");
+      if (v === "table" || v === "card" || v === "kanban") return v;
+    } catch {
+      // ignore
+    }
+    return "table";
+  });
   const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false);
   const [statusDraft, setStatusDraft] = useState("all");
   const [typeDraft, setTypeDraft] = useState("all");
@@ -91,6 +100,7 @@ export const RequestsPage = () => {
   const [actionFormSaving, setActionFormSaving] = useState(false);
   const [actionFormError, setActionFormError] = useState<string | null>(null);
   const [deletingActionId, setDeletingActionId] = useState<string | null>(null);
+  const [newRequestWizardStep, setNewRequestWizardStep] = useState<1 | 2>(1);
 
   useEffect(() => {
     if (filtersDrawerOpen) {
@@ -168,10 +178,22 @@ export const RequestsPage = () => {
       .then((r) => setApartmentsList(r.data ?? []));
   }, [newRequestOpen, workspaceId, selectedProjectIds]);
 
-  const handleOpenNewRequest = () => setNewRequestOpen(true);
+  const handleOpenNewRequest = () => {
+    setNewRequestOpen(true);
+    setNewRequestWizardStep(1);
+  };
 
   const handleNewRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (newRequestWizardStep === 1) {
+      if (!formProjectId || !formClientId) {
+        setFormError("Seleziona progetto e cliente.");
+        return;
+      }
+      setFormError(null);
+      setNewRequestWizardStep(2);
+      return;
+    }
     if (!workspaceId || !formProjectId || !formClientId) {
       setFormError("Seleziona progetto e cliente.");
       return;
@@ -434,9 +456,28 @@ export const RequestsPage = () => {
           </Button>
         </div>
 
-        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)} className="mt-6">
+        <Tabs
+          value={viewMode}
+          onValueChange={(v) => {
+            const mode = v as ViewMode;
+            setViewMode(mode);
+            try {
+              localStorage.setItem("crm-view-mode-requests", mode);
+            } catch {
+              // ignore
+            }
+          }}
+          className="mt-6"
+        >
           <TabsList className="h-auto w-auto border-b border-border bg-transparent p-0">
-            <TabsTrigger value="list" className="rounded-t-lg">Lista</TabsTrigger>
+            <TabsTrigger value="table" className="rounded-t-lg gap-1.5">
+              <List className="h-4 w-4" />
+              Tabella
+            </TabsTrigger>
+            <TabsTrigger value="card" className="rounded-t-lg gap-1.5">
+              <LayoutGrid className="h-4 w-4" />
+              Card
+            </TabsTrigger>
             <TabsTrigger value="kanban" className="rounded-t-lg">Kanban</TabsTrigger>
           </TabsList>
         </Tabs>
@@ -498,7 +539,7 @@ export const RequestsPage = () => {
               </div>
             )}
 
-            {viewMode === "list" && (
+            {viewMode === "table" && (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[700px]">
                 <thead>
@@ -589,6 +630,41 @@ export const RequestsPage = () => {
                 </tbody>
               </table>
             </div>
+            )}
+
+            {viewMode === "card" && (
+              <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
+                {isLoading && requests.length === 0 ? (
+                  <p className="col-span-full py-16 text-center text-sm text-muted-foreground">Caricamento...</p>
+                ) : requests.length === 0 ? (
+                  <p className="col-span-full py-16 text-center text-sm text-muted-foreground">
+                    {committedSearch ? "Nessun risultato" : "Nessuna trattativa"}
+                  </p>
+                ) : (
+                  requests.map((req) => (
+                    <div
+                      key={req._id}
+                      role="button"
+                      tabIndex={0}
+                      className="glass-panel rounded-ui flex cursor-pointer flex-col gap-2 border border-border p-4 transition-colors hover:bg-muted/30 focus:outline-none focus:ring-2 focus:ring-ring"
+                      onClick={() => setSelectedRequest(req)}
+                      onKeyDown={(e) => e.key === "Enter" && setSelectedRequest(req)}
+                    >
+                      <div className="font-medium text-foreground">{req.clientName ?? req.clientId}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {req.apartmentCode ?? req.apartmentId ?? "—"}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Badge variant="secondary" className="text-xs">
+                          {STATUS_LABEL[req.status]}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">{TYPE_LABEL[req.type]}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{formatDate(req.updatedAt)}</span>
+                    </div>
+                  ))
+                )}
+              </div>
             )}
 
             {viewMode === "kanban" && (
@@ -1088,110 +1164,128 @@ export const RequestsPage = () => {
         </DrawerContent>
       </Drawer>
 
-      <Drawer open={newRequestOpen} onOpenChange={(o) => !o && setNewRequestOpen(false)}>
+      <Drawer open={newRequestOpen} onOpenChange={(o) => { if (!o) { setNewRequestOpen(false); setNewRequestWizardStep(1); } }}>
         <DrawerContent side="right" className="sm:max-w-md">
           <DrawerHeader actions={<DrawerCloseButton />}>
-            <DrawerTitle>Nuova trattativa</DrawerTitle>
+            <DrawerTitle>Nuova trattativa — Step {newRequestWizardStep}</DrawerTitle>
           </DrawerHeader>
           <form onSubmit={handleNewRequestSubmit} className="flex flex-col flex-1 min-h-0">
             <DrawerBody className="flex flex-col gap-4">
               {formError && (
                 <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{formError}</p>
               )}
-              <div>
-                <label className="mb-1 block text-sm font-medium text-foreground">Progetto</label>
-                <Select value={formProjectId} onValueChange={setFormProjectId}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Seleziona progetto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {selectedProjectIds.map((id) => (
-                      <SelectItem key={id} value={id}>
-                        {id}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-foreground">Cliente *</label>
-                <Select value={formClientId} onValueChange={setFormClientId} required>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Seleziona cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clientsLite.map((c) => (
-                      <SelectItem key={c._id} value={c._id}>
-                        {c.fullName} {c.email ? `(${c.email})` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-muted-foreground">Appartamento (opzionale)</label>
-                <Select value={formApartmentId || "_none"} onValueChange={(v) => setFormApartmentId(v === "_none" ? "" : v)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Nessuno" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none">Nessuno</SelectItem>
-                    {apartmentsList.map((a) => (
-                      <SelectItem key={a._id} value={a._id}>
-                        {a.code} {a.name ? `— ${a.name}` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-foreground">Tipo</label>
-                <Select value={formType} onValueChange={(v) => setFormType(v as RequestType)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="rent">{TYPE_LABEL.rent}</SelectItem>
-                    <SelectItem value="sell">{TYPE_LABEL.sell}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-muted-foreground">Ruolo cliente (opzionale)</label>
-                <Select value={formClientRole || "_none"} onValueChange={(v) => setFormClientRole(v === "_none" ? "" : (v as ClientRole))}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Nessuno" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none">Nessuno</SelectItem>
-                    {(Object.entries(CLIENT_ROLE_LABEL) as [ClientRole, string][]).map(([v, label]) => (
-                      <SelectItem key={v} value={v}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-foreground">Stato</label>
-                <Select value={formStatus} onValueChange={(v) => setFormStatus(v as RequestStatus)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(STATUS_LABEL).map(([v, label]) => (
-                      <SelectItem key={v} value={v}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {newRequestWizardStep === 1 && (
+                <>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-foreground">Progetto *</label>
+                    <Select value={formProjectId} onValueChange={setFormProjectId}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Seleziona progetto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {selectedProjectIds.map((id) => (
+                          <SelectItem key={id} value={id}>
+                            {id}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-foreground">Cliente *</label>
+                    <Select value={formClientId} onValueChange={setFormClientId} required>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Seleziona cliente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clientsLite.map((c) => (
+                          <SelectItem key={c._id} value={c._id}>
+                            {c.fullName} {c.email ? `(${c.email})` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-muted-foreground">Appartamento (opzionale)</label>
+                    <Select value={formApartmentId || "_none"} onValueChange={(v) => setFormApartmentId(v === "_none" ? "" : v)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Nessuno" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none">Nessuno</SelectItem>
+                        {apartmentsList.map((a) => (
+                          <SelectItem key={a._id} value={a._id}>
+                            {a.code} {a.name ? `— ${a.name}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-foreground">Tipo</label>
+                    <Select value={formType} onValueChange={(v) => setFormType(v as RequestType)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="rent">{TYPE_LABEL.rent}</SelectItem>
+                        <SelectItem value="sell">{TYPE_LABEL.sell}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+              {newRequestWizardStep === 2 && (
+                <>
+                  <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                    <p><span className="text-muted-foreground">Cliente:</span> {clientsLite.find((c) => c._id === formClientId)?.fullName ?? formClientId}</p>
+                    <p><span className="text-muted-foreground">Appartamento:</span> {formApartmentId ? apartmentsList.find((a) => a._id === formApartmentId)?.code ?? formApartmentId : "Nessuno"}</p>
+                    <p><span className="text-muted-foreground">Tipo:</span> {TYPE_LABEL[formType]}</p>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-foreground">Stato</label>
+                    <Select value={formStatus} onValueChange={(v) => setFormStatus(v as RequestStatus)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(STATUS_LABEL).map(([v, label]) => (
+                          <SelectItem key={v} value={v}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-muted-foreground">Ruolo cliente (opzionale)</label>
+                    <Select value={formClientRole || "_none"} onValueChange={(v) => setFormClientRole(v === "_none" ? "" : (v as ClientRole))}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Nessuno" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none">Nessuno</SelectItem>
+                        {(Object.entries(CLIENT_ROLE_LABEL) as [ClientRole, string][]).map(([v, label]) => (
+                          <SelectItem key={v} value={v}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
             </DrawerBody>
             <DrawerFooter>
               <Button type="button" variant="outline" onClick={() => setNewRequestOpen(false)}>
                 Annulla
               </Button>
+              {newRequestWizardStep === 2 && (
+                <Button type="button" variant="outline" onClick={() => setNewRequestWizardStep(1)}>
+                  Indietro
+                </Button>
+              )}
               <Button type="submit" disabled={formSaving}>
-                {formSaving ? "Creazione..." : "Crea trattativa"}
+                {formSaving ? "Creazione..." : newRequestWizardStep === 1 ? "Avanti" : "Crea trattativa"}
               </Button>
             </DrawerFooter>
           </form>

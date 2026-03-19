@@ -44,5 +44,5 @@ export const ACTION_TYPE_LABEL: Record<RequestActionType, string> = {
 
 export { formatDate };
 export type { RequestStatus };
-export type ViewMode = "list" | "kanban";
+export type ViewMode = "table" | "card" | "kanban";
 export const REQUESTS_PER_PAGE = 25;

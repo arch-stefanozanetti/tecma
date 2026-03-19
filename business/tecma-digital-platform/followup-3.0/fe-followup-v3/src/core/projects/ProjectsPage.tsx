@@ -9,6 +9,8 @@ import { useWorkspace } from "../../auth/projectScope";
 import { Button } from "../../components/ui/button";
 import { cn } from "../../lib/utils";
 import { Building2, ExternalLink, Plus, RefreshCcw, Settings } from "lucide-react";
+import { ViewModeToggle, loadViewModeFromStorage, type ViewMode } from "../shared/ViewModeToggle";
+import { Badge } from "../../components/ui/badge";
 
 interface ProjectItem {
   id: string;
@@ -29,6 +31,7 @@ export const ProjectsPage = () => {
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>(() => loadViewModeFromStorage("projects", "table"));
 
   const load = async () => {
     if (!workspaceId) {
@@ -71,6 +74,11 @@ export const ProjectsPage = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <ViewModeToggle
+              value={viewMode}
+              onValueChange={setViewMode}
+              storageKey="projects"
+            />
             <Button variant="outline" size="sm" className="gap-2" onClick={() => load()}>
               <RefreshCcw className="h-4 w-4" />
               Aggiorna
@@ -108,66 +116,110 @@ export const ProjectsPage = () => {
             </div>
           ) : (
             <div className="overflow-hidden rounded-ui border border-border bg-background shadow-panel">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border text-left text-sm font-normal text-muted-foreground">
-                    <th className="px-4 py-3 font-normal">Progetto</th>
-                    <th className="px-4 py-3 font-normal">ID</th>
-                    <th className="px-4 py-3 font-normal">Modalità</th>
-                    <th className="w-10 px-4 py-3 font-normal" />
-                  </tr>
-                </thead>
-                <tbody>
+              {viewMode === "table" && (
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border text-left text-sm font-normal text-muted-foreground">
+                      <th className="px-4 py-3 font-normal">Progetto</th>
+                      <th className="px-4 py-3 font-normal">ID</th>
+                      <th className="px-4 py-3 font-normal">Modalità</th>
+                      <th className="w-10 px-4 py-3 font-normal" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projects.map((proj) => {
+                      const pid = effectiveId(proj);
+                      const name = effectiveName(proj);
+                      const mode = (proj.mode as string) ?? "";
+                      return (
+                        <tr
+                          key={pid}
+                          className="group border-b border-border text-sm text-foreground hover:bg-muted cursor-pointer"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => goToProject(pid)}
+                          onKeyDown={(e) => e.key === "Enter" && goToProject(pid)}
+                        >
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span className="font-medium text-foreground">{name}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="font-mono text-xs text-muted-foreground">{pid}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={cn(
+                                "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
+                                mode === "rent"
+                                  ? "bg-blue-50 text-blue-700"
+                                  : "bg-green-50 text-green-700"
+                              )}
+                            >
+                              {MODE_LABEL[mode] ?? mode}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => goToProject(pid)}
+                              aria-label="Configura progetto"
+                            >
+                              <Settings className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+              {viewMode === "card" && (
+                <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
                   {projects.map((proj) => {
                     const pid = effectiveId(proj);
                     const name = effectiveName(proj);
                     const mode = (proj.mode as string) ?? "";
                     return (
-                      <tr
+                      <div
                         key={pid}
-                        className="group border-b border-border text-sm text-foreground hover:bg-muted cursor-pointer"
                         role="button"
                         tabIndex={0}
+                        className="glass-panel rounded-ui flex cursor-pointer flex-col gap-2 border border-border p-4 transition-colors hover:bg-muted/30 focus:outline-none focus:ring-2 focus:ring-ring"
                         onClick={() => goToProject(pid)}
                         onKeyDown={(e) => e.key === "Enter" && goToProject(pid)}
                       >
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                            <span className="font-medium text-foreground">{name}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="font-mono text-xs text-muted-foreground">{pid}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={cn(
-                              "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-                              mode === "rent"
-                                ? "bg-blue-50 text-blue-700"
-                                : "bg-green-50 text-green-700"
-                            )}
-                          >
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <span className="font-medium text-foreground">{name}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <Badge variant="secondary" className="text-xs">
                             {MODE_LABEL[mode] ?? mode}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          </Badge>
                           <Button
                             variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => goToProject(pid)}
+                            size="sm"
+                            className="h-8 gap-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              goToProject(pid);
+                            }}
                             aria-label="Configura progetto"
                           >
                             <Settings className="h-4 w-4" />
+                            Configura
                           </Button>
-                        </td>
-                      </tr>
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
+                </div>
+              )}
             </div>
           )}
         </div>
