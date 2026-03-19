@@ -36,7 +36,11 @@ const EnvSchema = z.object({
   SSO_JWT_HS256_SECRET: z.string().optional(),
   /** API keys per consumer esterni platform API, JSON object: {"<key>":{"workspaceId":"...","projectIds":["..."]}} */
   PLATFORM_API_KEYS: z.string().default("{}"),
-  PLATFORM_RATE_LIMIT_PER_MIN: z.coerce.number().min(10).max(5000).default(120)
+  PLATFORM_RATE_LIMIT_PER_MIN: z.coerce.number().min(10).max(5000).default(120),
+  DOCUSIGN_API_BASE_URL: z.string().url().optional(),
+  DOCUSIGN_API_TOKEN: z.string().optional(),
+  YOUSIGN_API_BASE_URL: z.string().url().optional(),
+  YOUSIGN_API_TOKEN: z.string().optional(),
 });
 
 const parsed = EnvSchema.parse({

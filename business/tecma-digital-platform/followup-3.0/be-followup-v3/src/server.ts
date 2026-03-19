@@ -11,6 +11,7 @@ import { runDueScheduled } from "./core/communications/scheduled-communications.
 import { runDueMarketingAutomations } from "./core/automations/marketing-automation.service.js";
 import { runPrivacyRetentionJob } from "./core/privacy/privacy.service.js";
 import { runGlobalMlsReconciliation } from "./core/connectors/mls-feed.service.js";
+import { createOperationalAlert } from "./core/ops/operational-alerts.service.js";
 import { ensureDefaultRoleDefinitions } from "./core/rbac/roleDefinitions.service.js";
 import { logger } from "./observability/logger.js";
 import { initOtel, shutdownOtel } from "./observability/otel.js";
@@ -74,18 +75,39 @@ const bootstrap = async () => {
   setInterval(() => {
     runDueMarketingAutomations().catch((err) => {
       logger.error({ err }, "[marketing-automation] runDueMarketingAutomations failed");
+      void createOperationalAlert({
+        workspaceId: "global",
+        source: "marketing.runner",
+        severity: "critical",
+        title: "Marketing automation runner failed",
+        message: err instanceof Error ? err.message : "unknown error",
+      });
     });
   }, MARKETING_AUTOMATION_INTERVAL_MS);
 
   setInterval(() => {
     runPrivacyRetentionJob({ olderThanDays: 365 }).catch((err) => {
       logger.error({ err }, "[privacy] runPrivacyRetentionJob failed");
+      void createOperationalAlert({
+        workspaceId: "global",
+        source: "privacy.retention",
+        severity: "critical",
+        title: "Privacy retention job failed",
+        message: err instanceof Error ? err.message : "unknown error",
+      });
     });
   }, RETENTION_INTERVAL_MS);
 
   setInterval(() => {
     runGlobalMlsReconciliation().catch((err) => {
       logger.error({ err }, "[mls] runGlobalMlsReconciliation failed");
+      void createOperationalAlert({
+        workspaceId: "global",
+        source: "mls.reconciliation",
+        severity: "critical",
+        title: "MLS reconciliation runner failed",
+        message: err instanceof Error ? err.message : "unknown error",
+      });
     });
   }, MLS_RECONCILIATION_INTERVAL_MS);
 

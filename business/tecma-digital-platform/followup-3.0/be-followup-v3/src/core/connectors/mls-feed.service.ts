@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { getDb } from "../../config/db.js";
 import { HttpError } from "../../types/http.js";
 import { logger } from "../../observability/logger.js";
+import { createOperationalAlert } from "../ops/operational-alerts.service.js";
 
 const MAPPINGS_COLLECTION = "tz_mls_portal_mappings";
 const RUNS_COLLECTION = "tz_mls_feed_runs";
@@ -153,6 +154,14 @@ export const runMlsReconciliation = async (workspaceId: string): Promise<{ ok: b
   }
   if (issues > 0) {
     logger.warn({ workspaceId, issues }, "[mls] reconciliation found issues");
+    await createOperationalAlert({
+      workspaceId,
+      source: "mls.reconciliation",
+      severity: issues > 5 ? "critical" : "warning",
+      title: "MLS reconciliation issues detected",
+      message: `Rilevate ${issues} issue di desync MLS.`,
+      payload: { issues },
+    });
   }
   return { ok: true, checked: mappings.length, issues };
 };

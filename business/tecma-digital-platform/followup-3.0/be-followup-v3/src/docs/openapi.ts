@@ -31,6 +31,7 @@ export const openApiV1 = {
     { name: "marketing", description: "Workflow marketing multi-step" },
     { name: "mls", description: "Feed MLS/portali immobiliari e reconciliation" },
     { name: "scale-out", description: "Decision gate per eventuale estrazione microservizi" },
+    { name: "ops", description: "Alerting operativo e acknowledgement" },
     { name: "Riusabili", description: "API per uso esterno (listings, integrazioni)" },
     { name: "hc", description: "Home Config (appartamenti HC)" },
     { name: "associations", description: "Associazioni appartamento-cliente" },
@@ -1609,6 +1610,24 @@ export const openApiV1 = {
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "workspaceId", in: "path", required: true, schema: { type: "string" } }],
         responses: { "200": { description: "raccomandazione e candidati" } }
+      }
+    },
+    "/workspaces/{workspaceId}/ops/alerts": {
+      get: {
+        tags: ["ops"],
+        summary: "Lista alert operativi",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "workspaceId", in: "path", required: true, schema: { type: "string" } }],
+        responses: { "200": { description: "Alert list" } }
+      }
+    },
+    "/ops/alerts/{id}/ack": {
+      post: {
+        tags: ["ops"],
+        summary: "Acknowledge alert operativo",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        responses: { "200": { description: "Alert acknowledged" } }
       }
     },
     "/projects/{projectId}": {

@@ -2,6 +2,7 @@ import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
 import { HttpError } from "../../types/http.js";
+import { createOperationalAlert } from "../ops/operational-alerts.service.js";
 
 const CONSENTS_COLLECTION = "tz_privacy_consents";
 const CLIENTS_COLLECTION = "tz_clients";
@@ -148,6 +149,16 @@ export const runPrivacyRetentionJob = async (
   const runAt = nowIso();
   const threshold = new Date(Date.now() - input.olderThanDays * 24 * 60 * 60 * 1000).toISOString();
   const auditDelete = await db.collection(AUDIT_COLLECTION).deleteMany({ at: { $lt: threshold } });
+  if ((auditDelete.deletedCount ?? 0) === 0) {
+    await createOperationalAlert({
+      workspaceId: "global",
+      source: "privacy.retention",
+      severity: "info",
+      title: "Retention run without deletions",
+      message: "Il job retention è stato eseguito senza record eliminati.",
+      payload: { olderThanDays: input.olderThanDays, runAt },
+    });
+  }
   return {
     ok: true,
     olderThanDays: input.olderThanDays,

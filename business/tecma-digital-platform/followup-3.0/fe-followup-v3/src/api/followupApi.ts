@@ -739,6 +739,12 @@ export const followupApi = {
     getJson<Record<string, unknown>>(
       `/workspaces/${encodeURIComponent(workspaceId)}/platform/scale-out-decision`
     ),
+  listOperationalAlerts: (workspaceId: string) =>
+    getJson<{ data: Array<Record<string, unknown>> }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/ops/alerts`
+    ),
+  acknowledgeOperationalAlert: (id: string) =>
+    postJson<{ ok: boolean }>(`/ops/alerts/${encodeURIComponent(id)}/ack`, {}),
   /** Log comunicazioni inviate (Notification Center). */
   listCommunicationDeliveries: (workspaceId: string, limit?: number) =>
     getJson<{ data: Array<{ _id: string; channel: string; templateId: string; recipientMasked: string; status: string; sentAt: string }> }>(

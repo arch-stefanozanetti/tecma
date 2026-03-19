@@ -51,6 +51,8 @@ const CORE_INDEXES: IndexDefinition[] = [
   { collection: "tz_marketing_step_executions", keys: { executionKey: 1 }, options: { unique: true } },
   { collection: "tz_mls_portal_mappings", keys: { workspaceId: 1, projectId: 1, portal: 1 }, options: { unique: true } },
   { collection: "tz_mls_feed_runs", keys: { workspaceId: 1, projectId: 1, generatedAt: -1 } },
+  { collection: "tz_operational_alerts", keys: { workspaceId: 1, acknowledgedAt: 1, createdAt: -1 } },
+  { collection: "tz_operational_alerts", keys: { source: 1, severity: 1, createdAt: -1 } },
   { collection: "tz_portal_access_audit", keys: { at: -1 } },
 ];
 

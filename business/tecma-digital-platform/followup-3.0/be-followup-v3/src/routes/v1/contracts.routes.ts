@@ -3,6 +3,7 @@ import { handleAsync } from "../asyncHandler.js";
 import { applySignatureWebhook, createSignatureRequest, getSignatureStatusForRequest } from "../../core/contracts/signature.service.js";
 
 export const contractsRoutes = Router();
+export const contractsPublicRoutes = Router();
 
 contractsRoutes.post(
   "/contracts/signature-requests",
@@ -14,7 +15,7 @@ contractsRoutes.post(
   ),
 );
 
-contractsRoutes.post(
+contractsPublicRoutes.post(
   "/contracts/signature-requests/webhook",
   handleAsync((req) => applySignatureWebhook(req.body)),
 );
@@ -26,4 +27,3 @@ contractsRoutes.get(
     return getSignatureStatusForRequest(workspaceId, req.params.requestId);
   }),
 );
-
