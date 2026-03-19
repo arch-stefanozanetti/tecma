@@ -63,6 +63,9 @@ describe("clients.service", () => {
 
     expect(result.data).toHaveLength(1);
     expect(result.data[0].projectId).toBe("p1");
+    expect(result.data[0].firstName).toBe("Mario");
+    expect(result.data[0].lastName).toBe("Rossi");
+    expect(result.data[0].fullName).toBe("Mario Rossi");
     expect(result.pagination.total).toBe(1);
     expect(findMock).toHaveBeenCalled();
     expect(countDocumentsMock).toHaveBeenCalled();
@@ -70,12 +73,29 @@ describe("clients.service", () => {
 
   it("createClient trims fields and returns created row", async () => {
     const insertedId = new ObjectId();
+    const now = new Date().toISOString();
     insertOneMock.mockResolvedValueOnce({ insertedId });
+    findOneMock.mockResolvedValueOnce(null);
+    findOneMock.mockResolvedValueOnce({
+      _id: insertedId,
+      workspaceId: "ws1",
+      projectId: "p1",
+      firstName: "Luca",
+      lastName: "Bianchi",
+      fullName: "Luca Bianchi",
+      email: "luca@test.it",
+      phone: "123",
+      status: "lead",
+      city: "Milano",
+      updatedAt: now,
+      createdAt: now,
+    });
 
     const result = await createClient({
       workspaceId: "ws1",
       projectId: "p1",
-      fullName: "  Luca Bianchi  ",
+      firstName: "  Luca ",
+      lastName: " Bianchi  ",
       email: "luca@test.it",
       phone: " 123 ",
       status: "lead",
@@ -84,6 +104,8 @@ describe("clients.service", () => {
 
     expect(insertOneMock).toHaveBeenCalledOnce();
     expect(result.client._id).toBe(insertedId.toHexString());
+    expect(result.client.firstName).toBe("Luca");
+    expect(result.client.lastName).toBe("Bianchi");
     expect(result.client.fullName).toBe("Luca Bianchi");
     expect(result.client.email).toBe("luca@test.it");
     expect(result.client.phone).toBe("123");
@@ -113,15 +135,14 @@ describe("clients.service", () => {
       updatedAt: new Date().toISOString(),
     };
 
-    findOneMock
-      .mockResolvedValueOnce(existing)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(updated);
+    findOneMock.mockResolvedValueOnce(existing).mockResolvedValueOnce(null).mockResolvedValueOnce(updated);
     updateOneMock.mockResolvedValueOnce({ matchedCount: 1, modifiedCount: 1 });
 
     const result = await updateClient(id.toHexString(), { fullName: "New Name", email: "new@test.it" });
 
     expect(updateOneMock).toHaveBeenCalledOnce();
+    expect(result.client.firstName).toBe("New");
+    expect(result.client.lastName).toBe("Name");
     expect(result.client.fullName).toBe("New Name");
     expect(result.client.email).toBe("new@test.it");
     expect(result.workspaceId).toBe("ws1");

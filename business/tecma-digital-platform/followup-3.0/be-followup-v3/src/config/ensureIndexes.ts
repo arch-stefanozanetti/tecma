@@ -9,6 +9,12 @@ interface IndexDefinition {
 }
 
 const CORE_INDEXES: IndexDefinition[] = [
+  // Core list queries: workspace + project + default sort (updatedAt)
+  { collection: "tz_clients", keys: { workspaceId: 1, projectId: 1, updatedAt: -1 } },
+  { collection: "tz_requests", keys: { workspaceId: 1, projectId: 1, updatedAt: -1 } },
+  { collection: "tz_apartments", keys: { workspaceId: 1, projectId: 1, updatedAt: -1 } },
+
+  { collection: "tz_workspace_ai_config", keys: { workspaceId: 1 }, options: { unique: true } },
   { collection: "tz_workspace_users", keys: { workspaceId: 1, userId: 1 }, options: { unique: true } },
   { collection: "tz_workspace_user_projects", keys: { workspaceId: 1, userId: 1, projectId: 1 }, options: { unique: true } },
   { collection: "tz_entity_assignments", keys: { workspaceId: 1, entityType: 1, entityId: 1, userId: 1 }, options: { unique: true } },

@@ -38,7 +38,7 @@ const mockEnterpriseApi = async (page: Page) => {
     }
     if (path === "/v1/portal/overview" && method === "POST") {
       return fulfillJson(route, {
-        client: { id: "c1", fullName: "Mario Rossi", email: "mario@example.com" },
+        client: { id: "c1", firstName: "Mario", lastName: "Rossi", fullName: "Mario Rossi", email: "mario@example.com" },
         deals: [{ id: "r1", type: "sell", status: "proposal_sent", updatedAt: "2026-03-19T10:00:00.000Z" }],
         documents: [{ id: "d1", title: "Preventivo #001", type: "quote", createdAt: "2026-03-19T09:00:00.000Z" }],
         timeline: [

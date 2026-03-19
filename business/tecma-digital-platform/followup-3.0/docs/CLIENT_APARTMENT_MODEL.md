@@ -13,7 +13,9 @@ Nota: le note su mapping legacy restano solo come riferimento storico, non come 
 |-------------------------|------------------|------|
 | `_id` | `_id` | ObjectId → string |
 | `projectId` | `projectId` | string |
-| `fullName` | `fullName` | obbligatorio in UI (default "-") |
+| `firstName` | `firstName` | nome; obbligatorio in creazione |
+| `lastName` | `lastName` | cognome; obbligatorio in creazione |
+| `fullName` | `fullName` | derivato da nome+cognome (o solo legacy); ricerca e display |
 | `email` | `email` | opzionale |
 | `phone` | `phone` | opzionale |
 | `status` | `status` | es. lead, prospect, client; default "lead" |

@@ -1,5 +1,8 @@
 /**
- * Invio email via SMTP (AWS SES o altro). Config da env: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM.
+ * Email per il motore **comunicazioni CRM** (template, regole comunicazione, channel-dispatcher).
+ * Variabili: `SMTP_HOST`, `SMTP_FROM` (obbligatori), opzionali `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE`.
+ *
+ * Nota: inviti utenti / verifica email usano un altro stack in `core/email/email.service.ts` (`EMAIL_TRANSPORT`, `SES_SMTP_*`, `EMAIL_FROM`).
  */
 import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";

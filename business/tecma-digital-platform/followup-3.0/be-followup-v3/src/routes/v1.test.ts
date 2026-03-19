@@ -16,6 +16,12 @@ function makeToken(overrides: Partial<AccessTokenPayload> = {}): string {
 }
 import { ListQuerySchema } from "../core/shared/list-query.js";
 
+vi.mock("../core/access/canAccess.js", () => ({
+  canAccess: vi.fn().mockResolvedValue(true),
+  getWorkspacesForUser: vi.fn().mockResolvedValue(["ws1"]),
+  getProjectsAccessibleByUser: vi.fn().mockResolvedValue(["p1"]),
+}));
+
 vi.mock("../core/clients/clients.service.js", () => ({
   queryClients: vi.fn(),
   createClient: vi.fn(),
@@ -31,6 +37,8 @@ vi.mock("../core/clients/clients.service.js", () => ({
       client: {
         _id: id,
         projectId: "p1",
+        firstName: "Test",
+        lastName: "Client",
         fullName: "Test Client",
         email: "test@test.it",
         phone: "+39 123",
@@ -342,11 +350,14 @@ describe("v1 routes", () => {
       const token = makeToken();
       const res = await request(app)
         .get("/v1/clients/c1")
+        .query({ workspaceId: "ws1" })
         .set("Authorization", `Bearer ${token}`);
       expect(res.status).toBe(200);
       expect(res.body.client).toBeDefined();
       expect(res.body.client._id).toBe("c1");
       expect(res.body.client.fullName).toBe("Test Client");
+      expect(res.body.client.firstName).toBe("Test");
+      expect(res.body.client.lastName).toBe("Client");
       expect(res.body.client.email).toBe("test@test.it");
       expect(res.body.client.status).toBe("lead");
     });
@@ -355,6 +366,7 @@ describe("v1 routes", () => {
       const token = makeToken();
       const res = await request(app)
         .get("/v1/clients/404")
+        .query({ workspaceId: "ws1" })
         .set("Authorization", `Bearer ${token}`);
       expect(res.status).toBe(404);
       expect(res.body.error).toBeDefined();

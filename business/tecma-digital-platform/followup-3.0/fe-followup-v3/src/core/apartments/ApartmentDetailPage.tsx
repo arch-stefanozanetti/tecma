@@ -1,31 +1,22 @@
 import { useCallback, useEffect, useState, useMemo } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Home, Calendar, FileText, Users, Pencil, History, UserPlus, Trash2, Settings2 } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft, Home, FileText, Users, Pencil, History, Settings2 } from "lucide-react";
 import { followupApi } from "../../api/followupApi";
 import { useWorkspace } from "../../auth/projectScope";
 import type { ApartmentRow, RequestRow, RequestStatus } from "../../types/domain";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerBody,
-  DrawerFooter,
-  DrawerCloseButton,
-} from "../../components/ui/drawer";
-import { cn } from "../../lib/utils";
-import { formatDate } from "../../lib/formatDate";
 import { MatchingCandidatesList } from "../../components/MatchingCandidatesList";
 import { useWorkflowConfig } from "../../hooks/useWorkflowConfig";
-import { PriceAvailabilityGrid, type MatrixUnit, type MatrixCell } from "../prices/PriceAvailabilityGrid";
-import { STATUS_FILTER_OPTIONS, STATUS_LABEL, MODE_LABEL } from "./apartmentDetailConstants";
+import { STATUS_LABEL, MODE_LABEL } from "./apartmentDetailConstants";
 import { ApartmentHeaderSection } from "./ApartmentHeaderSection";
-import ApartmentDetailPanoramica from "./ApartmentDetailPanoramica";
+import { ApartmentDetailPanoramicaTab } from "./ApartmentDetailPanoramicaTab";
+import { ApartmentDetailTimelineTab } from "./ApartmentDetailTimelineTab";
+import { ApartmentDetailEditDrawer } from "./ApartmentDetailEditDrawer";
+import { ApartmentDetailTrattativeTab } from "./ApartmentDetailTrattativeTab";
+import { ApartmentDetailDettagliTab } from "./ApartmentDetailDettagliTab";
 import { useApartmentDetailData } from "./useApartmentDetailData";
+import { useApartmentDetailPriceCalendar } from "./useApartmentDetailPriceCalendar";
 import { useToast } from "../../contexts/ToastContext";
 
 export const ApartmentDetailPage = () => {
@@ -88,95 +79,37 @@ export const ApartmentDetailPage = () => {
   const [editMonthlyRentForm, setEditMonthlyRentForm] = useState({ pricePerMonth: "", deposit: "", validTo: "" });
   const [editPriceSaving, setEditPriceSaving] = useState(false);
   const [editPriceError, setEditPriceError] = useState<string | null>(null);
-  const [priceCalendarFrom, setPriceCalendarFrom] = useState(() => {
-    const d = new Date();
-    return d.toISOString().split("T")[0];
-  });
-  const [priceCalendarTo, setPriceCalendarTo] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 30);
-    return d.toISOString().split("T")[0];
-  });
-  const [priceCalendarEntries, setPriceCalendarEntries] = useState<Array<{ _id: string; date: string; price: number; minStay?: number; availability?: string }>>([]);
-  const [priceCalendarLoading, setPriceCalendarLoading] = useState(false);
-  const [priceCalendarError, setPriceCalendarError] = useState<string | null>(null);
-  const [calendarEntryDate, setCalendarEntryDate] = useState("");
-  const [calendarEntryPrice, setCalendarEntryPrice] = useState("");
-  const [calendarEntrySaving, setCalendarEntrySaving] = useState(false);
-  const [matrixUnits, setMatrixUnits] = useState<MatrixUnit[]>([]);
-  const [matrixDates, setMatrixDates] = useState<string[]>([]);
-  const [matrixCells, setMatrixCells] = useState<Record<string, Record<string, MatrixCell>>>({});
 
-  const refetchPrices = useCallback(() => {
-    if (!apartmentId) return;
-    followupApi.apartments.getApartmentPrices(apartmentId).then(setPrices).catch(() => setPrices(null));
-  }, [apartmentId]);
-
-  const loadPriceCalendar = useCallback(() => {
-    if (!apartmentId || !priceCalendarFrom || !priceCalendarTo) return;
-    setPriceCalendarLoading(true);
-    setPriceCalendarError(null);
-    followupApi
-      .getApartmentPriceCalendar(apartmentId, priceCalendarFrom, priceCalendarTo)
-      .then((data) => setPriceCalendarEntries(Array.isArray(data) ? data : []))
-      .catch((err) => {
-        setPriceCalendarError(err instanceof Error ? err.message : "Errore caricamento calendario");
-        setPriceCalendarEntries([]);
-      })
-      .finally(() => setPriceCalendarLoading(false));
-  }, [apartmentId, priceCalendarFrom, priceCalendarTo]);
-
-  const loadPriceMatrix = useCallback(() => {
-    if (!workspaceId || !apartment?.projectId || !apartmentId || !priceCalendarFrom || !priceCalendarTo) return;
-    setPriceCalendarLoading(true);
-    setPriceCalendarError(null);
-    followupApi
-      .getPriceAvailabilityMatrix(workspaceId, [apartment.projectId], priceCalendarFrom, priceCalendarTo)
-      .then((res) => {
-        const units = (res.units ?? []).filter((u) => String(u.unitId) === String(apartmentId));
-        setMatrixUnits(units);
-        setMatrixDates(res.dates ?? []);
-        setMatrixCells(res.cells ?? {});
-      })
-      .catch((err) => {
-        setPriceCalendarError(err instanceof Error ? err.message : "Errore caricamento calendario");
-        setMatrixUnits([]);
-        setMatrixDates([]);
-        setMatrixCells({});
-      })
-      .finally(() => setPriceCalendarLoading(false));
-  }, [workspaceId, apartment?.projectId, apartmentId, priceCalendarFrom, priceCalendarTo]);
-
-  useEffect(() => {
-    if (
-      apartment?.mode !== "RENT" ||
-      !workspaceId ||
-      !apartment?.projectId ||
-      !apartmentId ||
-      !priceCalendarFrom ||
-      !priceCalendarTo
-    )
-      return;
-    loadPriceMatrix();
-  }, [
-    apartment?.mode,
+  const priceCalendar = useApartmentDetailPriceCalendar(
+    apartmentId,
     workspaceId,
     apartment?.projectId,
-    apartmentId,
-    priceCalendarFrom,
-    priceCalendarTo,
-    loadPriceMatrix,
-  ]);
+    apartment?.mode
+  );
+
+  const refetchPrices = useCallback(() => {
+    if (!apartmentId || !workspaceId) return;
+    followupApi.apartments
+      .getApartmentPrices(apartmentId, workspaceId)
+      .then(setPrices)
+      .catch(() => setPrices(null));
+  }, [apartmentId, workspaceId]);
 
   useEffect(() => {
-    if (!apartmentId) return;
-    followupApi.apartments.getApartmentPrices(apartmentId).then((r) => setPrices(r)).catch(() => setPrices(null));
-  }, [apartmentId]);
+    if (!apartmentId || !workspaceId) return;
+    followupApi.apartments
+      .getApartmentPrices(apartmentId, workspaceId)
+      .then((r) => setPrices(r))
+      .catch(() => setPrices(null));
+  }, [apartmentId, workspaceId]);
 
   useEffect(() => {
-    if (!apartmentId) return;
-    followupApi.apartments.getApartmentInventory(apartmentId).then((r) => setInventory({ effectiveStatus: r.effectiveStatus, lock: r.lock })).catch(() => setInventory(null));
-  }, [apartmentId]);
+    if (!apartmentId || !workspaceId) return;
+    followupApi.apartments
+      .getApartmentInventory(apartmentId, workspaceId)
+      .then((r) => setInventory({ effectiveStatus: r.effectiveStatus, lock: r.lock }))
+      .catch(() => setInventory(null));
+  }, [apartmentId, workspaceId]);
 
   const requestsSorted = useMemo(
     () =>
@@ -338,522 +271,55 @@ export const ApartmentDetailPage = () => {
           </TabsTrigger>
         </TabsList>
 
-        {/* Tab Panoramica */}
         <TabsContent value="panoramica" className="space-y-6 mt-4">
-          <section className="grid gap-6 sm:grid-cols-2">
-            <ApartmentDetailPanoramica
-              apartment={apartment}
-              prices={prices}
-              inventory={inventory}
-              onEditApartment={() => setEditApartmentOpen(true)}
-              refetchPrices={refetchPrices}
-              apartmentId={apartmentId}
-              onOpenAddSalePrice={() => {
-                setAddSalePriceOpen(true);
-                setAddPriceError(null);
-                setAddSalePriceForm({ price: "", currency: "EUR", validFrom: "", validTo: "" });
-              }}
-              onOpenAddMonthlyRent={() => {
-                setAddMonthlyRentOpen(true);
-                setAddPriceError(null);
-                setAddMonthlyRentForm({ pricePerMonth: "", deposit: "", currency: "EUR", validFrom: "", validTo: "" });
-              }}
-              onEditSalePrice={(s) => {
-                setEditSalePriceId(s._id);
-                setEditSalePriceForm({ price: String(s.price), validTo: s.validTo ? s.validTo.split("T")[0] : "" });
-                setEditSalePriceOpen(true);
-                setEditPriceError(null);
-              }}
-              onEditMonthlyRent={(r) => {
-                setEditMonthlyRentId(r._id);
-                setEditMonthlyRentForm({
-                  pricePerMonth: String(r.pricePerMonth),
-                  deposit: r.deposit != null ? String(r.deposit) : "",
-                  validTo: r.validTo ? r.validTo.split("T")[0] : "",
-                });
-                setEditMonthlyRentOpen(true);
-                setEditPriceError(null);
-              }}
-              onCloseSalePricePeriod={async (s) => {
-                if (!apartmentId) return;
-                setEditPriceSaving(true);
-                setEditPriceError(null);
-                try {
-                  await followupApi.apartments.updateApartmentSalePrice(apartmentId, s._id, {
-                    validTo: new Date().toISOString().split("T")[0],
-                  });
-                  refetchPrices();
-                } catch (err) {
-                  setEditPriceError(err instanceof Error ? err.message : "Errore");
-                } finally {
-                  setEditPriceSaving(false);
-                }
-              }}
-              onCloseMonthlyRentPeriod={async (r) => {
-                if (!apartmentId) return;
-                setEditPriceSaving(true);
-                setEditPriceError(null);
-                try {
-                  await followupApi.apartments.updateApartmentMonthlyRent(apartmentId, r._id, {
-                    validTo: new Date().toISOString().split("T")[0],
-                  });
-                  refetchPrices();
-                } catch (err) {
-                  setEditPriceError(err instanceof Error ? err.message : "Errore");
-                } finally {
-                  setEditPriceSaving(false);
-                }
-              }}
-              editPriceSaving={editPriceSaving}
-            />
-
-            {apartment?.mode === "RENT" && (
-              <div className="space-y-4 rounded-lg border border-border bg-card p-4 sm:col-span-2">
-                <h2 className="text-sm font-semibold text-foreground">Prezzi per data</h2>
-                <p className="text-xs text-muted-foreground">
-                  Calendario prezzi e disponibilità (short stay). Scegli il periodo, carica la griglia e clicca su una cella per modificare prezzo e disponibilità.
-                </p>
-                <div className="flex flex-wrap items-end gap-2">
-                  <div>
-                    <label className="text-xs font-medium text-foreground block mb-1">Da</label>
-                    <Input
-                      type="date"
-                      className="h-8 w-36"
-                      value={priceCalendarFrom}
-                      onChange={(e) => setPriceCalendarFrom(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-foreground block mb-1">A</label>
-                    <Input
-                      type="date"
-                      className="h-8 w-36"
-                      value={priceCalendarTo}
-                      onChange={(e) => setPriceCalendarTo(e.target.value)}
-                    />
-                  </div>
-                  <Button type="button" variant="outline" size="sm" onClick={loadPriceMatrix} disabled={priceCalendarLoading}>
-                    {priceCalendarLoading ? "Caricamento..." : "Carica calendario"}
-                  </Button>
-                </div>
-                {priceCalendarError && <p className="text-sm text-destructive">{priceCalendarError}</p>}
-                {priceCalendarLoading && matrixUnits.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Caricamento calendario...</p>
-                ) : matrixUnits.length > 0 ? (
-                  <div className="space-y-3">
-                    <PriceAvailabilityGrid
-                      units={matrixUnits}
-                      dates={matrixDates}
-                      cells={matrixCells}
-                      onSave={async (unitId, date, payload) => {
-                        await followupApi.upsertApartmentPriceCalendar(unitId, { date, ...payload });
-                      }}
-                      onRefresh={loadPriceMatrix}
-                      showLegend
-                      compact={false}
-                    />
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Nessun dato calendario per questo periodo. Verifica le date o riprova.
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Drawer Aggiungi prezzo vendita */}
-            <Drawer open={addSalePriceOpen} onOpenChange={setAddSalePriceOpen}>
-              <DrawerContent side="right" className="w-full sm:max-w-md">
-                <DrawerHeader>
-                  <DrawerTitle>Aggiungi prezzo vendita</DrawerTitle>
-                  <DrawerCloseButton />
-                </DrawerHeader>
-                <DrawerBody>
-                  <form
-                    id="add-sale-price-form"
-                    className="space-y-4"
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      if (!apartmentId || !workspaceId) return;
-                      const price = Number(addSalePriceForm.price);
-                      if (Number.isNaN(price) || price < 0) {
-                        setAddPriceError("Inserisci un prezzo valido.");
-                        return;
-                      }
-                      setAddPriceSaving(true);
-                      setAddPriceError(null);
-                      try {
-                        await followupApi.apartments.createApartmentSalePrice(apartmentId, {
-                          workspaceId,
-                          price,
-                          currency: addSalePriceForm.currency,
-                          validFrom: addSalePriceForm.validFrom || undefined,
-                          validTo: addSalePriceForm.validTo || undefined,
-                        });
-                        refetchPrices();
-                        setAddSalePriceOpen(false);
-                      } catch (err) {
-                        setAddPriceError(err instanceof Error ? err.message : "Errore aggiunta prezzo");
-                      } finally {
-                        setAddPriceSaving(false);
-                      }
-                    }}
-                  >
-                    <div>
-                      <label className="text-sm font-medium text-foreground">Prezzo (€)</label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={1}
-                        className="mt-1"
-                        value={addSalePriceForm.price}
-                        onChange={(e) => setAddSalePriceForm((f) => ({ ...f, price: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-foreground">Valuta</label>
-                      <Input
-                        className="mt-1"
-                        value={addSalePriceForm.currency}
-                        onChange={(e) => setAddSalePriceForm((f) => ({ ...f, currency: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-foreground">Data inizio (opzionale)</label>
-                      <Input
-                        type="date"
-                        className="mt-1"
-                        value={addSalePriceForm.validFrom}
-                        onChange={(e) => setAddSalePriceForm((f) => ({ ...f, validFrom: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-foreground">Data fine (opzionale)</label>
-                      <Input
-                        type="date"
-                        className="mt-1"
-                        value={addSalePriceForm.validTo}
-                        onChange={(e) => setAddSalePriceForm((f) => ({ ...f, validTo: e.target.value }))}
-                      />
-                    </div>
-                    {addPriceError && <p className="text-sm text-destructive">{addPriceError}</p>}
-                  </form>
-                </DrawerBody>
-                <DrawerFooter>
-                  <Button type="submit" form="add-sale-price-form" disabled={addPriceSaving}>
-                    {addPriceSaving ? "Salvataggio..." : "Aggiungi"}
-                  </Button>
-                </DrawerFooter>
-              </DrawerContent>
-            </Drawer>
-
-            {/* Drawer Aggiungi canone mensile */}
-            <Drawer open={addMonthlyRentOpen} onOpenChange={setAddMonthlyRentOpen}>
-              <DrawerContent side="right" className="w-full sm:max-w-md">
-                <DrawerHeader>
-                  <DrawerTitle>Aggiungi canone mensile</DrawerTitle>
-                  <DrawerCloseButton />
-                </DrawerHeader>
-                <DrawerBody>
-                  <form
-                    id="add-monthly-rent-form"
-                    className="space-y-4"
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      if (!apartmentId || !workspaceId) return;
-                      const pricePerMonth = Number(addMonthlyRentForm.pricePerMonth);
-                      if (Number.isNaN(pricePerMonth) || pricePerMonth < 0) {
-                        setAddPriceError("Inserisci un canone valido.");
-                        return;
-                      }
-                      setAddPriceSaving(true);
-                      setAddPriceError(null);
-                      try {
-                        await followupApi.apartments.createApartmentMonthlyRent(apartmentId, {
-                          workspaceId,
-                          pricePerMonth,
-                          deposit: addMonthlyRentForm.deposit ? Number(addMonthlyRentForm.deposit) : undefined,
-                          currency: addMonthlyRentForm.currency,
-                          validFrom: addMonthlyRentForm.validFrom || undefined,
-                          validTo: addMonthlyRentForm.validTo || undefined,
-                        });
-                        refetchPrices();
-                        setAddMonthlyRentOpen(false);
-                      } catch (err) {
-                        setAddPriceError(err instanceof Error ? err.message : "Errore aggiunta canone");
-                      } finally {
-                        setAddPriceSaving(false);
-                      }
-                    }}
-                  >
-                    <div>
-                      <label className="text-sm font-medium text-foreground">Canone mensile (€)</label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={1}
-                        className="mt-1"
-                        value={addMonthlyRentForm.pricePerMonth}
-                        onChange={(e) => setAddMonthlyRentForm((f) => ({ ...f, pricePerMonth: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-foreground">Deposito (€, opzionale)</label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={1}
-                        className="mt-1"
-                        value={addMonthlyRentForm.deposit}
-                        onChange={(e) => setAddMonthlyRentForm((f) => ({ ...f, deposit: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-foreground">Valuta</label>
-                      <Input
-                        className="mt-1"
-                        value={addMonthlyRentForm.currency}
-                        onChange={(e) => setAddMonthlyRentForm((f) => ({ ...f, currency: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-foreground">Data inizio (opzionale)</label>
-                      <Input
-                        type="date"
-                        className="mt-1"
-                        value={addMonthlyRentForm.validFrom}
-                        onChange={(e) => setAddMonthlyRentForm((f) => ({ ...f, validFrom: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-foreground">Data fine (opzionale)</label>
-                      <Input
-                        type="date"
-                        className="mt-1"
-                        value={addMonthlyRentForm.validTo}
-                        onChange={(e) => setAddMonthlyRentForm((f) => ({ ...f, validTo: e.target.value }))}
-                      />
-                    </div>
-                    {addPriceError && <p className="text-sm text-destructive">{addPriceError}</p>}
-                  </form>
-                </DrawerBody>
-                <DrawerFooter>
-                  <Button type="submit" form="add-monthly-rent-form" disabled={addPriceSaving}>
-                    {addPriceSaving ? "Salvataggio..." : "Aggiungi"}
-                  </Button>
-                </DrawerFooter>
-              </DrawerContent>
-            </Drawer>
-
-            {/* Drawer Modifica prezzo vendita */}
-            <Drawer open={editSalePriceOpen} onOpenChange={setEditSalePriceOpen}>
-              <DrawerContent side="right" className="w-full sm:max-w-md">
-                <DrawerHeader>
-                  <DrawerTitle>Modifica prezzo vendita</DrawerTitle>
-                  <DrawerCloseButton />
-                </DrawerHeader>
-                <DrawerBody>
-                  <form
-                    id="edit-sale-price-form"
-                    className="space-y-4"
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      if (!apartmentId || !editSalePriceId) return;
-                      const price = Number(editSalePriceForm.price);
-                      if (Number.isNaN(price) || price < 0) {
-                        setEditPriceError("Inserisci un prezzo valido.");
-                        return;
-                      }
-                      setEditPriceSaving(true);
-                      setEditPriceError(null);
-                      try {
-                        await followupApi.apartments.updateApartmentSalePrice(apartmentId, editSalePriceId, {
-                          price,
-                          validTo: editSalePriceForm.validTo || undefined,
-                        });
-                        refetchPrices();
-                        setEditSalePriceOpen(false);
-                        setEditSalePriceId(null);
-                      } catch (err) {
-                        setEditPriceError(err instanceof Error ? err.message : "Errore modifica");
-                      } finally {
-                        setEditPriceSaving(false);
-                      }
-                    }}
-                  >
-                    <div>
-                      <label className="text-sm font-medium text-foreground">Prezzo (€)</label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={1}
-                        className="mt-1"
-                        value={editSalePriceForm.price}
-                        onChange={(e) => setEditSalePriceForm((f) => ({ ...f, price: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-foreground">Data fine (opzionale)</label>
-                      <Input
-                        type="date"
-                        className="mt-1"
-                        value={editSalePriceForm.validTo}
-                        onChange={(e) => setEditSalePriceForm((f) => ({ ...f, validTo: e.target.value }))}
-                      />
-                    </div>
-                    {editPriceError && <p className="text-sm text-destructive">{editPriceError}</p>}
-                  </form>
-                </DrawerBody>
-                <DrawerFooter>
-                  <Button type="submit" form="edit-sale-price-form" disabled={editPriceSaving}>
-                    {editPriceSaving ? "Salvataggio..." : "Salva"}
-                  </Button>
-                </DrawerFooter>
-              </DrawerContent>
-            </Drawer>
-
-            {/* Drawer Modifica canone mensile */}
-            <Drawer open={editMonthlyRentOpen} onOpenChange={setEditMonthlyRentOpen}>
-              <DrawerContent side="right" className="w-full sm:max-w-md">
-                <DrawerHeader>
-                  <DrawerTitle>Modifica canone mensile</DrawerTitle>
-                  <DrawerCloseButton />
-                </DrawerHeader>
-                <DrawerBody>
-                  <form
-                    id="edit-monthly-rent-form"
-                    className="space-y-4"
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      if (!apartmentId || !editMonthlyRentId) return;
-                      const pricePerMonth = Number(editMonthlyRentForm.pricePerMonth);
-                      if (Number.isNaN(pricePerMonth) || pricePerMonth < 0) {
-                        setEditPriceError("Inserisci un canone valido.");
-                        return;
-                      }
-                      setEditPriceSaving(true);
-                      setEditPriceError(null);
-                      try {
-                        await followupApi.apartments.updateApartmentMonthlyRent(apartmentId, editMonthlyRentId, {
-                          pricePerMonth,
-                          deposit: editMonthlyRentForm.deposit ? Number(editMonthlyRentForm.deposit) : undefined,
-                          validTo: editMonthlyRentForm.validTo || undefined,
-                        });
-                        refetchPrices();
-                        setEditMonthlyRentOpen(false);
-                        setEditMonthlyRentId(null);
-                      } catch (err) {
-                        setEditPriceError(err instanceof Error ? err.message : "Errore modifica");
-                      } finally {
-                        setEditPriceSaving(false);
-                      }
-                    }}
-                  >
-                    <div>
-                      <label className="text-sm font-medium text-foreground">Canone mensile (€)</label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={1}
-                        className="mt-1"
-                        value={editMonthlyRentForm.pricePerMonth}
-                        onChange={(e) => setEditMonthlyRentForm((f) => ({ ...f, pricePerMonth: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-foreground">Deposito (€, opzionale)</label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={1}
-                        className="mt-1"
-                        value={editMonthlyRentForm.deposit}
-                        onChange={(e) => setEditMonthlyRentForm((f) => ({ ...f, deposit: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-foreground">Data fine (opzionale)</label>
-                      <Input
-                        type="date"
-                        className="mt-1"
-                        value={editMonthlyRentForm.validTo}
-                        onChange={(e) => setEditMonthlyRentForm((f) => ({ ...f, validTo: e.target.value }))}
-                      />
-                    </div>
-                    {editPriceError && <p className="text-sm text-destructive">{editPriceError}</p>}
-                  </form>
-                </DrawerBody>
-                <DrawerFooter>
-                  <Button type="submit" form="edit-monthly-rent-form" disabled={editPriceSaving}>
-                    {editPriceSaving ? "Salvataggio..." : "Salva"}
-                  </Button>
-                </DrawerFooter>
-              </DrawerContent>
-            </Drawer>
-          </section>
+          <ApartmentDetailPanoramicaTab
+            apartment={apartment}
+            prices={prices}
+            inventory={inventory}
+            apartmentId={apartmentId}
+            workspaceId={workspaceId}
+            onEditApartment={() => setEditApartmentOpen(true)}
+            refetchPrices={refetchPrices}
+            priceCalendar={priceCalendar}
+            addSalePriceOpen={addSalePriceOpen}
+            setAddSalePriceOpen={setAddSalePriceOpen}
+            addSalePriceForm={addSalePriceForm}
+            setAddSalePriceForm={setAddSalePriceForm}
+            addMonthlyRentOpen={addMonthlyRentOpen}
+            setAddMonthlyRentOpen={setAddMonthlyRentOpen}
+            addMonthlyRentForm={addMonthlyRentForm}
+            setAddMonthlyRentForm={setAddMonthlyRentForm}
+            addPriceSaving={addPriceSaving}
+            setAddPriceSaving={setAddPriceSaving}
+            addPriceError={addPriceError}
+            setAddPriceError={setAddPriceError}
+            editSalePriceOpen={editSalePriceOpen}
+            setEditSalePriceOpen={setEditSalePriceOpen}
+            editSalePriceId={editSalePriceId}
+            setEditSalePriceId={setEditSalePriceId}
+            editSalePriceForm={editSalePriceForm}
+            setEditSalePriceForm={setEditSalePriceForm}
+            editMonthlyRentOpen={editMonthlyRentOpen}
+            setEditMonthlyRentOpen={setEditMonthlyRentOpen}
+            editMonthlyRentId={editMonthlyRentId}
+            setEditMonthlyRentId={setEditMonthlyRentId}
+            editMonthlyRentForm={editMonthlyRentForm}
+            setEditMonthlyRentForm={setEditMonthlyRentForm}
+            editPriceSaving={editPriceSaving}
+            setEditPriceSaving={setEditPriceSaving}
+            editPriceError={editPriceError}
+            setEditPriceError={setEditPriceError}
+          />
         </TabsContent>
 
-        {/* Tab Trattative — clienti e trattative su questo appartamento */}
         <TabsContent value="trattative" className="space-y-4 mt-4">
-          <section className="rounded-lg border border-border bg-card p-4">
-            <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Clienti e trattative
-            </h2>
-            {requestsLoading ? (
-              <p className="text-sm text-muted-foreground">Caricamento...</p>
-            ) : requestsSorted.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Nessuna trattativa associata a questo appartamento. Le trattative con questo
-                immobile appariranno qui.
-              </p>
-            ) : (
-              <ul className="space-y-0">
-                {requestsSorted.map((req) => (
-                  <li key={req._id} className="flex gap-3 py-3">
-                    <div
-                      className={cn(
-                        "mt-1.5 h-2 w-2 shrink-0 rounded-full",
-                        req.status === "won"
-                          ? "bg-green-500"
-                          : req.status === "lost"
-                            ? "bg-muted-foreground/50"
-                            : "bg-primary"
-                      )}
-                    />
-                    <div className="min-w-0 flex-1 text-sm">
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        {req.clientId ? (
-                          <Link
-                            to={`/clients/${req.clientId}`}
-                            className="font-medium text-primary hover:underline"
-                          >
-                            {req.clientName ?? req.clientId}
-                          </Link>
-                        ) : (
-                          <span className="font-medium text-foreground">
-                            {req.clientName ?? req.clientId ?? "—"}
-                          </span>
-                        )}
-                        <span className="text-muted-foreground">
-                          {getWorkflowConfig(req.type).statusLabelByCode[req.status] ?? req.status}
-                        </span>
-                        <span className="text-muted-foreground">
-                          — {req.type === "sell" ? "Vendita" : "Affitto"}
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {formatDate(req.updatedAt)}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          <ApartmentDetailTrattativeTab
+            requestsLoading={requestsLoading}
+            requestsSorted={requestsSorted}
+            getWorkflowConfig={getWorkflowConfig}
+          />
         </TabsContent>
 
-        {/* Tab Clienti papabili — matching */}
         <TabsContent value="matching" className="space-y-4 mt-4">
           <MatchingCandidatesList
             title="Clienti papabili (matching)"
@@ -867,171 +333,39 @@ export const ApartmentDetailPage = () => {
           />
         </TabsContent>
 
-        {/* Tab Dettagli — extraInfo, date e ID */}
         <TabsContent value="dettagli" className="space-y-4 mt-4">
-          {apartment.extraInfo && Object.keys(apartment.extraInfo).length > 0 && (
-            <section className="rounded-lg border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-foreground mb-3">Info aggiuntive</h2>
-              <div className="grid gap-3 text-sm sm:grid-cols-2">
-                {Object.entries(apartment.extraInfo).map(([key, value]) =>
-                  value != null && value !== "" ? (
-                    <div key={key}>
-                      <span className="text-muted-foreground">{key}</span>
-                      <p className="font-medium text-foreground">{String(value)}</p>
-                    </div>
-                  ) : null
-                )}
-              </div>
-            </section>
-          )}
-          <section className="rounded-lg border border-border bg-card p-4">
-            <h2 className="text-sm font-semibold text-foreground mb-3">Date e dettagli tecnici</h2>
-            <div className="grid gap-3 text-sm sm:grid-cols-2">
-              <div>
-                <span className="text-muted-foreground">Aggiornato il</span>
-                <p className="font-medium text-foreground">{formatDate(apartment.updatedAt)}</p>
-              </div>
-              <div className="sm:col-span-2">
-                <span className="text-muted-foreground">ID</span>
-                <p className="font-mono text-xs text-foreground">{apartment._id}</p>
-              </div>
-            </div>
-          </section>
-
-          {isAdmin && (
-            <section className="rounded-lg border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                <UserPlus className="h-4 w-4" />
-                Assegnato a
-              </h2>
-              <p className="text-xs text-muted-foreground mb-2">
-                Assegna questo appartamento a un vendor per limitarne la visibilità.
-              </p>
-              <ul className="space-y-1 mb-3">
-                {assignments.map((a) => (
-                  <li key={a.userId} className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 text-sm">
-                    <span>{a.userId}</span>
-                    <Button variant="ghost" size="sm" className="min-h-11 text-muted-foreground hover:text-destructive" onClick={() => handleUnassign(a.userId)}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </li>
-                ))}
-                {assignments.length === 0 && <li className="text-sm text-muted-foreground">Nessuna assegnazione</li>}
-              </ul>
-              <div className="flex gap-2">
-                <Select value={assignUserId} onValueChange={setAssignUserId}>
-                  <SelectTrigger className="min-h-11 flex-1 max-w-xs">
-                    <SelectValue placeholder="Seleziona utente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {workspaceUsers
-                      .filter((u) => !assignments.some((a) => a.userId === u.userId))
-                      .map((u) => (
-                        <SelectItem key={u.userId} value={u.userId}>{u.userId}</SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-                <Button size="sm" onClick={handleAssign} disabled={!assignUserId.trim()}>
-                  Assegna
-                </Button>
-              </div>
-            </section>
-          )}
+          <ApartmentDetailDettagliTab
+            apartment={apartment}
+            isAdmin={isAdmin}
+            assignments={assignments}
+            workspaceUsers={workspaceUsers}
+            assignUserId={assignUserId}
+            onAssignUserIdChange={setAssignUserId}
+            onAssign={handleAssign}
+            onUnassign={handleUnassign}
+          />
         </TabsContent>
 
-        {/* Tab Timeline — audit log per appartamento */}
         <TabsContent value="timeline" className="space-y-4 mt-4">
-          <section className="rounded-lg border border-border bg-card p-4">
-            <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-              <History className="h-4 w-4" />
-              Ultime attività
-            </h2>
-            {auditEvents.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nessun evento registrato.</p>
-            ) : (
-              <ul className="space-y-2">
-                {auditEvents.map((ev) => (
-                  <li key={ev._id} className="flex gap-3 py-2 border-b border-border/50 last:border-0 text-sm">
-                    <span className="text-muted-foreground shrink-0">{formatDate(ev.at)}</span>
-                    <span className="font-medium text-foreground">
-                      {ev.action.replace(/\./g, " ")}
-                      {ev.actor?.email && (
-                        <span className="text-muted-foreground font-normal ml-1">— {ev.actor.email}</span>
-                      )}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          <ApartmentDetailTimelineTab auditEvents={auditEvents} />
         </TabsContent>
       </Tabs>
 
-      <Drawer open={editApartmentOpen} onOpenChange={setEditApartmentOpen}>
-        <DrawerContent side="right" className="sm:max-w-md">
-          <DrawerHeader actions={<DrawerCloseButton />}>
-            <DrawerTitle>Modifica appartamento</DrawerTitle>
-          </DrawerHeader>
-          <form onSubmit={handleEditApartmentSubmit} className="flex flex-col flex-1 min-h-0">
-            <DrawerBody className="space-y-4">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-foreground">Codice</label>
-                <Input
-                  className="min-h-11 rounded-lg border-border"
-                  value={editCode}
-                  onChange={(e) => setEditCode(e.target.value)}
-                  required
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-foreground">Nome</label>
-                <Input
-                  className="min-h-11 rounded-lg border-border"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  placeholder="Nome appartamento"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-foreground">Stato</label>
-                <Select value={editStatus} onValueChange={(v) => setEditStatus(v as ApartmentRow["status"])}>
-                  <SelectTrigger className="min-h-11 rounded-lg border-border">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUS_FILTER_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-foreground">Superficie (mq)</label>
-                <Input
-                  type="number"
-                  min={0}
-                  step={1}
-                  className="min-h-11 rounded-lg border-border"
-                  value={editSurfaceMq}
-                  onChange={(e) => setEditSurfaceMq(e.target.value)}
-                  required
-                />
-              </div>
-              {editError && <p className="text-sm text-destructive">{editError}</p>}
-            </DrawerBody>
-            <DrawerFooter>
-              <Button type="button" variant="outline" onClick={() => setEditApartmentOpen(false)} className="min-h-11">
-                Annulla
-              </Button>
-              <Button type="submit" disabled={editSaving} className="min-h-11">
-                {editSaving ? "Salvataggio..." : "Salva"}
-              </Button>
-            </DrawerFooter>
-          </form>
-        </DrawerContent>
-      </Drawer>
+      <ApartmentDetailEditDrawer
+        open={editApartmentOpen}
+        onOpenChange={setEditApartmentOpen}
+        code={editCode}
+        onCodeChange={setEditCode}
+        name={editName}
+        onNameChange={setEditName}
+        status={editStatus}
+        onStatusChange={setEditStatus}
+        surfaceMq={editSurfaceMq}
+        onSurfaceMqChange={setEditSurfaceMq}
+        error={editError}
+        saving={editSaving}
+        onSubmit={handleEditApartmentSubmit}
+      />
     </div>
   );
 };

@@ -4,6 +4,9 @@ import { useCallback, useState } from "react";
  * Hook per azioni async singole (login, submit form, "carica progetti", salvataggio).
  * Evita di ripetere useState(loading/error) in ogni componente.
  *
+ * Da usare con una funzione async **stabile** (es. useCallback o importata).
+ * Non passare funzioni inline che cambiano a ogni render se `run` è usato nelle dipendenze di useEffect.
+ *
  * @param asyncFn - Funzione async da eseguire (può avere argomenti).
  * @returns run(...args) per eseguire, data, error, isLoading, reset.
  */

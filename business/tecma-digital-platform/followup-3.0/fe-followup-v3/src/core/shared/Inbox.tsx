@@ -112,7 +112,7 @@ export function Inbox({ workspaceId, onSectionChange, navigate }: InboxProps) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="relative inline-flex h-10 w-10 items-center justify-center rounded-chrome border border-border bg-background text-foreground hover:bg-muted"
+        className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-chrome border border-border bg-background text-foreground hover:bg-muted"
         aria-label={unreadCount > 0 ? `${unreadCount} notifiche non lette` : "Apri inbox notifiche"}
       >
         <Bell className="h-4 w-4" />
@@ -142,7 +142,7 @@ export function Inbox({ workspaceId, onSectionChange, navigate }: InboxProps) {
                   type="button"
                   onClick={() => handleSelect(n)}
                   className={cn(
-                    "flex w-full flex-col gap-0.5 border-b border-border px-2 py-3 text-left transition-colors hover:bg-muted",
+                    "flex min-h-11 w-full flex-col justify-center gap-0.5 border-b border-border px-2 py-3 text-left transition-colors hover:bg-muted",
                     !n.read && "bg-muted/50"
                   )}
                 >
@@ -157,7 +157,7 @@ export function Inbox({ workspaceId, onSectionChange, navigate }: InboxProps) {
           </SidePanelBody>
           {!loading && notifications.some((n) => !n.read) && (
             <div className="border-t border-border px-6 py-4">
-              <Button variant="outline" size="sm" className="w-full" onClick={handleMarkAllRead}>
+              <Button variant="outline" size="sm" className="min-h-11 w-full" onClick={handleMarkAllRead}>
                 Segna tutti come letti
               </Button>
             </div>

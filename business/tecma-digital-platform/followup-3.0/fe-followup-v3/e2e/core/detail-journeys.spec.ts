@@ -81,6 +81,8 @@ const mockDetailApi = async (context: BrowserContext) => {
           _id: clientMatch[1],
           workspaceId: "dev-1",
           projectId: "p1",
+          firstName: "Mario",
+          lastName: "Rossi",
           fullName: "Mario Rossi",
           email: "mario@example.com",
           status: "lead",

@@ -1,11 +1,34 @@
 /**
- * Invio WhatsApp (Twilio / MessageBird). Config per workspace in tz_connector_configs (connectorId: 'whatsapp').
- * Fase 2: implementazione piena; qui stub che logga se non configurato.
+ * Invio WhatsApp via Twilio REST (Messages API).
+ * Config per workspace in tz_connector_configs (connectorId: 'whatsapp').
+ * Twilio richiede indirizzi in forma `whatsapp:+E164` per il canale WhatsApp.
  */
 import { getDb } from "../../config/db.js";
 import { logger } from "../../observability/logger.js";
 
 const CONNECTOR_ID = "whatsapp";
+
+/**
+ * Normalizza un numero o indirizzo per Twilio WhatsApp (`whatsapp:+39...`).
+ * Accetta già `whatsapp:+...`, E.164 `+39...`, o solo cifre con prefisso paese.
+ */
+export function normalizeTwilioWhatsAppParty(raw: string): string {
+  const trimmed = raw.trim().replace(/\s/g, "");
+  if (!trimmed) return trimmed;
+  const waPrefix = trimmed.match(/^whatsapp:(.+)$/i);
+  if (waPrefix) {
+    const rest = waPrefix[1].trim();
+    if (!rest) return "whatsapp:";
+    const withPlus = rest.startsWith("+") ? rest : `+${rest}`;
+    return `whatsapp:${withPlus}`;
+  }
+  const digitsOnly = trimmed.replace(/^\+/, "").replace(/\D/g, "");
+  if (digitsOnly.length >= 8) {
+    return `whatsapp:+${digitsOnly}`;
+  }
+  const withPlus = trimmed.startsWith("+") ? trimmed : `+${trimmed}`;
+  return `whatsapp:${withPlus}`;
+}
 
 async function getWhatsAppConfig(workspaceId: string): Promise<{ fromNumber: string; accountSid: string; authToken: string } | null> {
   const db = getDb();
@@ -31,9 +54,11 @@ export async function sendWhatsAppMessage(workspaceId: string, to: string, bodyT
   }
   try {
     const url = `https://api.twilio.com/2010-04-01/Accounts/${config.accountSid}/Messages.json`;
+    const fromAddr = normalizeTwilioWhatsAppParty(config.fromNumber);
+    const toAddr = normalizeTwilioWhatsAppParty(to);
     const body = new URLSearchParams({
-      To: to.startsWith("+") ? to : `+${to}`,
-      From: config.fromNumber,
+      To: toAddr,
+      From: fromAddr,
       Body: bodyText,
     });
     const res = await fetch(url, {

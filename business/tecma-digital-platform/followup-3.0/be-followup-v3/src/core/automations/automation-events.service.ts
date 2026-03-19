@@ -91,12 +91,18 @@ export const dispatchEvent = async (
     }
 
     const commRules = await listCommunicationRules(workspaceId);
-    const matchingCommRules = commRules.filter(
-      (r) =>
+    const matchingCommRules = commRules.filter((r) => {
+      const projectMatches =
+        r.projectId == null ||
+        String(r.projectId).trim() === "" ||
+        (payload.projectId != null && String(r.projectId) === String(payload.projectId));
+      return (
         r.enabled &&
+        projectMatches &&
         r.trigger.eventType === eventType &&
         (r.trigger.toStatus == null || r.trigger.toStatus === "" || payload.toStatus === r.trigger.toStatus)
-    );
+      );
+    });
     for (const rule of matchingCommRules) {
       for (const action of rule.actions) {
         try {

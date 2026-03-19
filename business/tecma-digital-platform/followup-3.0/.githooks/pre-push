@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Opzionale: verifica che la build deploy (stessa di Render) passi prima del push.
+# Abilita con: npm run setup:githooks (da followup-3.0)
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
+npm run deploy:dry-run

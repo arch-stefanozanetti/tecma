@@ -9,6 +9,7 @@ import { buildCommunicationContext } from "./resolve-context.service.js";
 import { sendEmail } from "./email.service.js";
 import { sendWhatsAppMessage } from "./whatsapp.service.js";
 import type { CommunicationRecipientType } from "./communication-rules.service.js";
+import { resolveClientIdFromDispatchPayload } from "./resolve-client-id-from-payload.js";
 import { getClientById } from "../clients/clients.service.js";
 import { getProjectDetail, getProjectBrandingInternal } from "../projects/project-config.service.js";
 import { logDelivery } from "./communication-deliveries.service.js";
@@ -31,8 +32,9 @@ async function resolveRecipient(
   recipientType: CommunicationRecipientType,
   payload: DispatchEventPayload
 ): Promise<{ email?: string; phone?: string; userId?: string }> {
-  if (recipientType === "client" && payload.clientId) {
-    const { client } = await getClientById(payload.clientId);
+  const clientId = resolveClientIdFromDispatchPayload(payload);
+  if (recipientType === "client" && clientId) {
+    const { client } = await getClientById(clientId);
     return {
       email: client?.email ?? undefined,
       phone: (client as { phone?: string })?.phone ?? undefined,
@@ -75,7 +77,7 @@ export async function dispatchCommunicationJob(job: DispatchJob): Promise<void> 
     const email = recipient.email;
     if (!email) {
       logger.warn(
-        { recipientType: job.recipientType, clientId: job.payload.clientId },
+        { recipientType: job.recipientType, clientId: resolveClientIdFromDispatchPayload(job.payload) },
         "[channel-dispatcher] missing recipient email"
       );
       return;
@@ -114,7 +116,10 @@ export async function dispatchCommunicationJob(job: DispatchJob): Promise<void> 
   if (job.channel === "whatsapp") {
     const phone = recipient.phone;
     if (!phone) {
-      logger.warn({ clientId: job.payload.clientId }, "[channel-dispatcher] missing recipient phone");
+      logger.warn(
+        { clientId: resolveClientIdFromDispatchPayload(job.payload) },
+        "[channel-dispatcher] missing recipient phone"
+      );
       return;
     }
     await sendWhatsAppMessage(job.workspaceId, phone, resolved.bodyText);

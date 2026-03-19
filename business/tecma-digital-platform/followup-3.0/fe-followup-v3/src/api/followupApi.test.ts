@@ -33,15 +33,15 @@ describe("followupApi", () => {
   });
 
   it("getClientById chiama getJson con path client", async () => {
-    await followupApi.clients.getClientById("client-1");
+    await followupApi.clients.getClientById("client-1", "w1");
 
-    expect(http.getJson).toHaveBeenCalledWith("/clients/client-1");
+    expect(http.getJson).toHaveBeenCalledWith("/clients/client-1?workspaceId=w1");
   });
 
   it("updateClient chiama patchJson con path client", async () => {
-    await followupApi.clients.updateClient("c1", { fullName: "Mario" });
+    await followupApi.clients.updateClient("c1", { firstName: "Mario", lastName: "Rossi" });
 
-    expect(http.patchJson).toHaveBeenCalledWith("/clients/c1", { fullName: "Mario" });
+    expect(http.patchJson).toHaveBeenCalledWith("/clients/c1", { firstName: "Mario", lastName: "Rossi" });
   });
 
   it("deleteCalendarEvent chiama deleteJson", async () => {
@@ -73,7 +73,7 @@ describe("followupApi", () => {
   });
 
   it("createClient chiama postJson", async () => {
-    await followupApi.clients.createClient({ workspaceId: "w", projectId: "p", fullName: "Mario" } as never);
+    await followupApi.clients.createClient({ workspaceId: "w", projectId: "p", firstName: "Mario", lastName: "Rossi" } as never);
     expect(http.postJson).toHaveBeenCalledWith("/clients", expect.any(Object));
   });
 
@@ -265,8 +265,8 @@ describe("followupApi", () => {
   });
 
   it("getApartmentById chiama getJson", async () => {
-    await followupApi.apartments.getApartmentById("a1");
-    expect(http.getJson).toHaveBeenCalledWith("/apartments/a1");
+    await followupApi.apartments.getApartmentById("a1", "w1");
+    expect(http.getJson).toHaveBeenCalledWith("/apartments/a1?workspaceId=w1");
   });
 
   it("getApartmentRequests chiama getJson", async () => {
@@ -357,6 +357,13 @@ describe("followupApi", () => {
     expect(http.postJson).toHaveBeenCalledWith("/clients/lite/query", { workspaceId: "w1", projectIds: ["p1"] });
   });
 
+  it("getAiSuggestions chiama getJson con query", async () => {
+    await followupApi.getAiSuggestions("w1", ["p1", "p2"], 10);
+    expect(http.getJson).toHaveBeenCalledWith(
+      expect.stringMatching(/^\/ai\/suggestions\?workspaceId=w1&limit=10&projectIds=p1&projectIds=p2$/)
+    );
+  });
+
   it("generateAiSuggestions chiama postJson", async () => {
     await followupApi.generateAiSuggestions("w1", ["p1"], 10);
     expect(http.postJson).toHaveBeenCalledWith("/ai/suggestions", { workspaceId: "w1", projectIds: ["p1"], limit: 10 });
@@ -365,6 +372,14 @@ describe("followupApi", () => {
   it("decideAiSuggestion chiama postJson", async () => {
     await followupApi.decideAiSuggestion("s1", "approved", "u@test.com", "note");
     expect(http.postJson).toHaveBeenCalledWith("/ai/approvals", { suggestionId: "s1", decision: "approved", actorEmail: "u@test.com", note: "note" });
+  });
+
+  it("executeAiSuggestion chiama postJson", async () => {
+    await followupApi.executeAiSuggestion("s1", { actorEmail: "u@test.com", note: "n" });
+    expect(http.postJson).toHaveBeenCalledWith("/ai/suggestions/s1/execute", {
+      actorEmail: "u@test.com",
+      note: "n"
+    });
   });
 
   it("createAiActionDraft chiama postJson", async () => {

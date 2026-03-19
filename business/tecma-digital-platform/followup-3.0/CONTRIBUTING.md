@@ -6,6 +6,10 @@
 - Nessun push diretto su `main`.
 - PR obbligatoria per merge.
 
+## Regola base (deploy)
+
+Il build che passa in CI è lo stesso che esegue Render. **Non pushare su main (e non fare merge in main) se la CI non è verde:** così il deploy non fallisce per build. La CI esegue gli stessi script di build usati su Render (`scripts/render-build-fe.sh`, `scripts/render-build-be.sh` nella root del repo tecma). File mancanti o step diversi farebbero fallire la CI prima del deploy.
+
 ## Quality gates obbligatori
 
 PR mergeabile solo con:
@@ -42,3 +46,7 @@ Nota: la configurazione branch protection non è applicabile da repository local
 1. Abilitare hook locali una volta per clone: `npm run setup:githooks`.
 2. Verificare sempre `npm run check:secrets` prima di push.
 3. Vietato committare credenziali reali in `.env*`, docs o script.
+
+## Pre-push opzionale (build deploy)
+
+Dopo `npm run setup:githooks`, il hook **pre-push** esegue `npm run deploy:dry-run` (stessa build che usa Render). Consigliato prima di push su branch che andranno in main: se passa in locale, la CI e il deploy Render non falliranno per build. Per saltare il hook in emergenza: `git push --no-verify` (usare con cautela).

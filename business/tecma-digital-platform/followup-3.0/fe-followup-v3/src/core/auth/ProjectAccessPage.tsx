@@ -27,9 +27,9 @@ type AuthStatus = "pending" | "ok" | "fail";
 
 type ProjectTypeFilter = "all" | "rent" | "sell";
 
-function getProjectMode(project: ProjectAccessProject): "rent" | "sell" {
-  const s = `${project.id} ${project.name ?? ""} ${project.displayName ?? ""}`.toLowerCase();
-  return s.includes("rent") ? "rent" : "sell";
+/** Project mode from backend; fallback for legacy responses without mode. */
+function projectMode(project: ProjectAccessProject): "rent" | "sell" {
+  return project.mode === "rent" ? "rent" : "sell";
 }
 
 export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
@@ -181,7 +181,7 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
       );
     }
     if (typeFilter !== "all") {
-      list = list.filter((p) => getProjectMode(p) === typeFilter);
+      list = list.filter((p) => projectMode(p) === typeFilter);
     }
     return list;
   }, [access, filter, typeFilter, workspaceProjectIds]);
@@ -271,7 +271,7 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
 
   return (
     <div className="h-screen flex overflow-hidden bg-auth-page text-foreground font-body">
-      <div className="hidden lg:flex w-5/12 min-w-0 flex-col justify-between border-r border-border/60 bg-auth-sidebar px-12 py-12 overflow-hidden">
+      <div className="hidden md:flex w-5/12 min-w-0 flex-col justify-between border-r border-border/60 bg-auth-sidebar px-12 py-12 overflow-hidden">
         <div>
           <LogoTecma className="h-12 w-12 opacity-90" />
           <p className="mt-4 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Project access</p>
@@ -419,7 +419,7 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
                   </div>
                 </div>
 
-                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-ui border border-border bg-background/80">
+                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-ui border border-border bg-background/80 pb-24 md:pb-0">
                   {!access && !error && (
                     <div className="px-4 py-6 text-sm text-muted-foreground">
                       {meEmail ? "Caricamento progetti..." : "Caricamento..."}
@@ -437,7 +437,7 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
                     <ul className="divide-y divide-border">
                       {visibleProjects.map((project) => {
                         const isProjectSelected = selected.includes(project.id);
-                        const mode = getProjectMode(project);
+                        const mode = projectMode(project);
                         return (
                           <li key={project.id}>
                             <div
@@ -450,7 +450,7 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
                                   toggleProject(project);
                                 }
                               }}
-                              className="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted"
+                              className="flex w-full min-h-11 cursor-pointer items-center gap-3 px-4 py-3 text-left text-sm text-foreground hover:bg-muted"
                             >
                               <span onClick={(e) => e.stopPropagation()} className="flex-none">
                                 <Checkbox
@@ -482,15 +482,15 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
               </div>
             </section>
 
-            <footer className="flex-shrink-0 mt-6 pt-4 border-t border-border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-muted-foreground order-2 sm:order-1">
+            <footer className="flex-shrink-0 mt-6 pt-4 border-t border-border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between fixed bottom-0 left-0 right-0 z-10 bg-background border-t border-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:static md:mt-6 md:pt-4 md:px-0 md:py-0 ">
+              <p className="text-xs text-muted-foreground order-2 sm:order-1 hidden md:block">
                 Puoi cambiare progetti e ambiente dal menu in alto a destra.
               </p>
               <Button
                 type="button"
                 onClick={confirmSelection}
                 disabled={!canConfirm || loading}
-                className="w-full sm:w-auto order-1 sm:order-2"
+                className="w-full sm:w-auto order-1 sm:order-2 min-h-11"
               >
                 Entra in Followup
               </Button>

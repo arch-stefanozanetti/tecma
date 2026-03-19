@@ -22,6 +22,7 @@ import { setInventoryStatus } from "../inventory/inventory.service.js";
 import { dispatchEvent } from "../automations/automation-events.service.js";
 import { logger } from "../../observability/logger.js";
 import { batchLoadApartmentCodes, batchLoadClientNames } from "../shared/batch-enrich.service.js";
+import { namesFromDoc } from "../clients/client-name.util.js";
 
 /** Ruolo del cliente rispetto all'immobile (compravendita: venditore vs acquirente). */
 export type ClientRole = "buyer" | "seller" | "tenant" | "landlord";
@@ -255,10 +256,11 @@ export const getRequestById = async (rawId: unknown): Promise<{ request: Request
   if (row.clientId && ObjectId.isValid(row.clientId)) {
     const client = await db.collection("tz_clients").findOne(
       { _id: new ObjectId(row.clientId) },
-      { projection: { fullName: 1 } }
+      { projection: { fullName: 1, firstName: 1, lastName: 1 } }
     );
-    if (client && typeof (client as unknown as { fullName?: string }).fullName === "string") {
-      clientName = (client as unknown as { fullName: string }).fullName.trim() || row.clientId;
+    if (client) {
+      const n = namesFromDoc(client as Record<string, unknown>);
+      if (n.fullName && n.fullName !== "-") clientName = n.fullName;
     }
   }
   if (row.apartmentId && ObjectId.isValid(row.apartmentId)) {

@@ -2,6 +2,7 @@ import { ArrowLeft, Pencil } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { cn } from "../../lib/utils";
 import { statusLabel } from "./clientDetailConstants";
+import { clientDisplayName } from "./ClientsPage.utils";
 import type { ClientRow } from "../../types/domain";
 
 export interface ClientDetailHeaderProps {
@@ -33,7 +34,7 @@ export default function ClientDetailHeader({ client, onBack, onOpenEdit, loading
 
       <header className="flex flex-wrap items-start gap-3 border-b border-border pb-4">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">{client.fullName}</h1>
+          <h1 className="text-2xl font-semibold text-foreground">{clientDisplayName(client)}</h1>
           <span
             className={cn(
               "mt-1 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium",

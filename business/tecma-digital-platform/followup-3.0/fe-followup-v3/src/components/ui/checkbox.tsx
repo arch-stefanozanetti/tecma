@@ -111,7 +111,8 @@ const CheckboxWithLabel = React.forwardRef<HTMLButtonElement, CheckboxWithLabelP
     },
     ref
   ) => {
-    const id = idProp ?? React.useId();
+    const generatedId = React.useId();
+    const id = idProp ?? generatedId;
     const checkboxRef = React.useRef<HTMLButtonElement>(null);
     React.useImperativeHandle(ref, () => checkboxRef.current!);
 

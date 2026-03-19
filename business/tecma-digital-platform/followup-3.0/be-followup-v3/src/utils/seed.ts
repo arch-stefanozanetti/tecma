@@ -91,6 +91,8 @@ const seed = async () => {
     {
       workspaceId: dataWorkspaceId,
       projectId: "fake-sell-01",
+      firstName: "Mario",
+      lastName: "Rossi",
       fullName: "Mario Rossi",
       email: "mario.rossi@example.com",
       phone: "+39333111222",
@@ -100,6 +102,8 @@ const seed = async () => {
     {
       workspaceId: dataWorkspaceId,
       projectId: "fake-rent-01",
+      firstName: "Laura",
+      lastName: "Bianchi",
       fullName: "Laura Bianchi",
       email: "laura.bianchi@example.com",
       phone: "+39333999888",
@@ -114,6 +118,8 @@ const seed = async () => {
     return {
       workspaceId: dataWorkspaceId,
       projectId: isSell ? "fake-sell-01" : "fake-rent-01",
+      firstName: "Cliente",
+      lastName: `Demo ${String(n).padStart(2, "0")}`,
       fullName: `Cliente Demo ${String(n).padStart(2, "0")}`,
       email: `cliente.demo${n}@example.com`,
       phone: `+39333111${String(200 + n).padStart(3, "0")}`,

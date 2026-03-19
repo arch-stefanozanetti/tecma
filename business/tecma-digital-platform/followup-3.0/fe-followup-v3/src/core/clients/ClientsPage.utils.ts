@@ -1,3 +1,11 @@
+import type { ClientRow } from "../../types/domain";
+
+/** Nome mostrato in elenchi e intestazioni (nome + cognome, con fallback su fullName legacy). */
+export function clientDisplayName(c: Pick<ClientRow, "firstName" | "lastName" | "fullName">): string {
+  const joined = `${c.firstName ?? ""} ${c.lastName ?? ""}`.trim();
+  return joined || c.fullName || "—";
+}
+
 const STATUS_LABEL: Record<string, string> = {
   lead: "Lead",
   Lead: "Lead",

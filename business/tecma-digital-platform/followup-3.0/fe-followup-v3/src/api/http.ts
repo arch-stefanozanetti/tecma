@@ -53,14 +53,14 @@ interface RefreshResponse {
   expiresIn?: string;
 }
 
-const useBssAuth = (): boolean =>
+const isBssAuthEnabled = (): boolean =>
   typeof import.meta.env.VITE_USE_BSS_AUTH === "string" &&
   import.meta.env.VITE_USE_BSS_AUTH.toLowerCase() === "true";
 
 const callRefresh = async (): Promise<RefreshResponse> => {
   const refreshToken = getRefreshToken();
   if (!refreshToken) throw new Error("No refresh token");
-  if (useBssAuth()) {
+  if (isBssAuthEnabled()) {
     const { refreshBss } = await import("./bssAuthAdapter");
     return refreshBss(refreshToken);
   }

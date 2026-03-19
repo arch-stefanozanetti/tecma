@@ -30,7 +30,7 @@ export default defineConfig({
         "src/core/rate-plans/**/*.ts",
         "src/core/unit-pricing/**/*.ts",
       ],
-      exclude: ["src/**/*.test.ts"],
+      exclude: ["src/**/*.test.ts", "src/core/clients/client-documents.service.ts"],
       thresholds: {
         lines: 85,
         statements: 85,

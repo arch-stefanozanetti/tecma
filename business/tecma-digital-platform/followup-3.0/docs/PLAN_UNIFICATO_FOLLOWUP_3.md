@@ -1,22 +1,24 @@
 # Followup 3.0 — Piano unificato (unico riferimento)
 
-**Ultimo aggiornamento:** 2026-03-06  
+**Ultimo aggiornamento:** 2026-03-19  
+
+**Backlog operativo unico:** [docs/plans/2026-03-19-followup-backlog-attivo.md](plans/2026-03-19-followup-backlog-attivo.md).
 
 ## Prossimi passi (ripartenza)
 
 | Priorità | Cosa |
 |----------|------|
-| 1 | **Wave 5** — primo endpoint/API riusabile (es. listing) con contratto stabile e OpenAPI. |
-| 2 | **Workspace users (Fase 1 BE)** — `user.workspaces[]` su test-zanetti, route `GET/POST/PATCH/DELETE /workspaces/:id/users` così “Aggiungi utente” funziona. |
-| 3 | **Project access + drawer (Fase 1–3)** — `tz_workspace_user_projects`, estensione `getProjectAccessByEmail`, drawer progetti nel FE. |
-| 4 | **Wave 7** — AI read-only, approvazioni draft (dopo o in parallelo a 5 se priorità prodotto). |
+| 1 | **Workspace users (Fase 1 BE)** — `user.workspaces[]` su test-zanetti, route `GET/POST/PATCH/DELETE /workspaces/:id/users` così “Aggiungi utente” funziona. |
+| 2 | **Project access + drawer (Fase 1–3)** — `tz_workspace_user_projects`, estensione `getProjectAccessByEmail`, drawer progetti nel FE. |
+| 3 | **Wave 7** — AI cockpit (aggregazione suggerimenti, poi approvazioni draft) — vedi `docs/plans/2026-03-19-aggregated-ai-suggestions-*.md`. |
+| 4 | **API esterne** — autenticazione connettori (API key/OAuth) oltre a OpenAPI già presente per listing/query — vedi Millennium W4 e backlog attivo stream B. |
 | 5 | **Entity assignments + matching** — come da tabelle in sez. 4 e 6. |
 
 Dettaglio step-by-step: **sez. 4** (workspace) e **sez. 7** sotto.
 
 ---
 
-**Uso:** questo documento è il **piano di riferimento unico** per il progetto. Fonti di dettaglio (in **[archive/](archive/)**, non backlog attivo):
+**Uso:** questo documento è il **piano di riferimento** per workspace, segregazione e wave; le **priorità operative correnti** stanno in [docs/plans/2026-03-19-followup-backlog-attivo.md](plans/2026-03-19-followup-backlog-attivo.md). Fonti di dettaglio (in **[archive/](archive/)**, non backlog attivo):
 
 - [FOLLOWUP_3_MASTER.md](FOLLOWUP_3_MASTER.md) — visione, wave, principi
 - [archive/PLAN-user-workspace-projects-and-view-segregation.md](archive/PLAN-user-workspace-projects-and-view-segregation.md) — utenti workspace, progetti, segregazione view
@@ -38,7 +40,7 @@ Dettaglio step-by-step: **sez. 4** (workspace) e **sez. 7** sotto.
 1. Rispettare l’ordine delle wave; non saltare avanti senza chiudere i task correnti.
 2. UX e semplicità prima delle feature; ogni schermata deve ridurre frizione.
 3. Legacy: solo lettura o estensioni additive (`tz_*`).
-4. Un solo piano: questo documento; aggiornarlo quando si chiude una wave o si aggiunge un task concordato.
+4. Un solo piano strutturale: questo documento + MASTER; aggiornare il [backlog attivo](plans/2026-03-19-followup-backlog-attivo.md) per lo stato “cosa fare ora”.
 
 ---
 
@@ -59,7 +61,7 @@ Riferimenti: [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), [DESIGN_SYSTEM_COMPONENTS_WAV
 | 2    | Design system        | Completata |
 | 3    | UX core              | Completata |
 | 4    | Requests / rent+sell | Completata |
-| 5    | API riusabili        | Da fare    |
+| 5    | API riusabili        | Completata |
 | 6    | Hardening auth       | Completata |
 | 7    | AI e automazioni     | Da fare    |
 
@@ -75,6 +77,8 @@ Riferimenti: [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), [DESIGN_SYSTEM_COMPONENTS_WAV
 
 - Almeno un endpoint riutilizzabile (es. listing) con contratto stabile e OpenAPI.
 - Documentazione: quali API sono “core CRM” e quali “servizi riusabili”.
+
+**Stato 2026-03-19:** spec OpenAPI in `be-followup-v3/openapi/openapi.v1.yaml`, esposizione `GET /v1/openapi.json`. Resta da produrre/rafforzare la **distinzione documentale** core vs servizi riusabili e l’**auth per connettori esterni** (backlog attivo, stream B).
 
 ### Wave 7 — AI e automazioni
 

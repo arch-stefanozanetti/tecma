@@ -1,16 +1,32 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Calendar, Clock, Euro, Building2, Users, CalendarDays, Home, Handshake, UserPlus, CalendarPlus, ChevronRight } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  Euro,
+  Building2,
+  Users,
+  CalendarDays,
+  Home,
+  Handshake,
+  UserPlus,
+  CalendarPlus,
+  ChevronRight,
+  RefreshCw,
+} from "lucide-react";
 import moment from "moment";
 import "moment/locale/it";
 import { followupApi } from "../../api/followupApi";
 import { useWorkspace } from "../../auth/projectScope";
+import { useToast } from "../../contexts/ToastContext";
 import { useIsMobile } from "../shared/useIsMobile";
 import { isPriceAvailabilityRelevant } from "../features";
 import type { CalendarEvent, ClientRow, RequestRow } from "../../types/domain";
 import type { AiSuggestion, ProjectAccessProject } from "../../types/domain";
 import { Button } from "../../components/ui/button";
 import { cn } from "../../lib/utils";
+import { PrioritySuggestionsList, type PriorityActionItem } from "./PrioritySuggestionsList";
+import { AgentExecutionResultSheet, type AgentExecutionResult } from "./AgentExecutionResultSheet";
 
 moment.locale("it");
 
@@ -35,48 +51,39 @@ const getSectionForAction = (action: string): SectionId => {
   return "clients";
 }
 
-type Urgency = "risk" | "opportunity" | "followup";
-
-interface ActionCard {
-  id: string;
-  suggestionId?: string;
-  clientName: string;
-  urgency: Urgency;
-  context: string;
-  action: string;
-  apartment?: string;
-  daysSinceContact?: number;
-  dealValue?: number;
-}
-
-const URGENCY_CFG: Record<Urgency, { label: string; badgeBg: string; badgeText: string }> = {
-  risk: { label: "Urgente", badgeBg: "bg-red-50", badgeText: "text-red-600" },
-  opportunity: { label: "Opportunità", badgeBg: "bg-indigo-50", badgeText: "text-indigo-600" },
-  followup: { label: "Follow-up", badgeBg: "bg-emerald-50", badgeText: "text-emerald-600" },
-};
-
-const suggestionToCard = (s: AiSuggestion): ActionCard => ({
+const suggestionToCard = (s: AiSuggestion): PriorityActionItem => ({
   id: s._id,
   suggestionId: s._id,
-  clientName: s.title,
+  title: s.title,
   urgency: s.risk === "high" ? "risk" : s.risk === "medium" ? "opportunity" : "followup",
   context: s.reason,
   action: s.recommendedAction,
   dealValue: undefined,
   daysSinceContact: undefined,
+  aggregatedKind: s.aggregatedKind,
+  aggregatedItems:
+    s.aggregatedItems && s.aggregatedItems.length > 0 ? s.aggregatedItems.map((i) => ({ ...i })) : undefined,
 });
 
-const MAX_PRIORITY_TILES = 8;
+/** Allineato a MAX_SUGGESTION_GROUPS nel BE: max macro-card Priorità operative. */
+const MAX_PRIORITY_GROUPS = 8;
 
 export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, onNavigateToSection, isAdmin }: CockpitPageProps) => {
   const isMobile = useIsMobile();
   const { email: scopeEmail, projects: scopeProjects } = useWorkspace();
   /** Usa progetti passati da App (filtrati per workspace) se disponibili, altrimenti scope */
   const projects = projectsProp ?? scopeProjects ?? [];
-  const [actions, setActions] = useState<ActionCard[]>([]);
+  const [actions, setActions] = useState<PriorityActionItem[]>([]);
   const [suggestionsLoaded, setSuggestionsLoaded] = useState(false);
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
   const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
+  const [llmUsedForSuggestions, setLlmUsedForSuggestions] = useState<boolean | null>(null);
+  const [suggestionsFromCache, setSuggestionsFromCache] = useState(true);
+  const [suggestionsRefreshing, setSuggestionsRefreshing] = useState(false);
+  const [executingSuggestionId, setExecutingSuggestionId] = useState<string | null>(null);
+  const [agentSheetOpen, setAgentSheetOpen] = useState(false);
+  const [lastAgentResult, setLastAgentResult] = useState<AgentExecutionResult | null>(null);
+  const { toast, toastError } = useToast();
   const [todayEvents, setTodayEvents] = useState<CalendarEvent[]>([]);
   const [kpi, setKpi] = useState<{
     apartments: number | null;
@@ -89,6 +96,76 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
   const [recentClients, setRecentClients] = useState<ClientRow[]>([]);
   const [recentRequests, setRecentRequests] = useState<RequestRow[]>([]);
   const navigate = useNavigate();
+
+  const applySuggestionsResponse = useCallback(
+    (res: { data?: AiSuggestion[]; aiConfigured?: boolean; llmUsed?: boolean | null }, fromCache: boolean) => {
+      const cards = (res.data || []).map(suggestionToCard);
+      setActions(cards);
+      setAiConfigured(res.aiConfigured ?? true);
+      setLlmUsedForSuggestions(res.llmUsed === true ? true : res.llmUsed === false ? false : null);
+      setSuggestionsFromCache(fromCache);
+    },
+    []
+  );
+
+  const handleRefreshSuggestions = useCallback(() => {
+    if (!workspaceId || projectIds.length === 0) return;
+    setSuggestionsRefreshing(true);
+    setSuggestionsError(null);
+    followupApi
+      .generateAiSuggestions(workspaceId, projectIds, MAX_PRIORITY_GROUPS)
+      .then((res) => {
+        applySuggestionsResponse(res, false);
+        toast({
+          title: "Suggerimenti aggiornati",
+          description: "È stato generato un nuovo batch e salvato in elenco.",
+          variant: "success",
+          autoHideDuration: 4500,
+        });
+      })
+      .catch(() => {
+        setSuggestionsError("Impossibile aggiornare i suggerimenti. Riprova tra poco.");
+        toastError("Aggiornamento suggerimenti non riuscito");
+      })
+      .finally(() => setSuggestionsRefreshing(false));
+  }, [workspaceId, projectIds, applySuggestionsResponse, toast, toastError]);
+
+  const handleExecuteWithAi = async (item: PriorityActionItem) => {
+    const sid = item.suggestionId;
+    if (!sid || !scopeEmail) return;
+    setExecutingSuggestionId(sid);
+    try {
+      const res = await followupApi.executeAiSuggestion(sid, { actorEmail: scopeEmail });
+      const result: AgentExecutionResult = {
+        summary: res.summary,
+        toolLog: res.toolLog ?? [],
+        steps: res.steps ?? 0,
+      };
+      setLastAgentResult(result);
+      setAgentSheetOpen(true);
+      toast({
+        title: "Esecuzione AI completata",
+        description: "Usa «Vedi dettagli» per sintesi e elenco tool eseguiti.",
+        variant: "success",
+        autoHideDuration: 8000,
+        actions: (
+          <Button type="button" variant="outline" size="sm" className="min-h-9 rounded-lg" onClick={() => setAgentSheetOpen(true)}>
+            Vedi dettagli
+          </Button>
+        ),
+      });
+      try {
+        await followupApi.decideAiSuggestion(sid, "approved", scopeEmail, "Eseguito con AI (agente)");
+      } catch {
+        /* approvazione best-effort */
+      }
+      setActions((prev) => prev.filter((a) => a.id !== item.id));
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : "Esecuzione AI non riuscita");
+    } finally {
+      setExecutingSuggestionId(null);
+    }
+  };
 
   useEffect(() => {
     if (!workspaceId || projectIds.length === 0) return;
@@ -118,22 +195,29 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
 
   useEffect(() => {
     if (!workspaceId || projectIds.length === 0) return;
+    let cancelled = false;
     setSuggestionsError(null);
+    setSuggestionsLoaded(false);
     followupApi
-      .generateAiSuggestions(workspaceId, projectIds, 10)
+      .getAiSuggestions(workspaceId, projectIds, MAX_PRIORITY_GROUPS)
       .then((res) => {
-        const cards = (res.data || []).map(suggestionToCard);
-        setActions(cards);
-        setAiConfigured(res.aiConfigured ?? true);
+        if (cancelled) return;
+        applySuggestionsResponse(res, true);
         setSuggestionsLoaded(true);
       })
       .catch(() => {
+        if (cancelled) return;
         setActions([]);
         setAiConfigured(null);
+        setLlmUsedForSuggestions(null);
+        setSuggestionsFromCache(true);
         setSuggestionsError("Impossibile caricare i suggerimenti. Verifica la connessione e la configurazione AI del workspace.");
         setSuggestionsLoaded(true);
       });
-  }, [workspaceId, projectIds]);
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId, projectIds, applySuggestionsResponse]);
 
   useEffect(() => {
     if (!workspaceId || projectIds.length === 0) return;
@@ -170,7 +254,7 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
         .slice(0, 5),
     [todayEvents]
   );
-  const priorityActions = useMemo(() => actions.slice(0, MAX_PRIORITY_TILES), [actions]);
+  const priorityActions = useMemo(() => actions.slice(0, MAX_PRIORITY_GROUPS), [actions]);
 
   const isLoading = !suggestionsLoaded && actions.length === 0;
 
@@ -405,16 +489,46 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
           )}
         </div>
 
-        {/* ── Priorità operative (griglia di tile) ───────────────────────────── */}
+        {/* ── Priorità operative ─────────────────────────────────────────────── */}
         <div>
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Priorità operative</h2>
+          <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 flex-1 space-y-1">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Priorità operative</h2>
+              {aiConfigured === true && llmUsedForSuggestions === false && (
+                <p className="text-xs text-muted-foreground">
+                  Suggerimenti da regole interne (LLM non disponibile o disabilitato). Verifica la API key e i limiti del provider.
+                </p>
+              )}
+              {aiConfigured === true && llmUsedForSuggestions === true && (
+                <p className="text-xs text-muted-foreground">Suggerimenti raffinati dal modello AI con i dati del workspace.</p>
+              )}
+              {aiConfigured === true && llmUsedForSuggestions === null && suggestionsFromCache && actions.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Elenco da database (batch misto o storico). Usa «Aggiorna» per un nuovo set coerente.
+                </p>
+              )}
+            </div>
+            {aiConfigured === true && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-11 shrink-0 rounded-lg"
+                disabled={suggestionsRefreshing}
+                onClick={() => void handleRefreshSuggestions()}
+              >
+                <RefreshCw className={cn("mr-2 h-4 w-4 shrink-0", suggestionsRefreshing && "animate-spin")} />
+                Aggiorna suggerimenti
+              </Button>
+            )}
+          </div>
           {isLoading ? (
             <p className="rounded-lg border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground">Caricamento azioni suggerite...</p>
           ) : suggestionsError ? (
             <div className="rounded-lg border border-border bg-card px-4 py-8 text-center">
               <p className="text-sm text-muted-foreground">{suggestionsError}</p>
               {isAdmin && (
-                <Button className="mt-3 min-h-11" size="sm" onClick={() => navigate("/workspaces")}>
+                <Button className="mt-3 min-h-11" size="sm" onClick={() => navigate("/workspace")}>
                   Vai a Workspaces per configurare l&apos;AI
                 </Button>
               )}
@@ -425,61 +539,35 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
                 Nessun provider AI collegato. Collega un provider AI al workspace (Claude, ChatGPT, Gemini, ecc.) per abilitare i suggerimenti e le funzioni AI.
               </p>
               {isAdmin && (
-                <Button className="mt-3 min-h-11" size="sm" onClick={() => navigate("/workspaces")}>
+                <Button className="mt-3 min-h-11" size="sm" onClick={() => navigate("/workspace")}>
                   Vai a Workspaces per collegare un provider AI
                 </Button>
               )}
             </div>
           ) : priorityActions.length === 0 ? (
-            <p className="rounded-lg border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground">Nessun suggerimento al momento.</p>
-          ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {priorityActions.map((item) => {
-                const cfg = URGENCY_CFG[item.urgency];
-                return (
-                  <div
-                    key={item.id}
-                    className="flex flex-col rounded-lg border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/30"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide", cfg.badgeBg, cfg.badgeText)}>
-                        {cfg.label}
-                      </span>
-                    </div>
-                    <h3 className="mt-2 font-semibold text-foreground">{item.clientName}</h3>
-                    {item.apartment && <p className="mt-0.5 text-xs text-muted-foreground">{item.apartment}</p>}
-                    <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{item.context}</p>
-                    {(item.daysSinceContact !== undefined || item.dealValue !== undefined) && (
-                      <div className="mt-2 flex flex-wrap gap-3 text-xs">
-                        {item.daysSinceContact !== undefined && (
-                          <span className="flex items-center gap-1 text-red-600">
-                            <Clock className="h-3 w-3" />
-                            {item.daysSinceContact} giorni
-                          </span>
-                        )}
-                        {item.dealValue !== undefined && (
-                          <span className="flex items-center gap-1 font-medium text-foreground">
-                            <Euro className="h-3 w-3" />
-                            {item.dealValue.toLocaleString("it-IT")}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {onNavigateToSection && (
-                      <Button
-                        className="mt-4 min-h-11 w-full rounded-lg"
-                        size="sm"
-                        onClick={() => onNavigateToSection(getSectionForAction(item.action))}
-                      >
-                        {item.action}
-                      </Button>
-                    )}
-                  </div>
-                );
-              })}
+            <div className="rounded-lg border border-border bg-card px-4 py-8 text-center">
+              <p className="text-sm text-muted-foreground">Nessun suggerimento in sospeso in elenco.</p>
+              {aiConfigured === true && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Clicca «Aggiorna suggerimenti» per generarne di nuovi dai dati attuali del workspace (vengono aggiunti in database).
+                </p>
+              )}
             </div>
+          ) : (
+            <PrioritySuggestionsList
+              items={priorityActions}
+              executingSuggestionId={executingSuggestionId}
+              scopeEmail={scopeEmail}
+              onExecuteWithAi={(item) => void handleExecuteWithAi(item)}
+              onNavigateToSection={
+                onNavigateToSection
+                  ? (section, state) => onNavigateToSection(section as SectionId, state)
+                  : undefined
+              }
+              getSectionForAction={getSectionForAction}
+            />
           )}
-          {actions.length > MAX_PRIORITY_TILES && onNavigateToSection && (
+          {actions.length > MAX_PRIORITY_GROUPS && onNavigateToSection && (
             <div className="mt-3 text-center">
               <Button variant="outline" size="sm" className="min-h-11 rounded-lg" onClick={() => onNavigateToSection("requests")}>
                 Vedi tutte le trattative
@@ -488,6 +576,8 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
           )}
         </div>
       </div>
+
+      <AgentExecutionResultSheet open={agentSheetOpen} onOpenChange={setAgentSheetOpen} result={lastAgentResult} />
     </div>
   );
 };

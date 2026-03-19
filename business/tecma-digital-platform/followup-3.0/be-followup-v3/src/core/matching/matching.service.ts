@@ -1,5 +1,6 @@
 import { getDb } from "../../config/db.js";
 import { getClientById } from "../clients/clients.service.js";
+import { namesFromDoc } from "../clients/client-name.util.js";
 import { getApartmentById } from "../apartments/apartments.service.js";
 
 const DEFAULT_SCORE = 80;
@@ -83,15 +84,16 @@ export async function getApartmentCandidates(
   const cursor = db
     .collection("tz_clients")
     .find({ projectId })
-    .project({ _id: 1, fullName: 1, email: 1, status: 1 });
+    .project({ _id: 1, fullName: 1, firstName: 1, lastName: 1, email: 1, status: 1 });
 
   const docs = await cursor.toArray();
   const data: CandidateEntry<ClientCandidateItem>[] = docs.map((d) => {
     const raw = d as Record<string, unknown>;
+    const n = namesFromDoc(raw);
     return {
       item: {
         _id: String(raw._id ?? ""),
-        fullName: String(raw.fullName ?? "-"),
+        fullName: n.fullName,
         email: typeof raw.email === "string" && raw.email ? raw.email : undefined,
         status: String(raw.status ?? "lead"),
       },

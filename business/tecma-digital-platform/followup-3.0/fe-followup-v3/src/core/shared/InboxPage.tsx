@@ -142,7 +142,7 @@ export function InboxPage({ workspaceId, onSectionChange, navigate }: InboxPageP
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-3">
           <Select value={readFilter} onValueChange={(v) => setReadFilter(v as typeof readFilter)}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="min-h-11 w-[140px]">
               <SelectValue placeholder="Stato" />
             </SelectTrigger>
             <SelectContent>
@@ -152,7 +152,7 @@ export function InboxPage({ workspaceId, onSectionChange, navigate }: InboxPageP
             </SelectContent>
           </Select>
           <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="min-h-11 w-[180px]">
               <SelectValue placeholder="Tipo" />
             </SelectTrigger>
             <SelectContent>
@@ -182,7 +182,7 @@ export function InboxPage({ workspaceId, onSectionChange, navigate }: InboxPageP
             />
           </div>
           {unreadInList > 0 && (
-            <Button variant="outline" size="sm" onClick={handleMarkAllRead}>
+            <Button variant="outline" size="sm" className="min-h-11" onClick={handleMarkAllRead}>
               Segna tutte come lette
             </Button>
           )}
@@ -213,7 +213,7 @@ export function InboxPage({ workspaceId, onSectionChange, navigate }: InboxPageP
                       }
                     }}
                     className={cn(
-                      "flex items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 cursor-pointer",
+                      "flex min-h-11 items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 cursor-pointer",
                       !n.read && "bg-muted/30"
                     )}
                   >
@@ -231,7 +231,7 @@ export function InboxPage({ workspaceId, onSectionChange, navigate }: InboxPageP
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="shrink-0"
+                        className="min-h-11 min-w-11 shrink-0"
                         onClick={(e) => handleMarkRead(e, n)}
                         title="Segna come letto"
                       >
@@ -252,6 +252,7 @@ export function InboxPage({ workspaceId, onSectionChange, navigate }: InboxPageP
                   <Button
                     variant="outline"
                     size="sm"
+                    className="min-h-11"
                     disabled={page <= 1}
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                   >
@@ -260,6 +261,7 @@ export function InboxPage({ workspaceId, onSectionChange, navigate }: InboxPageP
                   <Button
                     variant="outline"
                     size="sm"
+                    className="min-h-11"
                     disabled={page >= totalPages}
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   >

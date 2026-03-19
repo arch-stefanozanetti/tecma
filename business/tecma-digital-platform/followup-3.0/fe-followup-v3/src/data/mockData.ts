@@ -4,6 +4,8 @@ import type { CockpitFeedItem } from "./types";
 export const mockClients: ClientRow[] = Array.from({ length: 64 }).map((_, index) => ({
   _id: `client-${index + 1}`,
   projectId: index % 2 === 0 ? "proj-alpha" : "proj-beta",
+  firstName: "Cliente",
+  lastName: `${index + 1} Demo`,
   fullName: `Cliente ${index + 1} Demo`,
   email: `cliente${index + 1}@example.com`,
   phone: `+39 333 10${String(index).padStart(3, "0")}`,

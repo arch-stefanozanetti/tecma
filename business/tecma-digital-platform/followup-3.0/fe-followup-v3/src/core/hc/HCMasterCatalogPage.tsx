@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { followupApi } from "../../api/followupApi";
 import type { HCMasterEntity, HCMasterEntityRecord } from "../../types/domain";
+import { useIsMobile } from "../shared/useIsMobile";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { cn } from "../../lib/utils";
 
 interface HCMasterCatalogPageProps {
   workspaceId: string;
@@ -18,6 +20,7 @@ const entities: Array<{ id: HCMasterEntity; label: string }> = [
 ];
 
 export const HCMasterCatalogPage = ({ workspaceId, projectIds }: HCMasterCatalogPageProps) => {
+  const isMobile = useIsMobile();
   const [entity, setEntity] = useState<HCMasterEntity>("section");
   const [rows, setRows] = useState<HCMasterEntityRecord[]>([]);
   const [code, setCode] = useState("");
@@ -104,7 +107,7 @@ export const HCMasterCatalogPage = ({ workspaceId, projectIds }: HCMasterCatalog
 
         <div className="tab-pills">
           {entities.map((item) => (
-            <button key={item.id} className={`tab-pill ${item.id === entity ? "active" : ""}`} onClick={() => setEntity(item.id)}>
+            <button key={item.id} type="button" className={cn("tab-pill min-h-11", item.id === entity && "active")} onClick={() => setEntity(item.id)}>
               {item.label}
             </button>
           ))}
@@ -112,7 +115,7 @@ export const HCMasterCatalogPage = ({ workspaceId, projectIds }: HCMasterCatalog
 
         <div className="project-access-form">
           <Input placeholder="Search" value={searchText} onChange={(e) => setSearchText(e.target.value)} className="min-w-[200px]" />
-          <Button variant="outline" type="button" onClick={() => void load()}>
+          <Button variant="outline" type="button" className="min-h-11" onClick={() => void load()}>
             Refresh
           </Button>
         </div>
@@ -131,13 +134,45 @@ export const HCMasterCatalogPage = ({ workspaceId, projectIds }: HCMasterCatalog
             <Input value={description} onChange={(e) => setDescription(e.target.value)} className="w-full" />
           </label>
           <div className="hc-actions">
-            <Button type="button" onClick={create} disabled={!canCreate}>
+            <Button type="button" className="min-h-11" onClick={create} disabled={!canCreate}>
               Crea elemento
             </Button>
           </div>
         </div>
 
-        <div className="table-clients hc-table">
+        {/* Vista card su mobile */}
+        {isMobile && (
+          <div className="space-y-3 md:hidden">
+            {rows.map((row) => (
+              <div key={row._id} className="rounded-ui border border-border bg-card p-4 shadow-sm">
+                <p className="font-medium text-foreground">{row.code}</p>
+                {editingId === row._id ? (
+                  <>
+                    <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="mt-2 w-full" />
+                    <Input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="mt-2 w-full" />
+                    <div className="mt-3 flex gap-2">
+                      <Button type="button" className="min-h-11" onClick={() => row._id && saveEdit(row._id)}>Salva</Button>
+                      <Button variant="outline" type="button" className="min-h-11" onClick={() => setEditingId(null)}>Annulla</Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-muted-foreground mt-0.5">{row.name}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{row.description ?? "-"}</p>
+                    <div className="mt-3 flex gap-2">
+                      <Button variant="outline" type="button" className="min-h-11" onClick={() => startEdit(row)}>Modifica</Button>
+                      {row._id && (
+                        <Button variant="outline" type="button" className="min-h-11" onClick={() => remove(row._id!)}>Elimina</Button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className={cn("table-clients hc-table", isMobile && "hidden md:block")}>
           <div className="clients-table-scroll">
             <table>
               <thead>
@@ -169,16 +204,16 @@ export const HCMasterCatalogPage = ({ workspaceId, projectIds }: HCMasterCatalog
                     <td>
                       <div className="project-access-form">
                         {editingId === row._id ? (
-                          <Button type="button" onClick={() => row._id && saveEdit(row._id)}>
+                          <Button type="button" className="min-h-11" onClick={() => row._id && saveEdit(row._id)}>
                             Save
                           </Button>
                         ) : (
-                          <Button variant="outline" type="button" onClick={() => startEdit(row)}>
+                          <Button variant="outline" type="button" className="min-h-11" onClick={() => startEdit(row)}>
                             Edit
                           </Button>
                         )}
                         {row._id && (
-                          <Button variant="outline" type="button" onClick={() => remove(row._id!)}>
+                          <Button variant="outline" type="button" className="min-h-11" onClick={() => remove(row._id!)}>
                             Elimina
                           </Button>
                         )}

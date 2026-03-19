@@ -333,7 +333,7 @@ export function ApiTab({ workspaceId, isAdmin }: ApiTabProps) {
           <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 font-mono text-sm">
             <code className="flex-1 truncate text-foreground">{baseUrl || "—"}</code>
             {baseUrl && (
-              <Button variant="ghost" size="sm" className="shrink-0 gap-1" onClick={copyBaseUrl}>
+              <Button variant="ghost" size="sm" className="min-h-11 shrink-0 gap-1" onClick={copyBaseUrl}>
                 <Copy className="h-3.5 w-3.5" />
                 Copia
               </Button>
@@ -434,11 +434,11 @@ export function ApiTab({ workspaceId, isAdmin }: ApiTabProps) {
               </label>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Button className="gap-2" onClick={() => void createKey()} disabled={!formLabel.trim()}>
+              <Button className="min-h-11 gap-2" onClick={() => void createKey()} disabled={!formLabel.trim()}>
                 <KeyRound className="h-4 w-4" />
                 Crea API key
               </Button>
-              <Button variant="outline" className="gap-2" onClick={() => void fetchPlatformData()} disabled={loading}>
+              <Button variant="outline" className="min-h-11 gap-2" onClick={() => void fetchPlatformData()} disabled={loading}>
                 <RefreshCw className="h-4 w-4" />
                 Aggiorna
               </Button>
@@ -450,7 +450,7 @@ export function ApiTab({ workspaceId, isAdmin }: ApiTabProps) {
                 <p className="mt-1 font-mono text-xs text-amber-900 break-all">{generatedSecret}</p>
                 <div className="mt-2 flex items-center gap-2">
                   <span className="text-xs text-amber-800">Mask: {generatedMasked}</span>
-                  <Button variant="outline" size="sm" onClick={copyGeneratedSecret}>Copia secret</Button>
+                  <Button variant="outline" size="sm" className="min-h-11" onClick={copyGeneratedSecret}>Copia secret</Button>
                 </div>
               </div>
             )}
@@ -478,10 +478,10 @@ export function ApiTab({ workspaceId, isAdmin }: ApiTabProps) {
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => void rotateKey(key._id)}>
+                          <Button variant="outline" size="sm" className="min-h-11" onClick={() => void rotateKey(key._id)}>
                             Ruota
                           </Button>
-                          <Button variant="destructive" size="sm" className="gap-1" onClick={() => void revokeKey(key._id)}>
+                          <Button variant="destructive" size="sm" className="min-h-11 gap-1" onClick={() => void revokeKey(key._id)}>
                             <Trash2 className="h-3.5 w-3.5" />
                             Revoca
                           </Button>
@@ -521,8 +521,8 @@ export function ApiTab({ workspaceId, isAdmin }: ApiTabProps) {
               </select>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => void createSignature()}>Crea richiesta firma</Button>
-              <Button variant="outline" onClick={() => void loadSignatureStatus()}>Aggiorna status firma</Button>
+              <Button className="min-h-11" onClick={() => void createSignature()}>Crea richiesta firma</Button>
+              <Button variant="outline" className="min-h-11" onClick={() => void loadSignatureStatus()}>Aggiorna status firma</Button>
             </div>
             <div className="overflow-x-auto rounded-lg border border-border">
               <table className="w-full text-sm">
@@ -576,8 +576,8 @@ export function ApiTab({ workspaceId, isAdmin }: ApiTabProps) {
               />
             </label>
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => void createWorkflow()}>Crea workflow</Button>
-              <Button variant="outline" onClick={() => void runMarketing()}>Esegui due now</Button>
+              <Button className="min-h-11" onClick={() => void createWorkflow()}>Crea workflow</Button>
+              <Button variant="outline" className="min-h-11" onClick={() => void runMarketing()}>Esegui due now</Button>
             </div>
             <ul className="space-y-2">
               {marketingWorkflows.map((wf) => (
@@ -610,8 +610,8 @@ export function ApiTab({ workspaceId, isAdmin }: ApiTabProps) {
               <Input value={mlsListingBaseUrl} onChange={(e) => setMlsListingBaseUrl(e.target.value)} placeholder="Listing base URL (opzionale)" />
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => void createMlsMapping()}>Crea/ruota mapping MLS</Button>
-              <Button variant="outline" onClick={() => void runMlsReconcile()}>Run reconciliation</Button>
+              <Button className="min-h-11" onClick={() => void createMlsMapping()}>Crea/ruota mapping MLS</Button>
+              <Button variant="outline" className="min-h-11" onClick={() => void runMlsReconcile()}>Run reconciliation</Button>
             </div>
             {(mlsApiKeySecret || mlsApiKeyMasked) && (
               <div className="rounded border border-amber-500/40 bg-amber-50 p-3 text-xs">
@@ -651,7 +651,7 @@ export function ApiTab({ workspaceId, isAdmin }: ApiTabProps) {
                         {alert.severity} - {new Date(alert.createdAt).toLocaleString("it-IT")}
                       </span>
                       {!alert.acknowledgedAt && (
-                        <Button size="sm" variant="outline" onClick={() => void ackAlert(alert._id)}>
+                        <Button size="sm" variant="outline" className="min-h-11" onClick={() => void ackAlert(alert._id)}>
                           Ack
                         </Button>
                       )}

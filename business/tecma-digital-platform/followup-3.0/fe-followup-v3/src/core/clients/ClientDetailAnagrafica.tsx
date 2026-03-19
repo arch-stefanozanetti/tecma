@@ -22,8 +22,10 @@ import type { AdditionalInfoRow } from "../../types/domain";
 export interface ClientDetailAnagraficaProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  formFullName: string;
-  setFormFullName: (v: string) => void;
+  formFirstName: string;
+  setFormFirstName: (v: string) => void;
+  formLastName: string;
+  setFormLastName: (v: string) => void;
   formEmail: string;
   setFormEmail: (v: string) => void;
   formPhone: string;
@@ -43,8 +45,10 @@ export interface ClientDetailAnagraficaProps {
 export default function ClientDetailAnagrafica({
   open,
   onOpenChange,
-  formFullName,
-  setFormFullName,
+  formFirstName,
+  setFormFirstName,
+  formLastName,
+  setFormLastName,
   formEmail,
   setFormEmail,
   formPhone,
@@ -72,10 +76,22 @@ export default function ClientDetailAnagrafica({
               <label className="mb-1.5 block text-sm font-medium text-foreground">Nome *</label>
               <Input
                 className="min-h-11 rounded-lg border-border"
-                value={formFullName}
-                onChange={(e) => setFormFullName(e.target.value)}
+                value={formFirstName}
+                onChange={(e) => setFormFirstName(e.target.value)}
                 required
-                placeholder="Nome e cognome"
+                placeholder="Nome"
+                autoComplete="given-name"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Cognome *</label>
+              <Input
+                className="min-h-11 rounded-lg border-border"
+                value={formLastName}
+                onChange={(e) => setFormLastName(e.target.value)}
+                required
+                placeholder="Cognome"
+                autoComplete="family-name"
               />
             </div>
             <div>

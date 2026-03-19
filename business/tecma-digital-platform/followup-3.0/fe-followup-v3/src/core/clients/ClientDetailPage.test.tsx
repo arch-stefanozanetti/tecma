@@ -73,6 +73,8 @@ vi.mock("../calendar/CalendarEventFormDrawer", () => ({
 const baseState = () => ({
   client: {
     _id: "c1",
+    firstName: "Mario",
+    lastName: "Rossi",
     fullName: "Mario Rossi",
     email: "mario@test.com",
     status: "lead",
@@ -122,16 +124,16 @@ describe("ClientDetailPage", () => {
       { wrapper: NoExtraRouter }
     );
 
-  it("mostra stato loading", () => {
+  it("mostra stato loading", async () => {
     mocks.useClientDetailDataMock.mockReturnValue({ ...baseState(), loading: true, client: null });
     renderPage();
-    expect(screen.getByText(/caricamento/i)).toBeInTheDocument();
+    expect(await screen.findByText(/caricamento/i)).toBeInTheDocument();
   });
 
-  it("mostra errore quando il client non è disponibile", () => {
+  it("mostra errore quando il client non è disponibile", async () => {
     mocks.useClientDetailDataMock.mockReturnValue({ ...baseState(), client: null, error: "Cliente non trovato" });
     renderPage();
-    expect(screen.getByText("Cliente non trovato")).toBeInTheDocument();
+    expect(await screen.findByText("Cliente non trovato")).toBeInTheDocument();
   });
 
   it("renderizza anagrafica cliente", async () => {

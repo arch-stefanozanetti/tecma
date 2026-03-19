@@ -99,7 +99,7 @@ export const ReportsPage = () => {
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Tipo report</label>
             <Select value={reportType} onValueChange={(v) => setReportType(v as ReportType)}>
-              <SelectTrigger className="h-10 w-56">
+              <SelectTrigger className="min-h-11 w-56">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -117,11 +117,12 @@ export const ReportsPage = () => {
             <label className="block text-xs font-medium text-muted-foreground mb-1">A data</label>
             <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36" />
           </div>
-          <Button variant="outline" onClick={() => void load()}>Aggiorna</Button>
-          <Button onClick={handleExportCsv} disabled={data.length === 0}>Export CSV</Button>
+          <Button variant="outline" className="min-h-11" onClick={() => void load()}>Aggiorna</Button>
+          <Button className="min-h-11" onClick={handleExportCsv} disabled={data.length === 0}>Export CSV</Button>
         </div>
 
-        <div className="mt-6 overflow-x-auto rounded-lg border border-border">
+        <p className="mt-6 text-xs text-muted-foreground md:hidden">Scorri orizzontalmente per vedere tutte le colonne.</p>
+        <div className="mt-1 overflow-x-auto rounded-lg border border-border">
           {isKpiSummary && kpiCards.length > 0 && (
             <div className="grid gap-3 border-b border-border bg-muted/20 p-4 md:grid-cols-2 xl:grid-cols-5">
               {kpiCards.map((kpi) => (

@@ -39,6 +39,7 @@ import { ProjectsPage } from "./core/projects/ProjectsPage";
 import { InboxPage } from "./core/shared/InboxPage";
 import { Customer360Page } from "./core/customer360/Customer360Page";
 import { isSectionEnabledByFeature, isPriceAvailabilityRelevant } from "./core/features";
+import { SECTIONS, SECTION_TO_PATH, PATH_TO_SECTION, type Section } from "./core/config/routes";
 import { CommandPalette } from "./core/shared/CommandPalette";
 import type { ProjectAccessProject } from "./types/domain";
 import { PwaInstallPrompt } from "./components/pwa/PwaInstallPrompt";
@@ -51,34 +52,6 @@ const ClientDetailPage = lazy(() =>
 const ApartmentDetailPage = lazy(() =>
   import("./core/apartments/ApartmentDetailPage").then((module) => ({ default: module.ApartmentDetailPage }))
 );
-
-type Section =
-  | "cockpit"
-  | "calendar"
-  | "clients"
-  | "apartments"
-  | "requests"
-  | "projects"
-  | "createApartment"
-  | "createApartmentHC"
-  | "editApartmentHC"
-  | "associateAptClient"
-  | "completeFlow"
-  | "catalogHC"
-  | "templateConfig"
-  | "aiApprovals"
-  | "workflowConfig"
-  | "workspaces"
-  | "users"
-  | "emailFlows"
-  | "audit"
-  | "reports"
-  | "releases"
-  | "integrations"
-  | "priceAvailability"
-  | "inbox"
-  | "customer360"
-  | "productDiscovery";
 
 const renderSection = (
   section: Section,
@@ -311,37 +284,6 @@ const renderSection = (
   }
   return <ApartmentsPage />;
 };
-
-const SECTIONS: Section[] = [
-  "cockpit", "calendar", "clients", "apartments", "requests", "projects", "inbox", "customer360",
-  "createApartment", "createApartmentHC", "editApartmentHC", "associateAptClient",
-  "completeFlow", "catalogHC", "templateConfig", "aiApprovals", "workflowConfig", "workspaces", "users", "emailFlows", "audit", "reports", "releases", "integrations", "priceAvailability", "productDiscovery",
-];
-
-/** Path puliti per le sezioni principali; le altre restano ?section=X */
-const SECTION_TO_PATH: Partial<Record<Section, string>> = {
-  cockpit: "/",
-  calendar: "/calendar",
-  clients: "/clients",
-  apartments: "/apartments",
-  requests: "/requests",
-  projects: "/projects",
-  inbox: "/inbox",
-  customer360: "/customer-360",
-  workflowConfig: "/workflow-config",
-  workspaces: "/workspace",
-  users: "/users",
-  emailFlows: "/email-flows",
-  audit: "/audit",
-  reports: "/reports",
-  releases: "/releases",
-  integrations: "/integrations",
-  priceAvailability: "/prices",
-  productDiscovery: "/product-discovery",
-};
-const PATH_TO_SECTION: Record<string, Section> = Object.fromEntries(
-  (Object.entries(SECTION_TO_PATH) as [Section, string][]).map(([s, p]) => [p, s])
-);
 
 const isLegacyWorkspace = (id: string) => id === "dev-1" || id === "demo" || id === "prod";
 

@@ -68,6 +68,8 @@ export const followupApi = {
   requests: requestsApi,
   /** @deprecated Usa followupApi.apartments.queryApartments */
   queryApartments: apartmentsApi.queryApartments,
+  getApartmentPriceCalendar: apartmentsApi.getApartmentPriceCalendar,
+  upsertApartmentPriceCalendar: apartmentsApi.upsertApartmentPriceCalendar,
   queryCalendar: (query: ListQuery) => postJson<PaginatedResponse<CalendarEvent>>("/calendar/events/query", query),
   createCalendarEvent: (payload: CalendarEventCreateInput) =>
     postJson<{ event: CalendarEvent }>("/calendar/events", payload),
@@ -792,7 +794,7 @@ export const followupApi = {
     filters?: { statuses?: string[]; documentTypes?: Array<"quote" | "document"> },
   ) =>
     postJson<{
-      client: { id: string; fullName: string; email?: string; phone?: string };
+      client: { id: string; firstName: string; lastName: string; fullName: string; email?: string; phone?: string };
       deals: Array<{ id: string; type: string; status: string; updatedAt: string; quoteNumber?: string; quoteTotalPrice?: number }>;
       documents: Array<{ id: string; title: string; type: "quote" | "document"; createdAt: string; url?: string }>;
       timeline: Array<{ id: string; kind: "deal_status" | "document"; title: string; status?: string; at: string; requestId?: string }>;
@@ -872,6 +874,9 @@ export const followupApi = {
     postJson<{ config: Record<string, unknown> }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/whatsapp/config`, body),
   deleteWhatsAppConfig: (workspaceId: string) =>
     deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/whatsapp/config`),
+  /** Solo admin: invio prova Twilio WhatsApp (verifica config workspace). */
+  testWhatsAppMessage: (workspaceId: string, body: { to: string; body?: string }) =>
+    postJson<{ ok: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/whatsapp/test`, body),
   /** Test API listati pubblici (nessuna auth richiesta lato backend). Per connettore Looker Studio. */
   testPublicListings: (workspaceId: string, projectIds: string[]) =>
     postJson<PaginatedResponse<ApartmentRow>>("/public/listings", {
@@ -1004,12 +1009,43 @@ export const followupApi = {
       workspaceId,
       projectIds
     }),
+  /** Elenco suggerimenti pending già salvati (nessuna rigenerazione). */
+  getAiSuggestions: (workspaceId: string, projectIds: string[], limit = 20) => {
+    const q = new URLSearchParams();
+    q.set("workspaceId", workspaceId);
+    q.set("limit", String(limit));
+    projectIds.forEach((id) => q.append("projectIds", id));
+    return getJson<{
+      generatedAt: string;
+      data: AiSuggestion[];
+      aiConfigured?: boolean;
+      llmUsed?: boolean | null;
+      fromCache?: boolean;
+    }>(`/ai/suggestions?${q.toString()}`);
+  },
+  /** Rigenera suggerimenti (rule-based + LLM) e li persiste in `tz_ai_suggestions`. */
   generateAiSuggestions: (workspaceId: string, projectIds: string[], limit = 20) =>
-    postJson<{ generatedAt: string; data: AiSuggestion[]; aiConfigured?: boolean }>("/ai/suggestions", {
+    postJson<{
+      generatedAt: string;
+      data: AiSuggestion[];
+      aiConfigured?: boolean;
+      llmUsed?: boolean | null;
+      fromCache?: boolean;
+    }>("/ai/suggestions", {
       workspaceId,
       projectIds,
       limit
     }),
+  executeAiSuggestion: (
+    suggestionId: string,
+    body: { actorEmail: string; note?: string; maxSteps?: number }
+  ) =>
+    postJson<{
+      suggestionId: string;
+      summary: string;
+      toolLog: Array<{ name: string; ok: boolean; error?: string }>;
+      steps: number;
+    }>(`/ai/suggestions/${encodeURIComponent(suggestionId)}/execute`, body),
   decideAiSuggestion: (suggestionId: string, decision: "approved" | "rejected", actorEmail: string, note = "") =>
     postJson<{ suggestionId: string; decision: string; decidedAt: string }>("/ai/approvals", {
       suggestionId,

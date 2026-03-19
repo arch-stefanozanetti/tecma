@@ -1,10 +1,10 @@
 import * as React from "react";
-import { render as rtlRender, screen, fireEvent, within, type RenderOptions } from "@testing-library/react";
+import { render as rtlRender, screen, fireEvent, within, waitFor, type RenderOptions } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 
-export { describe, it, expect, vi, screen, fireEvent, within, userEvent };
+export { describe, it, expect, vi, screen, fireEvent, within, userEvent, waitFor };
 
 type WrapperProps = { children: React.ReactNode };
 

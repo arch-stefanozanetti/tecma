@@ -61,6 +61,8 @@ const seed = async () => {
       return {
         workspaceId,
         projectId: isSell ? projectIds[0] : projectIds[projectIds.length - 1] ?? projectIds[0],
+        firstName: "Cliente",
+        lastName: `Seed ${String(n).padStart(2, "0")}`,
         fullName: `Cliente Seed ${String(n).padStart(2, "0")}`,
         email: `cliente.seed${n}@example.com`,
         phone: `+39333111${String(300 + n).padStart(3, "0")}`,

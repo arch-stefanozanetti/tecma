@@ -123,16 +123,16 @@ describe("ApartmentDetailPage", () => {
       { wrapper: NoExtraRouter }
     );
 
-  it("mostra stato loading", () => {
+  it("mostra stato loading", async () => {
     mocks.useApartmentDetailDataMock.mockReturnValue({ ...baseState(), loading: true, apartment: null });
     renderPage();
-    expect(screen.getByText(/caricamento/i)).toBeInTheDocument();
+    expect(await screen.findByText(/caricamento/i)).toBeInTheDocument();
   });
 
-  it("mostra errore quando l'appartamento non è disponibile", () => {
+  it("mostra errore quando l'appartamento non è disponibile", async () => {
     mocks.useApartmentDetailDataMock.mockReturnValue({ ...baseState(), apartment: null, error: "Appartamento non trovato" });
     renderPage();
-    expect(screen.getByText("Appartamento non trovato")).toBeInTheDocument();
+    expect(await screen.findByText("Appartamento non trovato")).toBeInTheDocument();
   });
 
   it("renderizza header e prezzo fallback", async () => {

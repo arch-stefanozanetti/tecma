@@ -34,6 +34,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.13.3",
+    date: "2026-03-19",
+    title: "Clienti: nome e cognome separati (API, DB e form)",
+    releaseType: "patch",
+    changes: [
+      {
+        type: "feature",
+        text: "Campi `firstName` e `lastName` su clienti; `fullName` resta derivato per ricerca e compatibilità; migrazione implicita dai record con solo `fullName`.",
+      },
+    ],
+  },
+  {
     version: "0.13.2",
     date: "2026-03-19",
     title: "Refactoring code-simplifier: API unificate, helper BE, split pagine, ternari",

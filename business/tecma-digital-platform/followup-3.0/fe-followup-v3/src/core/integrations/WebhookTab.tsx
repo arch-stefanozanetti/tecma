@@ -120,7 +120,7 @@ export function WebhookTab({ workspaceId }: { workspaceId: string }) {
           Endpoint configurabile per workspace: il backend invierà payload su eventi (nuova trattativa,
           cambio stato). Configura URL, secret e eventi abilitati.
         </p>
-        <Button size="sm" variant="outline" className="gap-2" onClick={openCreate}>
+        <Button size="sm" variant="outline" className="min-h-11 gap-2" onClick={openCreate}>
           <Plus className="h-4 w-4" />
           Aggiungi webhook
         </Button>
@@ -141,10 +141,10 @@ export function WebhookTab({ workspaceId }: { workspaceId: string }) {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => openEdit(c)}>
+                <Button variant="outline" size="sm" className="min-h-11" onClick={() => openEdit(c)}>
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
-                <Button variant="outline" size="sm" className="text-destructive" onClick={() => handleDelete(c._id)}>
+                <Button variant="outline" size="sm" className="min-h-11 text-destructive" onClick={() => handleDelete(c._id)}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -207,7 +207,7 @@ export function WebhookTab({ workspaceId }: { workspaceId: string }) {
             </div>
           </DrawerBody>
           <DrawerFooter>
-            <Button onClick={handleSubmit} disabled={saving}>{saving ? "Salvataggio..." : "Salva"}</Button>
+            <Button className="min-h-11" onClick={handleSubmit} disabled={saving}>{saving ? "Salvataggio..." : "Salva"}</Button>
           </DrawerFooter>
         </DrawerContent>
       </Drawer>

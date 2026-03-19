@@ -3,6 +3,7 @@ import { Input } from "../../components/ui/input";
 import { cn } from "../../lib/utils";
 import { followupApi } from "../../api/followupApi";
 import { isSectionEnabledByFeature, isPriceAvailabilityRelevant } from "../features";
+import type { Section } from "../config/routes";
 import type {
   ProjectAccessProject,
   ClientRow,
@@ -11,24 +12,7 @@ import type {
   PaginatedResponse,
 } from "../../types/domain";
 
-export type Section =
-  | "cockpit"
-  | "calendar"
-  | "clients"
-  | "apartments"
-  | "requests"
-  | "projects"
-  | "inbox"
-  | "customer360"
-  | "workspaces"
-  | "users"
-  | "emailFlows"
-  | "audit"
-  | "reports"
-  | "releases"
-  | "integrations"
-  | "priceAvailability"
-  | "productDiscovery";
+export type { Section };
 
 export interface CommandSectionItem {
   kind: "section";

@@ -39,7 +39,15 @@ const parseDate = (input: unknown): number | null => {
 
 const filterClientsMock = (query: ListQuery): ClientRow[] => {
   const scoped = mockClients.filter((row) => query.projectIds.length === 0 || query.projectIds.includes(row.projectId));
-  const searched = searchFilter(scoped as ClientRow[], query.searchText ?? "", ["fullName", "email", "phone", "city", "projectId"]);
+  const searched = searchFilter(scoped as ClientRow[], query.searchText ?? "", [
+    "firstName",
+    "lastName",
+    "fullName",
+    "email",
+    "phone",
+    "city",
+    "projectId",
+  ]);
   const status = extractArrayFilter(query.filters, "status");
   const source = extractArrayFilter(query.filters, "source");
   const city = extractArrayFilter(query.filters, "city");

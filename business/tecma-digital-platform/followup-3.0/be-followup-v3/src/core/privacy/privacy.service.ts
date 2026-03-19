@@ -114,6 +114,8 @@ export const eraseClientData = async (rawInput: unknown): Promise<{ ok: boolean;
     clientFilter,
     {
       $set: {
+        firstName: "",
+        lastName: "",
         fullName: `Deleted Client ${input.clientId.slice(-6)}`,
         email: null,
         phone: null,

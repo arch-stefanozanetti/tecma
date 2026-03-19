@@ -1,4 +1,5 @@
 import { ObjectId, type Db } from "mongodb";
+import { namesFromDoc } from "../clients/client-name.util.js";
 
 export async function batchLoadClientNames(
   db: Db,
@@ -12,7 +13,7 @@ export async function batchLoadClientNames(
   if (typeof (collection as { find?: unknown }).find === "function" && objectIds.length > 0) {
     const rowsRaw = await collection
       .find({ _id: { $in: objectIds } })
-      .project({ _id: 1, fullName: 1 })
+      .project({ _id: 1, fullName: 1, firstName: 1, lastName: 1 })
       .toArray();
     const rows = Array.isArray(rowsRaw) ? rowsRaw : [];
     for (const row of rows) {
@@ -23,14 +24,19 @@ export async function batchLoadClientNames(
             ? row._id
             : "";
       if (!id) continue;
-      map[id] = typeof row.fullName === "string" && row.fullName.trim() ? row.fullName : id;
+      const n = namesFromDoc(row as Record<string, unknown>);
+      map[id] = n.fullName && n.fullName !== "-" ? n.fullName : id;
     }
   } else if (typeof (collection as { findOne?: unknown }).findOne === "function") {
     for (const id of ids) {
       if (!ObjectId.isValid(id)) continue;
-      const row = await collection.findOne({ _id: new ObjectId(id) }, { projection: { _id: 1, fullName: 1 } });
-      if (row && typeof (row as { fullName?: string }).fullName === "string") {
-        map[id] = (row as unknown as { fullName: string }).fullName.trim() || id;
+      const row = await collection.findOne(
+        { _id: new ObjectId(id) },
+        { projection: { _id: 1, fullName: 1, firstName: 1, lastName: 1 } }
+      );
+      if (row) {
+        const n = namesFromDoc(row as Record<string, unknown>);
+        map[id] = n.fullName && n.fullName !== "-" ? n.fullName : id;
       }
     }
   }

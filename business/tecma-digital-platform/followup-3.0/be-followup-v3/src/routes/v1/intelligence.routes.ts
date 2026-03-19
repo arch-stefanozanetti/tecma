@@ -1,11 +1,15 @@
+import { ObjectId } from "mongodb";
 import { Router } from "express";
 import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
+import { getDb } from "../../config/db.js";
+import { canAccess } from "../../core/access/canAccess.js";
 import { getModelSample } from "../../core/inspect/inspect.service.js";
 import { runReport } from "../../core/reports/reports.service.js";
 import { queryAuditLog } from "../../core/audit/audit-log.service.js";
-import { generateAiSuggestions, decideAiSuggestion } from "../../core/ai/orchestrator.service.js";
+import { generateAiSuggestions, queryPendingAiSuggestions, decideAiSuggestion } from "../../core/ai/orchestrator.service.js";
 import { createAiActionDraft, queryAiActionDrafts, decideAiActionDraft } from "../../core/ai/action-engine.service.js";
+import { executeSuggestionWithAgent } from "../../core/ai/suggestion-agent.service.js";
 
 export const intelligenceRoutes = Router();
 
@@ -59,7 +63,68 @@ intelligenceRoutes.get(
   })
 );
 
+intelligenceRoutes.get(
+  "/ai/suggestions",
+  handleAsync(async (req) => {
+    const user = req.user;
+    if (!user?.email) throw new HttpError("Unauthorized", 401);
+    const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+    if (!workspaceId) throw new HttpError("workspaceId query required", 400);
+    const allowed = await canAccess(
+      {
+        sub: user.sub ?? "",
+        email: user.email,
+        system_role: user.system_role,
+        isTecmaAdmin: user.isAdmin
+      },
+      { type: "workspace", workspaceId }
+    );
+    if (!allowed) throw new HttpError("Accesso al workspace non consentito", 403);
+
+    const limitRaw = typeof req.query.limit === "string" ? parseInt(req.query.limit, 10) : 20;
+    const limit = Number.isNaN(limitRaw) ? 20 : Math.min(50, Math.max(1, limitRaw));
+    const raw = req.query.projectIds;
+    const projectIds = Array.isArray(raw)
+      ? raw.map((x) => String(x).trim()).filter(Boolean)
+      : typeof raw === "string"
+        ? raw.split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
+    if (projectIds.length === 0) throw new HttpError("projectIds query required (repeat param or comma-separated)", 400);
+
+    return queryPendingAiSuggestions({ workspaceId, projectIds, limit });
+  })
+);
+
 intelligenceRoutes.post("/ai/suggestions", handleAsync((req) => generateAiSuggestions(req.body)));
+intelligenceRoutes.post(
+  "/ai/suggestions/:suggestionId/execute",
+  handleAsync(async (req) => {
+    const user = req.user;
+    if (!user?.email) throw new HttpError("Unauthorized", 401);
+    const suggestionId = req.params.suggestionId;
+    if (!ObjectId.isValid(suggestionId)) throw new HttpError("Invalid suggestion id", 400);
+    const db = getDb();
+    const doc = await db.collection("tz_ai_suggestions").findOne({ _id: new ObjectId(suggestionId) });
+    if (!doc) throw new HttpError("Suggestion not found", 404);
+    const workspaceId = String(doc.workspaceId ?? "");
+    const allowed = await canAccess(
+      {
+        sub: user.sub ?? "",
+        email: user.email,
+        system_role: user.system_role,
+        isTecmaAdmin: user.isAdmin
+      },
+      { type: "workspace", workspaceId }
+    );
+    if (!allowed) throw new HttpError("Accesso al workspace non consentito", 403);
+    const projectIds = Array.isArray(doc.projectIds) ? doc.projectIds.map((x: unknown) => String(x)) : [];
+    return executeSuggestionWithAgent(suggestionId, req.body, {
+      workspaceId,
+      projectIds,
+      actorEmail: user.email
+    });
+  })
+);
 intelligenceRoutes.post("/ai/approvals", handleAsync((req) => decideAiSuggestion(req.body)));
 intelligenceRoutes.post("/ai/actions/drafts", handleAsync((req) => createAiActionDraft(req.body)));
 intelligenceRoutes.post("/ai/actions/drafts/query", handleAsync((req) => queryAiActionDrafts(req.body)));

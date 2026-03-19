@@ -5,6 +5,7 @@ import { Input } from "../../components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { cn } from "../../lib/utils";
 import type { ApartmentRow } from "../../types/domain";
+import { useIsMobile } from "../shared/useIsMobile";
 import { availabilityInfo, formatDate, MODE_TABS, pseudoFloor, roomLabel, statusInfo, type ModeFilter } from "./ApartmentsPage.utils";
 
 interface ApartmentsListSectionProps {
@@ -64,6 +65,7 @@ export const ApartmentsListSection = ({
   onOpenImportExcel,
   otherOptionsRef,
 }: ApartmentsListSectionProps) => {
+  const isMobile = useIsMobile();
   return (
     <>
       <div className="flex flex-wrap items-start gap-3">
@@ -75,15 +77,15 @@ export const ApartmentsListSection = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button className="h-10 rounded-lg px-4 text-sm font-medium" onClick={() => onOpenApartment("create")}>Crea appartamento</Button>
-          <Button variant="outline" className="h-10 rounded-lg border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-muted">
+          <Button className="min-h-11 rounded-lg px-4 text-sm font-medium" onClick={() => onOpenApartment("create")}>Crea appartamento</Button>
+          <Button variant="outline" className="min-h-11 rounded-lg border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-muted">
             Verifica dati
           </Button>
 
           <div className="relative" ref={otherOptionsRef}>
             <Button
               variant="outline"
-              className="h-10 rounded-lg border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-muted"
+              className="min-h-11 rounded-lg border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-muted"
               onClick={onToggleOtherOptions}
             >
               Altro
@@ -99,7 +101,7 @@ export const ApartmentsListSection = ({
                   <button
                     key={label}
                     type="button"
-                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted"
+                    className="flex min-h-11 w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted"
                     onClick={() => {
                       if (label === "Importa Excel") onOpenImportExcel();
                     }}
@@ -133,7 +135,7 @@ export const ApartmentsListSection = ({
               <div className="relative flex-1 min-w-[200px] max-w-md">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  className="h-10 w-full rounded-lg border-border pl-10 text-sm shadow-none placeholder:text-muted-foreground"
+                  className="min-h-11 w-full rounded-lg border-border pl-10 text-sm shadow-none placeholder:text-muted-foreground"
                   placeholder="Cerca per codice o nome..."
                   value={search}
                   onChange={(e) => onSearchChange(e.target.value)}
@@ -141,18 +143,18 @@ export const ApartmentsListSection = ({
                 />
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" className="h-10 gap-1.5 rounded-lg border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted" onClick={onOpenFilters}>
+                <Button variant="outline" className="min-h-11 gap-1.5 rounded-lg border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-muted" onClick={onOpenFilters}>
                   <Filter className="h-4 w-4" />
                   Filtri
                 </Button>
-                <Button variant="outline" className="h-10 rounded-lg border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-muted" onClick={onSubmitSearch}>
+                <Button variant="outline" className="min-h-11 rounded-lg border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-muted" onClick={onSubmitSearch}>
                   Cerca
                 </Button>
-                <Button variant="ghost" className="h-10 gap-1.5 rounded-lg px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground" onClick={onResetFilters}>
+                <Button variant="ghost" className="min-h-11 gap-1.5 rounded-lg px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground" onClick={onResetFilters}>
                   <RotateCcw className="h-4 w-4" />
                   Azzera
                 </Button>
-                <Button variant="outline" className="h-10 rounded-lg border-border bg-background px-3 text-sm text-foreground hover:bg-muted" onClick={onRefresh}>
+                <Button variant="outline" className="min-h-11 rounded-lg border-border bg-background px-3 text-sm text-foreground hover:bg-muted" onClick={onRefresh}>
                   <RefreshCcw className="h-4 w-4" />
                   Aggiorna
                 </Button>
@@ -162,7 +164,40 @@ export const ApartmentsListSection = ({
 
           {error && <div className="border-b border-border bg-destructive/5 px-6 py-3 text-sm text-destructive">{error}</div>}
 
-          <div className="overflow-x-auto">
+          {/* Vista card su mobile (viewport <768px) */}
+          <div className="md:hidden p-4 space-y-3">
+            {isLoading && apartments.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Caricamento...</p>
+            ) : apartments.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">{committedSearch ? "Nessun risultato per questa ricerca" : "Nessun appartamento trovato"}</p>
+            ) : (
+              apartments.map((apt) => {
+                const availability = availabilityInfo(apt.status);
+                const status = statusInfo(apt);
+                return (
+                  <button
+                    key={apt._id}
+                    type="button"
+                    onClick={() => onOpenApartment(apt._id)}
+                    className="glass-panel rounded-ui w-full border border-border bg-card p-4 text-left shadow-panel transition-colors hover:bg-muted/50 min-h-11"
+                  >
+                    <div className="font-medium text-foreground">{apt.code}</div>
+                    {apt.name && apt.name !== apt.code && <div className="mt-0.5 truncate text-sm text-muted-foreground">{apt.name}</div>}
+                    <div className="mt-1 flex items-center justify-between gap-2 flex-wrap">
+                      <span className="text-xs text-muted-foreground">{apt.normalizedPrice?.display ?? "—"}</span>
+                      <span className={cn("text-xs", availability.className)}>{availability.label}</span>
+                      <span className="inline-flex items-center gap-1.5 text-xs">
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: status.dot }} aria-hidden />
+                        {status.label}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full min-w-[1020px]">
               <thead>
                 <tr className="border-b border-border text-left text-sm font-normal text-muted-foreground">
@@ -190,7 +225,7 @@ export const ApartmentsListSection = ({
                     return (
                       <tr key={apt._id} role="button" tabIndex={0} onClick={() => onOpenApartment(apt._id)} onKeyDown={(e) => e.key === "Enter" && onOpenApartment(apt._id)} className="group border-b border-border text-sm text-foreground hover:bg-muted cursor-pointer">
                         <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
-                          <button type="button" className="inline-flex h-6 w-6 items-center justify-center text-primary opacity-50 transition-opacity hover:opacity-100" aria-label="Apri scheda appartamento" onClick={() => onOpenApartment(apt._id)}>
+                          <button type="button" className="inline-flex min-h-11 min-w-11 items-center justify-center text-primary opacity-50 transition-opacity hover:opacity-100" aria-label="Apri scheda appartamento" onClick={() => onOpenApartment(apt._id)}>
                             <ExternalLink className="h-3.5 w-3.5" />
                           </button>
                         </td>
@@ -207,7 +242,7 @@ export const ApartmentsListSection = ({
                         <td className="px-4 py-4">{apt.normalizedPrice?.display ?? "—"}</td>
                         <td className="px-4 py-4"><span className={cn("text-sm", availability.className)}>{availability.label}</span></td>
                         <td className="px-4 py-4"><span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: status.dot }} aria-hidden="true" />{status.label}</span></td>
-                        <td className="px-4 py-4"><button type="button" className="inline-flex h-6 w-6 items-center justify-center text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" aria-label="More options"><MoreHorizontal className="h-4 w-4" /></button></td>
+                        <td className="px-4 py-4"><button type="button" className="inline-flex min-h-11 min-w-11 items-center justify-center text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" aria-label="More options"><MoreHorizontal className="h-4 w-4" /></button></td>
                       </tr>
                     );
                   })
@@ -219,11 +254,11 @@ export const ApartmentsListSection = ({
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6">
             <span className="text-sm text-muted-foreground">{total === 0 ? "Nessun appartamento" : `${pageStart}–${pageEnd} di ${total} appartamenti`}</span>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-foreground hover:bg-muted" onClick={onFirstPage} disabled={page === 1} aria-label="First page"><span className="text-xs font-bold">{`«`}</span></Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-foreground hover:bg-muted" onClick={onPrevPage} disabled={page === 1} aria-label="Previous page"><span className="text-xs font-bold">{`‹`}</span></Button>
+              <Button variant="ghost" size="icon" className="min-h-11 min-w-11 rounded-lg text-foreground hover:bg-muted" onClick={onFirstPage} disabled={page === 1} aria-label="First page"><span className="text-xs font-bold">{`«`}</span></Button>
+              <Button variant="ghost" size="icon" className="min-h-11 min-w-11 rounded-lg text-foreground hover:bg-muted" onClick={onPrevPage} disabled={page === 1} aria-label="Previous page"><span className="text-xs font-bold">{`‹`}</span></Button>
               <div className="px-2 text-sm text-foreground"><strong>{page}</strong> / <strong>{totalPages}</strong></div>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-foreground hover:bg-muted" onClick={onNextPage} disabled={page === totalPages} aria-label="Next page"><span className="text-xs font-bold">{`›`}</span></Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-foreground hover:bg-muted" onClick={onLastPage} disabled={page === totalPages} aria-label="Last page"><span className="text-xs font-bold">{`»`}</span></Button>
+              <Button variant="ghost" size="icon" className="min-h-11 min-w-11 rounded-lg text-foreground hover:bg-muted" onClick={onNextPage} disabled={page === totalPages} aria-label="Next page"><span className="text-xs font-bold">{`›`}</span></Button>
+              <Button variant="ghost" size="icon" className="min-h-11 min-w-11 rounded-lg text-foreground hover:bg-muted" onClick={onLastPage} disabled={page === totalPages} aria-label="Last page"><span className="text-xs font-bold">{`»`}</span></Button>
             </div>
           </div>
         </div>

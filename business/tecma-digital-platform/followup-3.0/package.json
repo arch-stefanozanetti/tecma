@@ -31,8 +31,10 @@
     "subagent:simplify": "bash scripts/subagent-simplify-code.sh changed",
     "subagent:simplify:all": "bash scripts/subagent-simplify-code.sh all",
     "setup:githooks": "git config core.hooksPath .githooks",
-    "test:lint": "cd be-followup-v3 && npm run test:lint && cd ../fe-followup-v3 && npm run test:lint",
-    "post-release:verify": "bash scripts/post-release-verify.sh"
+    "test:lint": "cd be-followup-v3 && npm run test:lint && cd ../fe-followup-v3 && npm run test:lint && cd ../mcp-followup && npm run lint",
+    "test:mcp": "cd mcp-followup && npm run lint && npm run test",
+    "post-release:verify": "bash scripts/post-release-verify.sh",
+    "deploy:dry-run": "bash ../../../scripts/render-build-fe.sh && bash ../../../scripts/render-build-be.sh"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

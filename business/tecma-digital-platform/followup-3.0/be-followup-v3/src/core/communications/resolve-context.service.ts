@@ -2,6 +2,7 @@
  * Costruisce il contesto variabili per i template (client_name, apartment_name, visit_date, ...).
  */
 import type { DispatchEventPayload } from "../automations/automation-events.service.js";
+import { resolveClientIdFromDispatchPayload } from "./resolve-client-id-from-payload.js";
 import { getClientById } from "../clients/clients.service.js";
 import { getApartmentById } from "../apartments/apartments.service.js";
 import { getProjectDetail } from "../projects/project-config.service.js";
@@ -13,7 +14,8 @@ export type TemplateContext = Record<string, string | undefined>;
  */
 export async function buildCommunicationContext(payload: DispatchEventPayload): Promise<TemplateContext> {
   const ctx: TemplateContext = {};
-  const { workspaceId, projectId, clientId, apartmentId, startsAt, title, toStatus } = payload;
+  const { workspaceId, projectId, apartmentId, startsAt, title, toStatus } = payload;
+  const clientId = resolveClientIdFromDispatchPayload(payload);
 
   if (typeof toStatus === "string" && toStatus) ctx.request_status = toStatus;
   if (typeof title === "string" && title) ctx.visit_title = title;

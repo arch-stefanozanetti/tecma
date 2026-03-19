@@ -331,7 +331,7 @@ export const ProductDiscoveryPage = () => {
 
         <TabsContent value="needs" className="mt-4 space-y-4">
           <div className="flex justify-end">
-            <Button onClick={() => setNewNeedOpen(true)}>
+            <Button className="min-h-11" onClick={() => setNewNeedOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Nuovo feedback cliente
             </Button>
@@ -375,7 +375,7 @@ export const ProductDiscoveryPage = () => {
 
         <TabsContent value="opportunities" className="mt-4 space-y-4">
           <div className="flex justify-end">
-            <Button onClick={() => setNewOpportunityOpen(true)}>
+            <Button className="min-h-11" onClick={() => setNewOpportunityOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Nuova opportunity
             </Button>
@@ -413,7 +413,7 @@ export const ProductDiscoveryPage = () => {
 
         <TabsContent value="initiatives" className="mt-4 space-y-4">
           <div className="flex justify-end">
-            <Button onClick={() => setNewInitiativeOpen(true)}>
+            <Button className="min-h-11" onClick={() => setNewInitiativeOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Nuova initiative
             </Button>
@@ -457,7 +457,7 @@ export const ProductDiscoveryPage = () => {
 
         <TabsContent value="features" className="mt-4 space-y-4">
           <div className="flex justify-end">
-            <Button onClick={() => setNewFeatureOpen(true)}>
+            <Button className="min-h-11" onClick={() => setNewFeatureOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Nuova feature
             </Button>
@@ -699,10 +699,11 @@ export const ProductDiscoveryPage = () => {
             </div>
           </SidePanelBody>
           <SidePanelFooter>
-            <Button variant="outline" onClick={() => setNewNeedOpen(false)}>
+            <Button variant="outline" className="min-h-11" onClick={() => setNewNeedOpen(false)}>
               Annulla
             </Button>
             <Button
+              className="min-h-11"
               onClick={handleCreateNeed}
               disabled={newNeedSaving || !newNeedForm.title.trim() || !newNeedForm.problem.trim()}
             >
@@ -764,10 +765,10 @@ export const ProductDiscoveryPage = () => {
             </div>
           </SidePanelBody>
           <SidePanelFooter>
-            <Button variant="outline" onClick={() => setNewOpportunityOpen(false)}>
+            <Button variant="outline" className="min-h-11" onClick={() => setNewOpportunityOpen(false)}>
               Annulla
             </Button>
-            <Button onClick={handleCreateOpportunity} disabled={newOpportunitySaving || !newOpportunityForm.title.trim()}>
+            <Button className="min-h-11" onClick={handleCreateOpportunity} disabled={newOpportunitySaving || !newOpportunityForm.title.trim()}>
               {newOpportunitySaving ? "Salvataggio…" : "Crea opportunity"}
             </Button>
           </SidePanelFooter>
@@ -863,10 +864,10 @@ export const ProductDiscoveryPage = () => {
             </div>
           </SidePanelBody>
           <SidePanelFooter>
-            <Button variant="outline" onClick={() => setNewInitiativeOpen(false)}>
+            <Button variant="outline" className="min-h-11" onClick={() => setNewInitiativeOpen(false)}>
               Annulla
             </Button>
-            <Button onClick={handleCreateInitiative} disabled={newInitiativeSaving || !newInitiativeForm.title.trim()}>
+            <Button className="min-h-11" onClick={handleCreateInitiative} disabled={newInitiativeSaving || !newInitiativeForm.title.trim()}>
               {newInitiativeSaving ? "Salvataggio…" : "Crea initiative"}
             </Button>
           </SidePanelFooter>
@@ -935,10 +936,10 @@ export const ProductDiscoveryPage = () => {
             </div>
           </SidePanelBody>
           <SidePanelFooter>
-            <Button variant="outline" onClick={() => setNewFeatureOpen(false)}>
+            <Button variant="outline" className="min-h-11" onClick={() => setNewFeatureOpen(false)}>
               Annulla
             </Button>
-            <Button onClick={handleCreateFeature} disabled={newFeatureSaving || !newFeatureForm.title.trim()}>
+            <Button className="min-h-11" onClick={handleCreateFeature} disabled={newFeatureSaving || !newFeatureForm.title.trim()}>
               {newFeatureSaving ? "Salvataggio…" : "Crea feature"}
             </Button>
           </SidePanelFooter>
@@ -972,7 +973,7 @@ export const ProductDiscoveryPage = () => {
                 )}
               </SidePanelBody>
               <SidePanelFooter>
-                <Button variant="outline" onClick={() => setSelectedNeed(null)}>
+                <Button variant="outline" className="min-h-11" onClick={() => setSelectedNeed(null)}>
                   Chiudi
                 </Button>
               </SidePanelFooter>
@@ -1014,7 +1015,7 @@ export const ProductDiscoveryPage = () => {
                 </ul>
               </SidePanelBody>
               <SidePanelFooter>
-                <Button variant="outline" onClick={() => setSelectedOpportunity(null)}>
+                <Button variant="outline" className="min-h-11" onClick={() => setSelectedOpportunity(null)}>
                   Chiudi
                 </Button>
               </SidePanelFooter>
@@ -1071,6 +1072,7 @@ export const ProductDiscoveryPage = () => {
                 </div>
                 <Button
                   size="sm"
+                  className="min-h-11"
                   disabled={initiativeSaving}
                   onClick={() => {
                     const effortRaw = initiativeEditEffort !== "" ? Number(initiativeEditEffort) : selectedInitiative.estimated_dev_effort;
@@ -1107,7 +1109,7 @@ export const ProductDiscoveryPage = () => {
                 </ul>
               </SidePanelBody>
               <SidePanelFooter>
-                <Button variant="outline" onClick={() => setSelectedInitiative(null)}>
+                <Button variant="outline" className="min-h-11" onClick={() => setSelectedInitiative(null)}>
                   Chiudi
                 </Button>
               </SidePanelFooter>
@@ -1138,7 +1140,7 @@ export const ProductDiscoveryPage = () => {
                 )}
               </SidePanelBody>
               <SidePanelFooter>
-                <Button variant="outline" onClick={() => setSelectedFeature(null)}>
+                <Button variant="outline" className="min-h-11" onClick={() => setSelectedFeature(null)}>
                   Chiudi
                 </Button>
               </SidePanelFooter>

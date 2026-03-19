@@ -25,6 +25,8 @@ vi.mock("../shared/usePaginatedList", () => ({
         _id: "c1",
         workspaceId: "ws-1",
         projectId: "proj-1",
+        firstName: "Mario",
+        lastName: "Rossi",
         fullName: "Mario Rossi",
         email: "mario@example.com",
         phone: "123",
@@ -65,8 +67,12 @@ describe("ClientsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.listAdditionalInfosMock.mockResolvedValue({ data: [] });
-    mocks.createClientMock.mockResolvedValue({ client: { _id: "c-new", fullName: "Nuovo Cliente" } });
-    mocks.updateClientMock.mockResolvedValue({ client: { _id: "c1", fullName: "Mario Rossi" } });
+    mocks.createClientMock.mockResolvedValue({
+      client: { _id: "c-new", firstName: "Nuovo", lastName: "Cliente", fullName: "Nuovo Cliente", projectId: "proj-1", status: "lead", updatedAt: new Date().toISOString() },
+    });
+    mocks.updateClientMock.mockResolvedValue({
+      client: { _id: "c1", firstName: "Mario", lastName: "Rossi", fullName: "Mario Rossi", projectId: "proj-1", status: "lead", updatedAt: new Date().toISOString() },
+    });
   });
 
   it("renderizza heading e controlli principali", async () => {

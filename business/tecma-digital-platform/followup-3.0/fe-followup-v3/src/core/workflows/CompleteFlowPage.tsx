@@ -393,21 +393,21 @@ export const CompleteFlowPage = ({ workspaceId, projectIds }: CompleteFlowPagePr
             )}
 
             <div className="hc-actions">
-              <Button variant="outline" type="button" onClick={onBack} disabled={currentStep === 1 || isLoading}>
+              <Button variant="outline" type="button" className="min-h-11" onClick={onBack} disabled={currentStep === 1 || isLoading}>
                 Back
               </Button>
               {currentStep < 8 && (
-                <Button type="button" onClick={onNext} disabled={isLoading}>
+                <Button type="button" className="min-h-11" onClick={onNext} disabled={isLoading}>
                   Next
                 </Button>
               )}
               {currentStep <= 8 && (
-                <Button variant="outline" type="button" onClick={doPreview} disabled={isLoading}>
+                <Button variant="outline" type="button" className="min-h-11" onClick={doPreview} disabled={isLoading}>
                   Preview
                 </Button>
               )}
               {currentStep >= 8 && (
-                <Button type="button" onClick={doExecute} disabled={isLoading}>
+                <Button type="button" className="min-h-11" onClick={doExecute} disabled={isLoading}>
                   Execute
                 </Button>
               )}

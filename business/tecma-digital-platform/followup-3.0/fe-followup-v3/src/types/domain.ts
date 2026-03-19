@@ -196,6 +196,8 @@ export interface ClientRow {
   _id: string;
   workspaceId?: string;
   projectId: string;
+  firstName: string;
+  lastName: string;
   fullName: string;
   email?: string;
   phone?: string;
@@ -228,7 +230,8 @@ export interface ClientRow {
 export interface ClientCreateInput {
   workspaceId: string;
   projectId: string;
-  fullName: string;
+  firstName: string;
+  lastName: string;
   email?: string;
   phone?: string;
   status?: string;
@@ -237,6 +240,9 @@ export interface ClientCreateInput {
 }
 
 export interface ClientUpdateInput {
+  firstName?: string;
+  lastName?: string;
+  /** @deprecated Preferire firstName + lastName */
   fullName?: string;
   email?: string;
   phone?: string;
@@ -441,6 +447,8 @@ export interface ProjectAccessProject {
   id: string;
   name: string;
   displayName: string;
+  /** From backend: rent | sell. Use for filter and badges. */
+  mode?: "rent" | "sell";
 }
 
 export interface ProjectAccessResponse {
@@ -602,6 +610,20 @@ export interface ConfigurationTemplateSchema {
   }>;
 }
 
+export interface WorkspaceAiConfig {
+  configured: boolean;
+  provider?: string;
+  apiKeyMasked?: string;
+}
+
+/** Elemento elencato dentro un suggerimento Cockpit aggregato (macro-card). */
+export interface AiSuggestionAggregatedItem {
+  associationId?: string;
+  clientId?: string;
+  apartmentId?: string;
+  label: string;
+}
+
 export interface AiSuggestion {
   _id: string;
   workspaceId: string;
@@ -614,6 +636,10 @@ export interface AiSuggestion {
   status: "pending" | "approved" | "rejected";
   score: number;
   createdAt: string;
+  /** Famiglia regola per dedup lato server (es. stale_proposal_7d). */
+  aggregatedKind?: string;
+  /** Dettaglio entità aggregate (limite lato API). */
+  aggregatedItems?: AiSuggestionAggregatedItem[];
 }
 
 export interface AiActionDraft {

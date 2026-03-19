@@ -129,7 +129,7 @@ const seedFakeProjects = async () => {
   }
 
   // 2. Ottieni o crea Test Workspace
-  let existingWs = await wsColl.findOne({ name: "Test Workspace" });
+  const existingWs = await wsColl.findOne({ name: "Test Workspace" });
   let workspaceId: string;
   if (existingWs) {
     workspaceId = String(existingWs._id);

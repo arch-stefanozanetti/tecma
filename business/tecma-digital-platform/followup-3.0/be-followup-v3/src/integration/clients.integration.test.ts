@@ -26,11 +26,14 @@ describe("integration: clients service", () => {
     const { client: created } = await createClient({
       workspaceId: "ws1",
       projectId: "p1",
-      fullName: "Mario Rossi",
+      firstName: "Mario",
+      lastName: "Rossi",
       email: "mario@test.it",
       status: "lead",
     });
     expect(created._id).toBeDefined();
+    expect(created.firstName).toBe("Mario");
+    expect(created.lastName).toBe("Rossi");
     expect(created.fullName).toBe("Mario Rossi");
     expect(created.email).toBe("mario@test.it");
     expect(created.status).toBe("lead");

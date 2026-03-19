@@ -40,6 +40,10 @@ import {
   revokePlatformApiKey,
   rotatePlatformApiKey,
 } from "../../core/platform/platform-api-keys.service.js";
+import {
+  getWorkspaceAiConfig,
+  putWorkspaceAiConfig,
+} from "../../core/workspaces/workspace-ai-config.service.js";
 import { getPriceAvailabilityMatrix } from "../../core/price-availability-matrix/price-availability-matrix.service.js";
 import type { MembershipRole } from "../../types/models.js";
 import { HttpError } from "../../types/http.js";
@@ -261,6 +265,17 @@ workspacesRoutes.get(
     return getPlatformUsageSummary(req.params.id, dateFrom, dateTo);
   })
 );
+
+workspacesRoutes.get(
+  "/workspaces/:id/ai-config",
+  handleAsync((req) => getWorkspaceAiConfig(req.params.id))
+);
+workspacesRoutes.put(
+  "/workspaces/:id/ai-config",
+  requireAdmin,
+  handleAsync((req) => putWorkspaceAiConfig(req.params.id, req.body))
+);
+
 workspacesRoutes.post("/additional-infos", requireAdmin, handleAsync((req) => createAdditionalInfo(req.body)));
 workspacesRoutes.patch("/additional-infos/:id", requireAdmin, handleAsync((req) => updateAdditionalInfo(req.params.id, req.body)));
 workspacesRoutes.delete("/additional-infos/:id", requireAdmin, handleAsync((req) => deleteAdditionalInfo(req.params.id)));

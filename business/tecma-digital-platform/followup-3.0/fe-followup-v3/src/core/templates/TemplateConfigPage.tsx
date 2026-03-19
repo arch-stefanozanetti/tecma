@@ -128,10 +128,10 @@ export const TemplateConfigPage = ({ workspaceId, projectIds }: TemplateConfigPa
               </option>
             ))}
           </select>
-          <Button variant="outline" type="button" onClick={load}>
+          <Button variant="outline" type="button" className="min-h-11" onClick={load}>
             Load
           </Button>
-          <Button variant="outline" type="button" onClick={() => setJsonMode((v) => !v)}>
+          <Button variant="outline" type="button" className="min-h-11" onClick={() => setJsonMode((v) => !v)}>
             {jsonMode ? "Visual mode" : "JSON mode"}
           </Button>
         </div>
@@ -217,6 +217,7 @@ export const TemplateConfigPage = ({ workspaceId, projectIds }: TemplateConfigPa
                     <Button
                       variant="outline"
                       type="button"
+                      className="min-h-11"
                       onClick={() => {
                         const next = { ...template };
                         next.sections[index].fields = next.sections[index].fields.filter((_, idx) => idx !== fieldIndex);
@@ -229,12 +230,13 @@ export const TemplateConfigPage = ({ workspaceId, projectIds }: TemplateConfigPa
                 ))}
 
                 <div className="project-access-form">
-                  <Button variant="outline" type="button" onClick={() => addField(section.id)}>
+                  <Button variant="outline" type="button" className="min-h-11" onClick={() => addField(section.id)}>
                     Add field
                   </Button>
                   <Button
                     variant="outline"
                     type="button"
+                    className="min-h-11"
                     onClick={() =>
                       syncRaw({
                         ...template,
@@ -247,7 +249,7 @@ export const TemplateConfigPage = ({ workspaceId, projectIds }: TemplateConfigPa
                 </div>
               </div>
             ))}
-            <Button variant="outline" type="button" onClick={addSection}>
+            <Button variant="outline" type="button" className="min-h-11" onClick={addSection}>
               Add section
             </Button>
           </div>
@@ -256,10 +258,10 @@ export const TemplateConfigPage = ({ workspaceId, projectIds }: TemplateConfigPa
         {jsonMode && <textarea className={cn(TEXTAREA_LIKE_CLASSES)} rows={22} value={raw} onChange={(e) => setRaw(e.target.value)} />}
 
         <div className="hc-actions">
-          <Button variant="outline" type="button" onClick={validate}>
+          <Button variant="outline" type="button" className="min-h-11" onClick={validate}>
             Validate
           </Button>
-          <Button type="button" onClick={save}>
+          <Button type="button" className="min-h-11" onClick={save}>
             Save
           </Button>
         </div>

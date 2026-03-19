@@ -288,7 +288,7 @@ export const WorkflowConfigPage = () => {
               </SelectContent>
             </Select>
           </div>
-          <Button onClick={handleCreateWorkflow} disabled={creating || !createName.trim()} size="sm">
+          <Button onClick={handleCreateWorkflow} disabled={creating || !createName.trim()} size="sm" className="min-h-11">
             {creating ? "Creazione..." : "Crea workflow"}
           </Button>
         </div>
@@ -297,7 +297,7 @@ export const WorkflowConfigPage = () => {
       <section className="glass-panel rounded-ui border border-border p-4">
         <div className="flex items-center justify-between gap-2 mb-3">
           <h2 className="text-sm font-semibold text-foreground">Workflow del workspace ({selectedWorkspaceName})</h2>
-          <Button onClick={loadWorkflows} variant="outline" size="sm">
+          <Button onClick={loadWorkflows} variant="outline" size="sm" className="min-h-11">
             Ricarica
           </Button>
         </div>
@@ -345,10 +345,10 @@ export const WorkflowConfigPage = () => {
               <TabsContent value="diagramma" className="mt-4">
                 <WorkflowCanvas states={detail.states} transitions={detail.transitions} className="rounded-ui border border-border" />
                 <div className="mt-3 flex gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={openAddStateModal} disabled={detailLoading}>
+                  <Button type="button" variant="outline" size="sm" className="min-h-11" onClick={openAddStateModal} disabled={detailLoading}>
                     {detailLoading ? "Aggiornamento..." : "Aggiungi stato"}
                   </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={openAddTransModal} disabled={detail.states.length < 2 || detailLoading}>
+                  <Button type="button" variant="outline" size="sm" className="min-h-11" onClick={openAddTransModal} disabled={detail.states.length < 2 || detailLoading}>
                     {detailLoading ? "Aggiornamento..." : "Aggiungi transizione"}
                   </Button>
                 </div>
@@ -384,7 +384,7 @@ export const WorkflowConfigPage = () => {
                     </table>
                   </div>
                 )}
-                <Button type="button" variant="outline" size="sm" onClick={openAddStateModal} disabled={detailLoading}>
+                <Button type="button" variant="outline" size="sm" className="min-h-11" onClick={openAddStateModal} disabled={detailLoading}>
                   {detailLoading ? "Aggiornamento..." : "Aggiungi stato"}
                 </Button>
               </TabsContent>
@@ -415,7 +415,7 @@ export const WorkflowConfigPage = () => {
                     </table>
                   </div>
                 )}
-                <Button type="button" variant="outline" size="sm" onClick={openAddTransModal} disabled={detail.states.length < 2 || detailLoading}>
+                <Button type="button" variant="outline" size="sm" className="min-h-11" onClick={openAddTransModal} disabled={detail.states.length < 2 || detailLoading}>
                   {detailLoading ? "Aggiornamento..." : "Aggiungi transizione"}
                 </Button>
               </TabsContent>
@@ -465,8 +465,8 @@ export const WorkflowConfigPage = () => {
             </label>
           </div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => setAddStateOpen(false)}>Annulla</Button>
-            <Button size="sm" onClick={handleAddState} disabled={addingState || !newStateCode.trim()}>
+            <Button variant="outline" size="sm" className="min-h-11" onClick={() => setAddStateOpen(false)}>Annulla</Button>
+            <Button size="sm" className="min-h-11" onClick={handleAddState} disabled={addingState || !newStateCode.trim()}>
               {addingState ? "..." : "Aggiungi"}
             </Button>
           </div>
@@ -509,9 +509,10 @@ export const WorkflowConfigPage = () => {
             </div>
           )}
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" size="sm" onClick={() => setAddTransOpen(false)}>Annulla</Button>
+            <Button variant="outline" size="sm" className="min-h-11" onClick={() => setAddTransOpen(false)}>Annulla</Button>
             <Button
               size="sm"
+              className="min-h-11"
               onClick={handleAddTransition}
               disabled={
                 addingTrans ||

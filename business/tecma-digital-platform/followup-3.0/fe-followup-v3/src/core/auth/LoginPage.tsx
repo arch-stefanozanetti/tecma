@@ -152,7 +152,7 @@ export const LoginPage = () => {
   if (loginStep === 2) {
     return (
       <div className="min-h-screen flex bg-auth-page text-foreground font-body">
-      <div className="hidden w-5/12 flex-col justify-between border-r border-border/60 bg-auth-sidebar px-12 py-12 lg:flex">
+      <div className="hidden md:flex w-5/12 flex-col justify-between border-r border-border/60 bg-auth-sidebar px-12 py-12 lg:px-10">
         <div>
           <LogoTecma className="h-12 w-12 opacity-90" />
           <p className="mt-4 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Tecma Followup</p>
@@ -181,7 +181,7 @@ export const LoginPage = () => {
                     value={chosenWorkspace}
                     onValueChange={(v) => setChosenWorkspace(v as WorkspaceId)}
                   >
-                    <SelectTrigger className="h-10 rounded-lg">
+                    <SelectTrigger className="h-11 min-h-11 rounded-lg">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -193,7 +193,7 @@ export const LoginPage = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button onClick={handleContinua} className="w-full h-10 rounded-lg">
+                <Button onClick={handleContinua} className="w-full min-h-11 rounded-lg">
                   Continua
                 </Button>
               </div>
@@ -214,7 +214,7 @@ export const LoginPage = () => {
 
   return (
     <div className="min-h-screen flex bg-auth-page text-foreground font-body">
-      <div className="hidden w-5/12 flex-col justify-between border-r border-border/60 bg-auth-sidebar px-12 py-12 lg:flex">
+      <div className="hidden md:flex w-5/12 flex-col justify-between border-r border-border/60 bg-auth-sidebar px-12 py-12 lg:px-10">
         <div>
           <LogoTecma className="h-12 w-12 opacity-90" />
           <p className="mt-4 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Tecma Followup</p>
@@ -259,7 +259,7 @@ export const LoginPage = () => {
                   required
                   autoComplete="email"
                   placeholder="nome.cognome@azienda.it"
-                  className="h-10 rounded-lg"
+                  className="min-h-11 h-11 rounded-lg"
                 />
               </div>
               <div>
@@ -272,7 +272,7 @@ export const LoginPage = () => {
                   required
                   autoComplete="current-password"
                   placeholder="Inserisci la password"
-                  className="h-10 rounded-lg"
+                  className="min-h-11 h-11 rounded-lg"
                 />
               </div>
               {bssAuthMode && (
@@ -286,7 +286,7 @@ export const LoginPage = () => {
                     onChange={(e) => setProjectId(e.target.value)}
                     required
                     placeholder="ID progetto (obbligatorio per auth BSS)"
-                    className="h-10 rounded-lg"
+                    className="min-h-11 h-11 rounded-lg"
                   />
                   <p className="mt-1 text-[11px] text-muted-foreground">
                     Con accesso tramite piattaforma BSS è necessario indicare il progetto a cui appartieni.
@@ -300,16 +300,16 @@ export const LoginPage = () => {
                 className="mt-1"
               />
               {error && <p className="text-xs text-destructive">{error}</p>}
-              <Button type="submit" disabled={loading} className="mt-1 w-full rounded-lg h-10">
+              <Button type="submit" disabled={loading} className="mt-1 w-full min-h-11 rounded-lg">
                 {loading ? "Accesso in corso..." : "Accedi"}
               </Button>
-              <p className="text-center">
+              <p className="text-center py-2">
                 {bssAuthMode ? (
-                  <a href={FORGOT_CREDENTIALS_URL} className="text-sm text-primary hover:underline">
+                  <a href={FORGOT_CREDENTIALS_URL} className="inline-block py-2 text-sm text-primary hover:underline min-h-11 flex items-center justify-center">
                     Hai dimenticato le credenziali?
                   </a>
                 ) : (
-                  <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+                  <Link to="/forgot-password" className="inline-block py-2 text-sm text-primary hover:underline min-h-11 flex items-center justify-center">
                     Password dimenticata?
                   </Link>
                 )}

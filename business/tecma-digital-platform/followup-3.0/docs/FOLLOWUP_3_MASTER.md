@@ -1,8 +1,9 @@
 # Followup 3.0 — Documento maestro (prodotto e wave)
 
-**Ultimo aggiornamento:** 2026-03-07  
+**Ultimo aggiornamento:** 2026-03-19  
+**Backlog eseguibile unico:** [docs/plans/2026-03-19-followup-backlog-attivo.md](plans/2026-03-19-followup-backlog-attivo.md).  
 **Piano operativo completo (utenti workspace, progetti, segregazione view, test 100%, prossimi passi):** [PLAN_UNIFICATO_FOLLOWUP_3.md](PLAN_UNIFICATO_FOLLOWUP_3.md).  
-**Uso di questo file:** visione, principi e wave; per dettagli implementativi e priorità usare il piano unificato.
+**Uso di questo file:** visione, principi e wave; per dettagli implementativi e priorità usare il piano unificato e il backlog attivo.
 
 ---
 
@@ -18,7 +19,7 @@
 1. **Rispettare l’ordine delle wave:** non implementare task di una wave successiva prima di aver chiuso i task della wave corrente (salvo eccezioni esplicite concordate).
 2. **UX e semplicità prima delle feature:** meglio poche funzioni chiare e usabili che molte confuse; ogni nuova schermata deve ridurre frizione, non aggiungerla.
 3. **Legacy e dati:** nessuna modifica distruttiva alle collection esistenti; solo lettura o estensioni additive (prefisso `tz_` o collection dedicate).
-4. **Un solo piano di riferimento:** questo documento; aggiornarlo quando una wave viene chiusa o quando si aggiunge un task concordato.
+4. **Piani di riferimento:** questo documento (wave e principi) e [backlog attivo](plans/2026-03-19-followup-backlog-attivo.md) (priorità eseguibili); aggiornare entrambi quando una wave viene chiusa o si aggiunge un task concordato.
 
 ---
 
@@ -122,23 +123,7 @@ Dettagli: [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), [DESIGN_SYSTEM_COMPONENTS_WAVES.
 
 **Deliverable Wave 3:** Esperienza quotidiana del CRM concentrata su poche azioni chiare; semplicità e pochi click prioritari rispetto al numero di funzionalità.
 
-#### Prossimi passi operativi (per chiudere Wave 3)
-
-Per non far sentire il prodotto “troppo basico” e rispettare gli acceptance, conviene completare in questo ordine:
-
-1. **Crea/Modifica Cliente**  
-   Il pulsante “Aggiungi cliente” deve aprire un flusso (dialog/wizard o pagina dedicata) con pochi campi essenziali (nome, email, telefono, stato); salvataggio via API. Dalla scheda dettaglio cliente (Sheet) aggiungere “Modifica” che apre lo stesso form in edit. *Acceptance:* creazione e modifica cliente in pochi step, nessun muro di campi.
-
-2. **Modifica Appartamento dalla lista**  
-   Dalla scheda dettaglio appartamento (Sheet) aggiungere CTA “Modifica” che porta alla pagina di modifica esistente (es. Edit Apartment HC o form breve) o apre un form in Sheet/Dialog. *Acceptance:* l’utente può correggere i dati di un appartamento senza perdere il contesto.
-
-3. **Cockpit con dati reali (opzionale ma consigliato)**  
-   Il Cockpit già chiama `generateAiSuggestions` e in fallback usa card mock. Verificare che le CTA (“Chiama”, “Crea proposta”, ecc.) portino alle sezioni giuste (Calendario, Clienti, Associa Apt/Cliente). Se l’API suggerimenti non è ancora piena, accettabile lasciare fallback mock ma con navigazione coerente.
-
-4. **Calendario: crea/modifica evento**  
-   Aggiungere “Nuovo evento” (es. da vista giorno/settimana) e modifica da click su evento: form breve (titolo, inizio, fine, progetto, tipo) con salvataggio. *Acceptance:* utente può vedere e gestire eventi senza cambiare contesto.
-
-Dopo questi quattro blocchi, Wave 3 può considerarsi chiusa e si può passare a **Wave 4** (Requests/Deals, modello unificato rent+sell).
+**Verifica 2026-03-19:** in codebase risultano coperti crea/modifica cliente (drawer), “Nuovo evento” / modifica in calendario, cockpit con suggerimenti AI (con fallback). Eventuali ritocchi UX restano nel [backlog attivo](plans/2026-03-19-followup-backlog-attivo.md), non come gate Wave 3.
 
 ---
 

@@ -132,10 +132,14 @@ async function seed() {
   for (let i = 0; i < N_CLIENTS; i++) {
     const n = i + 1;
     const isSell = n % 2 === 1;
+    const fn = firstNames[i % firstNames.length];
+    const ln = `${lastNames[i % lastNames.length]}${n > 10 ? ` ${n}` : ""}`.trim();
     clientDocs.push({
       workspaceId,
       projectId: isSell ? projectIdSell : projectIdRent,
-      fullName: `${firstNames[i % firstNames.length]} ${lastNames[i % lastNames.length]} ${n > 10 ? n : ""}`.trim(),
+      firstName: fn,
+      lastName: ln,
+      fullName: `${fn} ${ln}`.trim(),
       email: `cliente.${n}@demo.example.com`,
       phone: `+39333${String(1000000 + n).slice(-7)}`,
       status: ["lead", "prospect", "client", "contacted", "negotiation"][i % 5],

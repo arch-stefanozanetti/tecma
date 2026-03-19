@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { HttpError } from "../../types/http.js";
+import { canAccess } from "../../core/access/canAccess.js";
 import { subscribeRealtimeEvents } from "../../core/realtime/realtime-bus.service.js";
 import { sendError } from "../asyncHandler.js";
 import { verifyAccessToken } from "../../core/auth/token.service.js";
@@ -12,12 +13,10 @@ const writeSseEvent = (res: Response, event: string, payload: unknown): void => 
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
 };
 
-realtimeRoutes.get("/realtime/stream", (req: Request, res: Response) => {
+realtimeRoutes.get("/realtime/stream", async (req: Request, res: Response) => {
   try {
-    const tokenFromQuery = typeof req.query.accessToken === "string" ? req.query.accessToken : "";
     const authHeader = req.get("authorization");
-    const bearer = authHeader?.toLowerCase().startsWith("bearer ") ? authHeader.slice("bearer ".length).trim() : "";
-    const token = tokenFromQuery || bearer;
+    const token = authHeader?.toLowerCase().startsWith("bearer ") ? authHeader.slice("bearer ".length).trim() : "";
     if (!token) throw new HttpError("Unauthorized", 401);
     try {
       req.user = verifyAccessToken(token);
@@ -28,7 +27,16 @@ realtimeRoutes.get("/realtime/stream", (req: Request, res: Response) => {
     const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";
     if (!workspaceId) throw new HttpError("workspaceId query required", 400);
 
+    const user = req.user && (req.user.sub || req.user.email) ? { sub: req.user.sub ?? "", email: req.user.email ?? "", system_role: req.user.system_role, isTecmaAdmin: req.user.isTecmaAdmin } : null;
+    if (!user) throw new HttpError("Unauthorized", 401);
+    const canAccessWorkspace = await canAccess(user, { type: "workspace", workspaceId });
+    if (!canAccessWorkspace) throw new HttpError("Accesso al workspace non consentito", 403);
+
     const projectId = typeof req.query.projectId === "string" ? req.query.projectId : "";
+    if (projectId) {
+      const canAccessProject = await canAccess(user, { type: "project", projectId, workspaceId });
+      if (!canAccessProject) throw new HttpError("Accesso al progetto non consentito", 403);
+    }
     const eventTypesRaw = typeof req.query.eventTypes === "string" ? req.query.eventTypes : "";
     const eventTypes = eventTypesRaw
       .split(",")

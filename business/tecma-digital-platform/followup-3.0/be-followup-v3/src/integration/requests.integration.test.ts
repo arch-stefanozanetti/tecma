@@ -19,7 +19,8 @@ describe("integration: requests service", () => {
     const { client } = await createClient({
       workspaceId: "ws1",
       projectId: "p1",
-      fullName: "Cliente Request Test",
+      firstName: "Cliente",
+      lastName: "Request Test",
     });
     clientId = client._id;
   }, 30_000);

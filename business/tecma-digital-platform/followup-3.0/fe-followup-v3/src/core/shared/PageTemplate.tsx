@@ -7,14 +7,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Euro,
-  FileText,
   FolderKanban,
   GitBranch,
   Handshake,
   Home,
   Inbox as InboxIcon,
   Layers,
-  Link2,
   LogOut,
   Mail,
   Menu,
@@ -22,8 +20,8 @@ import {
   Settings,
   UserCircle,
   Users,
-  Zap,
 } from "lucide-react";
+import { NAV_ITEMS, type Section } from "../config/routes";
 import { cn } from "../../lib/utils";
 import { Checkbox } from "../../components/ui/checkbox";
 import { Sheet, SheetContent, SheetTrigger } from "../../components/ui/sheet";
@@ -35,34 +33,6 @@ import { followupApi } from "../../api/followupApi";
 import { clearTokens, getRefreshToken } from "../../api/http";
 import { isSectionEnabledByFeature, isPriceAvailabilityRelevant } from "../features";
 import { Inbox } from "./Inbox";
-
-type Section =
-  | "cockpit"
-  | "calendar"
-  | "clients"
-  | "apartments"
-  | "requests"
-  | "createApartment"
-  | "createApartmentHC"
-  | "editApartmentHC"
-  | "associateAptClient"
-  | "completeFlow"
-  | "catalogHC"
-  | "templateConfig"
-  | "aiApprovals"
-  | "projects"
-  | "workflowConfig"
-  | "workspaces"
-  | "users"
-  | "emailFlows"
-  | "audit"
-  | "reports"
-  | "releases"
-  | "integrations"
-  | "priceAvailability"
-  | "inbox"
-  | "customer360"
-  | "productDiscovery";
 
 interface PageTemplateProps {
   section: Section;
@@ -84,36 +54,7 @@ interface PageTemplateProps {
   children: ReactNode;
 }
 
-interface NavItem {
-  id: Section;
-  label: string;
-  icon: React.ElementType;
-  compact?: boolean;
-  adminOnly?: boolean;
-  /** Raggruppamento sotto "Strumenti" espanso: tools = operativo, admin = amministrazione */
-  group?: "tools" | "admin";
-}
-
-const navItems: NavItem[] = [
-  { id: "cockpit", label: "Home", icon: Home },
-  { id: "apartments", label: "Appartamenti", icon: Building2 },
-  { id: "clients", label: "Clienti", icon: Users },
-  { id: "requests", label: "Trattative", icon: Handshake },
-  { id: "calendar", label: "Calendario", icon: CalendarDays },
-  { id: "inbox", label: "Inbox", icon: InboxIcon },
-  { id: "customer360", label: "Customer 360", icon: UserCircle },
-  { id: "projects", label: "Progetti", icon: Building2 },
-  { id: "priceAvailability", label: "Prezzi e disponibilità", icon: Euro, compact: true, group: "tools" },
-  { id: "integrations", label: "Integrazioni e automazioni", icon: Plug, compact: true, group: "tools" },
-  { id: "workflowConfig", label: "Config. workflow", icon: GitBranch, adminOnly: true, compact: true, group: "admin" },
-  { id: "workspaces", label: "Workspaces", icon: FolderKanban, adminOnly: true, compact: true, group: "admin" },
-  { id: "users", label: "User", icon: UserCircle, adminOnly: true, compact: true, group: "admin" },
-  { id: "emailFlows", label: "Email", icon: Mail, adminOnly: true, compact: true, group: "admin" },
-  { id: "productDiscovery", label: "Product Discovery", icon: Layers, adminOnly: true, compact: true, group: "admin" },
-  { id: "reports", label: "Report", icon: BarChart2, compact: true, group: "tools" },
-];
-
-const mainNav = navItems.filter((item) => !item.compact);
+const mainNav = NAV_ITEMS.filter((item) => !item.compact);
 const mobileQuickNav: Array<{ id: Section; label: string; icon: React.ElementType }> = [
   { id: "calendar", label: "Agenda", icon: CalendarDays },
   { id: "requests", label: "Follow-up", icon: Handshake },
@@ -130,7 +71,7 @@ const getSecondaryNav = (
   enabledFeatures?: string[],
   priceAvailabilityContext?: { projects: ProjectAccessProject[]; selectedProjectIds: string[] }
 ) =>
-  navItems.filter((item) => {
+  NAV_ITEMS.filter((item) => {
     if (!item.compact || (item.adminOnly && !isAdmin)) return false;
     if (!isSectionEnabledByFeature(item.id, enabledFeatures)) return false;
     if (item.id === "priceAvailability" && priceAvailabilityContext) {
@@ -701,7 +642,7 @@ export const PageTemplate = ({
               <button
                 type="button"
                 onClick={() => setSettingsOpen((value) => !value)}
-                className="inline-flex h-10 items-center gap-1 rounded-chrome border border-border bg-background px-3 text-sm text-foreground hover:bg-muted"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-chrome border border-border bg-background px-3 text-sm text-foreground hover:bg-muted"
               >
                 <Settings className="h-3.5 w-3.5" />
                 Settings
@@ -718,7 +659,7 @@ export const PageTemplate = ({
                       <button
                         key={entry.label}
                         type="button"
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-foreground hover:bg-muted"
+                        className="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left text-xs text-foreground hover:bg-muted"
                       >
                         <Icon className="h-3.5 w-3.5" />
                         {entry.label}
@@ -738,7 +679,7 @@ export const PageTemplate = ({
                 aria-expanded={userMenuOpen}
                 aria-haspopup="true"
                 className={cn(
-                  "inline-flex h-10 items-center gap-2 rounded-chrome border px-2 text-sm transition-colors",
+                  "inline-flex min-h-11 items-center gap-2 rounded-chrome border px-2 text-sm transition-colors",
                   userMenuOpen
                     ? "border-primary bg-sidebar-accent text-primary"
                     : "border-transparent bg-transparent text-foreground hover:bg-muted"

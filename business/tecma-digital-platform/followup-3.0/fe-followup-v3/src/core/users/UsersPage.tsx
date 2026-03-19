@@ -274,6 +274,7 @@ export const UsersPage = () => {
       <div className="flex justify-end gap-2">
         <Button
           size="sm"
+          className="min-h-11"
           onClick={() => {
             setAddUserOpen(true);
             setAddUserError(null);
@@ -288,7 +289,7 @@ export const UsersPage = () => {
         >
           Aggiungi utente (a workspace)
         </Button>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+        <Button variant="outline" size="sm" className="min-h-11" onClick={load} disabled={loading}>
           Ricarica
         </Button>
       </div>
@@ -449,6 +450,7 @@ export const UsersPage = () => {
             {addUserError && <p className="text-sm text-destructive">{addUserError}</p>}
             <div className="flex gap-2">
               <Button
+                className="min-h-11"
                 disabled={
                   !addUserWorkspaceId ||
                   !addUserEmail.trim() ||
@@ -502,7 +504,7 @@ export const UsersPage = () => {
               >
                 {addUserSaving ? "Invio…" : addUserMode === "invite" ? "Invita e aggiungi al workspace" : "Aggiungi"}
               </Button>
-              <Button variant="outline" onClick={() => setAddUserOpen(false)}>
+              <Button variant="outline" className="min-h-11" onClick={() => setAddUserOpen(false)}>
                 Annulla
               </Button>
             </div>
@@ -602,7 +604,7 @@ export const UsersPage = () => {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-7 text-muted-foreground hover:text-destructive"
+                                    className="min-h-11 text-muted-foreground hover:text-destructive"
                                     disabled={savingProject !== null}
                                     onClick={() => removeProject(w.workspaceId, pid)}
                                   >
@@ -668,7 +670,7 @@ export const UsersPage = () => {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-7 text-muted-foreground hover:text-destructive"
+                                  className="min-h-11 text-muted-foreground hover:text-destructive"
                                   disabled={savingAssignment !== null}
                                   onClick={() =>
                                     removeAssignment(

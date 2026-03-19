@@ -205,7 +205,7 @@ export const EmailFlowsPage = () => {
     return (
       <PageSimple title="Email transazionali" description="Errore">
         <p className="text-destructive text-sm">{error}</p>
-        <Button variant="outline" className="mt-4" onClick={load}>
+        <Button variant="outline" className="mt-4 min-h-11" onClick={load}>
           Riprova
         </Button>
       </PageSimple>
@@ -305,13 +305,13 @@ export const EmailFlowsPage = () => {
                 )}
 
                 <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={loadSuggested}>
+                  <Button type="button" variant="outline" size="sm" className="min-h-11" onClick={loadSuggested}>
                     Carica testo suggerito
                   </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={runPreview}>
+                  <Button type="button" variant="outline" size="sm" className="min-h-11" onClick={runPreview}>
                     Anteprima
                   </Button>
-                  <Button type="button" onClick={save} disabled={saving}>
+                  <Button type="button" className="min-h-11" onClick={save} disabled={saving}>
                     {saving ? "Salvataggio…" : "Salva"}
                   </Button>
                 </div>
@@ -331,7 +331,7 @@ export const EmailFlowsPage = () => {
             <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-ui border border-border bg-background shadow-lg">
               <div className="flex items-center justify-between border-b border-border px-4 py-2">
                 <span className="font-medium">Anteprima</span>
-                <Button variant="ghost" size="sm" onClick={() => setPreviewOpen(false)}>
+                <Button variant="ghost" size="sm" className="min-h-11" onClick={() => setPreviewOpen(false)}>
                   Chiudi
                 </Button>
               </div>

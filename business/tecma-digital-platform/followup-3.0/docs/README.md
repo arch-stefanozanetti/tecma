@@ -1,6 +1,6 @@
 # Documentazione Followup 3.0
 
-Indice della documentazione di progetto. **Piano operativo unico:** [PLAN_UNIFICATO_FOLLOWUP_3.md](PLAN_UNIFICATO_FOLLOWUP_3.md). Visione e wave: [FOLLOWUP_3_MASTER.md](FOLLOWUP_3_MASTER.md).
+Indice della documentazione di progetto. **Backlog eseguibile:** [plans/2026-03-19-followup-backlog-attivo.md](plans/2026-03-19-followup-backlog-attivo.md). **Piano operativo (workspace, segregazione, dettaglio):** [PLAN_UNIFICATO_FOLLOWUP_3.md](PLAN_UNIFICATO_FOLLOWUP_3.md). Visione e wave: [FOLLOWUP_3_MASTER.md](FOLLOWUP_3_MASTER.md).
 
 ---
 
@@ -25,8 +25,9 @@ Indice della documentazione di progetto. **Piano operativo unico:** [PLAN_UNIFIC
 | [AUTH_AND_TECMA_BSS_API_REPORT.md](AUTH_AND_TECMA_BSS_API_REPORT.md) | Stato API TECMA-BSS (aws-api-gateway), auth esistente, cosa manca, test. |
 | [fe-followup-v3/ARCHITECTURE.md](../fe-followup-v3/ARCHITECTURE.md) | Architettura frontend: struttura `src/`, come aggiungere una pagina o un endpoint, hook `usePaginatedList` e `useAsync`. |
 | [REFACTORING.md](REFACTORING.md) | Refactoring strutturale (sprint): split project-config BE, route v1, IntegrationsPage (catalog/tab), pagine FE (costanti/hook/componenti), toast per errori API. |
+| [CURSOR_MCP_TWILIO.md](CURSOR_MCP_TWILIO.md) | Twilio reale in Followup vs server MCP `@twilio-alpha/mcp` in Cursor: cosa fa ciascuno, esempio config (senza segreti in repo). |
 | [archive/plans-2025-2026/2025-03-07-unificazione-api-aws-gateway-followup.md](archive/plans-2025-2026/2025-03-07-unificazione-api-aws-gateway-followup.md) | Storico: unificazione API Followup con aws-api-gateway (merge spec, test, Postman, FE). |
-| [plans/](plans/README.md) | Design attivi: confine email operative vs connettori, mappa eventi, scope workspace/progetto. |
+| [plans/](plans/README.md) | Backlog attivo + design/implementazione ancora aperti (AI cockpit aggregato, refactor). Storico in `archive/plans-2025-2026/`. |
 
 ---
 

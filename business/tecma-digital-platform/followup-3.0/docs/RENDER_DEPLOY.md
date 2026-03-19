@@ -44,7 +44,7 @@ Collegare il repo e il primo deploy richiedono **login su render.com**, **autori
    - **FE:** `VITE_API_BASE_URL` = `https://<nome-be>.onrender.com/v1` (dopo che il BE è live).
 4. Ordine: deploy **BE**, poi imposta `VITE_API_BASE_URL` sul **FE** e ridistribuisci il FE se serve.
 
-**Build FE su Render:** prima si compila **design-system** (`npm ci && npm run build` in `../../design-system`), poi nel FE: pnpm install + build. Vedi `buildCommand` completo in `render.yaml`.
+**Build come single source of truth:** la build usata su Render è definita dagli script in repo root **`scripts/render-build-fe.sh`** e **`scripts/render-build-be.sh`**. Lo stesso build viene eseguito in CI (workflow Followup 3.0); se la CI è verde, il deploy non fallisce per errori di build. Modifiche alla sequenza di build vanno fatte solo in questi script.
 
 **Publish directory (static site):** con `rootDir` = cartella FE, **`staticPublishPath` deve essere `dist`** (solo il nome della cartella, relativo al rootDir). Se imposti il path completo dal root del repo (`business/.../fe-followup-v3/dist`), Render fallisce con *Publish directory … does not exist* perché risolve il path sotto il rootDir, non sotto la root del repo. In **Dashboard → followup-3-fe → Settings** verifica **Publish Directory** = `dist` se dopo un sync Blueprint restasse il valore errato.
 

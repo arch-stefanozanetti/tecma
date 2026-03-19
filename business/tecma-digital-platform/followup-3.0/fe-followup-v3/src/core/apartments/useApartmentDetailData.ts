@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { followupApi } from "../../api/followupApi";
 import type { ApartmentRow, RequestRow } from "../../types/domain";
 import { useDetailData } from "../shared/useDetailData";
@@ -18,11 +19,18 @@ export function useApartmentDetailData(
   workspaceId: string | undefined,
   selectedProjectIds: string[]
 ): UseApartmentDetailDataResult {
+  const loadEntity = useCallback(
+    (id: string) =>
+      workspaceId
+        ? followupApi.apartments.getApartmentById(id, workspaceId).then((r) => r.apartment ?? null)
+        : Promise.resolve(null),
+    [workspaceId]
+  );
   const result = useDetailData<ApartmentRow>({
     entityId: apartmentId,
     workspaceId,
     selectedProjectIds,
-    loadEntity: (id) => followupApi.apartments.getApartmentById(id).then((r) => r.apartment ?? null),
+    loadEntity,
     getProjectIdsFromEntity: (apartment) =>
       [apartment.projectId ?? selectedProjectIds[0]].filter(Boolean),
     requestFilterKey: "apartmentId",

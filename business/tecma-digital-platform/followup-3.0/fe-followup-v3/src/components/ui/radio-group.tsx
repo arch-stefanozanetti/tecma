@@ -90,7 +90,8 @@ const Radio = React.forwardRef<HTMLInputElement, RadioProps>(
       ? () => ctx.onChange?.(value)
       : _onChange;
 
-    const id = idProp ?? React.useId();
+    const generatedId = React.useId();
+    const id = idProp ?? generatedId;
     const inputId = `radio-${id}`;
     const labelId = `radio-label-${id}`;
 

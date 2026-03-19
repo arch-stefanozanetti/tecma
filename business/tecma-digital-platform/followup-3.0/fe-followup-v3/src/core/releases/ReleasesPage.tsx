@@ -157,7 +157,7 @@ export const ReleasesPage = () => {
               v{appVersion}
             </Badge>
             {GITHUB_RELEASES_REPO && (
-              <Button variant="outline" size="sm" className="gap-2" onClick={() => loadGithub()}>
+              <Button variant="outline" size="sm" className="min-h-11 gap-2" onClick={() => loadGithub()}>
                 <RefreshCcw className={cn("h-3.5 w-3.5", loadingGithub && "animate-spin")} />
                 GitHub
               </Button>

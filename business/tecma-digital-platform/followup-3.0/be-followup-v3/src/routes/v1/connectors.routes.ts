@@ -6,6 +6,7 @@ import {
   saveWhatsAppConfig,
   deleteWhatsAppConfig,
 } from "../../core/connectors/whatsapp-config.service.js";
+import { sendWhatsAppMessage } from "../../core/communications/whatsapp.service.js";
 import {
   getAuthUrl,
   getCalendarEvents,
@@ -59,6 +60,23 @@ connectorsRoutes.post("/workspaces/:workspaceId/connectors/whatsapp/config", han
 connectorsRoutes.delete("/workspaces/:workspaceId/connectors/whatsapp/config", handleAsync(async (req) => {
   const deleted = await deleteWhatsAppConfig(req.params.workspaceId);
   return { deleted };
+}));
+
+/** Solo admin (o permesso *): invia un messaggio di prova (verifica Twilio + prefisso whatsapp:). */
+connectorsRoutes.post("/workspaces/:workspaceId/connectors/whatsapp/test", handleAsync(async (req) => {
+  const privileged =
+    req.user?.isAdmin === true ||
+    (Array.isArray(req.user?.permissions) && req.user.permissions.includes("*"));
+  if (!privileged) {
+    throw new HttpError("Solo gli amministratori possono inviare messaggi di prova WhatsApp", 403);
+  }
+  const body = z.object({
+    to: z.string().min(5),
+    body: z.string().max(1600).optional(),
+  }).parse(req.body ?? {});
+  const text = body.body?.trim() || "Followup 3.0 — messaggio di prova WhatsApp.";
+  await sendWhatsAppMessage(req.params.workspaceId, body.to, text);
+  return { ok: true };
 }));
 
 connectorsRoutes.get("/connectors/outlook/auth", (req, res) => {

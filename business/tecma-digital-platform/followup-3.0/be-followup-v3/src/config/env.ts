@@ -37,6 +37,11 @@ const EnvSchema = z.object({
   SSO_JWT_HS256_SECRET: z.string().optional(),
   /** API keys per consumer esterni platform API, JSON object: {"<key>":{"workspaceId":"...","projectIds":["..."]}} */
   PLATFORM_API_KEYS: z.string().default("{}"),
+  /** Se env "true" / "1", i suggerimenti AI usano solo euristiche (no chiamate LLM). */
+  AI_LLM_DISABLED: z.preprocess(
+    (v) => v === "1" || String(v ?? "").toLowerCase() === "true",
+    z.boolean()
+  ),
   PLATFORM_RATE_LIMIT_PER_MIN: z.coerce.number().min(10).max(5000).default(120),
   DOCUSIGN_API_BASE_URL: z.string().url().optional(),
   DOCUSIGN_API_TOKEN: z.string().optional(),

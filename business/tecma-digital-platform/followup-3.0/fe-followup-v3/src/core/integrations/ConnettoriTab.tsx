@@ -126,7 +126,9 @@ export function ConnettoriTab({
         if (id === "connector_looker") {
           try {
             if (workspaceId) window.localStorage?.removeItem(`${LOOKER_CONNECTOR_STORAGE_KEY}.${workspaceId}`);
-          } catch {}
+          } catch {
+            /* localStorage may throw in private mode */
+          }
           setConnectors((prev) => prev.map((c) => (c.id === id ? { ...c, status: "available" } : c)));
         } else if (id === "connector_n8n") {
           setTogglingId(id);
@@ -241,7 +243,9 @@ export function ConnettoriTab({
       .then(() => {
         try {
           if (workspaceId) window.localStorage?.setItem(`${LOOKER_CONNECTOR_STORAGE_KEY}.${workspaceId}`, "true");
-        } catch {}
+        } catch {
+          /* localStorage may throw in private mode */
+        }
         setConnectors((prev) => prev.map((c) => (c.id === "connector_looker" ? { ...c, status: "configured" } : c)));
         setConnectorConfigDrawer(null);
       })
@@ -416,7 +420,7 @@ export function ConnettoriTab({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 text-xs text-primary hover:text-primary"
+                    className="min-h-11 text-xs text-primary hover:text-primary"
                     onClick={() => setSetupConnectorId(setupConnectorId === connector.id ? null : connector.id)}
                   >
                     Come attivare
@@ -428,7 +432,7 @@ export function ConnettoriTab({
                         <Button
                           variant="link"
                           size="sm"
-                          className="mt-2 h-auto p-0 text-xs font-medium text-primary"
+                          className="mt-2 min-h-11 h-auto p-2 text-xs font-medium text-primary"
                           onClick={() => {
                             onOpenTab(connector.relatedTab!);
                             setSetupConnectorId(null);
@@ -446,7 +450,7 @@ export function ConnettoriTab({
                 <Button
                   variant={isConfigured ? "outline" : "default"}
                   size="sm"
-                  className="flex-1 gap-1.5"
+                  className="min-h-11 flex-1 gap-1.5"
                   disabled={isComingSoon || togglingId === connector.id}
                   onClick={() => toggleConnector(connector.id)}
                 >
@@ -467,7 +471,7 @@ export function ConnettoriTab({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="gap-1.5"
+                    className="min-h-11 gap-1.5"
                     disabled={togglingId === connector.id}
                     onClick={() => {
                       setTogglingId(connector.id);
@@ -510,7 +514,7 @@ export function ConnettoriTab({
                   <p className="text-sm text-amber-600">Seleziona almeno un progetto nel selettore progetti (sidebar) per poter testare.</p>
                 )}
                 {lookerTestError && <p className="text-sm text-destructive">{lookerTestError}</p>}
-                <Button onClick={testLookerConnection} disabled={lookerTesting || projectIds.length === 0}>
+                <Button className="min-h-11" onClick={testLookerConnection} disabled={lookerTesting || projectIds.length === 0}>
                   {lookerTesting ? "Test in corso..." : "Test connessione"}
                 </Button>
               </>
@@ -563,7 +567,7 @@ export function ConnettoriTab({
                   {outlookConnected ? (
                     <>
                       <p className="text-sm text-muted-foreground">Outlook connesso. Puoi disconnettere dalla scheda o vedere gli eventi.</p>
-                      <Button variant="outline" size="sm" onClick={loadOutlookCalendar} disabled={outlookCalendarLoading}>
+                      <Button variant="outline" size="sm" className="min-h-11" onClick={loadOutlookCalendar} disabled={outlookCalendarLoading}>
                         {outlookCalendarLoading ? "Caricamento..." : "Vedi eventi calendario (14 gg)"}
                       </Button>
                       {outlookCalendarEvents.length > 0 && (
@@ -580,7 +584,7 @@ export function ConnettoriTab({
                   ) : (
                     <>
                       <p className="text-sm text-muted-foreground">Connetti il tuo account Microsoft per leggere il calendario Outlook.</p>
-                      <Button onClick={connectOutlook} disabled={outlookConnecting}>
+                      <Button className="min-h-11" onClick={connectOutlook} disabled={outlookConnecting}>
                         {outlookConnecting ? "Reindirizzamento..." : "Connetti Outlook"}
                       </Button>
                     </>
@@ -637,17 +641,17 @@ export function ConnettoriTab({
           </DrawerBody>
           {connectorConfigDrawer === "connector_n8n" && (
             <DrawerFooter className="flex flex-wrap gap-2">
-              <Button onClick={saveN8nConfig} disabled={connectorSaving}>
+              <Button className="min-h-11" onClick={saveN8nConfig} disabled={connectorSaving}>
                 {connectorSaving ? "Salvataggio..." : "Salva"}
               </Button>
-              <Button variant="outline" onClick={testN8nTrigger} disabled={n8nTestTriggering || connectorSaving}>
+              <Button variant="outline" className="min-h-11" onClick={testN8nTrigger} disabled={n8nTestTriggering || connectorSaving}>
                 {n8nTestTriggering ? "Test in corso..." : "Test trigger"}
               </Button>
             </DrawerFooter>
           )}
           {connectorConfigDrawer === "connector_outlook" && (
             <DrawerFooter>
-              <Button onClick={saveConnectorWebhook} disabled={connectorSaving}>
+              <Button className="min-h-11" onClick={saveConnectorWebhook} disabled={connectorSaving}>
                 {connectorSaving ? "Salvataggio..." : "Salva"}
               </Button>
             </DrawerFooter>

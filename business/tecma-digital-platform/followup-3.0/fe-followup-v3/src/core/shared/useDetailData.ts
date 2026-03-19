@@ -3,9 +3,9 @@
  *
  * **Dependency array del primo useEffect:** `loadEntity` (e `getProjectIdsFromEntity`) non sono
  * inclusi di proposito. Includerli causerebbe re-run continui se il chiamante passa funzioni
- * create inline (es. `() => followupApi.clients.getClientById(id)`). L'effetto deve eseguire
- * solo al cambio di `entityId`; le funzioni di load vanno passate stabili (importate o
- * useCallback con dipendenze minime).
+ * create inline instabile. Passa `loadEntity` con **useCallback** e dipendenze corrette
+ * (es. `workspaceId` se la GET richiede `?workspaceId=`). L'effetto dipende da `entityId`,
+ * `workspaceId` e `loadEntity`.
  */
 import type { Dispatch, SetStateAction } from "react";
 import { useEffect, useState, useCallback } from "react";
@@ -53,6 +53,13 @@ export function useDetailData<TEntity>({
     if (!entityId) {
       setEntity(null);
       setError(null);
+      setLoading(false);
+      return;
+    }
+    if (!workspaceId) {
+      setEntity(null);
+      setError(null);
+      setLoading(false);
       return;
     }
     let cancelled = false;
@@ -75,7 +82,7 @@ export function useDetailData<TEntity>({
     return () => {
       cancelled = true;
     };
-  }, [entityId]);
+  }, [entityId, workspaceId, loadEntity]);
 
   const selectedProjectIdsKey = selectedProjectIds.join(",");
 

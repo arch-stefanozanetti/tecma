@@ -4,6 +4,7 @@ import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
 import { HttpError } from "../../types/http.js";
+import { namesFromDoc } from "../clients/client-name.util.js";
 
 const MAGIC_LINK_COLLECTION = "tz_magic_links";
 const PORTAL_SESSION_COLLECTION = "tz_portal_sessions";
@@ -30,7 +31,7 @@ const PortalSessionSchema = z.object({
 });
 
 export interface PortalOverviewResponse {
-  client: { id: string; fullName: string; email?: string; phone?: string };
+  client: { id: string; firstName: string; lastName: string; fullName: string; email?: string; phone?: string };
   deals: Array<{ id: string; type: string; status: string; updatedAt: string; quoteNumber?: string; quoteTotalPrice?: number }>;
   documents: Array<{ id: string; title: string; type: "quote" | "document"; createdAt: string; url?: string }>;
   timeline: Array<{
@@ -231,10 +232,14 @@ export const getCustomerPortalOverview = async (rawInput: unknown): Promise<Port
   }));
   const timeline = [...dealTimeline, ...documentTimeline].sort((a, b) => b.at.localeCompare(a.at));
 
+  const n = namesFromDoc(clientDoc as Record<string, unknown>);
+  const displayName = n.fullName && n.fullName !== "-" ? n.fullName : "Cliente";
   return {
     client: {
       id: clientDoc._id instanceof ObjectId ? clientDoc._id.toHexString() : String(clientDoc._id ?? ""),
-      fullName: typeof clientDoc.fullName === "string" ? clientDoc.fullName : "Cliente",
+      firstName: n.firstName,
+      lastName: n.lastName,
+      fullName: displayName,
       email: typeof clientDoc.email === "string" ? clientDoc.email : undefined,
       phone: typeof clientDoc.phone === "string" ? clientDoc.phone : undefined,
     },

@@ -13,6 +13,8 @@ const PROJECT_SCOPE = {
 const mockClient = {
   _id: "c1",
   projectId: "p1",
+  firstName: "Mario",
+  lastName: "Rossi",
   fullName: "Mario Rossi",
   email: "mario.rossi@example.com",
   phone: "+39 333 000 111",

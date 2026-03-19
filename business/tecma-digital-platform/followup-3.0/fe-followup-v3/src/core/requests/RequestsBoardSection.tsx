@@ -71,7 +71,7 @@ export const RequestsBoardSection = ({
           <h1 className="text-2xl font-semibold text-foreground">Trattative</h1>
           <p className="mt-1 text-sm text-muted-foreground">Richieste e trattative (affitto e vendita). Clicca su una riga o su una card per i dettagli.</p>
         </div>
-        <Button className="h-10 rounded-lg" onClick={onOpenNewRequest}>
+        <Button className="min-h-11 rounded-lg" onClick={onOpenNewRequest}>
           <Plus className="h-4 w-4" />
           Nuova trattativa
         </Button>
@@ -91,19 +91,19 @@ export const RequestsBoardSection = ({
               <div className="flex flex-1 flex-wrap items-end gap-3">
                 <div className="relative min-w-[200px] max-w-md flex-1">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input className="h-10 w-full rounded-lg border-border pl-10 text-sm shadow-none placeholder:text-muted-foreground" placeholder="Cerca per ID cliente..." value={search} onChange={(e) => onSearchChange(e.target.value)} onKeyDown={(e) => e.key === "Enter" && onSearch()} />
+                  <Input className="min-h-11 w-full rounded-lg border-border pl-10 text-sm shadow-none placeholder:text-muted-foreground" placeholder="Cerca per ID cliente..." value={search} onChange={(e) => onSearchChange(e.target.value)} onKeyDown={(e) => e.key === "Enter" && onSearch()} />
                 </div>
-                <Button variant="outline" className="h-10 gap-1.5 rounded-lg border-border px-3 text-sm text-foreground hover:bg-muted" onClick={onOpenFilters}>
+                <Button variant="outline" className="min-h-11 gap-1.5 rounded-lg border-border px-3 text-sm text-foreground hover:bg-muted" onClick={onOpenFilters}>
                   <Filter className="h-4 w-4" />
                   Filtri
                 </Button>
-                <Button variant="outline" className="h-10 rounded-lg border-border px-4 text-sm font-medium hover:bg-muted" onClick={onSearch}>Cerca</Button>
-                <Button variant="ghost" className="h-10 gap-1.5 rounded-lg px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground" onClick={onResetFilters}>
+                <Button variant="outline" className="min-h-11 rounded-lg border-border px-4 text-sm font-medium hover:bg-muted" onClick={onSearch}>Cerca</Button>
+                <Button variant="ghost" className="min-h-11 gap-1.5 rounded-lg px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground" onClick={onResetFilters}>
                   <RotateCcw className="h-4 w-4" />
                   Azzera
                 </Button>
               </div>
-              <Button variant="outline" className="h-10 shrink-0 rounded-lg border-border px-3 text-sm hover:bg-muted" onClick={onRefresh}>
+              <Button variant="outline" className="min-h-11 shrink-0 rounded-lg border-border px-3 text-sm hover:bg-muted" onClick={onRefresh}>
                 <RefreshCcw className="h-4 w-4" />
                 Aggiorna
               </Button>
@@ -136,7 +136,7 @@ export const RequestsBoardSection = ({
                     requests.map((req) => (
                       <tr key={req._id} role="button" tabIndex={0} onClick={() => onSelectRequest(req)} onKeyDown={(e) => e.key === "Enter" && onSelectRequest(req)} className="border-b border-border text-sm text-foreground hover:bg-muted cursor-pointer">
                         <td className="px-4 py-4">
-                          <button type="button" className="inline-flex h-6 w-6 items-center justify-center text-primary opacity-50 hover:opacity-100" aria-label="Apri dettaglio" onClick={(e) => { e.stopPropagation(); onSelectRequest(req); }}>
+                          <button type="button" className="inline-flex min-h-11 min-w-11 items-center justify-center text-primary opacity-50 hover:opacity-100" aria-label="Apri dettaglio" onClick={(e) => { e.stopPropagation(); onSelectRequest(req); }}>
                             <ExternalLink className="h-3.5 w-3.5" />
                           </button>
                         </td>
@@ -146,7 +146,7 @@ export const RequestsBoardSection = ({
                         <td className="px-4 py-4 text-muted-foreground">{req.clientRole ? CLIENT_ROLE_LABEL[req.clientRole] : "—"}</td>
                         <td className="px-4 py-4">
                           <Select value={req.status} onValueChange={(v) => onStatusChange(req._id, v as RequestStatus)} disabled={statusChangingId === req._id}>
-                            <SelectTrigger className="h-8 w-[140px] rounded-lg border-border text-sm"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="min-h-11 w-[140px] rounded-lg border-border text-sm"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value={req.status}>{STATUS_LABEL[req.status]}</SelectItem>
                               {(ALLOWED_NEXT_STATUSES[req.status] ?? []).map((s) => (
@@ -156,7 +156,7 @@ export const RequestsBoardSection = ({
                           </Select>
                         </td>
                         <td className="px-4 py-4">{formatDate(req.updatedAt)}</td>
-                        <td className="px-4 py-4"><button type="button" className="inline-flex h-6 w-6 items-center justify-center text-muted-foreground opacity-0 hover:opacity-100" aria-label="Altro"><MoreHorizontal className="h-4 w-4" /></button></td>
+                        <td className="px-4 py-4"><button type="button" className="inline-flex min-h-11 min-w-11 items-center justify-center text-muted-foreground opacity-0 hover:opacity-100" aria-label="Altro"><MoreHorizontal className="h-4 w-4" /></button></td>
                       </tr>
                     ))
                   )}
@@ -167,6 +167,7 @@ export const RequestsBoardSection = ({
 
           {viewMode === "kanban" && (
             <div className="overflow-x-auto p-4">
+              <p className="text-xs text-muted-foreground mb-2 text-center md:text-left">Scorri orizzontalmente per vedere tutte le colonne</p>
               <div className="flex min-h-[400px] gap-4">
                 {KANBAN_STATUS_ORDER.map((status) => {
                   const items = requestsByStatus.get(status) ?? [];
@@ -181,7 +182,7 @@ export const RequestsBoardSection = ({
                           <p className="py-4 text-center text-xs text-muted-foreground">Nessuna</p>
                         ) : (
                           items.map((req) => (
-                            <button key={req._id} type="button" onClick={() => onSelectRequest(req)} className={cn("w-full rounded-lg border border-border bg-background px-3 py-2.5 text-left text-sm", "hover:border-primary/50 hover:bg-muted/50 transition-colors")}>
+                            <button key={req._id} type="button" onClick={() => onSelectRequest(req)} className={cn("w-full min-h-11 rounded-lg border border-border bg-background px-3 py-2.5 text-left text-sm", "hover:border-primary/50 hover:bg-muted/50 transition-colors")}>
                               <div className="truncate font-medium text-foreground">{req.clientName ?? req.clientId}</div>
                               <div className="mt-1 flex items-center justify-between gap-2">
                                 <span className="text-xs font-medium text-foreground">{TYPE_LABEL[req.type]}</span>
@@ -202,11 +203,11 @@ export const RequestsBoardSection = ({
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 lg:px-6">
             <span className="text-sm text-muted-foreground">{total === 0 ? "Nessuna trattativa" : `${pageStart}–${pageEnd} di ${total}`}</span>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={onFirstPage} disabled={page === 1} aria-label="Prima pagina"><span className="text-xs">{"<<"}</span></Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={onPrevPage} disabled={page === 1} aria-label="Precedente"><span className="text-xs">{"<"}</span></Button>
+              <Button variant="ghost" size="icon" className="min-h-11 min-w-11 rounded-lg" onClick={onFirstPage} disabled={page === 1} aria-label="Prima pagina"><span className="text-xs">{"<<"}</span></Button>
+              <Button variant="ghost" size="icon" className="min-h-11 min-w-11 rounded-lg" onClick={onPrevPage} disabled={page === 1} aria-label="Precedente"><span className="text-xs">{"<"}</span></Button>
               <span className="px-2 text-sm"><strong>{page}</strong> / <strong>{totalPages}</strong></span>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={onNextPage} disabled={page === totalPages} aria-label="Successiva"><span className="text-xs">{">"}</span></Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={onLastPage} disabled={page === totalPages} aria-label="Ultima pagina"><span className="text-xs">{">>"}</span></Button>
+              <Button variant="ghost" size="icon" className="min-h-11 min-w-11 rounded-lg" onClick={onNextPage} disabled={page === totalPages} aria-label="Successiva"><span className="text-xs">{">"}</span></Button>
+              <Button variant="ghost" size="icon" className="min-h-11 min-w-11 rounded-lg" onClick={onLastPage} disabled={page === totalPages} aria-label="Ultima pagina"><span className="text-xs">{">>"}</span></Button>
             </div>
           </div>
         </div>

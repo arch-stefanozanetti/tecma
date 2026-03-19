@@ -987,7 +987,13 @@
                     "projects": {
                       "type": "array",
                       "items": {
-                        "type": "object"
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string" },
+                          "name": { "type": "string" },
+                          "displayName": { "type": "string" },
+                          "mode": { "type": "string", "enum": ["rent", "sell"], "description": "Project type for filtering (rent/sell)" }
+                        }
                       }
                     },
                     "workspaces": {
@@ -2425,6 +2431,46 @@
             }
           }
         ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "firstName": {
+                    "type": "string",
+                    "description": "Nome di battesimo"
+                  },
+                  "lastName": {
+                    "type": "string",
+                    "description": "Cognome"
+                  },
+                  "fullName": {
+                    "type": "string",
+                    "description": "Deprecato: preferire firstName e lastName; se inviato senza first/last viene splittato."
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "Email cliente"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "description": "Telefono"
+                  },
+                  "status": {
+                    "type": "string",
+                    "description": "Stato funnel (lead, prospect, …)"
+                  },
+                  "city": {
+                    "type": "string",
+                    "description": "Città"
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Cliente aggiornato"
@@ -2455,7 +2501,8 @@
                 "required": [
                   "workspaceId",
                   "projectId",
-                  "fullName"
+                  "firstName",
+                  "lastName"
                 ],
                 "properties": {
                   "workspaceId": {
@@ -2464,17 +2511,29 @@
                   "projectId": {
                     "type": "string"
                   },
-                  "fullName": {
-                    "type": "string"
+                  "firstName": {
+                    "type": "string",
+                    "description": "Nome di battesimo"
+                  },
+                  "lastName": {
+                    "type": "string",
+                    "description": "Cognome"
                   },
                   "email": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Email cliente"
                   },
                   "phone": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Telefono"
                   },
                   "status": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Stato funnel (default lead)"
+                  },
+                  "city": {
+                    "type": "string",
+                    "description": "Città"
                   }
                 }
               }
@@ -3993,8 +4052,15 @@
           "projectId": {
             "type": "string"
           },
-          "fullName": {
+          "firstName": {
             "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string",
+            "description": "Nome completo derivato (nome + cognome) o legacy."
           },
           "email": {
             "type": "string"

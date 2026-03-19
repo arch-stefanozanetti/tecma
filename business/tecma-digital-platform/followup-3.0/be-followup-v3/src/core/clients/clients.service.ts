@@ -4,6 +4,7 @@ import { getDb } from "../../config/db.js";
 import { escapeRegex } from "../../utils/escapeRegex.js";
 import { ListQuerySchema, type ListQueryInput, buildPagination } from "../shared/list-query.js";
 import { HttpError, PaginatedResponse } from "../../types/http.js";
+import { joinClientFullName, namesFromDoc, splitLegacyFullName } from "./client-name.util.js";
 
 /** Coniuge/familiare del cliente (legacy). */
 export interface ClientConiuge {
@@ -47,6 +48,11 @@ export interface ClientRow {
   _id: string;
   workspaceId?: string;
   projectId: string;
+  /** Nome di battesimo. */
+  firstName: string;
+  /** Cognome. */
+  lastName: string;
+  /** Nome completo (derivato o legacy), utile per ricerca e compatibilità. */
   fullName: string;
   email?: string;
   phone?: string;
@@ -113,6 +119,8 @@ const buildMatch = (q: ListQueryInput) => {
     conditions.push({
       $or: [
         { fullName: { $regex: safe, $options: "i" } },
+        { firstName: { $regex: safe, $options: "i" } },
+        { lastName: { $regex: safe, $options: "i" } },
         { email: { $regex: safe, $options: "i" } },
         { phone: { $regex: safe, $options: "i" } }
       ]
@@ -151,6 +159,8 @@ const queryPrimaryClients = async (input: ListQueryInput): Promise<PaginatedResp
         projectId: 1,
         workspaceId: 1,
         fullName: 1,
+        firstName: 1,
+        lastName: 1,
         email: 1,
         phone: 1,
         status: 1,
@@ -165,10 +175,15 @@ const queryPrimaryClients = async (input: ListQueryInput): Promise<PaginatedResp
     collection.countDocuments(match)
   ]);
 
-  const data: ClientRow[] = rawData.map((item) => ({
+  const data: ClientRow[] = rawData.map((item) => {
+    const rec = item as Record<string, unknown>;
+    const n = namesFromDoc(rec);
+    return {
     _id: String(item._id ?? ""),
     projectId: typeof item.projectId === "string" ? item.projectId : "",
-    fullName: typeof item.fullName === "string" && item.fullName.trim() ? item.fullName : "-",
+    firstName: n.firstName,
+    lastName: n.lastName,
+    fullName: n.fullName,
     email: typeof item.email === "string" ? item.email : undefined,
     phone: typeof item.phone === "string" ? item.phone : undefined,
     status: typeof item.status === "string" ? item.status : "lead",
@@ -178,7 +193,8 @@ const queryPrimaryClients = async (input: ListQueryInput): Promise<PaginatedResp
     city: typeof item.city === "string" ? item.city : undefined,
     myhomeVersion: typeof item.myhomeVersion === "string" ? item.myhomeVersion : undefined,
     createdBy: typeof item.createdBy === "string" ? item.createdBy : undefined
-  }));
+  };
+  });
 
   return {
     data,
@@ -196,11 +212,15 @@ export const queryClients = async (rawInput: unknown): Promise<PaginatedResponse
   return queryPrimaryClients(input);
 };
 
-const mapDocToClientRow = (item: Record<string, unknown>): ClientRow => ({
+const mapDocToClientRow = (item: Record<string, unknown>): ClientRow => {
+  const n = namesFromDoc(item);
+  return {
   _id: String(item._id ?? ""),
   workspaceId: typeof item.workspaceId === "string" ? item.workspaceId : undefined,
   projectId: typeof item.projectId === "string" ? item.projectId : "",
-  fullName: typeof item.fullName === "string" && item.fullName.trim() ? item.fullName : "-",
+  firstName: n.firstName,
+  lastName: n.lastName,
+  fullName: n.fullName,
   email: typeof item.email === "string" ? item.email : undefined,
   phone: typeof item.phone === "string" ? item.phone : undefined,
   status: typeof item.status === "string" ? item.status : "lead",
@@ -210,7 +230,8 @@ const mapDocToClientRow = (item: Record<string, unknown>): ClientRow => ({
   city: typeof item.city === "string" ? item.city : undefined,
   myhomeVersion: typeof item.myhomeVersion === "string" ? item.myhomeVersion : undefined,
   createdBy: typeof item.createdBy === "string" ? item.createdBy : undefined,
-});
+};
+};
 
 export const getClientById = async (rawId: unknown): Promise<{ client: ClientRow }> => {
   const id = z.string().min(1).parse(rawId);
@@ -232,7 +253,8 @@ const CLIENT_STATUSES = ["lead", "prospect", "client", "contacted", "negotiation
 export interface ClientCreateInput {
   workspaceId: string;
   projectId: string;
-  fullName: string;
+  firstName: string;
+  lastName: string;
   email?: string;
   phone?: string;
   status?: string;
@@ -240,6 +262,9 @@ export interface ClientCreateInput {
 }
 
 export interface ClientUpdateInput {
+  firstName?: string;
+  lastName?: string;
+  /** @deprecated Preferire firstName + lastName; se inviato senza first/last viene splittato. */
   fullName?: string;
   email?: string;
   phone?: string;
@@ -250,7 +275,8 @@ export interface ClientUpdateInput {
 const ClientCreateSchema = z.object({
   workspaceId: z.string().min(1),
   projectId: z.string().min(1),
-  fullName: z.string().min(1, "Nome obbligatorio"),
+  firstName: z.string().min(1, "Nome obbligatorio"),
+  lastName: z.string().min(1, "Cognome obbligatorio"),
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional(),
   status: z.enum(["lead", "prospect", "client", "contacted", "negotiation", "won", "lost"]).optional().default("lead"),
@@ -258,6 +284,8 @@ const ClientCreateSchema = z.object({
 });
 
 const ClientUpdateSchema = z.object({
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
   fullName: z.string().min(1).optional(),
   email: z.string().email().optional().or(z.literal("")),
   phone: z.string().optional(),
@@ -291,10 +319,15 @@ export const createClient = async (rawInput: unknown): Promise<{ client: ClientR
   const emailVal = (input.email || "").trim() || undefined;
   await assertClientEmailUnique(collection, input.workspaceId, emailVal);
   const now = new Date().toISOString();
+  const firstName = (input.firstName || "").trim();
+  const lastName = (input.lastName || "").trim();
+  const fullName = joinClientFullName(firstName, lastName) || "-";
   const doc = {
     workspaceId: input.workspaceId,
     projectId: input.projectId,
-    fullName: (input.fullName || "").trim(),
+    firstName,
+    lastName,
+    fullName,
     email: emailVal,
     phone: (input.phone || "").trim() || undefined,
     status: CLIENT_STATUSES.includes(input.status as (typeof CLIENT_STATUSES)[number]) ? input.status : "lead",
@@ -304,19 +337,8 @@ export const createClient = async (rawInput: unknown): Promise<{ client: ClientR
   };
   try {
     const result = await collection.insertOne(doc);
-    const _id = result.insertedId.toHexString();
-    const client: ClientRow = {
-      _id,
-      workspaceId: input.workspaceId,
-      projectId: input.projectId,
-      fullName: doc.fullName,
-      email: doc.email,
-      phone: doc.phone,
-      status: doc.status ?? "lead",
-      updatedAt: doc.updatedAt ?? now,
-      createdAt: doc.createdAt,
-      city: doc.city,
-    };
+    const inserted = await collection.findOne({ _id: result.insertedId });
+    const client = mapDocToClientRow(inserted as Record<string, unknown>);
     return { client };
   } catch (err: unknown) {
     if (err && typeof err === "object" && "code" in err && (err as { code: number }).code === 11000) {
@@ -349,7 +371,25 @@ export const updateClient = async (
   const updateDoc: Record<string, unknown> = {
     updatedAt: new Date().toISOString(),
   };
-  if (input.fullName !== undefined) updateDoc.fullName = (input.fullName || "").trim();
+  const existingRec = existing as Record<string, unknown>;
+  const existingNames = namesFromDoc(existingRec);
+  let nextFirst = existingNames.firstName;
+  let nextLast = existingNames.lastName;
+  const touchedName =
+    input.firstName !== undefined || input.lastName !== undefined || input.fullName !== undefined;
+  if (input.fullName !== undefined && input.firstName === undefined && input.lastName === undefined) {
+    const split = splitLegacyFullName(input.fullName);
+    nextFirst = split.firstName;
+    nextLast = split.lastName;
+  } else {
+    if (input.firstName !== undefined) nextFirst = input.firstName.trim();
+    if (input.lastName !== undefined) nextLast = input.lastName.trim();
+  }
+  if (touchedName) {
+    updateDoc.firstName = nextFirst;
+    updateDoc.lastName = nextLast;
+    updateDoc.fullName = joinClientFullName(nextFirst, nextLast) || "-";
+  }
   if (input.email !== undefined) updateDoc.email = (input.email || "").trim() || undefined;
   if (input.phone !== undefined) updateDoc.phone = (input.phone || "").trim() || undefined;
   if (input.status !== undefined && CLIENT_STATUSES.includes(input.status as (typeof CLIENT_STATUSES)[number]))
@@ -364,17 +404,6 @@ export const updateClient = async (
     throw err;
   }
   const updated = await collection.findOne({ _id });
-  const row: ClientRow = {
-    _id: String(updated!._id),
-    workspaceId: workspaceId || undefined,
-    projectId: String(updated!.projectId ?? (existing as Record<string, unknown>).projectId),
-    fullName: String(updated!.fullName ?? (existing as Record<string, unknown>).fullName),
-    email: typeof updated!.email === "string" ? updated!.email : undefined,
-    phone: typeof updated!.phone === "string" ? updated!.phone : undefined,
-    status: String(updated!.status ?? (existing as Record<string, unknown>).status),
-    updatedAt: String(updated!.updatedAt),
-    createdAt: updated!.createdAt ? String(updated!.createdAt) : undefined,
-    city: typeof updated!.city === "string" ? updated!.city : undefined,
-  };
+  const row = mapDocToClientRow(updated as Record<string, unknown>);
   return { client: row, workspaceId };
 };

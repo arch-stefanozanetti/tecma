@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "../../test-utils";
+import { fireEvent, render, screen, waitFor } from "../../test-utils";
 import { RequestsPage } from "./RequestsPage";
 
 const mocks = vi.hoisted(() => ({
@@ -87,32 +87,33 @@ describe("RequestsPage", () => {
 
   it("rende la pagina con titolo Trattative", async () => {
     render(<RequestsPage />);
-    expect(screen.getByRole("heading", { name: /trattative/i })).toBeInTheDocument();
-    await vi.waitFor(() => expect(mocks.queryRequestsMock).toHaveBeenCalled());
+    await waitFor(() => expect(mocks.queryRequestsMock).toHaveBeenCalled());
+    expect(await screen.findByRole("heading", { name: /trattative/i })).toBeInTheDocument();
   });
 
   it("mostra pulsante Nuova trattativa e campo Cerca", async () => {
     render(<RequestsPage />);
-    expect(screen.getByRole("button", { name: /nuova trattativa/i })).toBeInTheDocument();
+    await waitFor(() => expect(mocks.queryRequestsMock).toHaveBeenCalled());
+    expect(await screen.findByRole("button", { name: /nuova trattativa/i })).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/cerca per id cliente/i)).toBeInTheDocument();
-    await vi.waitFor(() => expect(mocks.queryRequestsMock).toHaveBeenCalled());
   });
 
   it("esegue ricerca e reset filtri", async () => {
     render(<RequestsPage />);
+    await waitFor(() => expect(mocks.queryRequestsMock).toHaveBeenCalled());
     const searchInput = screen.getByPlaceholderText(/cerca per id cliente/i);
 
     fireEvent.change(searchInput, { target: { value: "c-42" } });
     fireEvent.click(screen.getByRole("button", { name: /^cerca$/i }));
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(mocks.queryRequestsMock).toHaveBeenCalledWith(
         expect.objectContaining({ searchText: "c-42" })
       );
     });
 
     fireEvent.click(screen.getByRole("button", { name: /azzera/i }));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(mocks.queryRequestsMock).toHaveBeenLastCalledWith(
         expect.objectContaining({ searchText: "" })
       );
@@ -121,11 +122,12 @@ describe("RequestsPage", () => {
 
   it("apre drawer nuova trattativa e carica clienti/appartamenti", async () => {
     render(<RequestsPage />);
+    await waitFor(() => expect(mocks.queryRequestsMock).toHaveBeenCalled());
 
     fireEvent.click(screen.getByRole("button", { name: /nuova trattativa/i }));
 
-    await vi.waitFor(() => expect(mocks.queryClientsLiteMock).toHaveBeenCalledWith("ws-1", ["proj-1"]));
-    await vi.waitFor(() =>
+    await waitFor(() => expect(mocks.queryClientsLiteMock).toHaveBeenCalledWith("ws-1", ["proj-1"]));
+    await waitFor(() =>
       expect(mocks.queryApartmentsMock).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "ws-1",

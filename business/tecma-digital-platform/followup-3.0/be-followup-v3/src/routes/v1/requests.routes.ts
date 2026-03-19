@@ -16,33 +16,34 @@ import {
 } from "../../core/requests/request-actions.service.js";
 import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
+import { requireCanAccessWorkspace, requireCanAccessProject } from "../accessMiddleware.js";
 import { record as auditRecord } from "../../core/audit/audit-log.service.js";
 import { dispatchEvent } from "../../core/automations/automation-events.service.js";
 import { safeAsync } from "../../core/shared/safeAsync.js";
 
 export const requestsRoutes = Router();
 
-requestsRoutes.post("/requests/query", handleAsync((req) => queryRequests(req.body)));
+requestsRoutes.post("/requests/query", requireCanAccessWorkspace("workspaceId"), handleAsync((req) => queryRequests(req.body)));
 
-requestsRoutes.get("/requests/actions", handleAsync((req) => {
+requestsRoutes.get("/requests/actions", requireCanAccessWorkspace("workspaceId"), handleAsync((req) => {
   const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";
   const requestId = typeof req.query.requestId === "string" ? req.query.requestId : undefined;
   if (!workspaceId) throw new HttpError("workspaceId query required", 400);
   return listRequestActions(workspaceId, requestId);
 }));
 
-requestsRoutes.post("/requests/actions", handleAsync((req) =>
+requestsRoutes.post("/requests/actions", requireCanAccessProject("workspaceId", "projectId"), handleAsync((req) =>
   createRequestAction(req.body, { userId: req.user?.sub })
 ));
 
-requestsRoutes.patch("/requests/actions/:id", handleAsync((req) =>
+requestsRoutes.patch("/requests/actions/:id", requireCanAccessProject("workspaceId", "projectId"), handleAsync((req) =>
   updateRequestAction(req.params.id, req.body, { userId: req.user?.sub })
 ));
 
-requestsRoutes.delete("/requests/actions/:id", handleAsync((req) => deleteRequestAction(req.params.id)));
-requestsRoutes.get("/requests/:id", handleAsync((req) => getRequestById(req.params.id)));
+requestsRoutes.delete("/requests/actions/:id", requireCanAccessProject("workspaceId", "projectId"), handleAsync((req) => deleteRequestAction(req.params.id)));
+requestsRoutes.get("/requests/:id", requireCanAccessWorkspace("workspaceId"), handleAsync((req) => getRequestById(req.params.id)));
 
-requestsRoutes.post("/requests", handleAsync(async (req) => {
+requestsRoutes.post("/requests", requireCanAccessProject("workspaceId", "projectId"), handleAsync(async (req) => {
   const result = await createRequest(req.body);
   const workspaceId = req.body.workspaceId as string | undefined;
   if (result?.request?._id && workspaceId) {
@@ -80,7 +81,7 @@ requestsRoutes.post("/requests", handleAsync(async (req) => {
   return result;
 }));
 
-requestsRoutes.patch("/requests/:id/status", handleAsync(async (req) => {
+requestsRoutes.patch("/requests/:id/status", requireCanAccessProject("workspaceId", "projectId"), handleAsync(async (req) => {
   const result = await updateRequestStatus(req.params.id, req.body, { userId: req.user?.sub });
   if (req.body.status) {
     const reqDoc = await getRequestById(req.params.id).catch(() => null);
@@ -121,9 +122,9 @@ requestsRoutes.patch("/requests/:id/status", handleAsync(async (req) => {
   return result;
 }));
 
-requestsRoutes.get("/requests/:id/transitions", handleAsync((req) => listRequestTransitions(req.params.id)));
+requestsRoutes.get("/requests/:id/transitions", requireCanAccessWorkspace("workspaceId"), handleAsync((req) => listRequestTransitions(req.params.id)));
 
-requestsRoutes.post("/requests/:id/revert", handleAsync(async (req) => {
+requestsRoutes.post("/requests/:id/revert", requireCanAccessProject("workspaceId", "projectId"), handleAsync(async (req) => {
   const body = z.object({ transitionId: z.string().min(1) }).parse(req.body);
   return revertRequestStatus(req.params.id, body.transitionId, { userId: req.user?.sub });
 }));

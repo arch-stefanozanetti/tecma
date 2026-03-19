@@ -7,6 +7,10 @@ export interface ToastOptions {
   title: string;
   description?: ReactNode;
   variant?: AlertVariant;
+  /** Bottoni o link sotto il messaggio (es. "Vedi dettagli") */
+  actions?: ReactNode;
+  /** ms prima della chiusura automatica; default 6000; 0 = non chiudere */
+  autoHideDuration?: number;
 }
 
 interface ToastContextValue {
@@ -40,6 +44,8 @@ interface ToastState {
   title: string;
   description?: ReactNode;
   variant: AlertVariant;
+  actions?: ReactNode;
+  autoHideDuration: number;
 }
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -47,6 +53,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     open: false,
     title: "",
     variant: "neutral",
+    autoHideDuration: 6000,
   });
 
   const hide = useCallback(() => {
@@ -59,6 +66,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       title: options.title,
       description: options.description,
       variant: options.variant ?? "neutral",
+      actions: options.actions,
+      autoHideDuration: options.autoHideDuration ?? 6000,
     });
   }, []);
 
@@ -79,7 +88,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         title={state.title}
         description={state.description}
         variant={state.variant}
-        autoHideDuration={6000}
+        actions={state.actions}
+        autoHideDuration={state.autoHideDuration}
       />
     </ToastContext.Provider>
   );

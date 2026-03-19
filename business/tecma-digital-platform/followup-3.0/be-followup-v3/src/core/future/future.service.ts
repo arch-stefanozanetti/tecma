@@ -6,6 +6,7 @@ import { HttpError } from "../../types/http.js";
 import { ListQuerySchema, buildPagination } from "../shared/list-query.js";
 import { emitDomainEvent } from "../events/event-log.service.js";
 import { createApartment as createApartmentFromApartments, ApartmentCreateSchema } from "../apartments/apartments.service.js";
+import { namesFromDoc } from "../clients/client-name.util.js";
 
 const HCMasterEntitySchema = z.enum(["section", "mood", "finish", "specification", "optional"]);
 
@@ -476,15 +477,17 @@ export const queryClientsLite = async (workspaceId: string, projectIds: string[]
   const clients = await db
     .collection("tz_clients")
     .find({ projectId: { $in: projectIds } })
-    .project({ _id: 1, fullName: 1, email: 1, projectId: 1 })
+    .project({ _id: 1, fullName: 1, firstName: 1, lastName: 1, email: 1, projectId: 1 })
     .limit(3000)
     .toArray();
-  type ClientDoc = { _id?: unknown; fullName?: string; email?: string; projectId?: string };
-  return (clients as ClientDoc[]).map((item) => ({
+  return (clients as Record<string, unknown>[]).map((item) => {
+    const n = namesFromDoc(item);
+    return {
     _id: String(item._id),
     workspaceId,
     projectId: typeof item.projectId === "string" ? item.projectId : "",
-    fullName: typeof item.fullName === "string" && item.fullName.trim() ? item.fullName.trim() : "-",
+    fullName: n.fullName,
     email: typeof item.email === "string" ? item.email : ""
-  }));
+  };
+  });
 };

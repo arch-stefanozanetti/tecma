@@ -34,6 +34,7 @@ jobs:
       - run: npm ci
       - run: npm run test:lint:core
       - run: npm run check:openapi
+      - run: npm run check:route-guards
       - run: npm run check:no-legacy-runtime
       - run: npm run build
       - run: npm run test:coverage:core

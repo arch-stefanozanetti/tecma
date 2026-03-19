@@ -36,7 +36,7 @@ import {
   type ClientsFiltersDraft,
   type TimeFrameDraft,
 } from "./ClientsFiltersDrawerContent";
-import { formatDate, statusLabel } from "./ClientsPage.utils";
+import { clientDisplayName, formatDate, statusLabel } from "./ClientsPage.utils";
 import { ClientsListSection } from "./ClientsListSection";
 
 const CLIENTS_PER_PAGE = 50;
@@ -59,7 +59,8 @@ export const ClientsPage = () => {
   const [clientFormOpen, setClientFormOpen] = useState(false);
   const [clientFormMode, setClientFormMode] = useState<ClientFormMode>("create");
   const [editingClient, setEditingClient] = useState<ClientRow | null>(null);
-  const [formFullName, setFormFullName] = useState("");
+  const [formFirstName, setFormFirstName] = useState("");
+  const [formLastName, setFormLastName] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formStatus, setFormStatus] = useState("lead");
@@ -96,7 +97,8 @@ export const ClientsPage = () => {
     setFormSubmitError(null);
     const customInfos = additionalInfos.filter((ai) => (ai.path ?? "additionalInfo") === "additionalInfo");
     if (clientFormMode === "edit" && editingClient) {
-      setFormFullName(editingClient.fullName ?? "");
+      setFormFirstName(editingClient.firstName ?? "");
+      setFormLastName(editingClient.lastName ?? "");
       setFormEmail(editingClient.email ?? "");
       setFormPhone(editingClient.phone ?? "");
       setFormStatus(editingClient.status ?? "lead");
@@ -109,7 +111,8 @@ export const ClientsPage = () => {
             : {}
       );
     } else {
-      setFormFullName("");
+      setFormFirstName("");
+      setFormLastName("");
       setFormEmail("");
       setFormPhone("");
       setFormStatus("lead");
@@ -142,7 +145,8 @@ export const ClientsPage = () => {
         : undefined;
       if (clientFormMode === "edit" && editingClient) {
         const res = await followupApi.clients.updateClient(editingClient._id, {
-          fullName: formFullName.trim(),
+          firstName: formFirstName.trim(),
+          lastName: formLastName.trim(),
           email: formEmail.trim() || undefined,
           phone: formPhone.trim() || undefined,
           status: formStatus,
@@ -160,7 +164,8 @@ export const ClientsPage = () => {
         await followupApi.clients.createClient({
           workspaceId,
           projectId: formProjectId,
-          fullName: formFullName.trim(),
+          firstName: formFirstName.trim(),
+          lastName: formLastName.trim(),
           email: formEmail.trim() || undefined,
           phone: formPhone.trim() || undefined,
           status: formStatus,
@@ -331,7 +336,10 @@ export const ClientsPage = () => {
           {selectedClient && (
             <>
               <h2 className="text-lg font-semibold text-foreground border-b border-border pb-3">
-                {selectedClient.fullName || "Cliente"}
+                {(() => {
+                  const dn = clientDisplayName(selectedClient);
+                  return dn !== "—" ? dn : "Cliente";
+                })()}
               </h2>
               <div className="mt-4 space-y-3 text-sm">
                 <div>
@@ -421,10 +429,22 @@ export const ClientsPage = () => {
               <label className="mb-1.5 block text-sm font-medium text-foreground">Nome *</label>
               <Input
                 className="min-h-11 rounded-lg border-border"
-                value={formFullName}
-                onChange={(e) => setFormFullName(e.target.value)}
+                value={formFirstName}
+                onChange={(e) => setFormFirstName(e.target.value)}
                 required
-                placeholder="Nome e cognome"
+                placeholder="Nome"
+                autoComplete="given-name"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Cognome *</label>
+              <Input
+                className="min-h-11 rounded-lg border-border"
+                value={formLastName}
+                onChange={(e) => setFormLastName(e.target.value)}
+                required
+                placeholder="Cognome"
+                autoComplete="family-name"
               />
             </div>
             <div>

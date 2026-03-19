@@ -9,7 +9,8 @@ services:
     region: frankfurt
     plan: starter
     rootDir: business/tecma-digital-platform/followup-3.0/be-followup-v3
-    buildCommand: npm ci && npm run build
+    # Stesso script usato in CI: single source of truth (scripts/render-build-be.sh)
+    buildCommand: bash ../../../../scripts/render-build-be.sh
     startCommand: npm start
     healthCheckPath: /v1/health
     envVars:
@@ -36,9 +37,8 @@ services:
     name: followup-3-fe
     runtime: static
     rootDir: business/tecma-digital-platform/followup-3.0/fe-followup-v3
-    # pnpm + tree pulito: evita cache node_modules cross-OS e bug npm optional (Rollup Linux).
-    # Compila design-system (dist/ non è in git) prima del FE; jiti/Tailwind risolvono ./tailwind anche in contesto require.
-    buildCommand: cd ../../design-system && npm ci && npm run build && cd ../followup-3.0/fe-followup-v3 && rm -rf node_modules && corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install --frozen-lockfile && pnpm run build
+    # Stesso script usato in CI: single source of truth (scripts/render-build-fe.sh)
+    buildCommand: bash ../../../../scripts/render-build-fe.sh
     # Relativo a rootDir (non alla root del repo): altrimenti Render cerca un path inesistente.
     staticPublishPath: dist
     routes:

@@ -10,6 +10,7 @@ type ProjectDoc = {
   _id?: ObjectId | string;
   name?: string;
   displayName?: string;
+  mode?: "rent" | "sell";
   broker?: unknown;
   isCommercialDemo?: boolean;
   archived?: boolean;
@@ -33,10 +34,12 @@ const PROJECTS_COLLECTION = "tz_projects";
 const buildProjectOutput = (project: ProjectDoc) => {
   const rawId = project._id || "";
   const id = typeof rawId === "string" || rawId instanceof ObjectId ? normalizeId(rawId) : "";
+  const mode = project.mode === "rent" ? "rent" : "sell";
   return {
     id,
     name: project.displayName || project.name || id,
-    displayName: project.displayName || project.name || id
+    displayName: project.displayName || project.name || id,
+    mode
   };
 };
 
@@ -50,7 +53,7 @@ const fetchTzProjects = async (filterIds?: string[]): Promise<ProjectDoc[]> => {
   }
   const docs = await coll
     .find(query)
-    .project({ _id: 1, name: 1, displayName: 1 })
+    .project({ _id: 1, name: 1, displayName: 1, mode: 1 })
     .toArray();
   return docs as ProjectDoc[];
 };
@@ -86,7 +89,7 @@ export const getProjectAccessByEmail = async (rawInput: unknown) => {
     const [fromProjectDb, fromTz] = await Promise.all([
       projectsCollection
         .find({ archived: { $ne: true }, isCommercialDemo: { $ne: true } })
-        .project({ _id: 1, name: 1, displayName: 1, broker: 1 })
+        .project({ _id: 1, name: 1, displayName: 1, mode: 1, broker: 1 })
         .toArray() as Promise<ProjectDoc[]>,
       fetchTzProjects().catch(() => []),
     ]);
@@ -105,7 +108,7 @@ export const getProjectAccessByEmail = async (rawInput: unknown) => {
             $or: [{ _id: { $in: objectIds } }, { _id: { $in: projectIds } }],
             archived: { $ne: true }
           })
-          .project({ _id: 1, name: 1, displayName: 1, broker: 1 })
+          .project({ _id: 1, name: 1, displayName: 1, mode: 1, broker: 1 })
           .toArray() as Promise<ProjectDoc[]>,
         fetchTzProjects(projectIds).catch(() => []),
       ]);

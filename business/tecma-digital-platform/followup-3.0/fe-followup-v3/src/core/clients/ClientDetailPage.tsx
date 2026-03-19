@@ -45,7 +45,10 @@ import { CalendarEventFormDrawer } from "../calendar/CalendarEventFormDrawer";
 import ClientDetailAnagrafica from "./ClientDetailAnagrafica";
 import ClientDetailHeader from "./ClientDetailHeader";
 import { ClientProfilationCard } from "./ClientProfilationCard";
+import { ClientDetailAssignmentsSection } from "./ClientDetailAssignmentsSection";
+import { ClientDetailDocumentiTab } from "./ClientDetailDocumentiTab";
 import { useClientDetailData } from "./useClientDetailData";
+import { clientDisplayName } from "./ClientsPage.utils";
 import { useToast } from "../../contexts/ToastContext";
 import moment from "moment";
 
@@ -68,7 +71,8 @@ export const ClientDetailPage = () => {
   } = useClientDetailData(clientId, workspaceId, selectedProjectIds);
   const { toastError, toastSuccess } = useToast();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [formFullName, setFormFullName] = useState("");
+  const [formFirstName, setFormFirstName] = useState("");
+  const [formLastName, setFormLastName] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formStatus, setFormStatus] = useState("lead");
@@ -127,10 +131,10 @@ export const ClientDetailPage = () => {
   }, [clientId, client?.projectId, workspaceId, selectedProjectIds.length]);
 
   const logAction = async (type: "mail_received" | "mail_sent" | "call_completed" | "meeting_scheduled") => {
-    if (!clientId) return;
+    if (!clientId || !workspaceId) return;
     setActionLogging(type);
     try {
-      await followupApi.clients.createClientAction(clientId, type);
+      await followupApi.clients.createClientAction(clientId, type, workspaceId);
       await followupApi.getAuditForEntity("client", clientId, workspaceId ?? "", 25).then((r) => setAuditEvents(r.data ?? []));
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Errore durante la registrazione dell'azione.");
@@ -474,7 +478,8 @@ export const ClientDetailPage = () => {
 
   useEffect(() => {
     if (!editDialogOpen || !client) return;
-    setFormFullName(client.fullName ?? "");
+    setFormFirstName(client.firstName ?? "");
+    setFormLastName(client.lastName ?? "");
     setFormEmail(client.email ?? "");
     setFormPhone(client.phone ?? "");
     setFormStatus(client.status ?? "lead");
@@ -503,7 +508,8 @@ export const ClientDetailPage = () => {
             )
           : undefined;
       const res = await followupApi.clients.updateClient(client._id, {
-        fullName: formFullName.trim(),
+        firstName: formFirstName.trim(),
+        lastName: formLastName.trim(),
         email: formEmail.trim() || undefined,
         phone: formPhone.trim() || undefined,
         status: formStatus,
@@ -643,8 +649,10 @@ export const ClientDetailPage = () => {
       <ClientDetailAnagrafica
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
-        formFullName={formFullName}
-        setFormFullName={setFormFullName}
+        formFirstName={formFirstName}
+        setFormFirstName={setFormFirstName}
+        formLastName={formLastName}
+        setFormLastName={setFormLastName}
         formEmail={formEmail}
         setFormEmail={setFormEmail}
         formPhone={formPhone}
@@ -900,43 +908,14 @@ export const ClientDetailPage = () => {
           </section>
 
           {isAdmin && (
-            <section className="rounded-lg border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                <UserPlus className="h-4 w-4" />
-                Assegnato a
-              </h2>
-              <p className="text-xs text-muted-foreground mb-2">
-                Assegna questo cliente a un vendor per limitarne la visibilità.
-              </p>
-              <ul className="space-y-1 mb-3">
-                {assignments.map((a) => (
-                  <li key={a.userId} className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 text-sm">
-                    <span>{a.userId}</span>
-                    <Button variant="ghost" size="sm" className="min-h-11 text-muted-foreground hover:text-destructive" onClick={() => handleUnassign(a.userId)}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </li>
-                ))}
-                {assignments.length === 0 && <li className="text-sm text-muted-foreground">Nessuna assegnazione</li>}
-              </ul>
-              <div className="flex gap-2">
-                <Select value={assignUserId} onValueChange={setAssignUserId}>
-                  <SelectTrigger className="flex-1 max-w-xs">
-                    <SelectValue placeholder="Seleziona utente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {workspaceUsers
-                      .filter((u) => !assignments.some((a) => a.userId === u.userId))
-                      .map((u) => (
-                        <SelectItem key={u.userId} value={u.userId}>{u.userId}</SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-                <Button size="sm" onClick={handleAssign} disabled={!assignUserId.trim()}>
-                  Assegna
-                </Button>
-              </div>
-            </section>
+            <ClientDetailAssignmentsSection
+              assignments={assignments}
+              workspaceUsers={workspaceUsers}
+              assignUserId={assignUserId}
+              onAssignUserIdChange={setAssignUserId}
+              onAssign={handleAssign}
+              onUnassign={handleUnassign}
+            />
           )}
         </TabsContent>
 
@@ -1120,7 +1099,7 @@ export const ClientDetailPage = () => {
                     setCalendarDrawerPrefill({
                       clientId: clientId ?? undefined,
                       projectId: client?.projectId ?? selectedProjectIds[0],
-                      title: client?.fullName ? `Appuntamento con ${client.fullName}` : "",
+                      title: client ? `Appuntamento con ${clientDisplayName(client)}` : "",
                       startsAt: start.toISOString(),
                       endsAt: end.toISOString(),
                     });
@@ -1319,112 +1298,22 @@ export const ClientDetailPage = () => {
           </section>
         </TabsContent>
 
-        {/* Tab Documenti — documenti cliente (proposta, contratto), upload e link condiviso */}
         <TabsContent value="documenti" className="space-y-4 mt-4">
-          <section className="rounded-lg border border-border bg-card p-4">
-            <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-              <FileText className="h-4 w-4 text-muted-foreground" />
-              Documenti cliente
-            </h2>
-            <p className="text-xs text-muted-foreground mb-4">
-              Carica proposte, contratti o altri documenti. Visibilità &quot;cliente&quot;: il cliente può vedere il documento (es. via link con scadenza 7 giorni).
-            </p>
-            <div className="flex flex-wrap items-center gap-3 mb-4">
-              <Select value={documentVisibility} onValueChange={(v) => setDocumentVisibility(v as "internal" | "client")}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Visibilità" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="internal">Solo interno</SelectItem>
-                  <SelectItem value="client">Visibile al cliente</SelectItem>
-                </SelectContent>
-              </Select>
-              <FileUpload
-                title={documentUploading ? "Caricamento…" : "Carica documento"}
-                onFilesSelected={handleDocumentFilesSelected}
-                accept="application/pdf,.pdf"
-                multiple
-                disabled={documentUploading}
-              />
-              {documentUploading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-            </div>
-            {clientDocumentsLoading ? (
-              <p className="text-sm text-muted-foreground flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Caricamento documenti…
-              </p>
-            ) : clientDocuments.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nessun documento caricato.</p>
-            ) : (
-              <ul className="space-y-2">
-                {clientDocuments.map((doc) => (
-                  <li
-                    key={doc._id}
-                    className="flex items-center justify-between gap-2 rounded border border-border bg-background px-3 py-2 text-sm"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-foreground truncate">{doc.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {doc.type} • {doc.visibility === "client" ? "Visibile al cliente" : "Solo interno"}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8"
-                        onClick={async () => {
-                          const res = await followupApi.getClientDocumentDownloadUrl(workspaceId!, clientId!, doc._id);
-                          window.open(res.downloadUrl, "_blank");
-                        }}
-                      >
-                        Scarica
-                      </Button>
-                      {doc.visibility === "client" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 gap-1"
-                          disabled={shareLinkDocId === doc._id}
-                          onClick={async () => {
-                            setShareLinkDocId(doc._id);
-                            try {
-                              const res = await followupApi.getClientDocumentShareLink(workspaceId!, clientId!, doc._id);
-                              await navigator.clipboard.writeText(res.downloadUrl);
-                              toastSuccess("Link (7 giorni) copiato negli appunti");
-                            } catch (e) {
-                              toastError(e instanceof Error ? e.message : "Errore link");
-                            } finally {
-                              setShareLinkDocId(null);
-                            }
-                          }}
-                        >
-                          {shareLinkDocId === doc._id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
-                          Invia link
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 text-destructive hover:text-destructive"
-                        onClick={async () => {
-                          if (!window.confirm("Eliminare questo documento?")) return;
-                          try {
-                            await followupApi.deleteClientDocument(workspaceId!, clientId!, doc._id);
-                            loadClientDocuments();
-                          } catch (e) {
-                            toastError(e instanceof Error ? e.message : "Errore eliminazione");
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          <ClientDetailDocumentiTab
+            workspaceId={workspaceId}
+            clientId={clientId}
+            clientDocuments={clientDocuments}
+            clientDocumentsLoading={clientDocumentsLoading}
+            documentUploading={documentUploading}
+            documentVisibility={documentVisibility}
+            onDocumentVisibilityChange={setDocumentVisibility}
+            onFilesSelected={handleDocumentFilesSelected}
+            onRefreshDocuments={loadClientDocuments}
+            shareLinkDocId={shareLinkDocId}
+            onShareLinkDocIdChange={setShareLinkDocId}
+            onToastSuccess={toastSuccess}
+            onToastError={toastError}
+          />
         </TabsContent>
       </Tabs>
 

@@ -1,12 +1,13 @@
 {
   "name": "be-followup-v3",
-  "version": "0.13.2",
+  "version": "0.13.3",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
+    "start:worker": "node dist/job-runner.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run -c vitest.coverage.config.ts --coverage",

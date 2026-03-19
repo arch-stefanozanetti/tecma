@@ -57,7 +57,8 @@ const FormField = React.forwardRef<HTMLDivElement, FormFieldProps>(
     },
     ref
   ) => {
-    const id = idProp ?? React.useId();
+    const generatedId = React.useId();
+    const id = idProp ?? generatedId;
     const helperId = helperText != null ? `${id}-helper` : undefined;
 
     return (

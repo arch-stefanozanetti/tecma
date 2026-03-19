@@ -4,7 +4,7 @@
  */
 import { useEffect, useState } from "react";
 import { followupApi } from "../../api/followupApi";
-import type { WorkspaceRow, WorkspaceProjectRow, ProjectAccessProject, WorkspaceUserRow, WorkspaceUserRole, AccessScope } from "../../types/domain";
+import type { WorkspaceRow, WorkspaceProjectRow, ProjectAccessProject, WorkspaceUserRow, WorkspaceUserRole, AccessScope, WorkspaceAiConfig } from "../../types/domain";
 import { useWorkspaceRoles } from "../../hooks/useWorkspaceRoles";
 import { useWorkspace } from "../../auth/projectScope";
 import { useToast } from "../../contexts/ToastContext";
@@ -29,7 +29,7 @@ import {
 } from "../../components/ui/select";
 import { cn } from "../../lib/utils";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, Trash2, Link2, Unlink, ChevronDown, Settings, Users, UserPlus, ImagePlus, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Link2, Unlink, ChevronDown, Settings, Users, UserPlus, ImagePlus, Loader2, Sparkles } from "lucide-react";
 import { FileUpload } from "../../components/ui/file-upload";
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
@@ -150,6 +150,15 @@ export const WorkspacesPage = () => {
   const [logoUploading, setLogoUploading] = useState(false);
   const [emailHeaderUploading, setEmailHeaderUploading] = useState(false);
   const [secBranding, setSecBranding] = useState(true);
+
+  /* Provider AI (drawer edit) */
+  const [workspaceAiConfig, setWorkspaceAiConfig] = useState<WorkspaceAiConfig | null>(null);
+  const [aiConfigLoading, setAiConfigLoading] = useState(false);
+  const [secAi, setSecAi] = useState(true);
+  const [aiFormProvider, setAiFormProvider] = useState<string>("claude");
+  const [aiFormApiKey, setAiFormApiKey] = useState("");
+  const [aiConfigSaving, setAiConfigSaving] = useState(false);
+  const [aiFormVisible, setAiFormVisible] = useState(false);
 
   /* drawer progetto */
   const [projDrawerOpen, setProjDrawerOpen] = useState(false);
@@ -272,13 +281,65 @@ export const WorkspacesPage = () => {
     }
   };
 
+  const loadWorkspaceAiConfig = async (workspaceId: string) => {
+    setAiConfigLoading(true);
+    try {
+      const c = await followupApi.getWorkspaceAiConfig(workspaceId);
+      setWorkspaceAiConfig(c);
+      setAiFormVisible(false);
+      setAiFormApiKey("");
+      if (c.provider) setAiFormProvider(c.provider);
+    } catch {
+      setWorkspaceAiConfig(null);
+    } finally {
+      setAiConfigLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (wsDrawerOpen && wsDrawerMode === "edit" && selectedWs?._id) {
       void loadWorkspaceBranding(selectedWs._id);
+      void loadWorkspaceAiConfig(selectedWs._id);
     } else {
       setWorkspaceBranding(null);
+      setWorkspaceAiConfig(null);
+      setAiFormVisible(false);
+      setAiFormApiKey("");
     }
   }, [wsDrawerOpen, wsDrawerMode, selectedWs?._id]);
+
+  const handleSaveAiConfig = async () => {
+    if (!selectedWs?._id) return;
+    const keyTrimmed = aiFormApiKey.trim();
+    if (!keyTrimmed) {
+      toastError("Inserisci una API key.");
+      return;
+    }
+    setAiConfigSaving(true);
+    try {
+      await followupApi.putWorkspaceAiConfig(selectedWs._id, { provider: aiFormProvider, apiKey: keyTrimmed });
+      toastSuccess("Provider AI collegato. Le funzioni AI sono abilitate per questo workspace.");
+      await loadWorkspaceAiConfig(selectedWs._id);
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : "Errore salvataggio configurazione AI");
+    } finally {
+      setAiConfigSaving(false);
+    }
+  };
+
+  const handleRemoveAiConfig = async () => {
+    if (!selectedWs?._id || !window.confirm("Rimuovere il provider AI da questo workspace?")) return;
+    setAiConfigSaving(true);
+    try {
+      await followupApi.putWorkspaceAiConfig(selectedWs._id, { provider: aiFormProvider, apiKey: "" });
+      toastSuccess("Provider AI rimosso.");
+      await loadWorkspaceAiConfig(selectedWs._id);
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : "Errore rimozione configurazione AI");
+    } finally {
+      setAiConfigSaving(false);
+    }
+  };
 
   const handleUploadLogo = async (files: FileList | null) => {
     if (!files?.length || !selectedWs?._id) return;
@@ -543,11 +604,11 @@ export const WorkspacesPage = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="h-10 rounded-lg" onClick={openCreateProject}>
+            <Button variant="outline" className="min-h-11 rounded-lg" onClick={openCreateProject}>
               <Plus className="h-4 w-4 mr-2" />
               Nuovo progetto
             </Button>
-            <Button className="h-10 rounded-lg" onClick={openCreateWs}>
+            <Button className="min-h-11 rounded-lg" onClick={openCreateWs}>
               <Plus className="h-4 w-4 mr-2" />
               Nuovo workspace
             </Button>
@@ -584,18 +645,18 @@ export const WorkspacesPage = () => {
                     <Button
                       variant="outline"
                       size="sm"
+                      className="min-h-11"
                       onClick={() => (selectedWs?._id === ws._id ? setSelectedWs(null) : openProjectList(ws))}
-                      className="h-8"
                     >
                       {selectedWs?._id === ws._id ? "Nascondi" : "Progetti"}
                     </Button>
-                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEditWs(ws)} aria-label="Modifica">
+                    <Button variant="outline" size="icon" className="min-h-11 min-w-11" onClick={() => openEditWs(ws)} aria-label="Modifica">
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      className="min-h-11 min-w-11 text-destructive hover:text-destructive"
                       onClick={() => handleDeleteWs(ws)}
                       disabled={saving}
                       aria-label="Elimina"
@@ -613,7 +674,7 @@ export const WorkspacesPage = () => {
                         Utenti nel workspace
                       </h4>
                       <div className="mb-2">
-                        <Button size="sm" variant="outline" onClick={openAddUser} className="h-9 gap-1">
+                        <Button size="sm" variant="outline" onClick={openAddUser} className="min-h-11 gap-1">
                           <UserPlus className="h-3.5 w-3.5" />
                           Aggiungi utente
                         </Button>
@@ -649,7 +710,7 @@ export const WorkspacesPage = () => {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-7 text-muted-foreground hover:text-destructive"
+                                  className="min-h-11 text-muted-foreground hover:text-destructive"
                                   onClick={() => handleRemoveWorkspaceUser(wu)}
                                   disabled={saving}
                                 >
@@ -664,7 +725,7 @@ export const WorkspacesPage = () => {
                     <div>
                     <h4 className="mb-2 text-sm font-medium text-foreground">Progetti associati</h4>
                     <div className="flex flex-wrap gap-2 mb-3">
-                      <Button size="sm" variant="outline" onClick={openCreateProject} className="h-9">
+                      <Button size="sm" variant="outline" onClick={openCreateProject} className="min-h-11">
                         <Plus className="h-3.5 w-3.5 mr-1" />
                         Nuovo progetto
                       </Button>
@@ -727,7 +788,7 @@ export const WorkspacesPage = () => {
                           </div>
                         )}
                       </div>
-                      <Button size="sm" onClick={handleAssociate} disabled={!associateProjectId.trim() || saving} className="h-9">
+                      <Button size="sm" onClick={handleAssociate} disabled={!associateProjectId.trim() || saving} className="min-h-11">
                         <Link2 className="h-3.5 w-3.5 mr-1" />
                         Associa
                       </Button>
@@ -746,7 +807,7 @@ export const WorkspacesPage = () => {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 text-muted-foreground hover:text-primary"
+                                className="min-h-11 min-w-11 text-muted-foreground hover:text-primary"
                                 onClick={() => navigate(`/projects/${wp.projectId}?workspaceId=${selectedWs._id}`)}
                                 title="Dettaglio progetto"
                               >
@@ -755,7 +816,7 @@ export const WorkspacesPage = () => {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-7 text-muted-foreground hover:text-destructive"
+                                className="min-h-11 min-w-11 text-muted-foreground hover:text-destructive"
                                 onClick={() => handleDissociate(wp.projectId)}
                                 disabled={saving}
                               >
@@ -829,7 +890,7 @@ export const WorkspacesPage = () => {
                                   accept="image/jpeg,image/png,image/webp,image/gif"
                                   disabled={logoUploading}
                                 />
-                                <Button variant="ghost" size="sm" onClick={handleRemoveLogo} disabled={logoUploading}>
+                                <Button variant="ghost" size="sm" className="min-h-11" onClick={handleRemoveLogo} disabled={logoUploading}>
                                   Rimuovi
                                 </Button>
                               </div>
@@ -861,7 +922,7 @@ export const WorkspacesPage = () => {
                                   accept="image/jpeg,image/png,image/webp,image/gif"
                                   disabled={emailHeaderUploading}
                                 />
-                                <Button variant="ghost" size="sm" onClick={handleRemoveEmailHeader} disabled={emailHeaderUploading}>
+                                <Button variant="ghost" size="sm" className="min-h-11" onClick={handleRemoveEmailHeader} disabled={emailHeaderUploading}>
                                   Rimuovi
                                 </Button>
                               </div>
@@ -881,14 +942,85 @@ export const WorkspacesPage = () => {
                     )}
                   </div>
                 )}
+
+                <SectionTitle label="Provider AI" open={secAi} onToggle={() => setSecAi(!secAi)} />
+                {secAi && (
+                  <div className="space-y-4">
+                    {aiConfigLoading ? (
+                      <p className="text-sm text-muted-foreground flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Caricamento…
+                      </p>
+                    ) : workspaceAiConfig?.configured && !aiFormVisible ? (
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">
+                          Connesso: <span className="font-medium text-foreground">{workspaceAiConfig.provider ?? "—"}</span>
+                          {workspaceAiConfig.apiKeyMasked && (
+                            <span className="ml-1 text-xs text-muted-foreground">({workspaceAiConfig.apiKeyMasked})</span>
+                          )}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" size="sm" className="min-h-11" onClick={() => setAiFormVisible(true)} disabled={aiConfigSaving}>
+                            Cambia
+                          </Button>
+                          <Button variant="ghost" size="sm" className="min-h-11 text-destructive hover:text-destructive" onClick={handleRemoveAiConfig} disabled={aiConfigSaving}>
+                            Rimuovi
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <Field label="Provider" hint="Claude, OpenAI, Gemini">
+                          <Select value={aiFormProvider} onValueChange={setAiFormProvider}>
+                            <SelectTrigger className="min-h-11">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="claude">Claude (Anthropic)</SelectItem>
+                              <SelectItem value="openai">ChatGPT (OpenAI)</SelectItem>
+                              <SelectItem value="gemini">Gemini (Google)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </Field>
+                        <Field label="API key" required hint="Incolla la chiave dal portale del provider. Non verrà mostrata dopo il salvataggio.">
+                          <Input
+                            type="password"
+                            value={aiFormApiKey}
+                            onChange={(e) => setAiFormApiKey(e.target.value)}
+                            placeholder="sk-…"
+                            className="min-h-11"
+                            autoComplete="off"
+                          />
+                        </Field>
+                        <div className="flex flex-wrap gap-2">
+                          <Button onClick={handleSaveAiConfig} disabled={!aiFormApiKey.trim() || aiConfigSaving} className="min-h-11">
+                            {aiConfigSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
+                            {aiConfigSaving ? "Salvataggio…" : "Salva e connetti"}
+                          </Button>
+                          {workspaceAiConfig?.configured && (
+                            <Button variant="outline" onClick={() => { setAiFormVisible(false); setAiFormApiKey(""); }} className="min-h-11" disabled={aiConfigSaving}>
+                              Annulla
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
+            )}
+
+            {wsDrawerMode === "create" && (
+              <p className="pt-2 text-xs text-muted-foreground border-t border-border">
+                Dopo aver creato il workspace potrai collegare un provider AI (Claude, ChatGPT, Gemini) in Modifica per abilitare i suggerimenti e le funzioni AI.
+              </p>
             )}
           </DrawerBody>
           <DrawerFooter>
-            <Button onClick={handleSaveWs} disabled={!wsFormName.trim() || saving} className="w-full">
+            <Button onClick={handleSaveWs} disabled={!wsFormName.trim() || saving} className="w-full min-h-11">
               {wsDrawerMode === "create" ? "Crea workspace" : "Salva modifiche"}
             </Button>
-            <Button variant="outline" onClick={() => setWsDrawerOpen(false)} className="w-full">
+            <Button variant="outline" onClick={() => setWsDrawerOpen(false)} className="w-full min-h-11">
               Annulla
             </Button>
           </DrawerFooter>
@@ -1074,10 +1206,10 @@ export const WorkspacesPage = () => {
           </DrawerBody>
 
           <DrawerFooter>
-            <Button onClick={handleCreateProject} disabled={!projForm.name.trim() || saving} className="w-full">
+            <Button onClick={handleCreateProject} disabled={!projForm.name.trim() || saving} className="w-full min-h-11">
               Crea progetto
             </Button>
-            <Button variant="outline" onClick={() => setProjDrawerOpen(false)} className="w-full">
+            <Button variant="outline" onClick={() => setProjDrawerOpen(false)} className="w-full min-h-11">
               Annulla
             </Button>
           </DrawerFooter>
@@ -1179,10 +1311,10 @@ export const WorkspacesPage = () => {
             )}
           </DrawerBody>
           <DrawerFooter>
-            <Button onClick={handleAddWorkspaceUser} disabled={saving || !userFormEmail.trim()}>
+            <Button onClick={handleAddWorkspaceUser} disabled={saving || !userFormEmail.trim()} className="min-h-11">
               Aggiungi
             </Button>
-            <Button variant="outline" onClick={() => setUserDrawerOpen(false)} className="w-full">
+            <Button variant="outline" onClick={() => setUserDrawerOpen(false)} className="w-full min-h-11">
               Annulla
             </Button>
           </DrawerFooter>

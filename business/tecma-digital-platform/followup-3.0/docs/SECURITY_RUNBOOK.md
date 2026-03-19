@@ -29,3 +29,19 @@
 - Blast radius documented.
 - Rotations completed and validated.
 - CI/guardrails updated if detection missed.
+
+---
+
+## 6) Threat model (minimo)
+
+- **Autenticazione:** JWT (access + refresh); token solo in header `Authorization`. Nessun token in query/URL. Sessioni portal e BSS gestite con token dedicati.
+- **Tenant isolation:** Tutte le API che accettano `workspaceId`/`projectId` devono passare dal middleware `requireCanAccessWorkspace`/`requireCanAccessProject` (controllo centralizzato in `canAccess`). Allowlist per route pubbliche in `docs/ROUTE_ACCESS_ALLOWLIST.md`. CI `check:route-guards` blocca route senza guardia.
+- **Realtime (SSE):** Token solo da header; `workspaceId`/`projectId` validati con `canAccess` prima di aprire lo stream. Nessun token in query string.
+- **Esposizione API:** CORS restrittivo; Helmet per header di sicurezza; rate limit e proxy trust in produzione. API pubbliche limitate a health, openapi, portal pubblico, platform (con API key).
+
+## 7) Dependency risk e vulnerability
+
+- Eseguire regolarmente `npm audit` (BE) e `pnpm audit` (FE). Vulnerabilità **high** devono essere mitigate o coperte da risk acceptance documentata.
+- **xlsx (BE):** vulnerabilità note; fix non sempre disponibile. Risk acceptance: uso limitato a import/export gestiti lato backend; nessun input non fidato diretto. Owner: team backend. Review: semestrale. Documentare in un foglio di risk acceptance interno (data, firmatario, scadenza review).
+- **serialize-javascript (FE, transitiva):** monitorare aggiornamenti della catena. In caso di high non risolvibile, valutare override o risk acceptance con stesso schema (owner, scadenza).
+- Prima di dichiarare “enterprise-ready”: audit senza high non mitigati oppure risk acceptance formale per ogni eccezione.

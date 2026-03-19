@@ -98,6 +98,8 @@ describe("customer-portal.service", () => {
       .mockResolvedValueOnce([]);
 
     const result = await getCustomerPortalOverview({ accessToken: "portal-1" });
+    expect(result.client.firstName).toBe("Mario");
+    expect(result.client.lastName).toBe("Rossi");
     expect(result.client.fullName).toBe("Mario Rossi");
     expect(result.deals.length).toBe(1);
     expect(result.documents.length).toBe(1);

@@ -6,7 +6,7 @@ vi.mock("../../api/followupApi", () => ({
   followupApi: {
     portalExchangeMagicLink: vi.fn().mockResolvedValue({ accessToken: "test-token" }),
     portalGetOverview: vi.fn().mockResolvedValue({
-      client: { id: "c1", fullName: "Test", email: "test@test.com" },
+      client: { id: "c1", firstName: "Test", lastName: "User", fullName: "Test User", email: "test@test.com" },
       deals: [],
       documents: [],
       timeline: [],

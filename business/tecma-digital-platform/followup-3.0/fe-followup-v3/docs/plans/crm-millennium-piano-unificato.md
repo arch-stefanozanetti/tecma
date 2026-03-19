@@ -14,7 +14,7 @@
 | 3    | Customer 360              | Vista unificata cliente (timeline, trattative, calendario) | Implementato | —            |
 | 4    | Integrazioni e automazioni| Regole, webhook, API pubbliche + pagina unica con 4 tab     | Implementato | Parziale     |
 
-**Resta da fare:** Wave 4 backend: documentazione API pubbliche (OpenAPI) e autenticazione per uso esterno (API key/OAuth).
+**Resta da fare:** Wave 4 backend: **autenticazione per uso esterno** (API key/OAuth per connettori) oltre al contratto già esposto in OpenAPI (`be-followup-v3/openapi/openapi.v1.yaml`, `GET /v1/openapi.json`). Riferimento backlog: [docs/plans/2026-03-19-followup-backlog-attivo.md](../../../docs/plans/2026-03-19-followup-backlog-attivo.md) stream B.
 
 ---
 
@@ -122,7 +122,7 @@ Regole "if this then that", webhook configurabili, API pubbliche documentate; un
   - **WebhookConfig** (collection `tz_webhook_configs`): CRUD, list by workspace; url, secret, eventi abilitati.
   - **Invio eventi:** `dispatchEvent(workspaceId, eventType, payload)` invocato su creazione cliente, creazione richiesta e cambio stato richiesta; esegue regole abilitate (notifiche in `tz_notifications`) e invio webhook.
   - **Webhook delivery:** POST al URL configurato con retry, firma HMAC su body (X-Webhook-Signature: sha256=...).
-- **Resta da fare (Wave 4 backend):** documentazione API pubbliche (OpenAPI/Swagger) per endpoint esistenti (apartments/query, clients/lite/query); autenticazione per uso esterno (API key o OAuth) da definire.
+- **Resta da fare (Wave 4 backend):** autenticazione per uso esterno (API key o OAuth) per connettori; OpenAPI per gli endpoint pubblici/listing è in `be-followup-v3/openapi/openapi.v1.yaml`.
 
 ---
 
@@ -132,4 +132,4 @@ Regole "if this then that", webhook configurabili, API pubbliche documentate; un
 - **Wave 2 (FE + BE):** implementato. Inbox in header, Sheet notifiche, navigazione da link, segna letti; backend notifiche (get, mark read, read-all).
 - **Wave 3 (FE):** implementato. ClientDetailPage con tab Profilo, Trattative, Appartamenti, Timeline unificata e eventi calendario.
 - **Wave 4 (FE):** implementato. Pagina unica Integrazioni con 4 tab (Connettori, Regole, Webhook, API), redirect `/automations` → `/integrations?tab=regole`, CRUD regole e webhook collegato al backend.
-- **Wave 4 (BE):** implementato per automazioni e webhook (AutomationRule, WebhookConfig, dispatchEvent su client/request, invio webhook con retry e firma). **Resta:** documentazione API pubbliche (OpenAPI) e autenticazione per uso esterno (API key/OAuth).
+- **Wave 4 (BE):** implementato per automazioni e webhook (AutomationRule, WebhookConfig, dispatchEvent su client/request, invio webhook con retry e firma). **Resta:** autenticazione per uso esterno (API key/OAuth); OpenAPI listing/query già in repo backend.

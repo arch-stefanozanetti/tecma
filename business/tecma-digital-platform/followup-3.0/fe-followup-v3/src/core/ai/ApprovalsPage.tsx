@@ -91,10 +91,10 @@ export const ApprovalsPage = ({ workspaceId, projectIds }: ApprovalsPageProps) =
                       <td>
                         {row.status === "pending_approval" ? (
                           <div className="association-actions">
-                            <Button variant="outline" onClick={() => void decide(row._id, "rejected")} type="button">
+                            <Button variant="outline" className="min-h-11" onClick={() => void decide(row._id, "rejected")} type="button">
                               Reject
                             </Button>
-                            <Button onClick={() => void decide(row._id, "approved")} type="button">
+                            <Button className="min-h-11" onClick={() => void decide(row._id, "approved")} type="button">
                               Approve
                             </Button>
                           </div>

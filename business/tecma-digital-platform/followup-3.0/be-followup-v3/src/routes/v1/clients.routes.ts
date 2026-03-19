@@ -37,7 +37,11 @@ clientsRoutes.post("/clients", requireCanAccessProject("workspaceId", "projectId
     entityType: "client",
     entityId: result.client._id,
     actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
-    payload: { fullName: result.client.fullName },
+    payload: {
+      fullName: result.client.fullName,
+      firstName: result.client.firstName,
+      lastName: result.client.lastName,
+    },
     userId: req.user?.sub,
   });
   return result;

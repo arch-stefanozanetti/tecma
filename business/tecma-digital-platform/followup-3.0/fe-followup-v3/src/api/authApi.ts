@@ -5,7 +5,7 @@
 import { followupApi } from "./followupApi";
 import { loginBss, meBss, refreshBss } from "./bssAuthAdapter";
 
-const useBssAuth = (): boolean =>
+const isBssAuthEnabled = (): boolean =>
   typeof import.meta.env.VITE_USE_BSS_AUTH === "string" &&
   import.meta.env.VITE_USE_BSS_AUTH.toLowerCase() === "true";
 
@@ -37,7 +37,7 @@ export async function login(
   password: string,
   projectId?: string
 ): Promise<LoginResult> {
-  if (useBssAuth()) {
+  if (isBssAuthEnabled()) {
     if (!projectId || !projectId.trim()) {
       throw new Error("Con auth BSS è obbligatorio selezionare un progetto (project_id).");
     }
@@ -54,17 +54,17 @@ export async function login(
 
 /** Utente corrente (me). */
 export async function me(): Promise<AuthUser> {
-  if (useBssAuth()) return meBss();
+  if (isBssAuthEnabled()) return meBss();
   return followupApi.me();
 }
 
 /** Refresh token. */
 export async function refresh(refreshToken: string): Promise<RefreshResult> {
-  if (useBssAuth()) return refreshBss(refreshToken);
+  if (isBssAuthEnabled()) return refreshBss(refreshToken);
   return followupApi.refresh(refreshToken);
 }
 
 /** True se l'auth attiva è BSS (gateway). */
 export function isBssAuth(): boolean {
-  return useBssAuth();
+  return isBssAuthEnabled();
 }

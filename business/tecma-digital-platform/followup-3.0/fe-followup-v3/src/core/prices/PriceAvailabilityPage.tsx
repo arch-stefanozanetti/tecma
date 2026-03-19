@@ -60,9 +60,10 @@ export const PriceAvailabilityPage = () => {
       date: string,
       payload: { price: number; minStay?: number; availability?: "available" | "blocked" | "reserved" }
     ) => {
-      await followupApi.upsertApartmentPriceCalendar(unitId, { date, ...payload });
+      if (!workspaceId) return;
+      await followupApi.upsertApartmentPriceCalendar(unitId, workspaceId, { date, ...payload });
     },
-    []
+    [workspaceId]
   );
 
   return (
@@ -94,7 +95,7 @@ export const PriceAvailabilityPage = () => {
               onChange={(e) => setDateTo(e.target.value)}
             />
           </div>
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+          <Button variant="outline" size="sm" className="min-h-11" onClick={load} disabled={loading}>
             {loading ? "Caricamento..." : "Carica"}
           </Button>
         </div>
@@ -107,6 +108,9 @@ export const PriceAvailabilityPage = () => {
           <p className="text-sm text-muted-foreground">Nessun appartamento nel periodo selezionato. Verifica filtri progetto e date.</p>
         ) : (
           <div className="space-y-4">
+            {dates.length > 5 && (
+              <p className="text-xs text-muted-foreground md:hidden">Scorri orizzontalmente per vedere tutte le date.</p>
+            )}
             <PriceAvailabilityGrid
               units={units}
               dates={dates}

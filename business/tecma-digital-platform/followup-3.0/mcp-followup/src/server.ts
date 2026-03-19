@@ -5,8 +5,11 @@ import fetch from "node-fetch";
 import { z } from "zod";
 
 const PORT = Number(process.env.MCP_PORT || 5070);
-const API_BASE_URL = process.env.FOLLOWUP_API_BASE_URL || "http://localhost:5060/v1";
+/** Backend API base (e.g. http://localhost:8080/v1). Endpoints /clients/query, /apartments/query, /associations/query require auth. */
+const API_BASE_URL = process.env.FOLLOWUP_API_BASE_URL || "http://localhost:8080/v1";
 const MCP_API_KEY = process.env.MCP_API_KEY || "change-me";
+/** Bearer token sent to Followup BE for protected endpoints. Set FOLLOWUP_BEARER_TOKEN or MCP_BEARER_TOKEN. */
+const BEARER_TOKEN = process.env.FOLLOWUP_BEARER_TOKEN || process.env.MCP_BEARER_TOKEN || "";
 const AUDIT_FILE = join(process.cwd(), "logs", "audit.log");
 
 const app = express();
@@ -28,9 +31,13 @@ const logAudit = async (tool: string, input: unknown, result: unknown, status: "
 };
 
 const postFollowup = async <T>(path: string, body: unknown): Promise<T> => {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (BEARER_TOKEN) {
+    headers["Authorization"] = `Bearer ${BEARER_TOKEN}`;
+  }
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(body)
   });
   if (!response.ok) {
@@ -189,7 +196,10 @@ app.post("/tools/generate_workspace_report", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  // eslint-disable-next-line no-console
-  console.log(`mcp-followup listening on :${PORT}`);
-});
+export { app };
+
+if (typeof process.env.VITEST === "undefined") {
+  app.listen(PORT, () => {
+    console.log(`mcp-followup listening on :${PORT}`);
+  });
+}

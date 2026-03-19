@@ -121,7 +121,7 @@ export const AuditLogPage = () => {
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Progetto</label>
             <Select value={filters.projectId || "__all__"} onValueChange={(v) => setFilters((f) => ({ ...f, projectId: v === "__all__" ? "" : v }))}>
-              <SelectTrigger className="h-10 w-48">
+              <SelectTrigger className="min-h-11 w-48">
                 <SelectValue placeholder="Tutti i progetti" />
               </SelectTrigger>
               <SelectContent>
@@ -137,7 +137,7 @@ export const AuditLogPage = () => {
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Tipo entità</label>
             <Select value={filters.entityType || "__all__"} onValueChange={(v) => setFilters((f) => ({ ...f, entityType: v === "__all__" ? "" : v }))}>
-              <SelectTrigger className="h-10 w-36">
+              <SelectTrigger className="min-h-11 w-36">
                 <SelectValue placeholder="Tutti" />
               </SelectTrigger>
               <SelectContent>
@@ -151,7 +151,7 @@ export const AuditLogPage = () => {
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Azione</label>
             <Select value={filters.action || "__all__"} onValueChange={(v) => setFilters((f) => ({ ...f, action: v === "__all__" ? "" : v }))}>
-              <SelectTrigger className="h-10 w-48">
+              <SelectTrigger className="min-h-11 w-48">
                 <SelectValue placeholder="Tutte" />
               </SelectTrigger>
               <SelectContent>
@@ -181,14 +181,15 @@ export const AuditLogPage = () => {
             />
           </div>
           <div className="flex items-end gap-2">
-            <Button onClick={() => setPagination((p) => ({ ...p, page: 1 }))}>Applica</Button>
-            <Button variant="outline" onClick={handleExportCsv} disabled={data.length === 0}>
+            <Button className="min-h-11" onClick={() => setPagination((p) => ({ ...p, page: 1 }))}>Applica</Button>
+            <Button variant="outline" className="min-h-11" onClick={handleExportCsv} disabled={data.length === 0}>
               Export CSV
             </Button>
           </div>
         </div>
 
-        <div className="mt-6 overflow-x-auto rounded-lg border border-border">
+        <p className="mt-6 text-xs text-muted-foreground md:hidden">Scorri orizzontalmente per vedere tutte le colonne.</p>
+        <div className="mt-1 overflow-x-auto rounded-lg border border-border">
           {loading ? (
             <div className="px-4 py-12 text-center text-sm text-muted-foreground">Caricamento…</div>
           ) : data.length === 0 ? (
@@ -232,6 +233,7 @@ export const AuditLogPage = () => {
               <Button
                 variant="outline"
                 size="sm"
+                className="min-h-11"
                 disabled={pagination.page <= 1}
                 onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}
               >
@@ -240,6 +242,7 @@ export const AuditLogPage = () => {
               <Button
                 variant="outline"
                 size="sm"
+                className="min-h-11"
                 disabled={pagination.page >= pagination.totalPages}
                 onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
               >

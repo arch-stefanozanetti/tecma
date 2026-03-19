@@ -10,6 +10,17 @@ Gate finali bloccanti per considerare una release pronta in ottica enterprise:
 
 ## 1) CI Hard Gates
 
+### Build deploy (Render parity)
+
+Pipeline: `.github/workflows/followup-3.0-ci-cd.yml` (root repo tecma)
+
+Gate bloccanti per allineamento deploy:
+
+- **Run deploy build (FE):** esecuzione di `scripts/render-build-fe.sh` (design-system + fe-followup-v3).
+- **Run deploy build (BE):** esecuzione di `scripts/render-build-be.sh` (be-followup-v3).
+
+Se questi step passano in CI, la build su Render (followup-3-fe, followup-3-be) usa la stessa sequenza e non fallisce per build. Modifiche agli script o ai path vanno verificate con la CI prima del merge.
+
 ### Backend (`be-followup-v3`)
 
 Pipeline: `.github/workflows/ci-be.yml`
@@ -17,9 +28,11 @@ Pipeline: `.github/workflows/ci-be.yml`
 Gate bloccanti:
 
 1. `npm run test:lint:core`
-2. `npm run check:no-legacy-runtime`
-3. `npm run build`
-4. `npm run test:coverage:core`
+2. `npm run check:openapi`
+3. `npm run check:route-guards` (vedi `docs/ROUTE_ACCESS_ALLOWLIST.md`; aggiungere step in `.github/workflows/ci-be.yml` se non presente)
+4. `npm run check:no-legacy-runtime`
+5. `npm run build`
+6. `npm run test:coverage:core`
 
 Coverage threshold (core):
 

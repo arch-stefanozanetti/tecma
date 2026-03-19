@@ -153,8 +153,8 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
             <TabsTrigger value="comunicazioni" role="tab" aria-selected={activeTab === "comunicazioni"}>
               Comunicazioni
             </TabsTrigger>
-            <TabsTrigger value="regole" role="tab" aria-selected={activeTab === "regole"}>
-              Regole
+            <TabsTrigger value="regole" role="tab" aria-selected={activeTab === "regole"} title="Regole su eventi con notifiche in-app">
+              Automazioni
             </TabsTrigger>
             <TabsTrigger value="webhook" role="tab" aria-selected={activeTab === "webhook"}>
               Webhook
@@ -180,7 +180,7 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
             />
           </TabsContent>
           <TabsContent value="comunicazioni" className="mt-6" role="tabpanel">
-            <ComunicazioniTab workspaceId={workspaceId} />
+            <ComunicazioniTab workspaceId={workspaceId} isAdmin={isAdmin} />
           </TabsContent>
           <TabsContent value="regole" className="mt-6" role="tabpanel">
             <RegoleTab workspaceId={workspaceId} />
