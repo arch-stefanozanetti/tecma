@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { ENV } from "../config/env.js";
 import { getDb } from "../config/db.js";
 import { logger } from "../observability/logger.js";
+import { resolvePlatformApiKeyByRaw, trackPlatformApiKeyUsage } from "../core/platform/platform-api-keys.service.js";
 
 interface RawPlatformAccessConfig {
   workspaceId: string;
@@ -13,6 +14,7 @@ interface RawPlatformAccessConfig {
 
 export interface PlatformAccessContext {
   apiKey: string;
+  keySource: "env" | "db";
   workspaceId: string;
   projectIds: string[];
   label: string;
@@ -54,6 +56,7 @@ const parseApiKeys = (): Map<string, PlatformAccessContext> => {
       : [];
     map.set(apiKey, {
       apiKey,
+      keySource: "env",
       workspaceId,
       projectIds,
       label: typeof config.label === "string" && config.label.trim().length > 0 ? config.label.trim() : "platform-consumer",
@@ -88,13 +91,34 @@ export const platformApiKeyMiddleware = (req: Request, res: Response, next: Next
     res.status(401).json({ error: "Missing x-api-key" });
     return;
   }
-  const config = parseApiKeys().get(apiKey);
-  if (!config) {
-    res.status(401).json({ error: "Invalid API key" });
+  const envConfig = parseApiKeys().get(apiKey);
+  if (envConfig) {
+    req.platformAccess = envConfig;
+    next();
     return;
   }
-  req.platformAccess = config;
-  next();
+  void resolvePlatformApiKeyByRaw(apiKey)
+    .then((dbConfig) => {
+      if (!dbConfig) {
+        res.status(401).json({ error: "Invalid API key" });
+        return;
+      }
+      req.platformAccess = {
+        apiKey: `id:${dbConfig.id}`,
+        keySource: "db",
+        workspaceId: dbConfig.workspaceId,
+        projectIds: dbConfig.projectIds,
+        label: dbConfig.label,
+        scopes: dbConfig.scopes,
+        quotaPerDay: dbConfig.quotaPerDay,
+      };
+      void trackPlatformApiKeyUsage(dbConfig.id);
+      next();
+    })
+    .catch((err) => {
+      logger.error({ err }, "[platform] failed to resolve API key");
+      res.status(503).json({ error: "Platform auth service unavailable" });
+    });
 };
 
 export const requirePlatformScope = (scope: string) => (

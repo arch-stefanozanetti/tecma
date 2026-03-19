@@ -982,6 +982,76 @@ export const openApiV1 = {
         responses: { "200": { description: "Lista progetti del workspace" } }
       }
     },
+    "/workspaces/{id}/platform-api-keys": {
+      get: {
+        tags: ["platform", "workspaces"],
+        summary: "Lista API keys platform del workspace (admin)",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        responses: { "200": { description: "Lista API keys" } }
+      },
+      post: {
+        tags: ["platform", "workspaces"],
+        summary: "Crea API key platform del workspace (admin)",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["label"],
+                properties: {
+                  label: { type: "string" },
+                  projectIds: { type: "array", items: { type: "string" } },
+                  scopes: { type: "array", items: { type: "string" } },
+                  quotaPerDay: { type: "integer", nullable: true }
+                }
+              }
+            }
+          }
+        },
+        responses: { "200": { description: "API key creata (raw key restituita una sola volta)" } }
+      }
+    },
+    "/workspaces/{id}/platform-api-keys/{keyId}/rotate": {
+      post: {
+        tags: ["platform", "workspaces"],
+        summary: "Ruota API key platform (admin)",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string" } },
+          { name: "keyId", in: "path", required: true, schema: { type: "string" } }
+        ],
+        responses: { "200": { description: "Nuova raw key restituita una sola volta" } }
+      }
+    },
+    "/workspaces/{id}/platform-api-keys/{keyId}": {
+      delete: {
+        tags: ["platform", "workspaces"],
+        summary: "Revoca API key platform (admin)",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string" } },
+          { name: "keyId", in: "path", required: true, schema: { type: "string" } }
+        ],
+        responses: { "200": { description: "API key revocata" } }
+      }
+    },
+    "/workspaces/{id}/platform-api-keys/usage": {
+      get: {
+        tags: ["platform", "workspaces"],
+        summary: "Usage API keys platform per date range (admin)",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string" } },
+          { name: "dateFrom", in: "query", required: false, schema: { type: "string", example: "2026-03-01" } },
+          { name: "dateTo", in: "query", required: false, schema: { type: "string", example: "2026-03-31" } }
+        ],
+        responses: { "200": { description: "Usage summary" } }
+      }
+    },
     "/clients/{id}": {
       get: {
         tags: ["clients"],

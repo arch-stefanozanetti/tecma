@@ -37,6 +37,9 @@ const CORE_INDEXES: IndexDefinition[] = [
   { collection: "tz_portal_sessions", keys: { expiresAt: 1 } },
   { collection: "tz_portal_sessions", keys: { workspaceId: 1, clientId: 1 } },
   { collection: "tz_platform_api_usage", keys: { apiKey: 1, date: 1 }, options: { unique: true } },
+  { collection: "tz_platform_api_keys", keys: { keyHash: 1 }, options: { unique: true } },
+  { collection: "tz_platform_api_keys", keys: { workspaceId: 1, active: 1 } },
+  { collection: "tz_platform_api_keys", keys: { workspaceId: 1, label: 1 } },
   { collection: "tz_portal_access_audit", keys: { at: -1 } },
 ];
 

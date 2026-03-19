@@ -438,6 +438,36 @@ export const followupApi = {
   updateWorkspace: (id: string, payload: { name?: string }) =>
     patchJson<{ workspace: WorkspaceRow }>(`/workspaces/${id}`, payload),
   deleteWorkspace: (id: string) => deleteJson<{ deleted: boolean }>(`/workspaces/${id}`),
+  listPlatformApiKeys: (workspaceId: string) =>
+    getJson<{ data: Array<{ _id: string; label: string; projectIds: string[]; scopes: string[]; quotaPerDay: number | null; active: boolean; lastUsedAt?: string; createdAt: string; updatedAt: string }> }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/platform-api-keys`
+    ),
+  createPlatformApiKey: (
+    workspaceId: string,
+    payload: { label: string; projectIds?: string[]; scopes?: string[]; quotaPerDay?: number | null }
+  ) =>
+    postJson<{ key: Record<string, unknown>; apiKey: string; apiKeyMasked: string }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/platform-api-keys`,
+      payload
+    ),
+  rotatePlatformApiKey: (workspaceId: string, keyId: string) =>
+    postJson<{ key: Record<string, unknown>; apiKey: string; apiKeyMasked: string }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/platform-api-keys/${encodeURIComponent(keyId)}/rotate`,
+      {}
+    ),
+  revokePlatformApiKey: (workspaceId: string, keyId: string) =>
+    deleteJson<{ deleted: boolean }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/platform-api-keys/${encodeURIComponent(keyId)}`
+    ),
+  getPlatformApiKeyUsage: (workspaceId: string, params?: { dateFrom?: string; dateTo?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.dateFrom) q.set("dateFrom", params.dateFrom);
+    if (params?.dateTo) q.set("dateTo", params.dateTo);
+    const suffix = q.toString() ? `?${q.toString()}` : "";
+    return getJson<{ data: Array<{ keyRef: string; count: number; date: string }> }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/platform-api-keys/usage${suffix}`
+    );
+  },
   listWorkspaceProjects: (workspaceId: string) =>
     getJson<{ data: WorkspaceProjectRow[] }>(`/workspaces/${workspaceId}/projects`),
   associateProjectToWorkspace: (payload: { workspaceId: string; projectId: string }) =>

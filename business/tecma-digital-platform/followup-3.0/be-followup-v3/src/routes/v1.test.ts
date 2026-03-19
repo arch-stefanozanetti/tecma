@@ -161,6 +161,14 @@ describe("v1 routes", () => {
     });
   });
 
+  describe("platform boundary", () => {
+    it("GET /v1/platform/capabilities returns 401 without x-api-key", async () => {
+      const res = await request(app).get("/v1/platform/capabilities");
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBeDefined();
+    });
+  });
+
   describe("POST /v1/session/projects-by-email", () => {
     it("returns 400 when body is invalid", async () => {
       const token = makeToken();
@@ -209,6 +217,14 @@ describe("v1 routes", () => {
         permissions: ["apartments.read"],
         projectId: "p1"
       });
+    });
+  });
+
+  describe("realtime stream", () => {
+    it("returns 401 when token is missing", async () => {
+      const res = await request(app).get("/v1/realtime/stream?workspaceId=ws1");
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBeDefined();
     });
   });
 
