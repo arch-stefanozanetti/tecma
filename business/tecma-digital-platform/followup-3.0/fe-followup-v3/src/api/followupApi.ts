@@ -44,6 +44,7 @@ import type {
   WorkflowWithDetail,
   WorkflowType,
   ApartmentLockType,
+  WorkspaceAiConfig,
   WorkspaceProjectRow,
   WorkspaceRow,
   WorkspaceUserRow,
@@ -59,10 +60,14 @@ import type {
 } from "../types/domain";
 import { clientsApi } from "./domains/clientsApi";
 import { apartmentsApi } from "./domains/apartmentsApi";
+import { requestsApi } from "./domains/requestsApi";
 
 export const followupApi = {
   clients: clientsApi,
   apartments: apartmentsApi,
+  requests: requestsApi,
+  /** @deprecated Usa followupApi.apartments.queryApartments */
+  queryApartments: apartmentsApi.queryApartments,
   queryCalendar: (query: ListQuery) => postJson<PaginatedResponse<CalendarEvent>>("/calendar/events/query", query),
   createCalendarEvent: (payload: CalendarEventCreateInput) =>
     postJson<{ event: CalendarEvent }>("/calendar/events", payload),
@@ -435,6 +440,10 @@ export const followupApi = {
   updateWorkspace: (id: string, payload: { name?: string }) =>
     patchJson<{ workspace: WorkspaceRow }>(`/workspaces/${id}`, payload),
   deleteWorkspace: (id: string) => deleteJson<{ deleted: boolean }>(`/workspaces/${id}`),
+  getWorkspaceAiConfig: (workspaceId: string) =>
+    getJson<WorkspaceAiConfig>(`/workspaces/${encodeURIComponent(workspaceId)}/ai-config`),
+  putWorkspaceAiConfig: (workspaceId: string, payload: { provider: string; apiKey: string }) =>
+    putJson<WorkspaceAiConfig>(`/workspaces/${encodeURIComponent(workspaceId)}/ai-config`, payload),
   listPlatformApiKeys: (workspaceId: string) =>
     getJson<{ data: Array<{ _id: string; label: string; projectIds: string[]; scopes: string[]; quotaPerDay: number | null; active: boolean; lastUsedAt?: string; createdAt: string; updatedAt: string }> }>(
       `/workspaces/${encodeURIComponent(workspaceId)}/platform-api-keys`
@@ -996,7 +1005,11 @@ export const followupApi = {
       projectIds
     }),
   generateAiSuggestions: (workspaceId: string, projectIds: string[], limit = 20) =>
-    postJson<{ generatedAt: string; data: AiSuggestion[] }>("/ai/suggestions", { workspaceId, projectIds, limit }),
+    postJson<{ generatedAt: string; data: AiSuggestion[]; aiConfigured?: boolean }>("/ai/suggestions", {
+      workspaceId,
+      projectIds,
+      limit
+    }),
   decideAiSuggestion: (suggestionId: string, decision: "approved" | "rejected", actorEmail: string, note = "") =>
     postJson<{ suggestionId: string; decision: string; decidedAt: string }>("/ai/approvals", {
       suggestionId,

@@ -17,12 +17,12 @@ vi.mock("./api/followupApi", () => ({
   followupApi: {
     listWorkspaceProjects: vi.fn().mockResolvedValue({ data: [] }),
     saveUserPreferences: vi.fn().mockResolvedValue(undefined),
-    queryApartments: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),
     queryCalendar: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),
-    queryClients: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),
     queryRequests: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),
     generateAiSuggestions: vi.fn().mockResolvedValue({ generatedAt: "", data: [] }),
     getNotifications: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0, page: 1, perPage: 25, totalPages: 0 } }),
+    clients: { queryClients: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }) },
+    apartments: { queryApartments: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }) },
   },
 }));
 

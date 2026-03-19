@@ -164,6 +164,16 @@ describe("followupApi", () => {
     expect(http.deleteJson).toHaveBeenCalledWith("/workspaces/w1");
   });
 
+  it("getWorkspaceAiConfig chiama getJson", async () => {
+    await followupApi.getWorkspaceAiConfig("w1");
+    expect(http.getJson).toHaveBeenCalledWith("/workspaces/w1/ai-config");
+  });
+
+  it("putWorkspaceAiConfig chiama putJson", async () => {
+    await followupApi.putWorkspaceAiConfig("w1", { provider: "claude", apiKey: "sk-x" });
+    expect(http.putJson).toHaveBeenCalledWith("/workspaces/w1/ai-config", { provider: "claude", apiKey: "sk-x" });
+  });
+
   it("listWorkspaceProjects chiama getJson", async () => {
     await followupApi.listWorkspaceProjects("w1");
     expect(http.getJson).toHaveBeenCalledWith("/workspaces/w1/projects");

@@ -20,7 +20,7 @@ vi.mock("../../api/followupApi", () => ({
     listProjectAccess: vi.fn().mockResolvedValue({ data: [] }),
     listAssets: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0, page: 1, perPage: 25, totalPages: 0 } }),
     getAssetDownloadUrl: vi.fn().mockResolvedValue({ downloadUrl: "" }),
-    queryApartments: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0, page: 1, perPage: 25, totalPages: 0 } }),
+    apartments: { queryApartments: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0, page: 1, perPage: 25, totalPages: 0 } }) },
     saveProjectPolicies: vi.fn().mockResolvedValue(undefined),
     saveProjectEmailConfig: vi.fn().mockResolvedValue(undefined),
   },

@@ -60,7 +60,7 @@ export const AssociateAptClientPage = ({
   const reload = async () => {
     const [c, a, assoc] = await Promise.all([
       followupApi.queryClientsLite(workspaceId, projectIds),
-      followupApi.queryApartments({
+      followupApi.apartments.queryApartments({
         workspaceId,
         projectIds: activeProjectIds,
         page: 1,
@@ -227,7 +227,7 @@ export const AssociateAptClientPage = ({
 
         <div className="association-command">
           <Input value={commandText} onChange={(e) => setCommandText(e.target.value)} className="flex-1" />
-          <Button variant="outline" type="button" onClick={applyCommand}>
+          <Button variant="outline" type="button" className="min-h-11" onClick={applyCommand}>
             Applica comando
           </Button>
         </div>
@@ -237,7 +237,7 @@ export const AssociateAptClientPage = ({
             <div className="space-y-1">
               <label className="block text-sm font-medium text-foreground">Progetto</label>
               <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                <SelectTrigger className="h-10 w-full">
+                <SelectTrigger className="min-h-11 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -253,7 +253,7 @@ export const AssociateAptClientPage = ({
             <div className="space-y-1">
               <label className="block text-sm font-medium text-foreground">Cliente</label>
               <Select value={clientId || "__none__"} onValueChange={(v) => setClientId(v === "__none__" ? "" : v)}>
-                <SelectTrigger className="h-10 w-full">
+                <SelectTrigger className="min-h-11 w-full">
                   <SelectValue placeholder="Seleziona cliente" />
                 </SelectTrigger>
                 <SelectContent>
@@ -270,7 +270,7 @@ export const AssociateAptClientPage = ({
             <div className="space-y-1">
               <label className="block text-sm font-medium text-foreground">Appartamento</label>
               <Select value={apartmentId || "__none__"} onValueChange={(v) => setApartmentId(v === "__none__" ? "" : v)}>
-                <SelectTrigger className="h-10 w-full">
+                <SelectTrigger className="min-h-11 w-full">
                   <SelectValue placeholder="Seleziona appartamento" />
                 </SelectTrigger>
                 <SelectContent>
@@ -287,7 +287,7 @@ export const AssociateAptClientPage = ({
             <div className="space-y-1">
               <label className="block text-sm font-medium text-foreground">Stato</label>
               <Select value={status} onValueChange={(v) => setStatus(v as DealStatus)}>
-                <SelectTrigger className="h-10 w-full">
+                <SelectTrigger className="min-h-11 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -320,10 +320,10 @@ export const AssociateAptClientPage = ({
             </div>
 
             <div className="association-actions">
-              <Button variant="outline" type="button" onClick={() => setStatus(suggestedStatus)}>
+              <Button variant="outline" type="button" className="min-h-11" onClick={() => setStatus(suggestedStatus)}>
                 Usa stato consigliato
               </Button>
-              <Button type="submit" disabled={!clientId || !apartmentId || isLoading}>
+              <Button type="submit" className="min-h-11" disabled={!clientId || !apartmentId || isLoading}>
                 Associa
               </Button>
             </div>
@@ -384,6 +384,7 @@ export const AssociateAptClientPage = ({
                         <Button
                           variant="outline"
                           type="button"
+                          className="min-h-11"
                           onClick={() => association._id && removeAssociation(association._id)}
                           disabled={!association._id}
                         >
@@ -405,7 +406,7 @@ export const AssociateAptClientPage = ({
               <Button
                 type="button"
                 variant="default"
-                className="mt-2"
+                className="mt-2 min-h-11"
                 onClick={() => onNavigateToSection("requests")}
               >
                 Vai a Trattative

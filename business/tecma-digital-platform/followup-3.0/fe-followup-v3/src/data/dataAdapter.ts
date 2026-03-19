@@ -90,7 +90,7 @@ const createMockAdapter = (): DataAdapter => ({
 const createRestAdapter = (): DataAdapter => ({
   getCockpitFeed: async ({ workspaceId, projectIds }) => {
     const [clientsResp, apartmentsResp] = await Promise.all([
-      followupApi.queryClients({
+      followupApi.clients.queryClients({
         workspaceId,
         projectIds,
         page: 1,
@@ -98,7 +98,7 @@ const createRestAdapter = (): DataAdapter => ({
         searchText: "",
         sort: { field: "updatedAt", direction: -1 }
       }),
-      followupApi.queryApartments({
+      followupApi.apartments.queryApartments({
         workspaceId,
         projectIds,
         page: 1,
@@ -137,8 +137,8 @@ const createRestAdapter = (): DataAdapter => ({
       }
     };
   },
-  getClients: (query) => followupApi.queryClients(query),
-  getApartments: (query) => followupApi.queryApartments(query),
+  getClients: (query) => followupApi.clients.queryClients(query),
+  getApartments: (query) => followupApi.apartments.queryApartments(query),
   runQuickAction: async (payload: QuickActionPayload) => ({ ok: true, message: `Azione inviata: ${payload.intent}` })
 });
 

@@ -4,7 +4,7 @@ import { Customer360Page } from "./Customer360Page";
 
 vi.mock("../../api/followupApi", () => ({
   followupApi: {
-    queryClients: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),
+    clients: { queryClients: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }) },
     queryCalendar: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),
     queryRequests: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),
     getNotifications: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),

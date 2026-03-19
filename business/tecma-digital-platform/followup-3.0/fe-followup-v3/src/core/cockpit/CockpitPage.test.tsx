@@ -8,9 +8,9 @@ vi.mock("../../api/followupApi", () => {
     followupApi: {
       generateAiSuggestions: vi.fn().mockResolvedValue({ data: [], generatedAt: new Date().toISOString() }),
       queryCalendar: vi.fn().mockResolvedValue(mockRes),
-      queryApartments: vi.fn().mockResolvedValue(mockRes),
-      queryClients: vi.fn().mockResolvedValue(mockRes),
       queryRequests: vi.fn().mockResolvedValue(mockRes),
+      clients: { queryClients: vi.fn().mockResolvedValue(mockRes) },
+      apartments: { queryApartments: vi.fn().mockResolvedValue(mockRes) },
     },
   };
 });

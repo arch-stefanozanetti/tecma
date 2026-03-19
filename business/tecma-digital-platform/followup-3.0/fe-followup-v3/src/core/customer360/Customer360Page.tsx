@@ -34,7 +34,7 @@ export function Customer360Page({ workspaceId, projectIds, onSectionChange, navi
     const to = moment().add(7, "days").endOf("day");
     setLoading(true);
     Promise.all([
-      followupApi.queryClients({
+      followupApi.clients.queryClients({
         workspaceId,
         projectIds,
         page: 1,
@@ -85,7 +85,7 @@ export function Customer360Page({ workspaceId, projectIds, onSectionChange, navi
               <Users className="h-4 w-4 text-muted-foreground" />
               Clienti recenti
             </h2>
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => onSectionChange("clients")}>
+            <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => onSectionChange("clients")}>
               Vedi tutti
             </Button>
           </div>
@@ -99,7 +99,7 @@ export function Customer360Page({ workspaceId, projectIds, onSectionChange, navi
                     type="button"
                     onClick={() => navigate(`/clients/${c._id}`)}
                     className={cn(
-                      "flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+                      "flex min-h-11 w-full items-center justify-between rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-muted"
                     )}
                   >
                     <span className="font-medium text-foreground truncate">{c.fullName ?? c.email ?? c._id}</span>
@@ -117,7 +117,7 @@ export function Customer360Page({ workspaceId, projectIds, onSectionChange, navi
               <CalendarDays className="h-4 w-4 text-muted-foreground" />
               Prossimi appuntamenti
             </h2>
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => onSectionChange("calendar")}>
+            <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => onSectionChange("calendar")}>
               Calendario
             </Button>
           </div>
@@ -130,7 +130,7 @@ export function Customer360Page({ workspaceId, projectIds, onSectionChange, navi
                   <button
                     type="button"
                     onClick={() => onSectionChange("calendar", { eventId: ev._id })}
-                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+                    className="flex min-h-11 w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-muted"
                   >
                     <span className="tabular-nums text-muted-foreground shrink-0">
                       {moment(ev.startsAt).format("DD MMM HH:mm")}
@@ -149,7 +149,7 @@ export function Customer360Page({ workspaceId, projectIds, onSectionChange, navi
               <Handshake className="h-4 w-4 text-muted-foreground" />
               Trattative
             </h2>
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => onSectionChange("requests")}>
+            <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => onSectionChange("requests")}>
               Pipeline
             </Button>
           </div>
@@ -162,7 +162,7 @@ export function Customer360Page({ workspaceId, projectIds, onSectionChange, navi
                   <button
                     type="button"
                     onClick={() => onSectionChange("requests", { requestId: r._id })}
-                    className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+                    className="flex min-h-11 w-full items-center justify-between rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-muted"
                   >
                     <span className="truncate text-foreground">{r.clientName ?? r._id}</span>
                     <span className="text-xs text-muted-foreground shrink-0 ml-2">{r.status}</span>
@@ -180,7 +180,7 @@ export function Customer360Page({ workspaceId, projectIds, onSectionChange, navi
               <Bell className="h-4 w-4 text-muted-foreground" />
               Ultime notifiche
             </h2>
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => onSectionChange("inbox")}>
+            <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => onSectionChange("inbox")}>
               Inbox
             </Button>
           </div>
@@ -198,7 +198,7 @@ export function Customer360Page({ workspaceId, projectIds, onSectionChange, navi
                       else onSectionChange("inbox");
                     }}
                     className={cn(
-                      "flex w-full rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted",
+                      "flex min-h-11 w-full rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-muted",
                       !n.read && "bg-muted/50"
                     )}
                   >

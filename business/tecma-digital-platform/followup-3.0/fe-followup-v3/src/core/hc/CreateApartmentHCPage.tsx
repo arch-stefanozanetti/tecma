@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { followupApi } from "../../api/followupApi";
 import type { ApartmentRow, ConfigurationTemplateSchema, HCApartmentConfig, HCMasterEntityRecord } from "../../types/domain";
+import { useIsMobile } from "../shared/useIsMobile";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { INPUT_LIKE_CLASSES } from "../../lib/ds-form-classes";
@@ -55,6 +56,7 @@ const getTemplateFields = (template: ConfigurationTemplateSchema | null, section
 };
 
 export const CreateApartmentHCPage = ({ workspaceId, projectIds }: CreateApartmentHCPageProps) => {
+  const isMobile = useIsMobile();
   const [step, setStep] = useState<Step>(1);
   const [apartments, setApartments] = useState<ApartmentRow[]>([]);
   const [sections, setSections] = useState<HCMasterEntityRecord[]>([]);
@@ -72,7 +74,7 @@ export const CreateApartmentHCPage = ({ workspaceId, projectIds }: CreateApartme
 
   const loadData = async () => {
     const [apartmentRows, sectionRows, hcRows] = await Promise.all([
-      followupApi.queryApartments({
+      followupApi.apartments.queryApartments({
         workspaceId,
         projectIds,
         page: 1,
@@ -237,7 +239,7 @@ export const CreateApartmentHCPage = ({ workspaceId, projectIds }: CreateApartme
   };
 
   return (
-    <section className="hc-shell hc-like-source">
+    <section className={cn("hc-shell hc-like-source", isMobile && "pb-24")}>
       <div className="hc-card">
         <div className="hc-head">
           <h3>Crea Appartamento HC</h3>
@@ -301,8 +303,8 @@ export const CreateApartmentHCPage = ({ workspaceId, projectIds }: CreateApartme
               </div>
             </div>
 
-            <div className="hc-actions">
-              <Button type="button" disabled={!canGoStep2} onClick={() => setStep(2)}>
+            <div className={cn("hc-actions", isMobile && "fixed bottom-0 left-0 right-0 z-10 flex gap-2 border-t border-border bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))]")}>
+              <Button type="button" disabled={!canGoStep2} onClick={() => setStep(2)} className="min-h-11">
                 Continua
               </Button>
             </div>
@@ -327,11 +329,11 @@ export const CreateApartmentHCPage = ({ workspaceId, projectIds }: CreateApartme
               </div>
             </div>
 
-            <div className="hc-actions">
-              <Button variant="outline" type="button" onClick={() => setStep(1)}>
+            <div className={cn("hc-actions", isMobile && "fixed bottom-0 left-0 right-0 z-10 flex gap-2 border-t border-border bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))]")}>
+              <Button variant="outline" type="button" onClick={() => setStep(1)} className="min-h-11">
                 Indietro
               </Button>
-              <Button type="button" disabled={!canGoStep3} onClick={() => setStep(3)}>
+              <Button type="button" disabled={!canGoStep3} onClick={() => setStep(3)} className="min-h-11">
                 Continua al form
               </Button>
             </div>
@@ -379,11 +381,11 @@ export const CreateApartmentHCPage = ({ workspaceId, projectIds }: CreateApartme
               </pre>
             </div>
 
-            <div className="hc-actions">
-              <Button variant="outline" type="button" onClick={() => setStep(2)}>
+            <div className={cn("hc-actions", isMobile && "fixed bottom-0 left-0 right-0 z-10 flex gap-2 border-t border-border bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))]")}>
+              <Button variant="outline" type="button" onClick={() => setStep(2)} className="min-h-11">
                 Indietro
               </Button>
-              <Button type="button" disabled={!canGoStep4} onClick={handleProcess}>
+              <Button type="button" disabled={!canGoStep4} onClick={handleProcess} className="min-h-11">
                 Avvia processing
               </Button>
             </div>
@@ -403,8 +405,8 @@ export const CreateApartmentHCPage = ({ workspaceId, projectIds }: CreateApartme
               <p>{isLoading ? "Elaborazione configurazione HC in corso..." : "Processing completato"}</p>
             </div>
             {!isLoading && (
-              <div className="hc-actions">
-                <Button type="button" onClick={() => setStep(5)}>
+              <div className={cn("hc-actions", isMobile && "fixed bottom-0 left-0 right-0 z-10 flex gap-2 border-t border-border bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))]")}>
+                <Button type="button" onClick={() => setStep(5)} className="min-h-11">
                   Vai al riepilogo
                 </Button>
               </div>
@@ -424,8 +426,8 @@ export const CreateApartmentHCPage = ({ workspaceId, projectIds }: CreateApartme
             <p>
               Campi compilati: <strong>{Object.keys(formValues).length}</strong>
             </p>
-            <div className="hc-actions">
-              <Button variant="outline" type="button" onClick={reset}>
+            <div className={cn("hc-actions", isMobile && "fixed bottom-0 left-0 right-0 z-10 flex gap-2 border-t border-border bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))]")}>
+              <Button variant="outline" type="button" onClick={reset} className="min-h-11">
                 Nuova configurazione HC
               </Button>
             </div>

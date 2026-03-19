@@ -41,7 +41,7 @@ export const ProjectOverviewTab = ({
     try {
       const [assetsRes, aptRes] = await Promise.all([
         followupApi.listAssets(workspaceId, { projectId, type: "image" }).catch(() => ({ data: [] })),
-        followupApi.queryApartments({
+        followupApi.apartments.queryApartments({
           workspaceId,
           projectIds: [projectId],
           page: 1,

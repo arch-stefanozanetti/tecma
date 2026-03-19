@@ -5,6 +5,7 @@ import moment from "moment";
 import "moment/locale/it";
 import { followupApi } from "../../api/followupApi";
 import { useWorkspace } from "../../auth/projectScope";
+import { useIsMobile } from "../shared/useIsMobile";
 import { isPriceAvailabilityRelevant } from "../features";
 import type { CalendarEvent, ClientRow, RequestRow } from "../../types/domain";
 import type { AiSuggestion, ProjectAccessProject } from "../../types/domain";
@@ -48,16 +49,6 @@ interface ActionCard {
   dealValue?: number;
 }
 
-const INITIAL_ACTIONS: ActionCard[] = [
-  { id: "1", clientName: "Bianchi Mario", urgency: "risk", context: "Nessuna risposta alla proposta inviata 5 giorni fa.", action: "Chiama adesso", apartment: "Apt A-12 · Via Roma 14", daysSinceContact: 5, dealValue: 380_000 },
-  { id: "2", clientName: "Ferrari Luca", urgency: "opportunity", context: "Ha richiesto un preventivo questa mattina.", action: "Crea proposta", apartment: "Apt B-04 · Via Dante 3", dealValue: 290_000 },
-  { id: "3", clientName: "Mancini Paolo", urgency: "risk", context: "Compromesso da firmare entro venerdì.", action: "Invia reminder", apartment: "Apt F-09 · Via Torino 22", dealValue: 520_000 },
-  { id: "4", clientName: "Conti Sara", urgency: "followup", context: "Visita confermata per giovedì alle 15:00.", action: "Conferma appuntamento", apartment: "Apt C-01 · Via Garibaldi 8" },
-  { id: "5", clientName: "Ricci Elena", urgency: "opportunity", context: "Apt A-12 corrisponde al suo profilo.", action: "Proponi visita", apartment: "Apt A-12 · Via Roma 14", dealValue: 380_000 },
-  { id: "6", clientName: "Rossi Anna", urgency: "risk", context: "Proposta inviata 7 giorni fa. Sollecita.", action: "Sollecita risposta", apartment: "Apt D-07 · Via Milano 5", daysSinceContact: 7, dealValue: 320_000 },
-  { id: "7", clientName: "Verdi Marco", urgency: "followup", context: "Ha visitato l'annuncio 3 volte questa settimana.", action: "Invia proposta personalizzata", apartment: "Apt E-03 · Via Napoli 17" },
-];
-
 const URGENCY_CFG: Record<Urgency, { label: string; badgeBg: string; badgeText: string }> = {
   risk: { label: "Urgente", badgeBg: "bg-red-50", badgeText: "text-red-600" },
   opportunity: { label: "Opportunità", badgeBg: "bg-indigo-50", badgeText: "text-indigo-600" },
@@ -78,11 +69,14 @@ const suggestionToCard = (s: AiSuggestion): ActionCard => ({
 const MAX_PRIORITY_TILES = 8;
 
 export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, onNavigateToSection, isAdmin }: CockpitPageProps) => {
+  const isMobile = useIsMobile();
   const { email: scopeEmail, projects: scopeProjects } = useWorkspace();
   /** Usa progetti passati da App (filtrati per workspace) se disponibili, altrimenti scope */
   const projects = projectsProp ?? scopeProjects ?? [];
   const [actions, setActions] = useState<ActionCard[]>([]);
   const [suggestionsLoaded, setSuggestionsLoaded] = useState(false);
+  const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
+  const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
   const [todayEvents, setTodayEvents] = useState<CalendarEvent[]>([]);
   const [kpi, setKpi] = useState<{
     apartments: number | null;
@@ -101,10 +95,10 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
     setKpiLoading(true);
     const base = { workspaceId, projectIds, page: 1, perPage: 1, searchText: "" };
     Promise.all([
-      followupApi.queryApartments(base).then((r) => r.pagination.total),
-      followupApi.queryApartments({ ...base, filters: { status: ["SOLD", "RENTED"] } }).then((r) => r.pagination.total),
+      followupApi.apartments.queryApartments(base).then((r) => r.pagination.total),
+      followupApi.apartments.queryApartments({ ...base, filters: { status: ["SOLD", "RENTED"] } }).then((r) => r.pagination.total),
       followupApi.queryCalendar({ ...base, filters: { dateFrom: moment().startOf("day").toISOString(), dateTo: moment().endOf("day").add(1, "year").toISOString() } }).then((r) => r.pagination.total),
-      followupApi.queryClients(base).then((r) => r.pagination.total),
+      followupApi.clients.queryClients(base).then((r) => r.pagination.total),
       followupApi.queryRequests(base).then((r) => r.pagination.total),
     ])
       .then(([apartments, soldOrRented, calendar, clients, requests]) => setKpi({ apartments, soldOrRented, calendar, clients, requests }))
@@ -124,26 +118,26 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
 
   useEffect(() => {
     if (!workspaceId || projectIds.length === 0) return;
+    setSuggestionsError(null);
     followupApi
       .generateAiSuggestions(workspaceId, projectIds, 10)
       .then((res) => {
         const cards = (res.data || []).map(suggestionToCard);
-        setActions(cards.length > 0 ? cards : [...INITIAL_ACTIONS]);
+        setActions(cards);
+        setAiConfigured(res.aiConfigured ?? true);
         setSuggestionsLoaded(true);
       })
       .catch(() => {
-        setActions([...INITIAL_ACTIONS]);
+        setActions([]);
+        setAiConfigured(null);
+        setSuggestionsError("Impossibile caricare i suggerimenti. Verifica la connessione e la configurazione AI del workspace.");
         setSuggestionsLoaded(true);
       });
   }, [workspaceId, projectIds]);
 
   useEffect(() => {
-    if (suggestionsLoaded && actions.length === 0) setActions([...INITIAL_ACTIONS]);
-  }, [suggestionsLoaded, actions.length]);
-
-  useEffect(() => {
     if (!workspaceId || projectIds.length === 0) return;
-    followupApi
+    followupApi.clients
       .queryClients({
         workspaceId,
         projectIds,
@@ -235,21 +229,21 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
               <div>
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Link rapidi</h3>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" className="rounded-lg" onClick={() => onNavigateToSection("calendar")}>
+                  <Button variant="outline" size="sm" className="min-h-11 rounded-lg" onClick={() => onNavigateToSection("calendar")}>
                     <Calendar className="mr-1.5 h-3.5 w-3.5" />
                     Calendario
                   </Button>
-                  <Button variant="outline" size="sm" className="rounded-lg" onClick={() => onNavigateToSection("requests")}>
+                  <Button variant="outline" size="sm" className="min-h-11 rounded-lg" onClick={() => onNavigateToSection("requests")}>
                     Trattative
                   </Button>
-                  <Button variant="outline" size="sm" className="rounded-lg" onClick={() => onNavigateToSection("clients")}>
+                  <Button variant="outline" size="sm" className="min-h-11 rounded-lg" onClick={() => onNavigateToSection("clients")}>
                     Clienti
                   </Button>
-                  <Button variant="outline" size="sm" className="rounded-lg" onClick={() => onNavigateToSection("apartments")}>
+                  <Button variant="outline" size="sm" className="min-h-11 rounded-lg" onClick={() => onNavigateToSection("apartments")}>
                     <Home className="mr-1.5 h-3.5 w-3.5" />
                     Appartamenti
                   </Button>
-                  <Button variant="outline" size="sm" className="rounded-lg" onClick={() => onNavigateToSection("createApartment")}>
+                  <Button variant="outline" size="sm" className="min-h-11 rounded-lg" onClick={() => onNavigateToSection("createApartment")}>
                     <Building2 className="mr-1.5 h-3.5 w-3.5" />
                     Crea appartamento
                   </Button>
@@ -259,18 +253,18 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
                 <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-foreground">Azioni rapide</h3>
                 <p className="mb-2 text-xs text-muted-foreground">Avvia subito un flusso (form o pannello si apre in automatico).</p>
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" className="rounded-lg" onClick={() => onNavigateToSection("calendar", { openNewEvent: true })}>
+                  <Button size="sm" className="min-h-11 rounded-lg" onClick={() => onNavigateToSection("calendar", { openNewEvent: true })}>
                     <CalendarPlus className="mr-1.5 h-3.5 w-3.5" />
                     Fissa appuntamento
                   </Button>
                   {isAdmin && (
-                    <Button size="sm" className="rounded-lg" onClick={() => onNavigateToSection("users", { openAddUser: true })}>
+                    <Button size="sm" className="min-h-11 rounded-lg" onClick={() => onNavigateToSection("users", { openAddUser: true })}>
                       <UserPlus className="mr-1.5 h-3.5 w-3.5" />
                       Aggiungi utente
                     </Button>
                   )}
                   {isPriceAvailabilityRelevant(projects, projectIds) && (
-                    <Button size="sm" variant="secondary" className="rounded-lg" onClick={() => onNavigateToSection("priceAvailability")}>
+                    <Button size="sm" variant="secondary" className="min-h-11 rounded-lg" onClick={() => onNavigateToSection("priceAvailability")}>
                       <Euro className="mr-1.5 h-3.5 w-3.5" />
                       Prezzi e disponibilità
                     </Button>
@@ -285,7 +279,7 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
         {displayProjects.length > 0 && (
           <div>
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Gestione asset</h2>
-            <div className="flex gap-3 overflow-x-auto pb-2">
+            <div className={cn("flex gap-3 pb-2", isMobile ? "flex-col" : "overflow-x-auto")}>
               {displayProjects.map((project) => {
                 const heroUrl = BUCKET_BASEURL
                   ? `${BUCKET_BASEURL}/initiatives/${project.displayName || project.id}/businessplatform/hero-image.jpg?v=${new Date().getDate()}`
@@ -293,7 +287,7 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
                 return (
                   <div
                     key={project.id}
-                    className="min-w-[200px] max-w-[240px] flex-shrink-0 overflow-hidden rounded-ui border border-border bg-card shadow-sm"
+                    className={cn("overflow-hidden rounded-ui border border-border bg-card shadow-sm", !isMobile && "min-w-[200px] max-w-[240px] flex-shrink-0")}
                   >
                     {heroUrl && (
                       <div className="aspect-[16/10] bg-muted">
@@ -303,7 +297,7 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
                     <div className="p-3">
                       <p className="font-medium text-foreground">{project.displayName || project.name || project.id}</p>
                       {onNavigateToSection && (
-                        <Button variant="ghost" size="sm" className="mt-2 h-8 rounded-lg text-xs" onClick={() => onNavigateToSection("apartments")}>
+                        <Button variant="ghost" size="sm" className="mt-2 min-h-11 rounded-lg text-xs" onClick={() => onNavigateToSection("apartments")}>
                           Vai
                         </Button>
                       )}
@@ -325,7 +319,7 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
                     Ultimi clienti
                   </span>
                   {onNavigateToSection && (
-                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => onNavigateToSection("clients")}>
+                    <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => onNavigateToSection("clients")}>
                       Vedi tutti
                     </Button>
                   )}
@@ -336,7 +330,7 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
                       <button
                         type="button"
                         onClick={() => navigate(`/clients/${c._id}`)}
-                        className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+                        className="flex min-h-11 w-full items-center justify-between rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-muted"
                       >
                         <span className="font-medium text-foreground truncate">{c.fullName ?? c.email ?? c._id}</span>
                         <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -353,7 +347,7 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
                     Trattative da seguire
                   </span>
                   {onNavigateToSection && (
-                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => onNavigateToSection("requests")}>
+                    <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => onNavigateToSection("requests")}>
                       Pipeline
                     </Button>
                   )}
@@ -370,7 +364,7 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
                             onNavigateToSection("requests", { requestId: r._id });
                           }
                         }}
-                        className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+                        className="flex min-h-11 w-full items-center justify-between rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-muted"
                       >
                         <span className="truncate text-foreground">{r.clientName ?? r._id}</span>
                         <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -391,7 +385,7 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
               Oggi
             </span>
             {onNavigateToSection && (
-              <Button variant="ghost" size="sm" className="h-7 rounded-lg text-xs" onClick={() => onNavigateToSection("calendar")}>
+              <Button variant="ghost" size="sm" className="min-h-11 rounded-lg text-xs" onClick={() => onNavigateToSection("calendar")}>
                 Vai al Calendario
               </Button>
             )}
@@ -416,8 +410,28 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Priorità operative</h2>
           {isLoading ? (
             <p className="rounded-lg border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground">Caricamento azioni suggerite...</p>
+          ) : suggestionsError ? (
+            <div className="rounded-lg border border-border bg-card px-4 py-8 text-center">
+              <p className="text-sm text-muted-foreground">{suggestionsError}</p>
+              {isAdmin && (
+                <Button className="mt-3 min-h-11" size="sm" onClick={() => navigate("/workspaces")}>
+                  Vai a Workspaces per configurare l&apos;AI
+                </Button>
+              )}
+            </div>
+          ) : aiConfigured === false ? (
+            <div className="rounded-lg border border-border bg-card px-4 py-8 text-center">
+              <p className="text-sm text-muted-foreground">
+                Nessun provider AI collegato. Collega un provider AI al workspace (Claude, ChatGPT, Gemini, ecc.) per abilitare i suggerimenti e le funzioni AI.
+              </p>
+              {isAdmin && (
+                <Button className="mt-3 min-h-11" size="sm" onClick={() => navigate("/workspaces")}>
+                  Vai a Workspaces per collegare un provider AI
+                </Button>
+              )}
+            </div>
           ) : priorityActions.length === 0 ? (
-            <p className="rounded-lg border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground">Nessuna azione suggerita al momento.</p>
+            <p className="rounded-lg border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground">Nessun suggerimento al momento.</p>
           ) : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {priorityActions.map((item) => {
@@ -453,7 +467,7 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
                     )}
                     {onNavigateToSection && (
                       <Button
-                        className="mt-4 w-full rounded-lg"
+                        className="mt-4 min-h-11 w-full rounded-lg"
                         size="sm"
                         onClick={() => onNavigateToSection(getSectionForAction(item.action))}
                       >
@@ -467,7 +481,7 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
           )}
           {actions.length > MAX_PRIORITY_TILES && onNavigateToSection && (
             <div className="mt-3 text-center">
-              <Button variant="outline" size="sm" className="rounded-lg" onClick={() => onNavigateToSection("requests")}>
+              <Button variant="outline" size="sm" className="min-h-11 rounded-lg" onClick={() => onNavigateToSection("requests")}>
                 Vedi tutte le trattative
               </Button>
             </div>

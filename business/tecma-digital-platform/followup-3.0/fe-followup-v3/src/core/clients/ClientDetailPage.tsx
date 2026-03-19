@@ -130,7 +130,7 @@ export const ClientDetailPage = () => {
     if (!clientId) return;
     setActionLogging(type);
     try {
-      await followupApi.createClientAction(clientId, type);
+      await followupApi.clients.createClientAction(clientId, type);
       await followupApi.getAuditForEntity("client", clientId, workspaceId ?? "", 25).then((r) => setAuditEvents(r.data ?? []));
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Errore durante la registrazione dell'azione.");
@@ -502,7 +502,7 @@ export const ClientDetailPage = () => {
               Object.entries(formAdditionalInfo).filter(([, v]) => v != null && String(v).trim() !== "")
             )
           : undefined;
-      const res = await followupApi.updateClient(client._id, {
+      const res = await followupApi.clients.updateClient(client._id, {
         fullName: formFullName.trim(),
         email: formEmail.trim() || undefined,
         phone: formPhone.trim() || undefined,

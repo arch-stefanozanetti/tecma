@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { followupApi } from "../../api/followupApi";
+import { useIsMobile } from "../shared/useIsMobile";
 import type { ApartmentCreateInput } from "../../types/domain";
 
 const CreateApartmentFormSchema = z.object({
@@ -28,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
+import { cn } from "../../lib/utils";
 
 interface CreateApartmentPageProps {
   workspaceId: string;
@@ -64,6 +66,7 @@ const initialForm: CreateApartmentForm = {
 const SESSION_KEY = "followup.create-apartment.session";
 
 export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: CreateApartmentPageProps) => {
+  const isMobile = useIsMobile();
   const [step, setStep] = useState<WizardStep>(1);
   const [form, setForm] = useState(initialForm);
   const [createdApartmentId, setCreatedApartmentId] = useState<string | null>(null);
@@ -155,7 +158,7 @@ export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: Crea
         const d = Number(form.deposit);
         if (!Number.isNaN(d) && d >= 0) payload.deposit = d;
       }
-      const response = await followupApi.createApartment(payload);
+      const response = await followupApi.apartments.createApartment(payload);
       setCreatedApartmentId(response.apartmentId);
       setStep(3); // esito
       sessionStorage.removeItem(SESSION_KEY);
@@ -186,7 +189,7 @@ export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: Crea
   };
 
   return (
-    <section className="hc-shell">
+    <section className={cn("hc-shell", isMobile && "pb-24")}>
       <div className="hc-card">
         <div className="hc-head">
           <h3>Crea Appartamento</h3>
@@ -216,7 +219,7 @@ export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: Crea
             <div className="space-y-1">
               <label className="block text-sm font-medium text-foreground">Modalità</label>
               <Select value={form.mode} onValueChange={(v) => setForm((s) => ({ ...s, mode: v as "RENT" | "SELL" }))}>
-                <SelectTrigger className="h-10 w-full">
+                <SelectTrigger className="min-h-11 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -226,11 +229,11 @@ export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: Crea
               </Select>
             </div>
 
-            <div className="hc-actions">
-              <Button variant="outline" type="button" onClick={saveSession}>
+            <div className={cn("hc-actions", isMobile && "fixed bottom-0 left-0 right-0 z-10 flex gap-2 border-t border-border bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))]")}>
+              <Button variant="outline" type="button" onClick={saveSession} className="min-h-11">
                 Salva sessione
               </Button>
-              <Button type="submit">
+              <Button type="submit" className="min-h-11">
                 Avanti
               </Button>
             </div>
@@ -269,7 +272,7 @@ export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: Crea
             <div className="space-y-1">
               <label className="block text-sm font-medium text-foreground">Stato</label>
               <Select value={form.status} onValueChange={(v) => setForm((s) => ({ ...s, status: v as "AVAILABLE" | "RESERVED" | "SOLD" | "RENTED" }))}>
-                <SelectTrigger className="h-10 w-full">
+                <SelectTrigger className="min-h-11 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -281,11 +284,11 @@ export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: Crea
               </Select>
             </div>
 
-            <div className="hc-actions">
-              <Button variant="outline" type="button" onClick={() => setStep(1)}>
+            <div className={cn("hc-actions", isMobile && "fixed bottom-0 left-0 right-0 z-10 flex gap-2 border-t border-border bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))]")}>
+              <Button variant="outline" type="button" onClick={() => setStep(1)} className="min-h-11">
                 Indietro
               </Button>
-              <Button type="submit" disabled={isLoading}>
+              <Button type="submit" disabled={isLoading} className="min-h-11">
                 {isLoading ? "Creazione in corso..." : "Crea appartamento"}
               </Button>
             </div>
@@ -299,7 +302,7 @@ export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: Crea
             <p>
               Prossimo step consigliato: <strong>Crea Appartamento HC</strong>
             </p>
-            <Button variant="outline" type="button" onClick={reset}>
+            <Button variant="outline" type="button" onClick={reset} className="min-h-11">
               Crea un altro appartamento
             </Button>
           </div>

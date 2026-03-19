@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { followupApi } from "../../api/followupApi";
 import type { ApartmentRow, HCApartmentConfig } from "../../types/domain";
+import { useIsMobile } from "../shared/useIsMobile";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { INPUT_LIKE_CLASSES } from "../../lib/ds-form-classes";
@@ -14,6 +15,7 @@ interface EditApartmentHCPageProps {
 }
 
 export const EditApartmentHCPage = ({ workspaceId, projectIds, initialApartmentId }: EditApartmentHCPageProps) => {
+  const isMobile = useIsMobile();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [apartmentId, setApartmentId] = useState("");
   const [hcRows, setHcRows] = useState<HCApartmentConfig[]>([]);
@@ -35,7 +37,7 @@ export const EditApartmentHCPage = ({ workspaceId, projectIds, initialApartmentI
         searchText: "",
         sort: { field: "updatedAt", direction: -1 }
       }),
-      followupApi.queryApartments({
+      followupApi.apartments.queryApartments({
         workspaceId,
         projectIds,
         page: 1,
@@ -143,7 +145,7 @@ export const EditApartmentHCPage = ({ workspaceId, projectIds, initialApartmentI
   };
 
   return (
-    <section className="hc-shell hc-like-source">
+    <section className={cn("hc-shell hc-like-source", isMobile && "pb-24")}>
       <div className="hc-card">
         <div className="hc-head">
           <h3>Modifica Appartamento HC</h3>
@@ -250,13 +252,13 @@ export const EditApartmentHCPage = ({ workspaceId, projectIds, initialApartmentI
                   <div className="hc-inline-grid" key={key}>
                     <Input value={key} disabled />
                     <Input type="number" value={value} onChange={(e) => upsertField(key, Number(e.target.value || 0))} />
-                    <Button variant="outline" type="button" onClick={() => removeField(key)}>
+                    <Button variant="outline" type="button" onClick={() => removeField(key)} className="min-h-11">
                       Remove
                     </Button>
                   </div>
                 ))}
               </div>
-              <Button variant="outline" type="button" onClick={addField}>
+              <Button variant="outline" type="button" onClick={addField} className="min-h-11">
                 Aggiungi campo
               </Button>
             </div>
@@ -276,11 +278,11 @@ export const EditApartmentHCPage = ({ workspaceId, projectIds, initialApartmentI
               </pre>
             </div>
 
-            <div className="hc-actions">
-              <Button variant="outline" type="button" onClick={() => setStep(1)}>
+            <div className={cn("hc-actions", isMobile && "fixed bottom-0 left-0 right-0 z-10 flex gap-2 border-t border-border bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))]")}>
+              <Button variant="outline" type="button" onClick={() => setStep(1)} className="min-h-11">
                 Torna alla lista
               </Button>
-              <Button type="submit" disabled={isLoading}>
+              <Button type="submit" disabled={isLoading} className="min-h-11">
                 Salva aggiornamenti HC
               </Button>
             </div>
@@ -297,7 +299,7 @@ export const EditApartmentHCPage = ({ workspaceId, projectIds, initialApartmentI
               Sezioni: <strong>{sectionCodes.length}</strong> - Campi: <strong>{Object.keys(formValues).length}</strong>
             </p>
             <div className="hc-actions">
-              <Button variant="outline" type="button" onClick={() => setStep(1)}>
+              <Button variant="outline" type="button" onClick={() => setStep(1)} className="min-h-11">
                 Modifica un altro HC
               </Button>
             </div>

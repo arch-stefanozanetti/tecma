@@ -3,14 +3,18 @@ import { dataAdapter } from "./dataAdapter";
 
 vi.mock("../api/followupApi", () => ({
   followupApi: {
-    queryClients: vi.fn().mockResolvedValue({
-      data: [],
-      pagination: { page: 1, perPage: 25, total: 0, totalPages: 1 },
-    }),
-    queryApartments: vi.fn().mockResolvedValue({
-      data: [],
-      pagination: { page: 1, perPage: 25, total: 0, totalPages: 1 },
-    }),
+    clients: {
+      queryClients: vi.fn().mockResolvedValue({
+        data: [],
+        pagination: { page: 1, perPage: 25, total: 0, totalPages: 1 },
+      }),
+    },
+    apartments: {
+      queryApartments: vi.fn().mockResolvedValue({
+        data: [],
+        pagination: { page: 1, perPage: 25, total: 0, totalPages: 1 },
+      }),
+    },
   },
 }));
 

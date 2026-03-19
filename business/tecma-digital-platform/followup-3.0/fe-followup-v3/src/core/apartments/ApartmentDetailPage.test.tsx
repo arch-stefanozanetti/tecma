@@ -38,7 +38,15 @@ vi.mock("./useApartmentDetailData", () => ({
 }));
 
 vi.mock("../../api/followupApi", () => ({
-  followupApi: mocks.api,
+  followupApi: {
+    apartments: mocks.api,
+    getAuditForEntity: mocks.api.getAuditForEntity,
+    listEntityAssignments: mocks.api.listEntityAssignments,
+    listWorkspaceUsers: mocks.api.listWorkspaceUsers,
+    getApartmentCandidates: mocks.api.getApartmentCandidates,
+    assignEntity: mocks.api.assignEntity,
+    unassignEntity: mocks.api.unassignEntity,
+  },
 }));
 
 vi.mock("../../auth/projectScope", () => ({
