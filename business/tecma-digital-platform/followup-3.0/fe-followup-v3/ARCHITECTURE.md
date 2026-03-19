@@ -8,7 +8,7 @@ Obiettivo: **aggiungere una nuova funzionalità deve richiedere pochissimo sforz
 
 | Cartella | Uso |
 |----------|-----|
-| **api/** | Client HTTP (`http.ts`) e tutti gli endpoint (`followupApi.ts`). Le chiamate al backend passano **solo** da qui. |
+| **api/** | Client HTTP (`http.ts`) e tutti gli endpoint (`followupApi.ts`). Le chiamate al backend passano **solo** da qui. Per client e appartamenti usa `followupApi.clients.*` e `followupApi.apartments.*`; i moduli in `api/domains/` sono implementazione interna. |
 | **auth/** | Login, scope workspace/progetti, salvataggio preferenze. |
 | **components/ui/** | Componenti UI riutilizzabili (Button, Input, Select, Dialog, …). Nuovi componenti DS vanno qui; ogni componente può avere `*.test.tsx`. |
 | **core/** | Feature per area: `auth/`, `calendar/`, `clients/`, `apartments/`, `workflows/`, `ai/`, `hc/`, `templates/`, ecc. Ogni area può contenere pagine, componenti specifici, hook locali. |
@@ -47,7 +47,7 @@ Obiettivo: **aggiungere una nuova funzionalità deve richiedere pochissimo sforz
    In `types/domain.ts` definisci i tipi per request/response (o riusa `ListQuery` / `PaginatedResponse<T>` se è una query paginata).
 
 2. **Metodo in followupApi**  
-   In `api/followupApi.ts` aggiungi un metodo che usa `getJson`, `postJson`, `putJson`, `patchJson` o `deleteJson` da `http.ts`. Esempio:
+   In `api/followupApi.ts` aggiungi un metodo che usa `getJson`, `postJson`, `putJson`, `patchJson` o `deleteJson` da `http.ts`. Per domini già strutturati (client, appartamenti) aggiungi il metodo in `api/domains/clientsApi.ts` o `api/domains/apartmentsApi.ts` e usa in pagina `followupApi.clients.*` / `followupApi.apartments.*`. Esempio per un nuovo dominio:
    ```ts
    getSomething: (id: string) => getJson<Something>(`/something/${id}`),
    createSomething: (payload: SomethingCreate) => postJson<Something>("/something", payload),
@@ -69,14 +69,22 @@ Usa **`usePaginatedList`** in `core/shared/usePaginatedList.ts`:
 
 Non reimplementare load + loading + error + paginazione nelle pagine: passa un loader che chiama `followupApi` e usa i valori restituiti dall’hook.
 
-### Azioni async singole (login, submit form, “carica progetti”, salvataggio)
+### Azioni async singole (on-demand: login, submit form, “carica progetti”, salvataggio)
 
 Usa **`useAsync`** in `core/shared/useAsync.ts`:
 
 - Riceve una funzione async (es. `(email: string) => followupApi.getProjectsByEmail(email)`).
 - Restituisce: `run(...args)` per eseguire l’azione, `data`, `error`, `isLoading`, `reset`.
 
+La funzione passata a `useAsync` **deve essere stabile** (es. definita con `useCallback` o importata). **Non usare useAsync per caricamenti che devono avvenire al cambiare di id o dipendenze** (es. dettaglio entità): in quel caso usare `useEffect` + `useState` con dipendenze stabili (vedi sotto).
+
 Gestisci loading e error tramite l’hook invece di ripetere `setLoading` / `setError` in ogni componente.
+
+### Caricamento legato a id/dipendenze (pagine dettaglio, liste con filtri)
+
+Usa **`useEffect` + `useState`** con dipendenze stabili (id dalla route, chiavi derivate come `selectedProjectIds.join(',')`, eventuale “version” per reload manuale). Esempi: `useClientDetailData`, `useApartmentDetailData` (in `core/clients/`, `core/apartments/`).
+
+Per evitare re-run inutili quando il parent passa nuovi riferimenti (es. array), usare una chiave stabile (es. `selectedProjectIdsKey = selectedProjectIds.join(',')`) nelle dipendenze. Usare sempre un flag `cancelled` nel cleanup degli effetti per evitare setState dopo unmount o dopo cambio dipendenze.
 
 ---
 
