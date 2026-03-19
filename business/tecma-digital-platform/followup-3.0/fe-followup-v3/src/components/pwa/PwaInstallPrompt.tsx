@@ -36,6 +36,9 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 }
 
+/** Ritardo prima di aprire automaticamente il dialog nativo di installazione (senza richiedere click). */
+const AUTO_PROMPT_DELAY_MS = 1500;
+
 export const PwaInstallPrompt = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
@@ -52,6 +55,17 @@ export const PwaInstallPrompt = () => {
     return () => window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
   }, []);
 
+  // Auto-apri il dialog nativo di installazione quando il browser lo consente (nessuno step da seguire).
+  useEffect(() => {
+    if (!deferredPrompt || dismissed) return;
+    const t = setTimeout(() => {
+      deferredPrompt.prompt().catch(() => {
+        // Ignora se il browser richiede un gesto utente (es. Chrome in alcuni casi).
+      });
+    }, AUTO_PROMPT_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [deferredPrompt, dismissed]);
+
   const handleDismiss = () => {
     setDismissed(true);
     try {
@@ -63,45 +77,50 @@ export const PwaInstallPrompt = () => {
 
   if (isStandalone()) return null;
   if (!shouldShowAfterDismiss()) return null;
-  if (!deferredPrompt || dismissed) return null;
 
-  return (
-    <div className="fixed bottom-4 left-1/2 z-40 w-[calc(100%-1.5rem)] max-w-lg -translate-x-1/2 rounded-ui border border-border bg-card p-3 shadow-dropdown lg:bottom-6">
-      <div className="flex items-start gap-3">
-        <div className="rounded-chrome bg-muted p-2">
-          <Download className="h-4 w-4 text-muted-foreground" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-foreground">Installa Followup sul dispositivo</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Accesso rapido per agenti in movimento, esperienza app-like e supporto offline minimale.
-          </p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              onClick={async () => {
-                await deferredPrompt.prompt();
-                const choice = await deferredPrompt.userChoice;
-                if (choice.outcome === "accepted") setDeferredPrompt(null);
-              }}
-            >
-              Installa
-            </Button>
-            <Button size="sm" variant="ghost" onClick={handleDismiss}>
-              Dopo
-            </Button>
+  // Quando il browser espone beforeinstallprompt il dialog nativo viene aperto in automatico (useEffect sopra).
+  // Mostriamo un piccolo banner con "Installa" (se l'auto-prompt non parte) e "Dopo".
+  if (deferredPrompt && !dismissed) {
+    return (
+      <div className="fixed bottom-4 left-1/2 z-40 w-[calc(100%-1.5rem)] max-w-lg -translate-x-1/2 rounded-ui border border-border bg-card p-3 shadow-dropdown lg:bottom-6">
+        <div className="flex items-start gap-3">
+          <div className="rounded-chrome bg-muted p-2">
+            <Download className="h-4 w-4 text-muted-foreground" />
           </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">Installa Followup</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Se non si è aperta la finestra di installazione, usa il pulsante qui sotto.
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                onClick={async () => {
+                  await deferredPrompt.prompt();
+                  const choice = await deferredPrompt.userChoice;
+                  if (choice.outcome === "accepted") setDeferredPrompt(null);
+                }}
+              >
+                Installa
+              </Button>
+              <Button size="sm" variant="ghost" onClick={handleDismiss}>
+                Dopo
+              </Button>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            onClick={handleDismiss}
+            aria-label="Chiudi prompt installazione"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
-        <button
-          type="button"
-          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-          onClick={handleDismiss}
-          aria-label="Chiudi prompt installazione"
-        >
-          <X className="h-4 w-4" />
-        </button>
       </div>
-    </div>
-  );
+    );
+  }
+
+  return null;
 };
 

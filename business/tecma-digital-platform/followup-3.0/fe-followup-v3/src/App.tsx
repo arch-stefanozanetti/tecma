@@ -504,64 +504,64 @@ export const App = () => {
       ) ?? [];
 
       const templateProps = {
-    section: effectiveSection,
-    onSectionChange,
-    userEmail: projectScope.email,
-    workspaceId: projectScope.workspaceId ?? "",
-    apiEnvironment: projectScope.apiEnvironment,
-    isAdmin: projectScope.isAdmin ?? false,
-    enabledFeatures: workspaceFeatures,
-    onChangeProjects: () => {
-      clearProjectScope();
-      setAccessVersion((v) => v + 1);
-    },
-    onChangeWorkspace: (newWorkspaceId: string) => {
-      updateWorkspaceId(newWorkspaceId);
-      const isLegacy = isLegacyWorkspace(newWorkspaceId);
-      if (isLegacy) {
-        void followupApi
-          .saveUserPreferences(projectScope.email ?? "", newWorkspaceId, projectScope.selectedProjectIds ?? [])
-          .catch(() => {});
-      } else {
-        followupApi
-          .listWorkspaceProjects(newWorkspaceId)
-          .then((res) => {
-            const newWsProjectIds = (res.data ?? []).map((wp) => wp.projectId);
-            const currentSelected = projectScope.selectedProjectIds ?? [];
-            const intersection = currentSelected.filter((id) => newWsProjectIds.includes(id));
-            const newSelected = intersection.length > 0 ? intersection : newWsProjectIds;
-            updateSelectedProjectIds(newSelected);
-            return followupApi.saveUserPreferences(projectScope.email ?? "", newWorkspaceId, newSelected);
-          })
-          .catch(() => {});
-      }
-      setAccessVersion((v) => v + 1);
-    },
-    projects: filteredProjects,
-    selectedProjectIds: filteredSelected,
-    onSelectedProjectIdsChange: (ids: string[]) => {
-      updateSelectedProjectIds(ids);
-      setAccessVersion((v) => v + 1);
-    },
-    navigate,
-  };
+        section: effectiveSection,
+        onSectionChange,
+        userEmail: projectScope.email,
+        workspaceId: projectScope.workspaceId ?? "",
+        apiEnvironment: projectScope.apiEnvironment,
+        isAdmin: projectScope.isAdmin ?? false,
+        enabledFeatures: workspaceFeatures,
+        onChangeProjects: () => {
+          clearProjectScope();
+          setAccessVersion((v) => v + 1);
+        },
+        onChangeWorkspace: (newWorkspaceId: string) => {
+          updateWorkspaceId(newWorkspaceId);
+          const isLegacy = isLegacyWorkspace(newWorkspaceId);
+          if (isLegacy) {
+            void followupApi
+              .saveUserPreferences(projectScope.email ?? "", newWorkspaceId, projectScope.selectedProjectIds ?? [])
+              .catch(() => {});
+          } else {
+            followupApi
+              .listWorkspaceProjects(newWorkspaceId)
+              .then((res) => {
+                const newWsProjectIds = (res.data ?? []).map((wp) => wp.projectId);
+                const currentSelected = projectScope.selectedProjectIds ?? [];
+                const intersection = currentSelected.filter((id) => newWsProjectIds.includes(id));
+                const newSelected = intersection.length > 0 ? intersection : newWsProjectIds;
+                updateSelectedProjectIds(newSelected);
+                return followupApi.saveUserPreferences(projectScope.email ?? "", newWorkspaceId, newSelected);
+              })
+              .catch(() => {});
+          }
+          setAccessVersion((v) => v + 1);
+        },
+        projects: filteredProjects,
+        selectedProjectIds: filteredSelected,
+        onSelectedProjectIdsChange: (ids: string[]) => {
+          updateSelectedProjectIds(ids);
+          setAccessVersion((v) => v + 1);
+        },
+        navigate,
+      };
 
-  // Wrapper con key per forzare unmount/remount al cambio sezione (evita "more hooks" su stesso componente).
-  const effectiveProjectIds =
-    isTzWorkspace && wsIds !== null
-      ? filteredSelected
-      : (projectScope.selectedProjectIds ?? []);
-  const sectionContent = renderSection(
-    section,
-    projectScope.workspaceId ?? "",
-    effectiveProjectIds,
-    onSectionChange,
-    filteredProjects,
-    workspaceFeatures,
-    location,
-    projectScope.isAdmin ?? false,
-    navigate
-  );
+      // Wrapper con key per forzare unmount/remount al cambio sezione (evita "more hooks" su stesso componente).
+      const effectiveProjectIds =
+        isTzWorkspace && wsIds !== null
+          ? filteredSelected
+          : (projectScope.selectedProjectIds ?? []);
+      const sectionContent = renderSection(
+        section,
+        projectScope.workspaceId ?? "",
+        effectiveProjectIds,
+        onSectionChange,
+        filteredProjects,
+        workspaceFeatures,
+        location,
+        projectScope.isAdmin ?? false,
+        navigate
+      );
 
       appContent = (
         <>
@@ -625,6 +625,7 @@ export const App = () => {
       );
     }
   }
+
 
   return (
     <>
