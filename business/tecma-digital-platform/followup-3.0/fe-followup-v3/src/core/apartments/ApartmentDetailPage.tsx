@@ -24,6 +24,7 @@ import { useWorkflowConfig } from "../../hooks/useWorkflowConfig";
 import { PriceAvailabilityGrid, type MatrixUnit, type MatrixCell } from "../prices/PriceAvailabilityGrid";
 import { STATUS_FILTER_OPTIONS, STATUS_LABEL, MODE_LABEL } from "./apartmentDetailConstants";
 import { ApartmentHeaderSection } from "./ApartmentHeaderSection";
+import ApartmentDetailPanoramica from "./ApartmentDetailPanoramica";
 import { useApartmentDetailData } from "./useApartmentDetailData";
 import { useToast } from "../../contexts/ToastContext";
 
@@ -108,7 +109,7 @@ export const ApartmentDetailPage = () => {
 
   const refetchPrices = useCallback(() => {
     if (!apartmentId) return;
-    followupApi.getApartmentPrices(apartmentId).then(setPrices).catch(() => setPrices(null));
+    followupApi.apartments.getApartmentPrices(apartmentId).then(setPrices).catch(() => setPrices(null));
   }, [apartmentId]);
 
   const loadPriceCalendar = useCallback(() => {
@@ -169,12 +170,12 @@ export const ApartmentDetailPage = () => {
 
   useEffect(() => {
     if (!apartmentId) return;
-    followupApi.getApartmentPrices(apartmentId).then((r) => setPrices(r)).catch(() => setPrices(null));
+    followupApi.apartments.getApartmentPrices(apartmentId).then((r) => setPrices(r)).catch(() => setPrices(null));
   }, [apartmentId]);
 
   useEffect(() => {
     if (!apartmentId) return;
-    followupApi.getApartmentInventory(apartmentId).then((r) => setInventory({ effectiveStatus: r.effectiveStatus, lock: r.lock })).catch(() => setInventory(null));
+    followupApi.apartments.getApartmentInventory(apartmentId).then((r) => setInventory({ effectiveStatus: r.effectiveStatus, lock: r.lock })).catch(() => setInventory(null));
   }, [apartmentId]);
 
   const requestsSorted = useMemo(
@@ -268,7 +269,7 @@ export const ApartmentDetailPage = () => {
         setEditError("Superficie non valida.");
         return;
       }
-      const updated = await followupApi.updateApartment(apartment._id, {
+      const updated = await followupApi.apartments.updateApartment(apartment._id, {
         code: editCode.trim(),
         name: editName.trim() || editCode.trim(),
         status: editStatus,
@@ -286,7 +287,7 @@ export const ApartmentDetailPage = () => {
   if (loading) {
     return (
       <div className="flex flex-1 flex-col gap-4 p-6">
-        <Button variant="ghost" size="sm" className="w-fit gap-2" onClick={goBack}>
+        <Button variant="ghost" size="sm" className="min-h-11 w-fit gap-2" onClick={goBack}>
           <ArrowLeft className="h-4 w-4" />
           Torna a Appartamenti
         </Button>
@@ -298,7 +299,7 @@ export const ApartmentDetailPage = () => {
   if (error && !apartment) {
     return (
       <div className="flex flex-1 flex-col gap-4 p-6">
-        <Button variant="ghost" size="sm" className="w-fit gap-2" onClick={goBack}>
+        <Button variant="ghost" size="sm" className="min-h-11 w-fit gap-2" onClick={goBack}>
           <ArrowLeft className="h-4 w-4" />
           Torna a Appartamenti
         </Button>
@@ -308,42 +309,6 @@ export const ApartmentDetailPage = () => {
   }
 
   if (!apartment) return null;
-
-  const priceDisplay =
-    prices?.current != null
-      ? prices.current.mode === "RENT"
-        ? new Intl.NumberFormat("it-IT", {
-            style: "currency",
-            currency: prices.current.currency,
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-          }).format(prices.current.amount) + " / mese"
-        : new Intl.NumberFormat("it-IT", {
-            style: "currency",
-            currency: prices.current.currency,
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-          }).format(prices.current.amount)
-      : apartment.normalizedPrice &&
-          typeof apartment.normalizedPrice === "object" &&
-          "display" in apartment.normalizedPrice
-        ? (apartment.normalizedPrice as { display: string }).display
-        : apartment.rawPrice != null && typeof apartment.rawPrice === "object" && "amount" in apartment.rawPrice
-          ? new Intl.NumberFormat("it-IT", {
-              style: "currency",
-              currency: "EUR",
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 0,
-            }).format((apartment.rawPrice as { amount: number }).amount)
-          : "—";
-  const inventoryStatusLabel =
-    inventory?.effectiveStatus === "locked"
-      ? "In trattativa (bloccato)"
-      : inventory?.effectiveStatus === "reserved"
-        ? "Riservato"
-        : inventory?.effectiveStatus === "sold"
-          ? "Venduto"
-          : "Disponibile";
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
@@ -376,260 +341,71 @@ export const ApartmentDetailPage = () => {
         {/* Tab Panoramica */}
         <TabsContent value="panoramica" className="space-y-6 mt-4">
           <section className="grid gap-6 sm:grid-cols-2">
-            <div className="space-y-4 rounded-lg border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-foreground">Dettaglio</h2>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Codice</span>
-                  <p className="font-mono font-medium text-foreground">{apartment.code}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Nome</span>
-                  <p className="font-medium text-foreground">{apartment.name || "—"}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Superficie</span>
-                  <p className="font-medium text-foreground">
-                    {apartment.surfaceMq != null ? `${apartment.surfaceMq} m²` : "—"}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Prezzo</span>
-                  <p className="font-medium text-foreground">{priceDisplay}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Disponibilità</span>
-                  <p className="font-medium text-foreground">{inventoryStatusLabel}</p>
-                  {inventory?.lock && (
-                    <Link to={`/requests/${inventory.lock.requestId}`} className="text-xs text-primary hover:underline">
-                      Trattativa #{inventory.lock.requestId.slice(-6)}
-                    </Link>
-                  )}
-                </div>
-                {apartment.floor != null && (
-                  <div>
-                    <span className="text-muted-foreground">Piano</span>
-                    <p className="font-medium text-foreground">{apartment.floor}</p>
-                  </div>
-                )}
-                {apartment.building?.name && (
-                  <div>
-                    <span className="text-muted-foreground">Edificio</span>
-                    <p className="font-medium text-foreground">{apartment.building.name}</p>
-                  </div>
-                )}
-                {apartment.building?.address && (
-                  <div>
-                    <span className="text-muted-foreground">Indirizzo</span>
-                    <p className="font-medium text-foreground">{apartment.building.address}</p>
-                  </div>
-                )}
-                {apartment.plan?.typology?.name && (
-                  <div>
-                    <span className="text-muted-foreground">Tipologia</span>
-                    <p className="font-medium text-foreground">{apartment.plan.typology.name}</p>
-                  </div>
-                )}
-                {apartment.plan?.mainFeatures && (
-                  <div>
-                    <span className="text-muted-foreground">Caratteristiche</span>
-                    <p className="font-medium text-foreground">
-                      {[
-                        apartment.plan.mainFeatures.rooms != null && `${apartment.plan.mainFeatures.rooms} vani`,
-                        apartment.plan.mainFeatures.bedroom != null && `${apartment.plan.mainFeatures.bedroom} camere`,
-                        apartment.plan.mainFeatures.bathroom != null && `${apartment.plan.mainFeatures.bathroom} bagni`,
-                      ]
-                        .filter(Boolean)
-                        .join(" • ")}
-                    </p>
-                  </div>
-                )}
-                {apartment.sides && apartment.sides.length > 0 && (
-                  <div>
-                    <span className="text-muted-foreground">Lati</span>
-                    <p className="font-medium text-foreground">
-                      {apartment.sides.map((s) => s.name).filter(Boolean).join(", ") || "—"}
-                    </p>
-                  </div>
-                )}
-                <div>
-                  <span className="text-muted-foreground">Progetto</span>
-                  <p className="font-mono text-xs text-foreground">{apartment.projectId}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4 rounded-lg border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-foreground">Disponibilità</h2>
-              <p className="text-xs text-muted-foreground">
-                Stato dell’unità: Disponibile, Riservato, Venduto, Affittato. Puoi modificarlo per aggiornare la visibilità.
-              </p>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Stato</span>
-                  <p className="font-medium text-foreground">{STATUS_LABEL[apartment.status]}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Modalità</span>
-                  <p className="font-medium text-foreground">{MODE_LABEL[apartment.mode]}</p>
-                </div>
-                {inventory && (
-                  <div>
-                    <span className="text-muted-foreground">Stato inventory</span>
-                    <p className="font-medium text-foreground">{inventoryStatusLabel}</p>
-                  </div>
-                )}
-              </div>
-              <Button type="button" variant="outline" size="sm" onClick={() => setEditApartmentOpen(true)}>
-                Modifica stato
-              </Button>
-            </div>
-
-            <div className="space-y-4 rounded-lg border border-border bg-card p-4 sm:col-span-2">
-                <h2 className="text-sm font-semibold text-foreground">Storico prezzi</h2>
-                <div className="flex flex-wrap gap-4 mb-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => { setAddSalePriceOpen(true); setAddPriceError(null); setAddSalePriceForm({ price: "", currency: "EUR", validFrom: "", validTo: "" }); }}
-                  >
-                    Aggiungi prezzo vendita
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => { setAddMonthlyRentOpen(true); setAddPriceError(null); setAddMonthlyRentForm({ pricePerMonth: "", deposit: "", currency: "EUR", validFrom: "", validTo: "" }); }}
-                  >
-                    Aggiungi canone mensile
-                  </Button>
-                </div>
-                <div className="flex flex-wrap gap-6">
-                  {prices?.salePrices && prices.salePrices.length > 0 ? (
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground mb-1">Vendita</p>
-                      <ul className="space-y-1 text-sm">
-                        {prices.salePrices.slice(0, 10).map((s) => (
-                          <li key={s._id} className="flex flex-wrap items-center justify-between gap-2">
-                            <span>{formatDate(s.validFrom)} – {s.validTo ? formatDate(s.validTo) : "oggi"}</span>
-                            <span className="font-medium">
-                              {new Intl.NumberFormat("it-IT", { style: "currency", currency: s.currency, minimumFractionDigits: 0 }).format(s.price)}
-                            </span>
-                            <div className="flex gap-1">
-                              {!s.validTo && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 text-xs"
-                                  onClick={async () => {
-                                    if (!apartmentId) return;
-                                    setEditPriceSaving(true);
-                                    setEditPriceError(null);
-                                    try {
-                                      await followupApi.updateApartmentSalePrice(apartmentId, s._id, {
-                                        validTo: new Date().toISOString().split("T")[0],
-                                      });
-                                      refetchPrices();
-                                    } catch (err) {
-                                      setEditPriceError(err instanceof Error ? err.message : "Errore");
-                                    } finally {
-                                      setEditPriceSaving(false);
-                                    }
-                                  }}
-                                  disabled={editPriceSaving}
-                                >
-                                  Chiudi periodo
-                                </Button>
-                              )}
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 text-xs"
-                                onClick={() => {
-                                  setEditSalePriceId(s._id);
-                                  setEditSalePriceForm({ price: String(s.price), validTo: s.validTo ? s.validTo.split("T")[0] : "" });
-                                  setEditSalePriceOpen(true);
-                                  setEditPriceError(null);
-                                }}
-                              >
-                                Modifica
-                              </Button>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Nessun prezzo vendita.</p>
-                  )}
-                  {prices?.monthlyRents && prices.monthlyRents.length > 0 ? (
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground mb-1">Affitto</p>
-                      <ul className="space-y-1 text-sm">
-                        {prices.monthlyRents.slice(0, 10).map((r) => (
-                          <li key={r._id} className="flex flex-wrap items-center justify-between gap-2">
-                            <span>{formatDate(r.validFrom)} – {r.validTo ? formatDate(r.validTo) : "oggi"}</span>
-                            <span className="font-medium">
-                              {new Intl.NumberFormat("it-IT", { style: "currency", currency: r.currency, minimumFractionDigits: 0 }).format(r.pricePerMonth)}/mese
-                            </span>
-                            <div className="flex gap-1">
-                              {!r.validTo && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 text-xs"
-                                  onClick={async () => {
-                                    if (!apartmentId) return;
-                                    setEditPriceSaving(true);
-                                    setEditPriceError(null);
-                                    try {
-                                      await followupApi.updateApartmentMonthlyRent(apartmentId, r._id, {
-                                        validTo: new Date().toISOString().split("T")[0],
-                                      });
-                                      refetchPrices();
-                                    } catch (err) {
-                                      setEditPriceError(err instanceof Error ? err.message : "Errore");
-                                    } finally {
-                                      setEditPriceSaving(false);
-                                    }
-                                  }}
-                                  disabled={editPriceSaving}
-                                >
-                                  Chiudi periodo
-                                </Button>
-                              )}
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 text-xs"
-                                onClick={() => {
-                                  setEditMonthlyRentId(r._id);
-                                  setEditMonthlyRentForm({
-                                    pricePerMonth: String(r.pricePerMonth),
-                                    deposit: r.deposit != null ? String(r.deposit) : "",
-                                    validTo: r.validTo ? r.validTo.split("T")[0] : "",
-                                  });
-                                  setEditMonthlyRentOpen(true);
-                                  setEditPriceError(null);
-                                }}
-                              >
-                                Modifica
-                              </Button>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Nessun canone mensile.</p>
-                  )}
-                </div>
-              </div>
+            <ApartmentDetailPanoramica
+              apartment={apartment}
+              prices={prices}
+              inventory={inventory}
+              onEditApartment={() => setEditApartmentOpen(true)}
+              refetchPrices={refetchPrices}
+              apartmentId={apartmentId}
+              onOpenAddSalePrice={() => {
+                setAddSalePriceOpen(true);
+                setAddPriceError(null);
+                setAddSalePriceForm({ price: "", currency: "EUR", validFrom: "", validTo: "" });
+              }}
+              onOpenAddMonthlyRent={() => {
+                setAddMonthlyRentOpen(true);
+                setAddPriceError(null);
+                setAddMonthlyRentForm({ pricePerMonth: "", deposit: "", currency: "EUR", validFrom: "", validTo: "" });
+              }}
+              onEditSalePrice={(s) => {
+                setEditSalePriceId(s._id);
+                setEditSalePriceForm({ price: String(s.price), validTo: s.validTo ? s.validTo.split("T")[0] : "" });
+                setEditSalePriceOpen(true);
+                setEditPriceError(null);
+              }}
+              onEditMonthlyRent={(r) => {
+                setEditMonthlyRentId(r._id);
+                setEditMonthlyRentForm({
+                  pricePerMonth: String(r.pricePerMonth),
+                  deposit: r.deposit != null ? String(r.deposit) : "",
+                  validTo: r.validTo ? r.validTo.split("T")[0] : "",
+                });
+                setEditMonthlyRentOpen(true);
+                setEditPriceError(null);
+              }}
+              onCloseSalePricePeriod={async (s) => {
+                if (!apartmentId) return;
+                setEditPriceSaving(true);
+                setEditPriceError(null);
+                try {
+                  await followupApi.apartments.updateApartmentSalePrice(apartmentId, s._id, {
+                    validTo: new Date().toISOString().split("T")[0],
+                  });
+                  refetchPrices();
+                } catch (err) {
+                  setEditPriceError(err instanceof Error ? err.message : "Errore");
+                } finally {
+                  setEditPriceSaving(false);
+                }
+              }}
+              onCloseMonthlyRentPeriod={async (r) => {
+                if (!apartmentId) return;
+                setEditPriceSaving(true);
+                setEditPriceError(null);
+                try {
+                  await followupApi.apartments.updateApartmentMonthlyRent(apartmentId, r._id, {
+                    validTo: new Date().toISOString().split("T")[0],
+                  });
+                  refetchPrices();
+                } catch (err) {
+                  setEditPriceError(err instanceof Error ? err.message : "Errore");
+                } finally {
+                  setEditPriceSaving(false);
+                }
+              }}
+              editPriceSaving={editPriceSaving}
+            />
 
             {apartment?.mode === "RENT" && (
               <div className="space-y-4 rounded-lg border border-border bg-card p-4 sm:col-span-2">
@@ -707,7 +483,7 @@ export const ApartmentDetailPage = () => {
                       setAddPriceSaving(true);
                       setAddPriceError(null);
                       try {
-                        await followupApi.createApartmentSalePrice(apartmentId, {
+                        await followupApi.apartments.createApartmentSalePrice(apartmentId, {
                           workspaceId,
                           price,
                           currency: addSalePriceForm.currency,
@@ -793,7 +569,7 @@ export const ApartmentDetailPage = () => {
                       setAddPriceSaving(true);
                       setAddPriceError(null);
                       try {
-                        await followupApi.createApartmentMonthlyRent(apartmentId, {
+                        await followupApi.apartments.createApartmentMonthlyRent(apartmentId, {
                           workspaceId,
                           pricePerMonth,
                           deposit: addMonthlyRentForm.deposit ? Number(addMonthlyRentForm.deposit) : undefined,
@@ -891,7 +667,7 @@ export const ApartmentDetailPage = () => {
                       setEditPriceSaving(true);
                       setEditPriceError(null);
                       try {
-                        await followupApi.updateApartmentSalePrice(apartmentId, editSalePriceId, {
+                        await followupApi.apartments.updateApartmentSalePrice(apartmentId, editSalePriceId, {
                           price,
                           validTo: editSalePriceForm.validTo || undefined,
                         });
@@ -958,7 +734,7 @@ export const ApartmentDetailPage = () => {
                       setEditPriceSaving(true);
                       setEditPriceError(null);
                       try {
-                        await followupApi.updateApartmentMonthlyRent(apartmentId, editMonthlyRentId, {
+                        await followupApi.apartments.updateApartmentMonthlyRent(apartmentId, editMonthlyRentId, {
                           pricePerMonth,
                           deposit: editMonthlyRentForm.deposit ? Number(editMonthlyRentForm.deposit) : undefined,
                           validTo: editMonthlyRentForm.validTo || undefined,
@@ -1135,7 +911,7 @@ export const ApartmentDetailPage = () => {
                 {assignments.map((a) => (
                   <li key={a.userId} className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 text-sm">
                     <span>{a.userId}</span>
-                    <Button variant="ghost" size="sm" className="h-7 text-muted-foreground hover:text-destructive" onClick={() => handleUnassign(a.userId)}>
+                    <Button variant="ghost" size="sm" className="min-h-11 text-muted-foreground hover:text-destructive" onClick={() => handleUnassign(a.userId)}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </li>
@@ -1144,7 +920,7 @@ export const ApartmentDetailPage = () => {
               </ul>
               <div className="flex gap-2">
                 <Select value={assignUserId} onValueChange={setAssignUserId}>
-                  <SelectTrigger className="flex-1 max-w-xs">
+                  <SelectTrigger className="min-h-11 flex-1 max-w-xs">
                     <SelectValue placeholder="Seleziona utente" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1201,7 +977,7 @@ export const ApartmentDetailPage = () => {
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">Codice</label>
                 <Input
-                  className="h-10 rounded-lg border-border"
+                  className="min-h-11 rounded-lg border-border"
                   value={editCode}
                   onChange={(e) => setEditCode(e.target.value)}
                   required
@@ -1210,7 +986,7 @@ export const ApartmentDetailPage = () => {
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">Nome</label>
                 <Input
-                  className="h-10 rounded-lg border-border"
+                  className="min-h-11 rounded-lg border-border"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   placeholder="Nome appartamento"
@@ -1219,7 +995,7 @@ export const ApartmentDetailPage = () => {
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">Stato</label>
                 <Select value={editStatus} onValueChange={(v) => setEditStatus(v as ApartmentRow["status"])}>
-                  <SelectTrigger className="h-10 rounded-lg border-border">
+                  <SelectTrigger className="min-h-11 rounded-lg border-border">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1237,7 +1013,7 @@ export const ApartmentDetailPage = () => {
                   type="number"
                   min={0}
                   step={1}
-                  className="h-10 rounded-lg border-border"
+                  className="min-h-11 rounded-lg border-border"
                   value={editSurfaceMq}
                   onChange={(e) => setEditSurfaceMq(e.target.value)}
                   required
@@ -1246,10 +1022,10 @@ export const ApartmentDetailPage = () => {
               {editError && <p className="text-sm text-destructive">{editError}</p>}
             </DrawerBody>
             <DrawerFooter>
-              <Button type="button" variant="outline" onClick={() => setEditApartmentOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setEditApartmentOpen(false)} className="min-h-11">
                 Annulla
               </Button>
-              <Button type="submit" disabled={editSaving}>
+              <Button type="submit" disabled={editSaving} className="min-h-11">
                 {editSaving ? "Salvataggio..." : "Salva"}
               </Button>
             </DrawerFooter>
