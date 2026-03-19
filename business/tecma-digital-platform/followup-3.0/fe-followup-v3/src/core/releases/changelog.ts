@@ -34,6 +34,38 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.13.2",
+    date: "2026-03-19",
+    title: "Refactoring code-simplifier: API unificate, helper BE, split pagine, ternari",
+    releaseType: "patch",
+    changes: [
+      {
+        type: "improvement",
+        text: "API frontend: followupApi espone clients, apartments e requests come unico punto di accesso; tutti i consumer usano followupApi.clients.*, followupApi.apartments.* e followupApi.requests.*; ARCHITECTURE.md aggiornata.",
+      },
+      {
+        type: "improvement",
+        text: "Backend: helper auditAndDispatchEntityEvent (audit + dispatch in una chiamata) e parseListQueryFromRequest (parsing workspaceId, projectIds, page, perPage); route clients e apartments semplificate.",
+      },
+      {
+        type: "improvement",
+        text: "Pagine dettaglio: ClientDetailPage con Header e Anagrafica estratti; ApartmentDetailPage con Panoramica (Dettaglio, Disponibilità, Storico prezzi) in ApartmentDetailPanoramica; helper getPriceDisplay e getInventoryStatusLabel in apartmentDetailConstants.",
+      },
+      {
+        type: "improvement",
+        text: "RequestsPage: drawer Nuova/Modifica azione estratto in RequestsActionDrawer; migrazione a followupApi.requests.",
+      },
+      {
+        type: "improvement",
+        text: "Ternari sostituiti con mappe/costanti: CalendarPage (VIEW_LABELS), CalendarEventFormDrawer (SUBMIT_LABEL), dialog (SIZE_CLASS), CommandPalette (typeLabel).",
+      },
+      {
+        type: "improvement",
+        text: "useDetailData: JSDoc che documenta la scelta delle dependency array (loadEntity non incluso per evitare re-run con funzioni inline).",
+      },
+    ],
+  },
+  {
     version: "0.13.1",
     date: "2026-03-18",
     title: "Calendario, release notes e deploy",

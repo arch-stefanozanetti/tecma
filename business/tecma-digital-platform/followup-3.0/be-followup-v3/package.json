@@ -1,6 +1,6 @@
 {
   "name": "be-followup-v3",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -32,6 +32,7 @@
     "migrate:request-workflow": "tsx src/utils/migrateRequestWorkflowIds.ts",
     "migrate:apartments-to-inventory-pricing": "tsx src/utils/migrate-apartments-to-inventory-pricing.ts",
     "check:no-legacy-runtime": "bash scripts/check-no-legacy-runtime.sh",
+    "check:route-guards": "node scripts/check-route-guards.mjs",
     "script:tecma-admin-testzanetti": "MONGO_DB_NAME=test-zanetti tsx scripts/set-tecma-admin-by-domain.ts",
     "test:mutation:critical": "stryker run stryker.critical.conf.json"
   },
@@ -46,9 +47,12 @@
     "@opentelemetry/sdk-node": "^0.213.0",
     "@types/jsonwebtoken": "^9.0.10",
     "bcryptjs": "^3.0.3",
+    "compression": "^1.7.5",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "ioredis": "^5.4.1",
     "express-rate-limit": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "jwks-rsa": "^3.2.2",
@@ -65,6 +69,7 @@
     "@stryker-mutator/core": "^8.6.0",
     "@stryker-mutator/typescript-checker": "^8.6.0",
     "@stryker-mutator/vitest-runner": "^8.6.0",
+    "@types/compression": "^1.7.5",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/multer": "^2.1.0",
