@@ -1,0 +1,27 @@
+# Template: copia in `.github/workflows/` e adatta il path della cartella design-system.
+# In tecma-digital-platform la workflow attiva è: `.github/workflows/storybook-design-system.yml` (root monorepo).
+
+name: Storybook design-system (template)
+
+on:
+  push:
+    paths:
+      - "PERCORSO_VERSO/design-system/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: PERCORSO_VERSO/design-system/package-lock.json
+      - run: |
+          cp -a PERCORSO_VERSO/design-system /tmp/tecma-design-system
+          cd /tmp/tecma-design-system
+          npm ci
+          npx playwright install chromium
+          node scripts/storybook-test-ci-prep.mjs
+          npm run test-storybook:ci

@@ -6,25 +6,21 @@ alwaysApply: false
 
 # Figma Design System Rules — Followup 3.0
 
+**Regola prioritaria**: rispettare sempre [design-system-only.mdc](./design-system-only.mdc): usare **SOLO** componenti e variabili del Design System; niente copie locali di componenti DS, niente roba legacy.
+
 ## Component organization
 
-- IMPORTANT: Usa i componenti da `src/components/ui/` quando esistono (Button, Input, Select, Sheet, Checkbox, CheckboxWithLabel, ecc.). Per ogni scelta booleana (Ricordami, accetta termini, selezione in lista) usa **Checkbox** o **CheckboxWithLabel**, mai checkbox HTML custom o span stilizzati.
-- I nuovi componenti UI vanno in `src/components/ui/` con nome PascalCase.
+- Usa **solo** componenti dal DS (export da `@tecma/design-system-tokens` o adapter in `src/components/ui/` che delegano al DS). Non creare copie locali di componenti che esistono nel DS (es. InlineEdit, Avatar).
+- Per scelte booleane usa i componenti DS (Checkbox, ecc.); mai checkbox HTML custom o span stilizzati.
+- In `src/components/ui/` ammessi solo: re-export DS o adapter sottili; niente duplicati del DS.
 - Le pagine e le sezioni di flusso stanno in `src/core/` (auth, calendar, clients, apartments, shared).
-- Non duplicare componenti già presenti in `src/components/ui/`: estendi o compone.
 
 ## Styling
 
-- Usa **Tailwind** per tutto lo styling. Non aggiungere CSS modules o file CSS per componenti singoli salvo variabili/token condivisi.
-- I **token** sono definiti in:
-  - `src/styles.css`: variabili CSS `:root` (--background, --foreground, --primary, --border, --radius, --app-bg, --panel-bg, --scrollbar-thumb, --title-font, --body-font).
-  - `tailwind.config.js`: theme.extend (colors da HSL var + app, panel; fontFamily.body/title; backgroundImage: auth-page, auth-sidebar, sidebar-nav; boxShadow: panel, sidebar-nav, sidebar-nav-active, sidebar, dropdown; borderRadius: lg, md, sm, chrome).
-- **Border radius:** usare solo classi da tema: `rounded-lg`, `rounded-md`, `rounded-sm` per contenuti/card/form; `rounded-chrome` per shell/nav/dropdown (2px). Non usare `rounded-[Npx]` salvo casi documentati (es. checkbox).
-- IMPORTANT: Non hardcodare colori esadecimali. Usa sempre le classi del tema: `text-foreground`, `text-muted-foreground`, `text-card-foreground`, `bg-primary`, `bg-background`, `bg-app`, `bg-muted`, `border-border`, `bg-sidebar-accent`, `text-primary`, `shadow-panel`, `font-body`.
-- Pagine auth: layout full-page con `bg-auth-page`, `font-body`, colonna sinistra `bg-auth-sidebar`, card `glass-panel shadow-panel`.
-- Shell: `bg-app`, `font-body`, sidebar `bg-sidebar-nav shadow-sidebar`, nav items `shadow-sidebar-nav` / `shadow-sidebar-nav-active` e `text-primary` per attivo.
-- Font: usa `font-body` (o `font-title`) da tema; Lato è il font di progetto.
-- Spaziatura: scala coerente (gap-2, gap-3, gap-4, p-4, px-6, py-2). Preferire classi Tailwind standard.
+- **Token e stili**: solo Design System. Variabili `--tecma-*` da `@tecma/design-system-tokens/css` e classi da `@tecma/design-system-tokens/components.css`. Allineare `src/styles.css` e `tailwind.config.js` ai token DS; non introdurre variabili/colori legacy che sostituiscono il DS.
+- Non hardcodare colori esadecimali; usare token DS (o classi tema derivate dai token).
+- Border radius, spacing, font: da tema/token DS. Preferire classi `tecma-*` e Tailwind mappato ai token.
+- Pagine auth e shell: usare le classi/token DS previsti per layout e navigazione.
 
 ## Figma MCP integration (quando il server Figma è connesso)
 
@@ -34,6 +30,8 @@ alwaysApply: false
 4. Solo dopo aver ottenuto contesto e screenshot: scarica eventuali asset e inizia l’implementazione.
 5. Traduci l’output (di solito React + Tailwind) nelle convenzioni di questo progetto: componenti da `src/components/ui/`, token e colori dal tema, nessun colore hardcoded fuori dalla palette Tecma.
 6. Verifica parità visiva con lo screenshot Figma prima di considerare completato.
+
+- Per Figma: mappare i componenti nominati nel design (Avatar, Inline Edit, Button, ecc.) ai componenti **esportati dal DS**; non ricostruire con div/span. Vedere design-system-only.mdc.
 
 ## Implementation rules
 

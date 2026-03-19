@@ -1,0 +1,40 @@
+import { Meta, Canvas } from '@storybook/blocks';
+import * as InlineEditStories from './InlineEdit.stories';
+
+<Meta of={InlineEditStories} />
+
+# Inline Edit
+
+[Figma Text](https://www.figma.com/design/ZRftnYLwNGRshiXEkS7WGM/DS---Tecma-Software-Suite?node-id=10582-1450) · [Figma Select](https://www.figma.com/design/ZRftnYLwNGRshiXEkS7WGM?node-id=10579-7431) · [Figma Multiselect](https://www.figma.com/design/ZRftnYLwNGRshiXEkS7WGM?node-id=10689-3244) · Source: `src/components/InlineEdit`
+
+Vista valore + modifica in place. Varianti: **Text** (input + cancel/confirm), **Select** (dropdown singolo), **Multiselect** (tag + menu con checkbox).
+
+## Default (Text)
+
+<Canvas of={InlineEditStories.Default} />
+
+## Text
+
+<Canvas of={InlineEditStories.TextFilled} />
+<Canvas of={InlineEditStories.TextWithError} />
+<Canvas of={InlineEditStories.TextInteractive} />
+
+## Select
+
+<Canvas of={InlineEditStories.SelectDefault} />
+<Canvas of={InlineEditStories.SelectFilled} />
+<Canvas of={InlineEditStories.SelectInteractive} />
+
+## Multiselect
+
+<Canvas of={InlineEditStories.MultiselectDefault} />
+<Canvas of={InlineEditStories.MultiselectFilled} />
+<Canvas of={InlineEditStories.MultiselectInteractive} />
+
+## Tutte le varianti
+
+<Canvas of={InlineEditStories.AllVariants} />
+
+## Riferimenti
+
+- [Figma — Inline Edit](https://www.figma.com/design/ZRftnYLwNGRshiXEkS7WGM/DS---Tecma-Software-Suite?node-id=10582-1450)

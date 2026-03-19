@@ -1,48 +1,63 @@
 /**
- * ButtonGroup — DS Tecma Software Suite (Figma).
- * @see https://www.figma.com/design/ZRftnYLwNGRshiXEkS7WGM/DS---Tecma-Software-Suite?node-id=456-10239
- *
- * Groups multiple buttons: horizontal = in fila con gap, ogni pulsante con raggio 8px;
- * vertical = stacked con gap.
- * Composes Button; supports Type=Default (Outline + Primary) and Type=Segmented (e.g. secondary + Outline) via child variants.
+ * ButtonGroup — usa il componente DS (Figma 456:10239).
+ * Bottoni attaccati (0px gap), bordi condivisi, angoli arrotondati solo all’esterno.
  */
 import * as React from "react";
-import { cn } from "../../lib/utils";
+import {
+  ButtonGroup as DSButtonGroup,
+  type ButtonGroupLayout,
+  type ButtonGroupType,
+} from "@tecma/design-system-tokens/button-group";
 import { Button, type ButtonProps } from "./button";
+import { cn } from "../../lib/utils";
 
 export interface ButtonGroupProps extends React.HTMLAttributes<HTMLDivElement> {
-  /** Horizontal = attached; vertical = stacked with gap, each button rounded */
+  /** horizontal = in fila attaccati; vertical = stack attaccati */
   orientation?: "horizontal" | "vertical";
-  /** Button variant applied to children that don't specify one */
-  variant?: ButtonProps["variant"];
-  /** Button size applied to all children */
+  /** Tipo: default (solid) o segmented (outlined) */
+  type?: "default" | "segmented";
+  /** Size dei bottoni (default = md) */
   size?: ButtonProps["size"];
+  /** Variante applicata ai figli che non la specificano */
+  variant?: ButtonProps["variant"];
   children: React.ReactNode;
 }
+
+const orientationToLayout: Record<"horizontal" | "vertical", ButtonGroupLayout> = {
+  horizontal: "horizontal",
+  vertical: "vertical",
+};
+
+const sizeToDS: Record<string, "sm" | "md" | "lg"> = {
+  default: "md",
+  sm: "sm",
+  md: "md",
+  lg: "lg",
+  icon: "md",
+};
 
 const ButtonGroup = React.forwardRef<HTMLDivElement, ButtonGroupProps>(
   (
     {
       className,
       orientation = "horizontal",
-      variant = "default",
+      type = "default",
       size = "default",
+      variant = "default",
       children,
       ...props
     },
     ref
   ) => {
-    const isVertical = orientation === "vertical";
+    const dsSize = sizeToDS[size ?? "default"] ?? "md";
+
     return (
-      <div
+      <DSButtonGroup
         ref={ref}
-        role="group"
-        className={cn(
-          isVertical
-            ? "flex flex-col gap-2"
-            : "inline-flex flex-wrap gap-1 [&>*]:rounded-lg",
-          className
-        )}
+        layout={orientationToLayout[orientation]}
+        type={type as ButtonGroupType}
+        size={dsSize}
+        className={cn(className)}
         {...props}
       >
         {React.Children.map(children, (child) => {
@@ -54,7 +69,7 @@ const ButtonGroup = React.forwardRef<HTMLDivElement, ButtonGroupProps>(
           }
           return child;
         })}
-      </div>
+      </DSButtonGroup>
     );
   }
 );

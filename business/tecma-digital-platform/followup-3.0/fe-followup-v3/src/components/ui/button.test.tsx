@@ -19,18 +19,18 @@ describe("Button", () => {
     expect(screen.getByRole("button", { name: /salva/i })).toBeDisabled();
   });
 
-  it("applica variant outline", () => {
+  it("applica variant outline (classi DS)", () => {
     render(<Button variant="outline">Indietro</Button>);
     const btn = screen.getByRole("button", { name: /indietro/i });
     expect(btn).toBeInTheDocument();
-    expect(btn.className).toMatch(/border/);
+    expect(btn.className).toMatch(/tecma-button--outline/);
   });
 
-  it("applica size sm", () => {
+  it("applica size sm (classi DS)", () => {
     render(<Button size="sm">Piccolo</Button>);
     const btn = screen.getByRole("button", { name: /piccolo/i });
     expect(btn).toBeInTheDocument();
-    expect(btn.className).toMatch(/text-xs|h-8/);
+    expect(btn.className).toMatch(/tecma-button--sm/);
   });
 
   it("rende as Child (Slot) con elemento custom", () => {
