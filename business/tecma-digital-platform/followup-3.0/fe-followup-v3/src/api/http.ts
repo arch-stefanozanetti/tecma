@@ -77,7 +77,7 @@ const callRefresh = async (): Promise<RefreshResponse> => {
 };
 
 const isOnLoginPage = (): boolean =>
-  typeof window !== "undefined" && window.location.pathname.includes("/login");
+  typeof window !== "undefined" && (window.location.pathname ?? "").includes("/login");
 
 const redirectToLogin = (): void => {
   clearTokens();
