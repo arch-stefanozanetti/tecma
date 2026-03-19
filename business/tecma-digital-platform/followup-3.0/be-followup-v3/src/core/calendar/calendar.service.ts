@@ -163,7 +163,7 @@ const toIsoString = (v: unknown): string => {
 };
 
 const toCalendarEvent = (doc: CalendarEvent & { _id?: ObjectId; startsAt?: Date | string; endsAt?: Date | string }): CalendarEvent => ({
-  _id: doc._id instanceof ObjectId ? doc._id.toHexString() : String(doc._id ?? ""),
+  _id: (doc._id as unknown) instanceof ObjectId ? (doc._id as ObjectId).toHexString() : String(doc._id ?? ""),
   workspaceId: doc.workspaceId,
   projectId: doc.projectId,
   title: doc.title,
@@ -255,7 +255,18 @@ export const createCalendarEvent = async (rawInput: unknown): Promise<{ event: C
   const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("calendar_events");
   const startsAtDate = new Date(input.startsAt);
   const endsAtDate = new Date(input.endsAt);
-  const doc: Omit<CalendarEvent, "_id"> & { _id?: ObjectId; startsAt: Date; endsAt: Date } = {
+  type InsertDoc = {
+    workspaceId: string;
+    projectId: string;
+    title: string;
+    startsAt: Date;
+    endsAt: Date;
+    source: (typeof SOURCES)[number];
+    clientId?: string;
+    apartmentId?: string;
+    _id?: ObjectId;
+  };
+  const doc: InsertDoc = {
     workspaceId: input.workspaceId,
     projectId: input.projectId,
     title: input.title.trim(),
