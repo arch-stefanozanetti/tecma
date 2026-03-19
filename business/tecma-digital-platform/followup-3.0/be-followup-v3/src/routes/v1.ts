@@ -22,6 +22,10 @@ import { intelligenceRoutes } from "./v1/intelligence.routes.js";
 import { realtimeRoutes } from "./v1/realtime.routes.js";
 import { platformRoutes } from "./v1/platform.routes.js";
 import { privacyRoutes } from "./v1/privacy.routes.js";
+import { contractsRoutes } from "./v1/contracts.routes.js";
+import { marketingAutomationRoutes } from "./v1/marketing-automation.routes.js";
+import { mlsFeedPublicRoutes, mlsFeedRoutes } from "./v1/mls-feed.routes.js";
+import { scaleOutRoutes } from "./v1/scale-out.routes.js";
 
 export const v1Router = Router();
 
@@ -29,6 +33,7 @@ v1Router.use(accessLoggerMiddleware);
 v1Router.use("/", publicRoutes);
 v1Router.use("/platform", platformRoutes);
 v1Router.use("/", realtimeRoutes);
+v1Router.use("/", mlsFeedPublicRoutes);
 
 // Protected routes (require valid JWT)
 v1Router.use(requireAuth);
@@ -53,3 +58,7 @@ v1Router.use("/", workspacesRoutes);
 v1Router.use("/", discoveryWorkflowRoutes);
 v1Router.use("/", intelligenceRoutes);
 v1Router.use("/", privacyRoutes);
+v1Router.use("/", contractsRoutes);
+v1Router.use("/", marketingAutomationRoutes);
+v1Router.use("/", mlsFeedRoutes);
+v1Router.use("/", scaleOutRoutes);

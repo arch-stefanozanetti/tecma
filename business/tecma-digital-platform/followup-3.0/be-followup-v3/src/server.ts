@@ -8,6 +8,9 @@ import { platformRoutes } from "./routes/v1/platform.routes.js";
 import { realtimeRoutes } from "./routes/v1/realtime.routes.js";
 import { customerPortalPublicRoutes, customerPortalRoutes } from "./routes/v1/customer-portal.routes.js";
 import { runDueScheduled } from "./core/communications/scheduled-communications.service.js";
+import { runDueMarketingAutomations } from "./core/automations/marketing-automation.service.js";
+import { runPrivacyRetentionJob } from "./core/privacy/privacy.service.js";
+import { runGlobalMlsReconciliation } from "./core/connectors/mls-feed.service.js";
 import { ensureDefaultRoleDefinitions } from "./core/rbac/roleDefinitions.service.js";
 import { logger } from "./observability/logger.js";
 import { initOtel, shutdownOtel } from "./observability/otel.js";
@@ -15,6 +18,9 @@ import { requestContextMiddleware } from "./routes/requestContextMiddleware.js";
 import { requireAuth } from "./routes/authMiddleware.js";
 
 const SCHEDULED_COMMS_INTERVAL_MS = 2 * 60 * 1000;
+const MARKETING_AUTOMATION_INTERVAL_MS = 2 * 60 * 1000;
+const RETENTION_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const MLS_RECONCILIATION_INTERVAL_MS = 60 * 60 * 1000;
 
 function buildCorsOriginChecker(): (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => void {
   const allowed = new Set<string>();
@@ -64,6 +70,24 @@ const bootstrap = async () => {
       logger.error({ err }, "[scheduled-communications] runDueScheduled failed");
     });
   }, SCHEDULED_COMMS_INTERVAL_MS);
+
+  setInterval(() => {
+    runDueMarketingAutomations().catch((err) => {
+      logger.error({ err }, "[marketing-automation] runDueMarketingAutomations failed");
+    });
+  }, MARKETING_AUTOMATION_INTERVAL_MS);
+
+  setInterval(() => {
+    runPrivacyRetentionJob({ olderThanDays: 365 }).catch((err) => {
+      logger.error({ err }, "[privacy] runPrivacyRetentionJob failed");
+    });
+  }, RETENTION_INTERVAL_MS);
+
+  setInterval(() => {
+    runGlobalMlsReconciliation().catch((err) => {
+      logger.error({ err }, "[mls] runGlobalMlsReconciliation failed");
+    });
+  }, MLS_RECONCILIATION_INTERVAL_MS);
 
   const app = express();
   app.use(requestContextMiddleware);

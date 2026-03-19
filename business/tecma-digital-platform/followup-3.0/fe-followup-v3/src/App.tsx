@@ -43,6 +43,8 @@ import { Customer360Page } from "./core/customer360/Customer360Page";
 import { isSectionEnabledByFeature, isPriceAvailabilityRelevant } from "./core/features";
 import { CommandPalette } from "./core/shared/CommandPalette";
 import type { ProjectAccessProject } from "./types/domain";
+import { PwaInstallPrompt } from "./components/pwa/PwaInstallPrompt";
+import { NetworkStatusBanner } from "./components/pwa/NetworkStatusBanner";
 
 type Section =
   | "cockpit"
@@ -559,6 +561,7 @@ export const App = () => {
 
   return (
     <>
+      <NetworkStatusBanner />
       <CommandPalette
         isOpen={commandPaletteOpen}
         onClose={() => setCommandPaletteOpen(false)}
@@ -574,7 +577,7 @@ export const App = () => {
         projects={filteredProjects}
         selectedProjectIds={filteredSelected}
       />
-      <Routes>
+    <Routes>
       <Route
         path="/clients/:clientId"
         element={
@@ -611,6 +614,7 @@ export const App = () => {
         }
       />
     </Routes>
+      <PwaInstallPrompt />
     </>
   );
 };

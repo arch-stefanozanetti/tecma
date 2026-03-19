@@ -15,6 +15,7 @@ import { dispatchCommunicationJob } from "../communications/channel-dispatcher.s
 import { createScheduledForRule } from "../communications/scheduled-communications.service.js";
 import { logger } from "../../observability/logger.js";
 import { claimDispatchEvent, markDispatchCompleted, markDispatchFailed } from "./automation-dispatch-guard.service.js";
+import { enqueueMarketingEvent } from "./marketing-automation.service.js";
 
 export interface DispatchEventPayload {
   workspaceId: string;
@@ -115,6 +116,9 @@ export const dispatchEvent = async (
         }
       }
     }
+    await enqueueMarketingEvent(workspaceId, eventType, payload).catch((err) => {
+      logger.error({ err, workspaceId, eventType }, "[automation-events] enqueue marketing event failed");
+    });
     if (dispatchKeyHash) await markDispatchCompleted(dispatchKeyHash);
   } catch (err) {
     if (dispatchKeyHash) {

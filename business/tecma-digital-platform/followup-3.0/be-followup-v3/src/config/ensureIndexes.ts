@@ -44,6 +44,13 @@ const CORE_INDEXES: IndexDefinition[] = [
   { collection: "tz_automation_dispatch_log", keys: { workspaceId: 1, status: 1, updatedAt: -1 } },
   { collection: "tz_privacy_consents", keys: { workspaceId: 1, clientId: 1, consentType: 1 }, options: { unique: true } },
   { collection: "tz_privacy_consents", keys: { workspaceId: 1, updatedAt: -1 } },
+  { collection: "tz_signature_requests", keys: { workspaceId: 1, requestId: 1, createdAt: -1 } },
+  { collection: "tz_signature_requests", keys: { provider: 1, providerRequestId: 1 }, options: { unique: true } },
+  { collection: "tz_marketing_workflows", keys: { workspaceId: 1, enabled: 1, triggerEventType: 1 } },
+  { collection: "tz_marketing_enrollments", keys: { workspaceId: 1, status: 1, nextRunAt: 1 } },
+  { collection: "tz_marketing_step_executions", keys: { executionKey: 1 }, options: { unique: true } },
+  { collection: "tz_mls_portal_mappings", keys: { workspaceId: 1, projectId: 1, portal: 1 }, options: { unique: true } },
+  { collection: "tz_mls_feed_runs", keys: { workspaceId: 1, projectId: 1, generatedAt: -1 } },
   { collection: "tz_portal_access_audit", keys: { at: -1 } },
 ];
 

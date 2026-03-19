@@ -27,6 +27,10 @@ export const openApiV1 = {
     { name: "realtime", description: "Realtime stream (SSE) con envelope versionato" },
     { name: "portal", description: "Customer portal via magic link" },
     { name: "privacy", description: "GDPR: consensi, export, erase, retention" },
+    { name: "contracts", description: "Firma digitale e tracking contratti" },
+    { name: "marketing", description: "Workflow marketing multi-step" },
+    { name: "mls", description: "Feed MLS/portali immobiliari e reconciliation" },
+    { name: "scale-out", description: "Decision gate per eventuale estrazione microservizi" },
     { name: "Riusabili", description: "API per uso esterno (listings, integrazioni)" },
     { name: "hc", description: "Home Config (appartamenti HC)" },
     { name: "associations", description: "Associazioni appartamento-cliente" },
@@ -1469,6 +1473,142 @@ export const openApiV1 = {
           }
         },
         responses: { "200": { description: "Retention job report" } }
+      }
+    },
+    "/contracts/signature-requests": {
+      post: {
+        tags: ["contracts"],
+        summary: "Crea richiesta firma digitale",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["workspaceId", "requestId", "provider", "signer", "document"],
+                properties: {
+                  workspaceId: { type: "string" },
+                  requestId: { type: "string" },
+                  provider: { type: "string", enum: ["docusign", "yousign"] },
+                  signer: {
+                    type: "object",
+                    properties: {
+                      fullName: { type: "string" },
+                      email: { type: "string", format: "email" }
+                    }
+                  },
+                  document: {
+                    type: "object",
+                    properties: {
+                      title: { type: "string" },
+                      fileUrl: { type: "string", format: "uri" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        responses: { "200": { description: "Signature request creata" } }
+      }
+    },
+    "/contracts/signature-requests/webhook": {
+      post: {
+        tags: ["contracts"],
+        summary: "Webhook stato firma da provider",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["provider", "providerRequestId", "status"],
+                properties: {
+                  provider: { type: "string", enum: ["docusign", "yousign"] },
+                  providerRequestId: { type: "string" },
+                  status: { type: "string" }
+                }
+              }
+            }
+          }
+        },
+        responses: { "200": { description: "Status applicato" } }
+      }
+    },
+    "/contracts/{requestId}/signature-status": {
+      get: {
+        tags: ["contracts"],
+        summary: "Stato firma per una trattativa",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "requestId", in: "path", required: true, schema: { type: "string" } },
+          { name: "workspaceId", in: "query", required: true, schema: { type: "string" } }
+        ],
+        responses: { "200": { description: "Lista richieste firma" } }
+      }
+    },
+    "/workspaces/{workspaceId}/marketing-workflows": {
+      get: {
+        tags: ["marketing"],
+        summary: "Lista workflow marketing",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "workspaceId", in: "path", required: true, schema: { type: "string" } }],
+        responses: { "200": { description: "Lista workflow" } }
+      },
+      post: {
+        tags: ["marketing"],
+        summary: "Crea workflow marketing",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "workspaceId", in: "path", required: true, schema: { type: "string" } }],
+        responses: { "200": { description: "Workflow creato" } }
+      }
+    },
+    "/marketing-workflows/run-due": {
+      post: {
+        tags: ["marketing"],
+        summary: "Esegue step marketing dovuti",
+        security: [{ bearerAuth: [] }],
+        responses: { "200": { description: "Report esecuzione" } }
+      }
+    },
+    "/mls/feed/{workspaceId}/{projectId}.xml": {
+      get: {
+        tags: ["mls"],
+        summary: "Feed XML MLS autenticato con apiKey query",
+        parameters: [
+          { name: "workspaceId", in: "path", required: true, schema: { type: "string" } },
+          { name: "projectId", in: "path", required: true, schema: { type: "string" } },
+          { name: "apiKey", in: "query", required: true, schema: { type: "string" } }
+        ],
+        responses: { "200": { description: "XML feed" } }
+      }
+    },
+    "/workspaces/{workspaceId}/mls/mappings": {
+      post: {
+        tags: ["mls"],
+        summary: "Crea/ruota mapping MLS per progetto",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "workspaceId", in: "path", required: true, schema: { type: "string" } }],
+        responses: { "200": { description: "apiKey MLS" } }
+      }
+    },
+    "/workspaces/{workspaceId}/mls/reconcile": {
+      post: {
+        tags: ["mls"],
+        summary: "Run reconciliation desync MLS",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "workspaceId", in: "path", required: true, schema: { type: "string" } }],
+        responses: { "200": { description: "risultato reconciliation" } }
+      }
+    },
+    "/workspaces/{workspaceId}/platform/scale-out-decision": {
+      get: {
+        tags: ["scale-out"],
+        summary: "Decision gate: estrazione microservizi selettiva",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "workspaceId", in: "path", required: true, schema: { type: "string" } }],
+        responses: { "200": { description: "raccomandazione e candidati" } }
       }
     },
     "/projects/{projectId}": {

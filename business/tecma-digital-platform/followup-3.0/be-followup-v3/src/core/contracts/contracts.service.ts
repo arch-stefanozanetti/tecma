@@ -4,6 +4,7 @@
  */
 import { ObjectId } from "mongodb";
 import { getDb } from "../../config/db.js";
+import { writeAuditLog } from "../audit/audit.service.js";
 
 const COLLECTION = "tz_contracts";
 
@@ -45,6 +46,21 @@ export const createContract = async (params: {
     createdAt: now,
   };
   await db.collection(COLLECTION).insertOne(doc);
+  await writeAuditLog({
+    userId: "system",
+    action: "contract.created",
+    entityType: "contract",
+    entityId: doc._id.toHexString(),
+    projectId: null,
+    changes: {
+      after: {
+        requestId: params.requestId,
+        unitId: params.unitId,
+        workspaceId: params.workspaceId,
+        contractType: params.contractType,
+      },
+    },
+  });
   return {
     _id: doc._id.toHexString(),
     requestId: doc.requestId,

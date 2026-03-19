@@ -700,6 +700,45 @@ export const followupApi = {
     postJson<{ ok: boolean; erasedAt: string }>(`/privacy/clients/${encodeURIComponent(clientId)}/erase`, payload),
   privacyRunRetention: (payload?: { olderThanDays?: number }) =>
     postJson<{ ok: boolean; olderThanDays: number; deletedAuditRows: number; runAt: string }>("/privacy/retention/run", payload ?? {}),
+  createSignatureRequest: (payload: {
+    workspaceId: string;
+    requestId: string;
+    provider: "docusign" | "yousign";
+    signer: { fullName: string; email: string };
+    document: { title: string; fileUrl: string };
+    callbackUrl?: string;
+  }) => postJson<Record<string, unknown>>("/contracts/signature-requests", payload),
+  getRequestSignatureStatus: (requestId: string, workspaceId: string) =>
+    getJson<{ data: Array<Record<string, unknown>> }>(
+      `/contracts/${encodeURIComponent(requestId)}/signature-status?workspaceId=${encodeURIComponent(workspaceId)}`
+    ),
+  listMarketingWorkflows: (workspaceId: string) =>
+    getJson<{ data: Array<Record<string, unknown>> }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/marketing-workflows`
+    ),
+  createMarketingWorkflow: (workspaceId: string, payload: Record<string, unknown>) =>
+    postJson<Record<string, unknown>>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/marketing-workflows`,
+      payload
+    ),
+  runDueMarketingWorkflows: () => postJson<{ processed: number; failed: number }>("/marketing-workflows/run-due", {}),
+  createMlsMapping: (
+    workspaceId: string,
+    payload: { projectId: string; portal: "immobiliare_it" | "idealista"; titlePrefix?: string; listingBaseUrl?: string },
+  ) =>
+    postJson<{ portal: string; apiKey: string; apiKeyMasked: string }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/mls/mappings`,
+      payload
+    ),
+  runMlsReconciliation: (workspaceId: string) =>
+    postJson<{ ok: boolean; checked: number; issues: number }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/mls/reconcile`,
+      {}
+    ),
+  getScaleOutDecision: (workspaceId: string) =>
+    getJson<Record<string, unknown>>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/platform/scale-out-decision`
+    ),
   /** Log comunicazioni inviate (Notification Center). */
   listCommunicationDeliveries: (workspaceId: string, limit?: number) =>
     getJson<{ data: Array<{ _id: string; channel: string; templateId: string; recipientMasked: string; status: string; sentAt: string }> }>(
