@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { followupApi } from "../../api/followupApi";
 import type { ApartmentRow, RequestRow } from "../../types/domain";
-import { useAsync } from "../shared/useAsync";
 
 export interface UseApartmentDetailDataResult {
   apartment: ApartmentRow | null;
@@ -22,62 +21,65 @@ export function useApartmentDetailData(
   const [apartment, setApartment] = useState<ApartmentRow | null>(null);
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const {
-    run: loadApartment,
-    isLoading: loading,
-    error: loadApartmentError,
-  } = useAsync(async (id: string) => {
-    const response = await followupApi.getApartmentById(id);
-    return response.apartment;
-  });
-  const {
-    run: loadRequests,
-    isLoading: requestsLoading,
-  } = useAsync(async (payload: {
-    workspaceId: string;
-    projectId: string;
-    apartmentId: string;
-  }) => followupApi.queryRequests({
-    workspaceId: payload.workspaceId,
-    projectIds: [payload.projectId],
-    page: 1,
-    perPage: 50,
-    filters: { apartmentId: payload.apartmentId },
-  }));
+  const [loading, setLoading] = useState(false);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [requestsVersion, setRequestsVersion] = useState(0);
 
+  // Caricamento appartamento: effetto con dipendenza solo da apartmentId (stabile)
   useEffect(() => {
-    if (!apartmentId) return;
+    if (!apartmentId) {
+      setApartment(null);
+      setError(null);
+      return;
+    }
+    let cancelled = false;
     setError(null);
-    void loadApartment(apartmentId).then((loadedApartment) => {
-      if (!loadedApartment) {
+    setLoading(true);
+    followupApi
+      .getApartmentById(apartmentId)
+      .then((response) => {
+        if (cancelled) return;
+        setApartment(response.apartment ?? null);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        const message = e instanceof Error ? e.message : "Unknown error";
+        setError(/not found/i.test(message) ? "Appartamento non trovato" : message);
         setApartment(null);
-        return;
-      }
-      setApartment(loadedApartment);
-    });
-  }, [apartmentId, loadApartment]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [apartmentId]);
 
+  // Chiave stabile per selectedProjectIds: evita re-run quando useWorkspace restituisce nuovo array a ogni render
+  const selectedProjectIdsKey = selectedProjectIds.join(",");
+
+  // Caricamento richieste: effetto con dipendenze su dati reali + version per reload manuale
   useEffect(() => {
-    if (!loadApartmentError) return;
-    const is404 = /not found/i.test(loadApartmentError);
-    setError(is404 ? "Appartamento non trovato" : loadApartmentError);
-    setApartment(null);
-  }, [loadApartmentError]);
+    if (!apartmentId || !apartment || !workspaceId || selectedProjectIds.length === 0) return;
+    const projectId = apartment.projectId ?? selectedProjectIds[0];
+    if (!projectId) return;
+    setRequestsLoading(true);
+    followupApi
+      .queryRequests({
+        workspaceId,
+        projectIds: [projectId],
+        page: 1,
+        perPage: 50,
+        filters: { apartmentId },
+      })
+      .then((r) => setRequests(r.data ?? []))
+      .catch(() => setRequests([]))
+      .finally(() => setRequestsLoading(false));
+  }, [apartmentId, apartment, workspaceId, selectedProjectIdsKey, requestsVersion]);
 
   const reloadRequests = useCallback(() => {
-    if (!apartmentId || !apartment || !workspaceId || selectedProjectIds.length === 0) return;
-    void loadRequests({
-        workspaceId,
-        projectId: apartment.projectId,
-        apartmentId,
-      })
-      .then((response) => setRequests(response?.data ?? []))
-      .catch(() => setRequests([]));
-  }, [apartmentId, apartment, workspaceId, selectedProjectIds, loadRequests]);
-
-  useEffect(() => {
-    reloadRequests();
-  }, [reloadRequests]);
+    setRequestsVersion((v) => v + 1);
+  }, []);
 
   return {
     apartment,

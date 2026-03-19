@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { followupApi } from "../../api/followupApi";
 import type { ClientRow, RequestRow } from "../../types/domain";
-import { useAsync } from "../shared/useAsync";
 
 export interface UseClientDetailDataResult {
   client: ClientRow | null;
@@ -22,64 +21,64 @@ export function useClientDetailData(
   const [client, setClient] = useState<ClientRow | null>(null);
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const {
-    run: loadClient,
-    isLoading: loading,
-    error: loadClientError,
-  } = useAsync(async (id: string) => {
-    const response = await followupApi.getClientById(id);
-    return response.client;
-  });
-  const {
-    run: loadRequests,
-    isLoading: requestsLoading,
-  } = useAsync(async (payload: {
-    workspaceId: string;
-    projectIds: string[];
-    clientId: string;
-  }) => followupApi.queryRequests({
-    workspaceId: payload.workspaceId,
-    projectIds: payload.projectIds,
-    page: 1,
-    perPage: 50,
-    filters: { clientId: payload.clientId },
-  }));
+  const [loading, setLoading] = useState(false);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [requestsVersion, setRequestsVersion] = useState(0);
 
+  // Caricamento cliente: effetto con dipendenza solo da clientId (stabile)
   useEffect(() => {
-    if (!clientId) return;
+    if (!clientId) {
+      setClient(null);
+      setError(null);
+      return;
+    }
+    let cancelled = false;
     setError(null);
-    void loadClient(clientId)
-      .then((loadedClient) => {
-        if (!loadedClient) {
-          setClient(null);
-          return;
-        }
-        setClient(loadedClient);
+    setLoading(true);
+    followupApi
+      .getClientById(clientId)
+      .then((response) => {
+        if (cancelled) return;
+        setClient(response.client ?? null);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        const message = e instanceof Error ? e.message : "Unknown error";
+        setError(/not found/i.test(message) ? "Cliente non trovato" : message);
+        setClient(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
-  }, [clientId, loadClient]);
+    return () => {
+      cancelled = true;
+    };
+  }, [clientId]);
 
+  // Chiave stabile per selectedProjectIds: evita re-run quando useWorkspace restituisce nuovo array a ogni render
+  const selectedProjectIdsKey = selectedProjectIds.join(",");
+
+  // Caricamento richieste: effetto con dipendenze su dati reali + version per reload manuale
   useEffect(() => {
-    if (!loadClientError) return;
-    const is404 = /not found/i.test(loadClientError);
-    setError(is404 ? "Cliente non trovato" : loadClientError);
-    setClient(null);
-  }, [loadClientError]);
-
-  const reloadRequests = useCallback(() => {
     if (!clientId || !client || !workspaceId || selectedProjectIds.length === 0) return;
     const projectIds = client.projectId ? [client.projectId] : selectedProjectIds;
-    void loadRequests({
+    setRequestsLoading(true);
+    followupApi
+      .queryRequests({
         workspaceId,
         projectIds,
-        clientId,
+        page: 1,
+        perPage: 50,
+        filters: { clientId },
       })
-      .then((response) => setRequests(response?.data ?? []))
-      .catch(() => setRequests([]));
-  }, [clientId, client, workspaceId, selectedProjectIds, loadRequests]);
+      .then((r) => setRequests(r.data ?? []))
+      .catch(() => setRequests([]))
+      .finally(() => setRequestsLoading(false));
+  }, [clientId, client, workspaceId, selectedProjectIdsKey, requestsVersion]);
 
-  useEffect(() => {
-    reloadRequests();
-  }, [reloadRequests]);
+  const reloadRequests = useCallback(() => {
+    setRequestsVersion((v) => v + 1);
+  }, []);
 
   return {
     client,

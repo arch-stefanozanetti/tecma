@@ -28,6 +28,8 @@
     "docker:logs": "docker compose logs -f --tail=200",
     "test:security": "cd be-followup-v3 && npm audit --audit-level=high && cd ../fe-followup-v3 && npm audit --audit-level=high",
     "check:secrets": "bash scripts/check-no-secrets.sh",
+    "subagent:simplify": "bash scripts/subagent-simplify-code.sh changed",
+    "subagent:simplify:all": "bash scripts/subagent-simplify-code.sh all",
     "setup:githooks": "git config core.hooksPath .githooks",
     "test:lint": "cd be-followup-v3 && npm run test:lint && cd ../fe-followup-v3 && npm run test:lint",
     "post-release:verify": "bash scripts/post-release-verify.sh"
