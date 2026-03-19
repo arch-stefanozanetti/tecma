@@ -126,7 +126,7 @@ export const ReportsPage = () => {
             <div className="grid gap-3 border-b border-border bg-muted/20 p-4 md:grid-cols-2 xl:grid-cols-5">
               {kpiCards.map((kpi) => (
                 <div key={kpi.metric} className="rounded-lg border border-border bg-card p-3">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">{kpi.metric.replaceAll("_", " ")}</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">{kpi.metric.replace(/_/g, " ")}</p>
                   <p className="mt-1 text-xl font-semibold">
                     {kpi.value}
                     {kpi.unit === "percent" ? "%" : ""}
