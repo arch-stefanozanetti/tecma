@@ -12,7 +12,6 @@ import {
 import type {
   AdditionalInfoCreateInput,
   AdditionalInfoRow,
-  ApartmentCreateInput,
   ApartmentRow,
   AssociationCreateInput,
   AutomationRuleRow,
@@ -20,8 +19,6 @@ import type {
   CalendarEventCreateInput,
   CalendarEventUpdateInput,
   ClientRow,
-  ClientCreateInput,
-  ClientUpdateInput,
   CompleteFlowPayload,
   ConfigurationTemplateSchema,
   AiSuggestion,
@@ -60,8 +57,12 @@ import type {
   InitiativeRow,
   FeatureRow,
 } from "../types/domain";
+import { clientsApi } from "./domains/clientsApi";
+import { apartmentsApi } from "./domains/apartmentsApi";
 
 export const followupApi = {
+  clients: clientsApi,
+  apartments: apartmentsApi,
   queryCalendar: (query: ListQuery) => postJson<PaginatedResponse<CalendarEvent>>("/calendar/events/query", query),
   createCalendarEvent: (payload: CalendarEventCreateInput) =>
     postJson<{ event: CalendarEvent }>("/calendar/events", payload),
@@ -69,13 +70,6 @@ export const followupApi = {
     patchJson<{ event: CalendarEvent }>(`/calendar/events/${eventId}`, payload),
   deleteCalendarEvent: (eventId: string) =>
     deleteJson<{ deleted: boolean }>(`/calendar/events/${eventId}`),
-  queryClients: (query: ListQuery) => postJson<PaginatedResponse<ClientRow>>("/clients/query", query),
-  createClient: (payload: ClientCreateInput) => postJson<{ client: ClientRow }>("/clients", payload),
-  updateClient: (clientId: string, payload: ClientUpdateInput) =>
-    patchJson<{ client: ClientRow }>(`/clients/${clientId}`, payload),
-  getClientById: (clientId: string) => getJson<{ client: ClientRow }>(`/clients/${clientId}`),
-  createClientAction: (clientId: string, type: "mail_received" | "mail_sent" | "call_completed" | "meeting_scheduled") =>
-    postJson<{ action: { _id: string; type: string; at: string } }>(`/clients/${clientId}/actions`, { type }),
   getApartmentCandidates: (apartmentId: string, workspaceId: string, projectIds: string[]) =>
     getJson<{ data: Array<{ item: Pick<ApartmentRow, "_id" | "code" | "name" | "status" | "mode" | "surfaceMq" | "updatedAt">; score: number; reasons: string[] }> }>(
       `/matching/apartments/${apartmentId}/candidates?workspaceId=${encodeURIComponent(workspaceId)}&projectIds=${projectIds.map((p) => encodeURIComponent(p)).join(",")}`
@@ -102,17 +96,6 @@ export const followupApi = {
     getJson<{ data: Array<{ item: ApartmentRow; score: number; reasons: string[] }> }>(
       `/matching/clients/${clientId}/candidates?workspaceId=${encodeURIComponent(workspaceId)}&projectIds=${projectIds.map((p) => encodeURIComponent(p)).join(",")}${limit != null ? `&limit=${limit}` : ""}`
     ),
-  getClientRequests: (
-    clientId: string,
-    workspaceId: string,
-    projectIds: string[],
-    page = 1,
-    perPage = 50
-  ) =>
-    getJson<PaginatedResponse<RequestRow>>(
-      `/clients/${clientId}/requests?workspaceId=${encodeURIComponent(workspaceId)}&projectIds=${projectIds.map((p) => encodeURIComponent(p)).join(",")}&page=${page}&perPage=${perPage}`
-    ),
-  queryApartments: (query: ListQuery) => postJson<PaginatedResponse<ApartmentRow>>("/apartments/query", query),
   queryRequests: (query: ListQuery) => postJson<PaginatedResponse<RequestRow>>("/requests/query", query),
   getRequestById: (id: string) => getJson<{ request: RequestRow }>(`/requests/${id}`),
   getRequestTransitions: (requestId: string) =>
@@ -945,81 +928,6 @@ export const followupApi = {
   requestPasswordReset: (email: string) => postJson<{ ok: boolean }>("/auth/request-password-reset", { email }),
   resetPassword: (token: string, password: string) =>
     postJson<{ ok: boolean }>("/auth/reset-password", { token, password }),
-  createApartment: (payload: ApartmentCreateInput) => postJson<{ apartmentId: string; apartment: ApartmentRow }>("/apartments", payload),
-  updateApartment: (apartmentId: string, payload: Partial<ApartmentCreateInput>) =>
-    patchJson<{ apartment: ApartmentRow }>(`/apartments/${apartmentId}`, payload),
-  getApartmentById: (apartmentId: string) => getJson<{ apartment: ApartmentRow }>(`/apartments/${apartmentId}`),
-  getApartmentPrices: (apartmentId: string) =>
-    getJson<{
-      current: { source: string; amount: number; currency: string; mode: string; validFrom?: string; validTo?: string; deposit?: number } | null;
-      salePrices: Array<{ _id: string; price: number; currency: string; validFrom: string; validTo?: string }>;
-      monthlyRents: Array<{ _id: string; pricePerMonth: number; deposit?: number; currency: string; validFrom: string; validTo?: string }>;
-    }>(`/apartments/${apartmentId}/prices`),
-  getApartmentInventory: (apartmentId: string) =>
-    getJson<{
-      inventory: { _id: string; unitId: string; inventoryStatus: string; updatedAt: string } | null;
-      lock: { requestId: string; type: string } | null;
-      effectiveStatus: string;
-    }>(`/apartments/${apartmentId}/inventory`),
-  createApartmentSalePrice: (
-    apartmentId: string,
-    body: { workspaceId: string; price: number; currency?: string; validFrom?: string; validTo?: string }
-  ) =>
-    postJson<{ _id: string; unitId: string; price: number; currency: string; validFrom: string; validTo?: string }>(
-      `/apartments/${apartmentId}/prices/sale`,
-      body
-    ),
-  createApartmentMonthlyRent: (
-    apartmentId: string,
-    body: {
-      workspaceId: string;
-      pricePerMonth: number;
-      deposit?: number;
-      currency?: string;
-      validFrom?: string;
-      validTo?: string;
-    }
-  ) =>
-    postJson<{
-      _id: string;
-      unitId: string;
-      pricePerMonth: number;
-      deposit?: number;
-      currency: string;
-      validFrom: string;
-      validTo?: string;
-    }>(`/apartments/${apartmentId}/prices/monthly-rent`, body),
-  updateApartmentSalePrice: (
-    apartmentId: string,
-    priceId: string,
-    body: { validTo?: string; price?: number }
-  ) =>
-    patchJson<{ _id: string; unitId: string; price: number; currency: string; validFrom: string; validTo?: string }>(
-      `/apartments/${apartmentId}/prices/sale/${priceId}`,
-      body
-    ),
-  updateApartmentMonthlyRent: (
-    apartmentId: string,
-    rentId: string,
-    body: { validTo?: string; pricePerMonth?: number; deposit?: number }
-  ) =>
-    patchJson<{
-      _id: string;
-      unitId: string;
-      pricePerMonth: number;
-      deposit?: number;
-      currency: string;
-      validFrom: string;
-      validTo?: string;
-    }>(`/apartments/${apartmentId}/prices/monthly-rent/${rentId}`, body),
-  getApartmentPriceCalendar: (apartmentId: string, from: string, to: string) =>
-    getJson<Array<{ _id: string; unitId: string; date: string; price: number; minStay?: number; availability?: string }>>(
-      `/apartments/${apartmentId}/prices/calendar?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
-    ),
-  upsertApartmentPriceCalendar: (
-    apartmentId: string,
-    body: { date: string; price: number; minStay?: number; availability?: "available" | "blocked" | "reserved" }
-  ) => putJson<{ ok: boolean }>(`/apartments/${apartmentId}/prices/calendar`, body),
   getPriceAvailabilityMatrix: (workspaceId: string, projectIds: string[], from: string, to: string) =>
     getJson<{
       units: Array<{ unitId: string; code: string; name: string; mode?: string }>;
@@ -1027,11 +935,6 @@ export const followupApi = {
       cells: Record<string, Record<string, { price?: number; availability?: string; minStay?: number }>>;
     }>(
       `/workspaces/${encodeURIComponent(workspaceId)}/price-availability?projectIds=${projectIds.map((p) => encodeURIComponent(p)).join(",")}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
-    ),
-  patchApartmentInventory: (apartmentId: string, body: { workspaceId: string; inventoryStatus?: "available" | "locked" | "reserved" | "sold" }) =>
-    patchJson<{ _id: string; unitId: string; workspaceId: string; inventoryStatus: string; updatedAt: string }>(
-      `/apartments/${apartmentId}/inventory`,
-      body
     ),
   unitsImportPreview: (workspaceId: string, projectId: string, fileBase64: string) =>
     postJson<{
@@ -1052,17 +955,6 @@ export const followupApi = {
       `/workspaces/${encodeURIComponent(workspaceId)}/projects/${encodeURIComponent(projectId)}/units/import/execute`,
       { validRows, onDuplicate }
     ),
-  getApartmentRequests: (
-    apartmentId: string,
-    workspaceId: string,
-    projectIds: string[],
-    page = 1,
-    perPage = 50
-  ) =>
-    getJson<PaginatedResponse<RequestRow>>(
-      `/apartments/${apartmentId}/requests?workspaceId=${encodeURIComponent(workspaceId)}&projectIds=${projectIds.map((p) => encodeURIComponent(p)).join(",")}&page=${page}&perPage=${perPage}`
-    ),
-
   upsertHCApartment: (payload: HCApartmentConfig) => postJson<{ config: HCApartmentConfig }>("/hc/apartments", payload),
   patchHCApartment: (apartmentId: string, payload: Partial<HCApartmentConfig>) =>
     patchJson<{ config: HCApartmentConfig }>(`/hc/apartments/${apartmentId}`, payload),

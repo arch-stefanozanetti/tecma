@@ -15,7 +15,7 @@ describe("followupApi", () => {
 
   it("queryClients chiama postJson con /clients/query", async () => {
     const query = { workspaceId: "w", projectIds: ["p"], page: 1, perPage: 25, searchText: "", sort: { field: "name", direction: 1 }, filters: {} };
-    await followupApi.queryClients(query);
+    await followupApi.clients.queryClients(query);
 
     expect(http.postJson).toHaveBeenCalledWith("/clients/query", query);
   });
@@ -33,13 +33,13 @@ describe("followupApi", () => {
   });
 
   it("getClientById chiama getJson con path client", async () => {
-    await followupApi.getClientById("client-1");
+    await followupApi.clients.getClientById("client-1");
 
     expect(http.getJson).toHaveBeenCalledWith("/clients/client-1");
   });
 
   it("updateClient chiama patchJson con path client", async () => {
-    await followupApi.updateClient("c1", { fullName: "Mario" });
+    await followupApi.clients.updateClient("c1", { fullName: "Mario" });
 
     expect(http.patchJson).toHaveBeenCalledWith("/clients/c1", { fullName: "Mario" });
   });
@@ -73,19 +73,19 @@ describe("followupApi", () => {
   });
 
   it("createClient chiama postJson", async () => {
-    await followupApi.createClient({ workspaceId: "w", projectId: "p", fullName: "Mario" } as never);
+    await followupApi.clients.createClient({ workspaceId: "w", projectId: "p", fullName: "Mario" } as never);
     expect(http.postJson).toHaveBeenCalledWith("/clients", expect.any(Object));
   });
 
   it("getClientRequests chiama getJson con query params", async () => {
-    await followupApi.getClientRequests("c1", "w1", ["p1"], 2, 50);
+    await followupApi.clients.getClientRequests("c1", "w1", ["p1"], 2, 50);
     expect(http.getJson).toHaveBeenCalledWith(expect.stringContaining("/clients/c1/requests"));
     expect(http.getJson).toHaveBeenCalledWith(expect.stringMatching(/workspaceId=w1/));
   });
 
   it("queryApartments chiama postJson", async () => {
     const q = { workspaceId: "w", projectIds: ["p"], page: 1, perPage: 25, searchText: "", sort: { field: "name", direction: 1 }, filters: {} };
-    await followupApi.queryApartments(q);
+    await followupApi.apartments.queryApartments(q);
     expect(http.postJson).toHaveBeenCalledWith("/apartments/query", q);
   });
 
@@ -245,22 +245,22 @@ describe("followupApi", () => {
   });
 
   it("createApartment chiama postJson", async () => {
-    await followupApi.createApartment({ workspaceId: "w", projectId: "p", title: "Apt" } as never);
+    await followupApi.apartments.createApartment({ workspaceId: "w", projectId: "p", title: "Apt" } as never);
     expect(http.postJson).toHaveBeenCalledWith("/apartments", expect.any(Object));
   });
 
   it("updateApartment chiama patchJson", async () => {
-    await followupApi.updateApartment("a1", { title: "Updated" });
+    await followupApi.apartments.updateApartment("a1", { title: "Updated" });
     expect(http.patchJson).toHaveBeenCalledWith("/apartments/a1", { title: "Updated" });
   });
 
   it("getApartmentById chiama getJson", async () => {
-    await followupApi.getApartmentById("a1");
+    await followupApi.apartments.getApartmentById("a1");
     expect(http.getJson).toHaveBeenCalledWith("/apartments/a1");
   });
 
   it("getApartmentRequests chiama getJson", async () => {
-    await followupApi.getApartmentRequests("a1", "w1", ["p1"]);
+    await followupApi.apartments.getApartmentRequests("a1", "w1", ["p1"]);
     expect(http.getJson).toHaveBeenCalledWith(expect.stringContaining("/apartments/a1/requests"));
   });
 
