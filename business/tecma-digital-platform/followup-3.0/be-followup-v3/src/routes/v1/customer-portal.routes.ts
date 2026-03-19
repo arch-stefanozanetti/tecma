@@ -15,7 +15,7 @@ export const customerPortalPublicRoutes = Router();
  * Endpoint interno (JWT richiesto perché montato sotto v1Router protetto) per generare magic link.
  */
 customerPortalRoutes.post(
-  "/portal/magic-links",
+  "/magic-links",
   handleAsync((req) => createCustomerPortalMagicLink(req.body)),
 );
 
@@ -23,7 +23,7 @@ customerPortalRoutes.post(
  * Endpoint pubblico (montato anche in server.ts su /v1/portal/*) per exchange token.
  */
 customerPortalPublicRoutes.post(
-  "/portal/auth/exchange",
+  "/auth/exchange",
   portalExchangeRateLimiter,
   handleAsync((req) => exchangeCustomerPortalMagicLink(req.body)),
 );
@@ -32,11 +32,11 @@ customerPortalPublicRoutes.post(
  * Endpoint pubblico (montato anche in server.ts su /v1/portal/*).
  */
 customerPortalPublicRoutes.post(
-  "/portal/overview",
+  "/overview",
   handleAsync((req) => getCustomerPortalOverview(req.body)),
 );
 
 customerPortalPublicRoutes.post(
-  "/portal/logout",
+  "/logout",
   handleAsync((req) => logoutCustomerPortalSession(req.body)),
 );

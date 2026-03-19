@@ -1,3 +1,4 @@
+import http from "node:http";
 import cors from "cors";
 import express from "express";
 import { ENV, isProductionLike } from "./config/env.js";
@@ -118,13 +119,17 @@ const bootstrap = async () => {
   );
   app.use(express.json({ limit: "2mb" }));
 
-  app.use("/v1", customerPortalPublicRoutes);
-  app.use("/v1", requireAuth, customerPortalRoutes);
+  app.use("/v1/portal", customerPortalPublicRoutes);
+  app.use("/v1/portal", requireAuth, customerPortalRoutes);
   app.use("/v1/platform", platformRoutes);
   app.use("/v1", realtimeRoutes);
   app.use("/v1", v1Router);
 
-  const server = app.listen(ENV.PORT, () => {
+  const server = http.createServer(
+    { maxHeaderSize: 32 * 1024 },
+    app
+  );
+  server.listen(ENV.PORT, () => {
     logger.info({ port: ENV.PORT }, "be-followup-v3 listening");
   });
 
