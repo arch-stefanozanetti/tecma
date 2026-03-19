@@ -72,8 +72,8 @@ describe("ApartmentsPage", () => {
     });
 
     render(<ApartmentsPage />);
-    const aptCode = await screen.findByText("A-1");
-    fireEvent.click(aptCode);
+    const aptCodes = await screen.findAllByText("A-1");
+    fireEvent.click(aptCodes[0]);
     expect(navigateMock).toHaveBeenCalledWith("/apartments/a1");
   });
 

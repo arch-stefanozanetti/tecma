@@ -79,7 +79,8 @@ describe("ClientsPage", () => {
 
   it("naviga al dettaglio cliccando il cliente", async () => {
     render(<ClientsPage />);
-    fireEvent.click(screen.getByText("Mario Rossi"));
+    const links = screen.getAllByText("Mario Rossi");
+    fireEvent.click(links[0]);
     expect(mockNavigate).toHaveBeenCalledWith("/clients/c1");
   });
 
