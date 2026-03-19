@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import moment from "moment";
 import { followupApi } from "../../api/followupApi";
+import { useIsMobile } from "../shared/useIsMobile";
 import type { CalendarEvent } from "../../types/domain";
 import { Button } from "../../components/ui/button";
 import {
@@ -29,6 +30,8 @@ const SOURCE_OPTIONS: { value: CalendarEvent["source"]; label: string }[] = [
   { value: "FOLLOWUP_RENT", label: "Affitto" },
   { value: "CUSTOM_SERVICE", label: "Servizio" },
 ];
+
+const SUBMIT_LABEL: Record<"create" | "edit", string> = { create: "Crea", edit: "Salva" };
 
 export interface CalendarEventFormPrefill {
   clientId?: string;
@@ -80,6 +83,7 @@ export const CalendarEventFormDrawer = ({
   const [clientsLite, setClientsLite] = useState<Array<{ _id: string; fullName: string; email?: string; projectId: string }>>([]);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const isMobile = useIsMobile();
 
   // Carica clienti per la tendina quando il drawer è aperto (per select o per mostrare il nome in sola lettura)
   useEffect(() => {
@@ -197,7 +201,7 @@ export const CalendarEventFormDrawer = ({
 
   return (
     <SidePanel variant="operational" open={open} onOpenChange={(o) => !o && onClose()}>
-      <SidePanelContent side="right" size="md">
+      <SidePanelContent side="right" size={isMobile ? "full" : "md"} className={isMobile ? "h-full max-h-full" : undefined}>
         <SidePanelHeader actions={<SidePanelClose />}>
           <SidePanelTitle>{titleLabel}</SidePanelTitle>
         </SidePanelHeader>
@@ -206,7 +210,7 @@ export const CalendarEventFormDrawer = ({
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">Titolo *</label>
               <Input
-                className="h-10 rounded-lg border-border"
+                className="min-h-11 rounded-lg border-border"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
@@ -217,7 +221,7 @@ export const CalendarEventFormDrawer = ({
               <label className="mb-1.5 block text-sm font-medium text-foreground">Inizio</label>
               <Input
                 type="datetime-local"
-                className="h-10 rounded-lg border-border"
+                className="min-h-11 rounded-lg border-border"
                 value={startsAt}
                 onChange={(e) => {
                   const nextStart = e.target.value;
@@ -235,7 +239,7 @@ export const CalendarEventFormDrawer = ({
               <label className="mb-1.5 block text-sm font-medium text-foreground">Fine</label>
               <Input
                 type="datetime-local"
-                className="h-10 rounded-lg border-border"
+                className="min-h-11 rounded-lg border-border"
                 value={endsAt}
                 onChange={(e) => {
                   const nextEnd = e.target.value;
@@ -256,7 +260,7 @@ export const CalendarEventFormDrawer = ({
                 />
               ) : (
                 <Select value={projectId} onValueChange={setProjectId} required>
-                  <SelectTrigger className="h-10 rounded-lg border-border">
+                  <SelectTrigger className="min-h-11 rounded-lg border-border">
                     <SelectValue placeholder="Seleziona progetto" />
                   </SelectTrigger>
                   <SelectContent>
@@ -287,7 +291,7 @@ export const CalendarEventFormDrawer = ({
                   value={clientId || "__none__"}
                   onValueChange={(v) => setClientId(v === "__none__" ? "" : v)}
                 >
-                  <SelectTrigger className="h-10 rounded-lg border-border">
+                  <SelectTrigger className="min-h-11 rounded-lg border-border">
                     <SelectValue placeholder="Seleziona cliente (opzionale)" />
                   </SelectTrigger>
                   <SelectContent>
@@ -305,7 +309,7 @@ export const CalendarEventFormDrawer = ({
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">Tipo</label>
               <Select value={source} onValueChange={(v) => setSource(v as CalendarEvent["source"])}>
-                <SelectTrigger className="h-10 rounded-lg border-border">
+                <SelectTrigger className="min-h-11 rounded-lg border-border">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -323,11 +327,11 @@ export const CalendarEventFormDrawer = ({
             {formError && <p className="text-sm text-destructive">{formError}</p>}
           </SidePanelBody>
           <SidePanelFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} className="min-h-11">
               Annulla
             </Button>
-            <Button type="submit" disabled={saving || (mode === "create" && !canCreate)}>
-              {saving ? "Salvataggio..." : mode === "edit" ? "Salva" : "Crea"}
+            <Button type="submit" disabled={saving || (mode === "create" && !canCreate)} className="min-h-11">
+              {saving ? "Salvataggio..." : SUBMIT_LABEL[mode]}
             </Button>
           </SidePanelFooter>
         </form>

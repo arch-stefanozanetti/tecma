@@ -89,6 +89,13 @@ DialogDescription.displayName = DialogPrimitive.Description.displayName;
 export type ModalHeaderVariant = "plain" | "colour" | "image";
 export type ModalHeaderSize = "small" | "medium" | "large" | "mobile";
 
+const SIZE_CLASS: Record<ModalHeaderSize, string> = {
+  small: "text-base",
+  medium: "text-lg",
+  large: "text-xl",
+  mobile: "text-lg",
+};
+
 export interface ModalHeaderProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "title"> {
   title: React.ReactNode;
   subtitle?: React.ReactNode;
@@ -99,7 +106,7 @@ export interface ModalHeaderProps extends Omit<React.HTMLAttributes<HTMLDivEleme
 
 const ModalHeader = React.forwardRef<HTMLDivElement, ModalHeaderProps>(
   ({ className, title, subtitle, variant = "plain", size = "medium", onClose, ...props }, ref) => {
-    const sizeClass = size === "small" ? "text-base" : size === "large" ? "text-xl" : size === "mobile" ? "text-lg" : "text-lg";
+    const sizeClass = SIZE_CLASS[size];
     return (
       <div
         ref={ref}

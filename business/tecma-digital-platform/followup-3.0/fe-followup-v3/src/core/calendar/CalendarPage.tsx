@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Calendar, Clock, MapPin, Building2, Plus, Sl
 import { followupApi } from "../../api/followupApi";
 import type { CalendarEvent } from "../../types/domain";
 import { useWorkspace } from "../../auth/projectScope";
+import { useIsMobile } from "../shared/useIsMobile";
 import { cn } from "../../lib/utils";
 import { Button } from "../../components/ui/button";
 import {
@@ -35,6 +36,12 @@ const TIME_COL_WIDTH = 50;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 type ViewType = "day" | "week" | "month";
+
+const VIEW_LABELS: Record<ViewType, string> = {
+  day: "Giorno",
+  week: "Settimana",
+  month: "Mese",
+};
 
 const sourceColor = (source: CalendarEvent["source"]) => {
   if (source === "FOLLOWUP_SELL") return { border: "#6266ef", bg: "#eef0ff", text: "#4347c4" };
@@ -343,9 +350,13 @@ const MonthView = ({
 export const CalendarPage = (_props: CalendarPageProps) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { workspaceId, selectedProjectIds, projects } = useWorkspace();
-  const [view, setView] = useState<ViewType>("week");
+  const [view, setView] = useState<ViewType>(() => (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches ? "day" : "week"));
   const [currentDate, setCurrentDate] = useState(moment());
+  useEffect(() => {
+    if (isMobile && view !== "day") setView("day");
+  }, [isMobile]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -468,8 +479,7 @@ export const CalendarPage = (_props: CalendarPageProps) => {
   );
 
   const navigatePeriod = (direction: -1 | 1) => {
-    const unit = view === "day" ? "day" : view === "week" ? "week" : "month";
-    setCurrentDate((d) => d.clone().add(direction, unit));
+    setCurrentDate((d) => d.clone().add(direction, view));
   };
 
   const title = () => {
@@ -489,11 +499,11 @@ export const CalendarPage = (_props: CalendarPageProps) => {
       <div className="flex items-center justify-between gap-4 border-b border-border bg-white px-6 py-3">
         <h1 className="text-base font-semibold text-foreground">Calendario</h1>
         <div className="flex items-center gap-2">
-          <Button size="sm" className="h-8 gap-1.5" onClick={handleOpenNewEvent}>
+          <Button size="sm" className="min-h-11 min-w-[44px] gap-1.5" onClick={handleOpenNewEvent}>
             <Plus className="h-3.5 w-3.5" />
             Nuovo evento
           </Button>
-          <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setFiltersOpen(true)}>
+          <Button variant="outline" size="sm" className="min-h-11 min-w-[44px] gap-1.5" onClick={() => setFiltersOpen(true)}>
             <SlidersHorizontal className="h-3.5 w-3.5" />
             Filtri
           </Button>
@@ -503,13 +513,13 @@ export const CalendarPage = (_props: CalendarPageProps) => {
       {/* Nav header */}
       <div className="flex items-center justify-between border-b border-border bg-white px-6 py-2">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setCurrentDate(moment())}>
+          <Button variant="outline" size="sm" className="min-h-11 min-w-[44px] text-xs" onClick={() => setCurrentDate(moment())}>
             Oggi
           </Button>
-          <button type="button" className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-white hover:bg-muted transition-colors" onClick={() => navigatePeriod(-1)}>
+          <button type="button" className="flex min-h-11 min-w-11 items-center justify-center rounded-md border border-border bg-white hover:bg-muted transition-colors" onClick={() => navigatePeriod(-1)} aria-label="Periodo precedente">
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <button type="button" className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-white hover:bg-muted transition-colors" onClick={() => navigatePeriod(1)}>
+          <button type="button" className="flex min-h-11 min-w-11 items-center justify-center rounded-md border border-border bg-white hover:bg-muted transition-colors" onClick={() => navigatePeriod(1)} aria-label="Periodo successivo">
             <ChevronRight className="h-4 w-4" />
           </button>
           <span className="ml-2 text-sm font-semibold capitalize text-foreground">{title()}</span>
@@ -520,14 +530,14 @@ export const CalendarPage = (_props: CalendarPageProps) => {
               key={v}
               type="button"
               className={cn(
-                "border-r border-border px-3 py-1.5 text-xs font-medium last:border-r-0 transition-colors",
+                "border-r border-border px-3 py-1.5 min-h-11 text-xs font-medium last:border-r-0 transition-colors",
                 view === v
                   ? "bg-primary text-primary-foreground"
                   : "bg-white text-muted-foreground hover:bg-muted"
               )}
               onClick={() => setView(v)}
             >
-              {v === "day" ? "Giorno" : v === "week" ? "Settimana" : "Mese"}
+              {VIEW_LABELS[v]}
             </button>
           ))}
         </div>
@@ -619,7 +629,7 @@ export const CalendarPage = (_props: CalendarPageProps) => {
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">Tipo evento</label>
               <Select value={filterSource} onValueChange={(v) => setFilterSource(v as "all" | CalendarEvent["source"])}>
-                <SelectTrigger className="h-10 rounded-lg border-border">
+                <SelectTrigger className="min-h-11 rounded-lg border-border">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -633,7 +643,7 @@ export const CalendarPage = (_props: CalendarPageProps) => {
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">Progetto</label>
               <Select value={filterProjectId} onValueChange={setFilterProjectId}>
-                <SelectTrigger className="h-10 rounded-lg border-border">
+                <SelectTrigger className="min-h-11 rounded-lg border-border">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

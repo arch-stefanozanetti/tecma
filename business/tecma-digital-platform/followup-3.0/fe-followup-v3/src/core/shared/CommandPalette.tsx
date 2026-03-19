@@ -170,8 +170,8 @@ export const CommandPalette = ({
       filters: {},
     };
     Promise.all([
-      followupApi.queryClients(listQuery),
-      followupApi.queryApartments(listQuery),
+      followupApi.clients.queryClients(listQuery),
+      followupApi.apartments.queryApartments(listQuery),
       followupApi.queryRequests(listQuery),
     ])
       .then(([cRes, aRes, rRes]: [PaginatedResponse<ClientRow>, PaginatedResponse<ApartmentRow>, PaginatedResponse<RequestRow>]) => {
@@ -330,7 +330,7 @@ export const CommandPalette = ({
               {entityItems.map((item) => {
                 const globalIndex = allItems.indexOf(item);
                 const isHighlighted = globalIndex === highlightedIndex;
-                const typeLabel = item.type === "client" ? "Cliente" : item.type === "apartment" ? "Appartamento" : "Trattativa";
+                const typeLabel = { client: "Cliente", apartment: "Appartamento", request: "Trattativa" }[item.type];
                 return (
                   <button
                     key={`${item.type}-${item.id}`}
