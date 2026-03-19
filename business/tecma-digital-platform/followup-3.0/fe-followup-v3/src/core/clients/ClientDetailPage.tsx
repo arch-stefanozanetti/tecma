@@ -654,7 +654,7 @@ export const ClientDetailPage = () => {
                 label="E-mail"
                 value={client.email ?? ""}
                 placeholder="Aggiungi e-mail"
-                onSave={async (value) => {
+                onSave={async (value: string) => {
                   try {
                     const res = await followupApi.updateClient(client._id, { email: value || undefined });
                     setClient(res.client);
@@ -668,7 +668,7 @@ export const ClientDetailPage = () => {
                 label="Telefono"
                 value={client.phone ?? ""}
                 placeholder="Aggiungi telefono"
-                onSave={async (value) => {
+                onSave={async (value: string) => {
                   try {
                     const res = await followupApi.updateClient(client._id, { phone: value || undefined });
                     setClient(res.client);
