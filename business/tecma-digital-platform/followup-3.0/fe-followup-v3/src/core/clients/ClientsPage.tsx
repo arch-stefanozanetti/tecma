@@ -3,9 +3,10 @@ import { useNavigate } from "react-router-dom";
 import {
   ExternalLink,
 } from "lucide-react";
-import { clientsApi } from "../../api/domains/clientsApi";
+import { followupApi } from "../../api/followupApi";
 import type { AdditionalInfoRow, ClientRow } from "../../types/domain";
 import { useWorkspace } from "../../auth/projectScope";
+import { useIsMobile } from "../shared/useIsMobile";
 import { usePaginatedList } from "../shared/usePaginatedList";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -44,6 +45,7 @@ type ClientFormMode = "create" | "edit";
 
 export const ClientsPage = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { workspaceId, selectedProjectIds, projects } = useWorkspace();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -71,7 +73,7 @@ export const ClientsPage = () => {
 
   useEffect(() => {
     if (!workspaceId) return;
-    clientsApi
+    followupApi.clients
       .listAdditionalInfos(workspaceId)
       .then((r) => setAdditionalInfos(r.data ?? []))
       .catch(() => setAdditionalInfos([]));
@@ -139,7 +141,7 @@ export const ClientsPage = () => {
         ? Object.fromEntries(Object.entries(formAdditionalInfo).filter(([, v]) => v != null && String(v).trim() !== ""))
         : undefined;
       if (clientFormMode === "edit" && editingClient) {
-        const res = await clientsApi.updateClient(editingClient._id, {
+        const res = await followupApi.clients.updateClient(editingClient._id, {
           fullName: formFullName.trim(),
           email: formEmail.trim() || undefined,
           phone: formPhone.trim() || undefined,
@@ -155,7 +157,7 @@ export const ClientsPage = () => {
           setFormSubmitError("Seleziona un progetto.");
           return;
         }
-        await clientsApi.createClient({
+        await followupApi.clients.createClient({
           workspaceId,
           projectId: formProjectId,
           fullName: formFullName.trim(),
@@ -201,7 +203,7 @@ export const ClientsPage = () => {
     error,
     refetch,
   } = usePaginatedList<ClientRow>({
-    loader: clientsApi.queryClients,
+    loader: followupApi.clients.queryClients,
     workspaceId: workspaceId ?? "",
     projectIds: selectedProjectIds,
     defaultSortField: "updatedAt",
@@ -390,7 +392,7 @@ export const ClientsPage = () => {
 
       {/* Drawer Crea/Modifica cliente */}
       <Drawer open={clientFormOpen} onOpenChange={setClientFormOpen}>
-        <DrawerContent side="right" className="sm:max-w-md">
+        <DrawerContent side="right" size={isMobile ? "full" : "md"}>
           <DrawerHeader actions={<DrawerCloseButton />}>
             <DrawerTitle>{clientFormMode === "edit" ? "Modifica cliente" : "Nuovo cliente"}</DrawerTitle>
           </DrawerHeader>
@@ -400,7 +402,7 @@ export const ClientsPage = () => {
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">Progetto</label>
                 <Select value={formProjectId} onValueChange={setFormProjectId} required>
-                  <SelectTrigger className="h-10 rounded-lg border-border">
+                  <SelectTrigger className="min-h-11 rounded-lg border-border">
                     <SelectValue placeholder="Seleziona progetto" />
                   </SelectTrigger>
                   <SelectContent>
@@ -418,7 +420,7 @@ export const ClientsPage = () => {
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">Nome *</label>
               <Input
-                className="h-10 rounded-lg border-border"
+                className="min-h-11 rounded-lg border-border"
                 value={formFullName}
                 onChange={(e) => setFormFullName(e.target.value)}
                 required
@@ -429,7 +431,7 @@ export const ClientsPage = () => {
               <label className="mb-1.5 block text-sm font-medium text-foreground">Email</label>
               <Input
                 type="email"
-                className="h-10 rounded-lg border-border"
+                className="min-h-11 rounded-lg border-border"
                 value={formEmail}
                 onChange={(e) => setFormEmail(e.target.value)}
                 placeholder="email@esempio.it"
@@ -438,7 +440,7 @@ export const ClientsPage = () => {
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">Telefono</label>
               <Input
-                className="h-10 rounded-lg border-border"
+                className="min-h-11 rounded-lg border-border"
                 value={formPhone}
                 onChange={(e) => setFormPhone(e.target.value)}
                 placeholder="+39 ..."
@@ -447,7 +449,7 @@ export const ClientsPage = () => {
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">Città</label>
               <Input
-                className="h-10 rounded-lg border-border"
+                className="min-h-11 rounded-lg border-border"
                 value={formCity}
                 onChange={(e) => setFormCity(e.target.value)}
                 placeholder="Città"
@@ -456,7 +458,7 @@ export const ClientsPage = () => {
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">Stato</label>
               <Select value={formStatus} onValueChange={setFormStatus}>
-                <SelectTrigger className="h-10 rounded-lg border-border">
+                <SelectTrigger className="min-h-11 rounded-lg border-border">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -482,7 +484,7 @@ export const ClientsPage = () => {
                       value={String(formAdditionalInfo[ai.name] ?? "")}
                       onValueChange={(v) => setFormAdditionalInfo((prev) => ({ ...prev, [ai.name]: v }))}
                     >
-                      <SelectTrigger className="h-10 rounded-lg border-border">
+                      <SelectTrigger className="min-h-11 rounded-lg border-border">
                         <SelectValue placeholder={`Seleziona ${ai.label}`} />
                       </SelectTrigger>
                       <SelectContent>
@@ -495,7 +497,7 @@ export const ClientsPage = () => {
                     </Select>
                   ) : (
                     <Input
-                      className="h-10 rounded-lg border-border"
+                      className="min-h-11 rounded-lg border-border"
                       type={ai.type === "number" ? "number" : "text"}
                       value={String(formAdditionalInfo[ai.name] ?? "")}
                       onChange={(e) =>
@@ -515,10 +517,10 @@ export const ClientsPage = () => {
             </DrawerBody>
             <DrawerFooter>
               <div className="flex gap-2 justify-end">
-                <Button type="button" variant="outline" onClick={() => setClientFormOpen(false)}>
+                <Button type="button" variant="outline" onClick={() => setClientFormOpen(false)} className="min-h-11">
                   Annulla
                 </Button>
-                <Button type="submit" disabled={formSaving}>
+                <Button type="submit" disabled={formSaving} className="min-h-11">
                   {formSaving ? "Salvataggio..." : clientFormMode === "edit" ? "Salva" : "Crea"}
                 </Button>
               </div>

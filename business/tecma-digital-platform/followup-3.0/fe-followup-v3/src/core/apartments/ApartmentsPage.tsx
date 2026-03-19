@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ExternalLink } from "lucide-react";
-import { apartmentsApi } from "../../api/domains/apartmentsApi";
+import { followupApi } from "../../api/followupApi";
 import type { ApartmentRow } from "../../types/domain";
 import { useWorkspace } from "../../auth/projectScope";
+import { useIsMobile } from "../shared/useIsMobile";
 import { usePaginatedList } from "../shared/usePaginatedList";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -41,6 +42,7 @@ const APARTMENTS_PER_PAGE = 10;
 
 export const ApartmentsPage = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { workspaceId, selectedProjectIds } = useWorkspace();
   const [search, setSearch] = useState("");
   const [modeFilter, setModeFilter] = useState<ModeFilter>("all");
@@ -85,7 +87,7 @@ export const ApartmentsPage = () => {
     error,
     refetch,
   } = usePaginatedList<ApartmentRow>({
-    loader: apartmentsApi.queryApartments,
+    loader: followupApi.apartments.queryApartments,
     workspaceId: workspaceId ?? "",
     projectIds: selectedProjectIds,
     defaultSortField: "updatedAt",
@@ -138,7 +140,7 @@ export const ApartmentsPage = () => {
         setEditError("Superficie non valida.");
         return;
       }
-      await apartmentsApi.updateApartment(selectedApartment._id, {
+      await followupApi.apartments.updateApartment(selectedApartment._id, {
         code: editCode.trim(),
         name: editName.trim() || editCode.trim(),
         status: editStatus,
@@ -227,7 +229,7 @@ export const ApartmentsPage = () => {
           <div>
             <label className="mb-1.5 block text-sm font-medium text-foreground">Stato</label>
             <Select value={statusDraft} onValueChange={setStatusDraft}>
-              <SelectTrigger className="h-10 w-full rounded-lg border-border text-sm">
+              <SelectTrigger className="min-h-11 w-full rounded-lg border-border text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -283,7 +285,7 @@ export const ApartmentsPage = () => {
                 <Button
                   variant="default"
                   size="sm"
-                  className="w-full rounded-lg gap-2"
+                  className="w-full min-h-11 rounded-lg gap-2"
                   onClick={() => navigate(`/apartments/${selectedApartment._id}`)}
                 >
                   <ExternalLink className="h-4 w-4" />
@@ -292,7 +294,7 @@ export const ApartmentsPage = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full rounded-lg"
+                  className="w-full min-h-11 rounded-lg"
                   onClick={() => setEditApartmentOpen(true)}
                 >
                   Modifica
@@ -320,7 +322,7 @@ export const ApartmentsPage = () => {
 
       {/* Drawer Modifica appartamento */}
       <Drawer open={editApartmentOpen} onOpenChange={setEditApartmentOpen}>
-        <DrawerContent side="right" className="sm:max-w-md">
+        <DrawerContent side="right" size={isMobile ? "full" : "md"}>
           <DrawerHeader actions={<DrawerCloseButton />}>
             <DrawerTitle>Modifica appartamento</DrawerTitle>
           </DrawerHeader>
@@ -329,7 +331,7 @@ export const ApartmentsPage = () => {
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">Codice</label>
                 <Input
-                  className="h-10 rounded-lg border-border"
+                  className="min-h-11 rounded-lg border-border"
                   value={editCode}
                   onChange={(e) => setEditCode(e.target.value)}
                   required
@@ -338,7 +340,7 @@ export const ApartmentsPage = () => {
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">Nome</label>
                 <Input
-                  className="h-10 rounded-lg border-border"
+                  className="min-h-11 rounded-lg border-border"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   placeholder="Nome appartamento"
@@ -347,7 +349,7 @@ export const ApartmentsPage = () => {
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">Stato</label>
                 <Select value={editStatus} onValueChange={(v) => setEditStatus(v as ApartmentRow["status"])}>
-                  <SelectTrigger className="h-10 rounded-lg border-border">
+                  <SelectTrigger className="min-h-11 rounded-lg border-border">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -365,7 +367,7 @@ export const ApartmentsPage = () => {
                   type="number"
                   min={0}
                   step={1}
-                  className="h-10 rounded-lg border-border"
+                  className="min-h-11 rounded-lg border-border"
                   value={editSurfaceMq}
                   onChange={(e) => setEditSurfaceMq(e.target.value)}
                   required
@@ -374,10 +376,10 @@ export const ApartmentsPage = () => {
               {editError && <p className="text-sm text-destructive">{editError}</p>}
             </DrawerBody>
             <DrawerFooter>
-              <Button type="button" variant="outline" onClick={() => setEditApartmentOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setEditApartmentOpen(false)} className="min-h-11">
                 Annulla
               </Button>
-              <Button type="submit" disabled={editSaving}>
+              <Button type="submit" disabled={editSaving} className="min-h-11">
                 {editSaving ? "Salvataggio..." : "Salva"}
               </Button>
             </DrawerFooter>
