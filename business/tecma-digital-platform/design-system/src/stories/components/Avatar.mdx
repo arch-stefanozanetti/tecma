@@ -1,0 +1,40 @@
+import { Meta, Canvas } from '@storybook/blocks';
+import * as AvatarStories from './Avatar.stories';
+
+<Meta of={AvatarStories} />
+
+# Avatar
+
+[Figma](https://www.figma.com/design/ZRftnYLwNGRshiXEkS7WGM/DS---Tecma-Software-Suite?node-id=725-6764) · Source: `src/components/Avatar`
+
+Avatar DS Tecma: cerchio con variante **Icon** (user), **Image** (foto) o **Text** (iniziali). Size: sm 24px, md 40px, lg 64px.
+
+## Default
+
+<Canvas of={AvatarStories.Default} />
+
+## Tutte le varianti
+
+<Canvas of={AvatarStories.AllVariants} />
+
+## Icon — dimensioni
+
+<Canvas of={AvatarStories.IconSmall} />
+<Canvas of={AvatarStories.IconMedium} />
+<Canvas of={AvatarStories.IconLarge} />
+
+## Text — dimensioni
+
+<Canvas of={AvatarStories.TextSmall} />
+<Canvas of={AvatarStories.TextMedium} />
+<Canvas of={AvatarStories.TextLarge} />
+
+## Image — dimensioni
+
+<Canvas of={AvatarStories.ImageSmall} />
+<Canvas of={AvatarStories.ImageMedium} />
+<Canvas of={AvatarStories.ImageLarge} />
+
+## Riferimenti
+
+- [Figma — Avatar](https://www.figma.com/design/ZRftnYLwNGRshiXEkS7WGM/DS---Tecma-Software-Suite?node-id=725-6764)

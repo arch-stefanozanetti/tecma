@@ -1,0 +1,25 @@
+---
+description: Quando l'utente chiede di leggere un task o ticket Jira, usare sempre l'MCP Atlassian (getJiraIssue) per recuperare il contenuto reale.
+globs: []
+alwaysApply: false
+---
+
+# Jira / Atlassian MCP — Lettura task
+
+## Convenzione
+
+Quando l'utente chiede di **leggere**, **guardare**, **analizzare** un task o ticket Jira (es. "leggi il task TB-415", "guarda il ticket su Jira", "analizza TB-415"), **usare sempre l'MCP Atlassian** per recuperare il contenuto del ticket invece di chiedere di incollare il testo.
+
+## Cosa fare
+
+1. **Tool:** `getJiraIssue` dell'MCP **plugin-atlassian-atlassian**.
+2. **Parametri:**
+   - `cloudId`: hostname del sito Jira (es. `tecmasolutions.atlassian.net` per link tipo `https://tecmasolutions.atlassian.net/browse/TB-415`).
+   - `issueIdOrKey`: chiave o ID del ticket (es. `TB-415`, `PROJ-123`).
+   - (opzionale) `responseContentFormat`: `"markdown"` per descrizioni in markdown leggibili.
+3. **Uso:** Leggere la risposta (summary, description, status, ecc.) e usarla per analisi, piani o implementazione.
+
+## Da non fare
+
+- Non assumere di non avere accesso a Jira.
+- Non chiedere all'utente di incollare il testo del ticket se l'MCP Atlassian è disponibile nella sessione.

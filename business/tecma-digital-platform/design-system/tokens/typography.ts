@@ -1,21 +1,15 @@
 /**
- * Token tipografici — DS Tecma Software Suite (Figma).
- * Riferimento: Variabili tipografiche, frame Typography (node 8932-33170).
- * Riusabili da followup-3.0 e da altri applicativi.
+ * Generato da scripts/sync-figma-tokens.mjs — Typography / mode Tecma (Figma)
  */
 
 export const typography = {
-  /** Typeface: serif = Ivy Journal, sans = Lato */
   fontFamily: {
     serif: '"Ivy Journal", Georgia, serif',
     sans: '"Lato", "Segoe UI", sans-serif',
-    /** Alias per body/testo */
     body: '"Lato", "Segoe UI", sans-serif',
-    /** Alias per titoli (DS Tecma usa Lato anche per title) */
     title: '"Lato", "Segoe UI", sans-serif',
   },
 
-  /** Pesi font (nomi Figma → valore CSS) */
   fontWeight: {
     thin: 100,
     light: 300,
@@ -25,7 +19,6 @@ export const typography = {
     bold: 700,
   },
 
-  /** Dimensioni font (px) — scale standard */
   size: {
     standard: {
       "2xs": 10,
@@ -44,18 +37,21 @@ export const typography = {
     },
   },
 
-  /** Line height (px) */
   lineHeight: {
     standard: {
-      s: 16,
-      m: 20,
-      l: 24,
-      xl: 32,
+      "2xs": 14,
+      xs: 17,
+      s: 20,
+      m: 22,
+      l: 25,
+      xl: 28,
+      "2xl": 34,
     },
     oversize: {
-      s: 48,
+      s: 42,
       m: 56,
-      l: 72,
+      l: 58,
+      xl: 72,
     },
   },
 } as const;
