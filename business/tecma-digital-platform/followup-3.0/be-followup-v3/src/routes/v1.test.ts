@@ -215,7 +215,8 @@ describe("v1 routes", () => {
         role: "user",
         isAdmin: false,
         permissions: ["apartments.read"],
-        projectId: "p1"
+        projectId: "p1",
+        isTecmaAdmin: false,
       });
     });
   });

@@ -9,6 +9,10 @@ vi.mock("../rbac/roleDefinitions.service.js", () => ({
   resolveEffectivePermissions: mocks.resolveEffectivePermissionsMock,
 }));
 
+vi.mock("../workspaces/workspace-users.service.js", () => ({
+  listWorkspaceMembershipsForUser: vi.fn().mockResolvedValue([]),
+}));
+
 import { PERMISSIONS } from "../rbac/permissions.js";
 import { buildAccessPayloadFromUserDoc, escapeEmailForRegex, toAuthSessionUser } from "./userAccessPayload.js";
 
@@ -30,6 +34,8 @@ describe("userAccessPayload", () => {
       isAdmin: false,
       permissions: ["requests:read"],
       projectId: "p1",
+      system_role: undefined,
+      isTecmaAdmin: false,
     });
   });
 
