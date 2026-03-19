@@ -47,8 +47,8 @@ export interface CalendarEventFormDrawerProps {
   projects: { id: string; name: string; displayName: string }[];
   open: boolean;
   onClose: () => void;
-  /** Chiamato dopo create/update; opzionalmente riceve l'evento salvato per aggiornamento ottimistico. */
-  onSaved: (savedEvent?: CalendarEvent) => void;
+  /** Called after create/edit; for create, the new event is passed so the parent can show it immediately. */
+  onSaved: (createdEvent?: CalendarEvent) => void;
   /** Prefill per modalità create (es. da Timeline). */
   prefill?: CalendarEventFormPrefill;
   /** Titolo drawer personalizzato (es. "Fissa in calendario"). */
@@ -147,7 +147,7 @@ export const CalendarEventFormDrawer = ({
           editEndsAt = moment(startsAt).add(1, "hour").format("YYYY-MM-DDTHH:mm");
           setEndsAt(editEndsAt);
         }
-        const res = await followupApi.updateCalendarEvent(event._id, {
+        await followupApi.updateCalendarEvent(event._id, {
           title: title.trim(),
           startsAt: fromDatetimeLocal(startsAt),
           endsAt: fromDatetimeLocal(editEndsAt),
@@ -155,8 +155,7 @@ export const CalendarEventFormDrawer = ({
           source,
           ...(clientId.trim() ? { clientId: clientId.trim() } : { clientId: null }),
         });
-        onSaved(res.event);
-        onClose();
+        onSaved();
       } else {
         if (!canCreate) {
           setFormError(noScopeMessage ?? "Seleziona un progetto.");
@@ -169,7 +168,7 @@ export const CalendarEventFormDrawer = ({
         }
         const startsAtIso = fromDatetimeLocal(startsAt);
         const endsAtIso = fromDatetimeLocal(endsAtValue);
-        const res = await followupApi.createCalendarEvent({
+        const { event: createdEvent } = await followupApi.createCalendarEvent({
           workspaceId: workspaceId!,
           projectId,
           title: title.trim(),
@@ -178,9 +177,12 @@ export const CalendarEventFormDrawer = ({
           source,
           ...(clientId.trim() && { clientId: clientId.trim() }),
         });
-        onSaved(res.event);
-        onClose();
+        // #region agent log
+        fetch("http://127.0.0.1:7857/ingest/45821bd5-f1c6-412c-97d1-2d1ee6a22e0e", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "94c3ac" }, body: JSON.stringify({ sessionId: "94c3ac", location: "CalendarEventFormDrawer.tsx:createDone", message: "create response", data: { payloadProjectId: projectId, payloadStartsAt: startsAtIso, payloadEndsAt: endsAtIso, createdId: createdEvent?._id, createdProjectId: createdEvent?.projectId, createdStartsAt: createdEvent?.startsAt }, hypothesisId: "H1_H2", timestamp: Date.now() }) }).catch(() => {});
+        // #endregion
+        onSaved(createdEvent);
       }
+      onClose();
     } catch (err) {
       setFormError(parseApiErrorMessage(err));
     } finally {

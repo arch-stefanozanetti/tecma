@@ -6,17 +6,17 @@ Followup 3.0 usa il **design system condiviso** della piattaforma Tecma, così c
 
 - **Pacchetto:** [tecma-digital-platform/design-system](../../design-system)
 - **Nome:** `@tecma/design-system-tokens`
-- **Contenuto:** token typography, color, radius; CSS variables + `components.css` (Button/Icon). Nessun tema Tailwind nel package.
+- **Contenuto:** token typography (Figma), color (semantici), radius/spacing; output CSS variables + tema Tailwind.
 
 ## Configurazione attuale in fe-followup-v3
 
 L’integrazione è **attiva**:
 
 1. **Dipendenza:** in `package.json` è presente `"@tecma/design-system-tokens": "file:../../design-system"`.
-2. **CSS:** import `@tecma/design-system-tokens/css`. Le variabili del pacchetto sono solo quelle Figma: **`--tecma-color-*`** (Alias / Tecma v2) e **`--tecma-typography-*`** (Typography / Tecma), es. `hsl(var(--tecma-color-neutral-canvas))`, `var(--tecma-typography-typeface-sans-serif)`.
-3. **Tailwind (solo nell’app):** `tailwind.config.js` usa `var(--tecma-typography-*)` per fontSize/lineHeight/fontWeight. Importare sempre `tokens.css` prima di `@tailwind`.
+2. **CSS:** in `src/styles.css` viene importato `@tecma/design-system-tokens/css` prima di `@tailwind base`; in `:root` le variabili `--body-font` e `--title-font` puntano a `var(--tecma-font-body)` e `var(--tecma-font-title)`.
+3. **Tailwind:** in `tailwind.config.js` il tema è esteso con `tecmaTheme` (fontFamily, fontSize, fontWeight, lineHeight, borderRadius). I colori restano sulle variabili locali (`--background`, `--primary`, ecc.) già in uso nell’app.
 
-Non esistono più alias generici tipo `--tecma-background` o `--tecma-font-body`.
+Le variabili del design system sono disponibili sotto il prefisso `--tecma-*` (es. `--tecma-font-size-m`, `--tecma-primary`).
 
 ## Import delle componenti Figma (wave)
 
@@ -32,6 +32,6 @@ Qualsiasi altro frontend nella piattaforma (nuovo o esistente) può riusare lo s
 
 1. Aggiungere la dependency `@tecma/design-system-tokens` (file link o workspace).
 2. Importare `@tecma/design-system-tokens/css` nel proprio entry CSS.
-3. Usare `--tecma-color-*` / `--tecma-typography-*` e opzionalmente `@tecma/design-system-tokens/components.css` per i componenti DS.
+3. Usare le variabili `--tecma-*` negli stili o estendere Tailwind con `@tecma/design-system-tokens/tailwind`.
 
 Vedi il [README del design-system](../../design-system/README.md) per i dettagli.

@@ -1,94 +1,106 @@
 # @tecma/design-system-tokens
 
-Design system Tecma: **token** (Figma → CSS/TS), **CSS per componenti** (Button, Icon, Accordion, Alert), Storybook. Nessun Tailwind nel package.
+Design system condiviso per la **piattaforma Tecma**: token tipografici, colore e spacing allineati al DS Figma (DS — Tecma Software Suite). Pensato per essere riusato da **followup-3.0** e da altri applicativi futuri.
 
 ## Contenuto
 
-- **`css/fonts.css`** — caricamento **Lato** (sans DS Tecma da Figma). **Importare per primo** rispetto ai token.
-- **`css/tokens.css`** — variabili `--tecma-color-*`, `--tecma-typography-*` (sans = `"Lato"`), `--tecma-values-border-radius-*` (generato da `sync:tokens`).
-- **`css/components.css`** — classi `.tecma-button`, `.tecma-icon` (dopo `tokens.css`).
-- **Primitive** — `data/figma-primitives-hex.json`, `data/figma-primitives-radius.json`.
-- **Componenti React** — `Button`, `Icon`, **Avatar**, `AccordionItem`, `Alert`, `Checkbox`, `Tag`, **Select** (trigger / item / menu + `Select` composto), **InlineEdit** (Text, Select, Multiselect) in `src/components/` (`tokens.css` + `components.css`).
+- **Typography** – typeface (Ivy Journal, Lato), weight, size (standard + oversize), line-height
+- **Color** – semantici (primary, background, …) e palette; estensibile per app-specific
+- **Spacing / Radius** – convenzioni comuni; valori da allineare al Figma quando definiti
 
-## Allineamento Figma
+I token sono la **single source of truth**; le app consumano via CSS variables e/o tema Tailwind.
 
-1. Sostituisci `data/figma-variables.json`.
-2. Aggiorna i JSON delle primitive (hex + radius).
-3. `npm run sync:tokens` → `tokens/*.ts`, `css/tokens.css`.
-4. `npm run build` (solo TypeScript per `dist/tokens`).
+## Come usarlo nelle app
 
-## Storybook
+### 1. Variabili CSS (qualsiasi stack)
 
-```bash
-npm install
-npm run storybook
-```
-
-`http://localhost:6006`. Statico: `npm run build-storybook`.
-
-### Test Storybook (flusso per ogni nuovo componente)
-
-Riferimento ufficiale: **[Storybook — How to test UIs](https://storybook.js.org/docs/writing-tests)** (render, interaction, accessibilità, CI).
-
-| Step | Azione |
-|------|--------|
-| 1 | Aggiungere `src/stories/components/<Nome>.stories.tsx` con **tutti gli stati rilevanti** (default, varianti, disabled/loading/error se esistono). Ogni story che monta senza errori è un **render test**. |
-| 2 | Per `onClick` / `onDismiss` / callback nelle story: usare **`noop`** da [`src/stories/storyStubHandlers.ts`](src/stories/storyStubHandlers.ts) o `() => {}`. **Evitare** `import` da `@storybook/addon-actions` o `@storybook/test` nel file story (con SB 8 + Vite possono causare errori di *dynamic import* in dev). |
-| 3 | Controllare il pannello **Accessibility** sulle story principali. In preview è impostato `a11y.test: "todo"` così il **test-runner in CI non fallisce** sulle violazioni residue; correggere comunque contrasto/ruoli e, per story critiche, valutare `parameters.a11y.test: "error"` a livello di story ([a11y testing](https://storybook.js.org/docs/writing-tests/accessibility-testing)). |
-| 4 | *(Opz.)* Interaction: funzione `play` con `userEvent` + `expect` ([interaction testing](https://storybook.js.org/docs/writing-tests/interaction-testing)); se si ripresentano errori di modulo, usare solo test-runner in CI. |
-| 5 | *(Opz.)* CI: workflow [`storybook-design-system.yml`](../.github/workflows/storybook-design-system.yml) (monorepo tecma-digital-platform). In locale: `npm run test-storybook:ci` — su monorepo con altri package, Jest può segnalare snapshot “obsolete” estranei: eseguire la stessa pipeline da una **copia isolata** della cartella `design-system` (come fa il job CI in `/tmp`) oppure affidarsi al job su GitHub. Template: [`ci/github-storybook-tests.yml`](ci/github-storybook-tests.yml). |
-| 6 | *(Opz.)* Visual regression con Chromatic ([visual tests](https://storybook.js.org/docs/writing-tests/visual-testing)). |
-
-**Locale — test-runner** (dopo `npm run build-storybook`):
-
-```bash
-npx http-server storybook-static -p 6099 -s &
-npx wait-on http://127.0.0.1:6099 && npx test-storybook --url http://127.0.0.1:6099
-```
-
-Oppure in un unico comando: `npm run test-storybook:ci` (vedi `package.json`).
-
-#### Roadmap (Storybook 10 + Vitest)
-
-**Valutazione (non implementato):** portare il package a **Storybook 9/10** e installare **`@storybook/addon-vitest`** per eseguire i test delle story da UI/sidebar e allinearsi alla [doc ufficiale](https://storybook.js.org/docs/writing-tests) (watch mode, coverage). Richiede migrazione da 8.6 (`npx storybook@latest upgrade`), verifica story MDX/CSF e possibili ritocchi Vite. Il test-runner attuale resta valido fino a quella milestone.
-
-## Uso nelle app
-
-### Token + componenti
+Importa il foglio token nel tuo entry (es. `main.tsx` o `index.css`):
 
 ```css
-@import "@tecma/design-system-tokens/fonts.css";
 @import "@tecma/design-system-tokens/css";
-@import "@tecma/design-system-tokens/components.css";
 ```
 
-Poi `<button class="tecma-button tecma-button--primary tecma-button--md">` oppure il componente React `<Button />` (stesse classi).
+Oppure con path relativo (senza npm link):
 
-### Solo token (TS)
+```css
+@import "../../design-system/css/tokens.css";
+```
+
+Poi usa le variabili nei tuoi stili o in Tailwind:
+
+```css
+body {
+  font-family: var(--tecma-font-body);
+  font-size: var(--tecma-font-size-m);
+  line-height: var(--tecma-line-height-m);
+}
+```
+
+### 2. Tailwind (React/Vite, followup-3.0, ecc.)
+
+In `tailwind.config.js` estendi il tema con i token:
+
+```js
+import tecmaTheme from "@tecma/design-system-tokens/tailwind";
+
+export default {
+  content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  theme: {
+    extend: {
+      fontFamily: tecmaTheme.fontFamily,
+      fontSize: tecmaTheme.fontSize,
+      lineHeight: tecmaTheme.lineHeight,
+      // ... colori, spacing se esposti
+    },
+  },
+};
+```
+
+E importa i CSS token nell’entry (es. `src/styles.css`):
+
+```css
+@import "@tecma/design-system-tokens/css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+```
+
+### 3. Uso programmatico (JS/TS)
+
+Per logica o componenti che leggono i token a runtime:
 
 ```ts
-import { typography, color, borderRadiusPx } from "@tecma/design-system-tokens";
+import { typography, color } from "@tecma/design-system-tokens";
+
+// es. fontSize standard "m" => 16
+const sizePx = typography.size.standard.m;
 ```
-
-### App con Tailwind (es. followup-v3)
-
-Il package **non** espone più un tema Tailwind. Estendi `fontSize` / `fontFamily` con `var(--tecma-typography-*)` come in `fe-followup-v3/tailwind.config.js` e importa sempre `tokens.css` prima di `@tailwind`.
 
 ## Struttura
 
 ```
 design-system/
+├── package.json
+├── README.md
 ├── css/
-│   ├── fonts.css           # Lato (Google Fonts)
-│   ├── tokens.css          # generato
-│   ├── components.css      # + tag + select (Button…Select)
-│   └── storybook-layout.css
-├── tokens/                 # generati + index
-├── src/components/
-├── src/stories/
-└── scripts/sync-figma-tokens.mjs
+│   └── tokens.css       # Variabili CSS (importabile da qualsiasi app)
+├── tokens/              # Single source of truth
+│   ├── typography.ts
+│   ├── color.ts
+│   └── index.ts
+├── src/                 # Build per dist (tokens.js, tailwind.theme.js)
+│   ├── tokens.ts
+│   └── tailwind.theme.ts
+└── tsconfig.json
 ```
 
-## Figma
+## Riferimento Figma
 
-[DS — Tecma Software Suite](https://www.figma.com/design/ZRftnYLwNGRshiXEkS7WGM/)
+- **File:** [DS — Tecma Software Suite](https://www.figma.com/design/ZRftnYLwNGRshiXEkS7WGM/)
+- **Typography (Variabili tipografiche):** node `8932-33170` (frame Typography)
+- **Tecma** usa: sans Lato, serif Ivy Journal; weight thin → bold; scale standard + oversize come in `tokens/typography.ts`
+
+## Versioning e app
+
+- I token sono **condivisi**: modifiche qui impattano tutte le app che li consumano.
+- Per override **solo in un’app** (es. followup-3.0): ridefinisci le variabili CSS dopo l’import del design-system, oppure estendi il tema Tailwind nell’app.

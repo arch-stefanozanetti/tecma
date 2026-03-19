@@ -139,7 +139,7 @@ describe("ClientDetailPage", () => {
     renderPage();
 
     expect(await screen.findByRole("heading", { name: "Mario Rossi" })).toBeInTheDocument();
-    expect(screen.getAllByText("mario@test.com").length).toBeGreaterThan(0);
+    expect(screen.getByText("mario@test.com")).toBeInTheDocument();
   });
 
   it("apre drawer modifica cliente", async () => {

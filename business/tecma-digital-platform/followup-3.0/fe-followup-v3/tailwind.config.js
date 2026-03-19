@@ -14,53 +14,23 @@ try {
   tecmaTheme = fallbackTheme;
 }
 
-/** Tipografia allineata a token Figma via CSS vars */
-const std = (key) => [
-  `var(--tecma-typography-size-standard-${key})`,
-  { lineHeight: `var(--tecma-typography-height-standard-${key})` },
-];
-
 export default {
   darkMode: ["class"],
-  content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  content: [
+    "./index.html",
+    "./src/**/*.{ts,tsx}",
+  ],
   theme: {
     extend: {
       fontFamily: {
-        serif: ["var(--tecma-typography-typeface-serif)", "Georgia", "serif"],
-        sans: ["var(--tecma-typography-typeface-sans-serif)", "Lato", "Segoe UI", "sans-serif"],
+        ...tecmaTheme.fontFamily,
         body: ["var(--body-font)", "Lato", "Segoe UI", "sans-serif"],
         title: ["var(--title-font)", "Lato", "Segoe UI", "sans-serif"],
       },
-      fontSize: {
-        "2xs": std("2xs"),
-        xs: std("xs"),
-        s: std("s"),
-        m: std("m"),
-        l: std("l"),
-        xl: std("xl"),
-        "2xl": std("2xl"),
-        "oversize-s": ["var(--tecma-typography-size-oversize-s)", { lineHeight: "1.05" }],
-        "oversize-m": ["var(--tecma-typography-size-oversize-m)", { lineHeight: "1.05" }],
-        "oversize-l": ["var(--tecma-typography-size-oversize-l)", { lineHeight: "1.05" }],
-        "oversize-xl": ["var(--tecma-typography-size-oversize-xl)", { lineHeight: "1.05" }],
-      },
-      fontWeight: {
-        thin: "var(--tecma-typography-weight-thin)",
-        light: "var(--tecma-typography-weight-light)",
-        regular: "var(--tecma-typography-weight-regular)",
-        medium: "var(--tecma-typography-weight-medium)",
-        semibold: "var(--tecma-typography-weight-semibold)",
-        bold: "var(--tecma-typography-weight-bold)",
-      },
-      lineHeight: {
-        "2xs": "var(--tecma-typography-height-standard-2xs)",
-        xs: "var(--tecma-typography-height-standard-xs)",
-        s: "var(--tecma-typography-height-standard-s)",
-        m: "var(--tecma-typography-height-standard-m)",
-        l: "var(--tecma-typography-height-standard-l)",
-        xl: "var(--tecma-typography-height-standard-xl)",
-        "2xl": "var(--tecma-typography-height-standard-2xl)",
-      },
+      fontSize: tecmaTheme.fontSize,
+      fontWeight: tecmaTheme.fontWeight,
+      lineHeight: tecmaTheme.lineHeight,
+      /* 8px ovunque — allineato a --radius-ui in styles.css */
       borderRadius: {
         DEFAULT: "8px",
         sm: "8px",
@@ -69,6 +39,7 @@ export default {
         xl: "8px",
         "2xl": "8px",
         "3xl": "8px",
+        /* allineato a :root --radius-ui (evita rem/DS diverso da 8px) */
         chrome: "var(--radius-ui)",
       },
       backgroundImage: {
@@ -80,8 +51,8 @@ export default {
         panel: "0 18px 45px rgba(0, 0, 0, 0.08)",
         "sidebar-nav-active": "0 2px 18px 0 rgba(100,100,100,0.3)",
         "sidebar-nav": "0 2px 9px 0 rgba(100,100,100,0.15)",
-        sidebar: "4px 0 12px 0 rgba(100,100,100,0.15)",
-        dropdown: "0 4px 20px 0 rgba(100,100,100,0.2)",
+        "sidebar": "4px 0 12px 0 rgba(100,100,100,0.15)",
+        "dropdown": "0 4px 20px 0 rgba(100,100,100,0.2)",
       },
       colors: {
         border: "hsl(var(--border))",

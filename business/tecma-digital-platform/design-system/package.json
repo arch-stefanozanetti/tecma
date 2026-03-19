@@ -1,12 +1,9 @@
 {
   "name": "@tecma/design-system-tokens",
-  "version": "0.3.0",
-  "description": "Design system Tecma: token CSS/TS, componenti CSS, Storybook.",
+  "version": "0.1.0",
+  "description": "Design system tokens (typography, color, spacing) per la piattaforma Tecma. Riusabile da followup-3.0 e da altri applicativi.",
   "private": true,
   "type": "module",
-  "engines": {
-    "node": ">=18"
-  },
   "main": "./dist/tokens/index.js",
   "types": "./dist/tokens/index.d.ts",
   "exports": {
@@ -17,32 +14,11 @@
       "types": "./dist/tokens/index.d.ts"
     },
     "./css": "./css/tokens.css",
-    "./components.css": "./css/components.css",
-    "./fonts.css": "./css/fonts.css",
-    "./button": {
-      "types": "./src/components/Button/Button.tsx",
-      "import": "./src/components/Button/Button.tsx",
-      "default": "./src/components/Button/Button.tsx"
-    },
-    "./avatar": {
-      "types": "./src/components/Avatar/Avatar.tsx",
-      "import": "./src/components/Avatar/Avatar.tsx",
-      "default": "./src/components/Avatar/Avatar.tsx"
-    },
-    "./inline-edit-text": {
-      "types": "./src/components/InlineEdit/InlineEditText.tsx",
-      "import": "./src/components/InlineEdit/InlineEditText.tsx",
-      "default": "./src/components/InlineEdit/InlineEditText.tsx"
-    },
-    "./inline-edit-select": {
-      "types": "./src/components/InlineEdit/InlineEditSelect.tsx",
-      "import": "./src/components/InlineEdit/InlineEditSelect.tsx",
-      "default": "./src/components/InlineEdit/InlineEditSelect.tsx"
-    },
-    "./button-group": {
-      "types": "./src/components/ButtonGroup/ButtonGroup.tsx",
-      "import": "./src/components/ButtonGroup/ButtonGroup.tsx",
-      "default": "./src/components/ButtonGroup/ButtonGroup.tsx"
+    "./tailwind": {
+      "import": "./dist/tailwind.theme.js",
+      "require": "./dist/tailwind.theme.js",
+      "default": "./dist/tailwind.theme.js",
+      "types": "./dist/tailwind.theme.d.ts"
     }
   },
   "files": [
@@ -51,37 +27,10 @@
     "tokens"
   ],
   "scripts": {
-    "sync:tokens": "node scripts/sync-figma-tokens.mjs",
-    "sync:icons": "node scripts/sync-icons.mjs",
     "build": "tsc",
-    "prestorybook": "npm run build",
-    "storybook": "node scripts/assert-storybook-path.mjs && storybook dev -p 6006",
-    "build-storybook": "npm run build && node scripts/assert-storybook-path.mjs && storybook build -o storybook-static",
-    "test-storybook": "test-storybook",
-    "test-storybook:ci": "npm run build-storybook && node scripts/storybook-test-ci-prep.mjs && concurrently -k -s first -n serve,test \"http-server storybook-static -p 6099 -s\" \"wait-on http://127.0.0.1:6099 && cross-env NODE_OPTIONS=--localstorage-file=./node_modules/.cache/storybook-test-localstorage test-storybook --url http://127.0.0.1:6099\"",
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
-    "@storybook/addon-a11y": "^8.6.18",
-    "@storybook/addon-essentials": "^8.6.0",
-    "@storybook/addon-interactions": "^8.6.0",
-    "@storybook/blocks": "^8.6.0",
-    "@storybook/react": "^8.6.0",
-    "@storybook/react-vite": "^8.6.0",
-    "@storybook/test": "^8.6.0",
-    "@storybook/test-runner": "^0.23.0",
-    "@types/react": "^18.3.0",
-    "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.4",
-    "concurrently": "^9.1.2",
-    "cross-env": "^10.1.0",
-    "http-server": "^14.1.1",
-    "playwright": "^1.49.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "storybook": "^8.6.0",
-    "typescript": "^5.8.2",
-    "vite": "^6.0.3",
-    "wait-on": "^8.0.1"
+    "typescript": "^5.8.2"
   }
 }

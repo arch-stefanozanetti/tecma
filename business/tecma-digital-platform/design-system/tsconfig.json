@@ -11,6 +11,6 @@
     "skipLibCheck": true,
     "esModuleInterop": true
   },
-  "include": ["tokens/**/*.ts"],
+  "include": ["tokens/**/*.ts", "tailwind.theme.ts"],
   "exclude": ["node_modules", "dist"]
 }

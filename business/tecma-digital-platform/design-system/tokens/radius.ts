@@ -1,33 +1,18 @@
 /**
- * Generato da sync-figma-tokens.mjs
- * border-radius: Alias Global → values.border-radius (mode Tecma v2)
- * Primitive: data/figma-primitives-radius.json (es. radius.square.*)
+ * Token per border-radius e spacing condivisi.
+ * Estendibili con valori dal DS Figma quando definiti.
  */
 
-/** Nomi Figma: external (card), internal (in card), element (es. button), standard */
-export const borderRadius = {
-  external: "var(--tecma-values-border-radius-external)",
-  internal: "var(--tecma-values-border-radius-internal)",
-  element: "var(--tecma-values-border-radius-element)",
-  standard: "var(--tecma-values-border-radius-standard)",
-} as const;
-
-export const borderRadiusPx = {
-  external: 16,
-  internal: 8,
-  element: 8,
-  standard: 4,
-} as const;
-
-/** Convenzione scala (sm/md/lg) se serve in app */
 export const radius = {
-  sm: borderRadius.standard,
-  md: borderRadius.element,
-  lg: borderRadius.external,
-  DEFAULT: borderRadius.element,
+  sm: "calc(var(--tecma-radius, 0.85rem) - 4px)",
+  md: "calc(var(--tecma-radius, 0.85rem) - 2px)",
+  lg: "var(--tecma-radius, 0.85rem)",
+  /** Valore base (usato in :root come --tecma-radius) */
+  DEFAULT: "0.85rem",
 } as const;
 
 export const spacing = {
+  /** Scale 4px base (es. 1 = 4px, 2 = 8px) — da allineare al DS se definito */
   0: 0,
   1: 4,
   2: 8,
@@ -41,6 +26,5 @@ export const spacing = {
   16: 64,
 } as const;
 
-export type BorderRadiusToken = typeof borderRadius;
 export type RadiusToken = typeof radius;
 export type SpacingToken = typeof spacing;

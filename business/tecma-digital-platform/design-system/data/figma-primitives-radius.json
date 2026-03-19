@@ -1,6 +1,0 @@
-{
-  "_comment": "Primitive px per risolvere {radius.square.*} in Alias → values.border-radius (mode Tecma v2). Aggiorna i numeri da Figma (collection radius / square).",
-  "radius.square.minimum": 4,
-  "radius.square.intermediate": 8,
-  "radius.square.maximum": 16
-}

@@ -1,151 +1,78 @@
 /**
- * Variabili Figma (Alias Tecma v2 + Typography Tecma).
- * Rigenera: npm run sync:tokens
+ * @tecma/design-system-tokens — CSS custom properties
+ * Importabile da qualsiasi applicativo (followup-3.0, altri).
+ * Allineato a DS — Tecma Software Suite (Figma).
  */
 
 :root {
-  /* Typography / Tecma */
-  --tecma-typography-typeface-serif: "Ivy Journal";
-  --tecma-typography-typeface-sans-serif: "Lato";
-  --tecma-typography-weight-thin: 100;
-  --tecma-typography-weight-light: 300;
-  --tecma-typography-weight-regular: 400;
-  --tecma-typography-weight-medium: 500;
-  --tecma-typography-weight-semibold: 600;
-  --tecma-typography-weight-bold: 700;
-  --tecma-typography-size-standard-2xs: 10px;
-  --tecma-typography-size-standard-xs: 12px;
-  --tecma-typography-size-standard-s: 14px;
-  --tecma-typography-size-standard-m: 16px;
-  --tecma-typography-size-standard-l: 18px;
-  --tecma-typography-size-standard-xl: 20px;
-  --tecma-typography-size-standard-2xl: 24px;
-  --tecma-typography-size-oversize-s: 36px;
-  --tecma-typography-size-oversize-m: 48px;
-  --tecma-typography-size-oversize-l: 50px;
-  --tecma-typography-size-oversize-xl: 62px;
-  --tecma-typography-height-standard-2xs: 14px;
-  --tecma-typography-height-standard-xs: 17px;
-  --tecma-typography-height-standard-s: 20px;
-  --tecma-typography-height-standard-m: 22px;
-  --tecma-typography-height-standard-l: 25px;
-  --tecma-typography-height-standard-xl: 28px;
-  --tecma-typography-height-standard-2xl: 34px;
-  --tecma-typography-height-oversize-s: 42px;
-  --tecma-typography-height-oversize-m: 56px;
-  --tecma-typography-height-oversize-l: 58px;
-  --tecma-typography-height-oversize-xl: 72px;
+  /* --- Typography (Figma: Variabili tipografiche) --- */
+  --tecma-font-serif: "Ivy Journal", Georgia, serif;
+  --tecma-font-sans: "Lato", "Segoe UI", sans-serif;
+  --tecma-font-body: "Lato", "Segoe UI", sans-serif;
+  --tecma-font-title: "Lato", "Segoe UI", sans-serif;
 
-  /* values.border-radius / Tecma v2 → --tecma-values-border-radius-* */
-  --tecma-values-border-radius-element: 8px;
-  --tecma-values-border-radius-external: 16px;
-  --tecma-values-border-radius-internal: 8px;
-  --tecma-values-border-radius-standard: 4px;
+  --tecma-font-weight-thin: 100;
+  --tecma-font-weight-light: 300;
+  --tecma-font-weight-regular: 400;
+  --tecma-font-weight-medium: 500;
+  --tecma-font-weight-semibold: 600;
+  --tecma-font-weight-bold: 700;
 
-  /* Alias / Tecma v2 (colori) */
-  --tecma-color-main-accent-active: 239 43.1% 40%;
-  --tecma-color-main-accent-alternative-dark: 237 41.8% 31%;
-  --tecma-color-main-accent-alternative: 239 43.1% 40%;
-  --tecma-color-main-accent-border: 238 81.5% 66.1%;
-  --tecma-color-main-accent-hover: 238 47.5% 52.9%;
-  --tecma-color-main-accent-light-active: 231 100% 89.6%;
-  --tecma-color-main-accent-light-hover: 230 100% 96.5%;
-  --tecma-color-main-accent-light: 227 100% 98.2%;
-  --tecma-color-main-accent: 239 61.4% 59.4%;
-  --tecma-color-main-gradient1: 231 51.2% 92%;
-  --tecma-color-main-gradient2: 0 71.4% 95.9%;
-  --tecma-color-main-on-accent-disabled: 225 9% 73.7%;
-  --tecma-color-main-on-accent-light: 239 61.4% 59.4%;
-  --tecma-color-main-on-accent-sub: 220 11.1% 94.7%;
-  --tecma-color-main-on-accent: 0 0% 100%;
-  --tecma-color-main-on-gradient-disabled: 215 16.3% 46.9%;
-  --tecma-color-main-on-gradient-sub: 215 25% 26.7%;
-  --tecma-color-main-on-gradient: 222 47.4% 11.2%;
-  --tecma-color-main-on-primary-disabled: 215 16.3% 46.9%;
-  --tecma-color-main-on-primary-light: 225 13.3% 29.4%;
-  --tecma-color-main-on-primary-sub: 215 25% 26.7%;
-  --tecma-color-main-on-primary: 225 13.3% 29.4%;
-  --tecma-color-main-on-secondary-disabled: 0 0% 25.1%;
-  --tecma-color-main-on-secondary-light: 226 16.9% 25.5%;
-  --tecma-color-main-on-secondary-sub: 226 16.9% 25.5%;
-  --tecma-color-main-on-secondary: 0 0% 0%;
-  --tecma-color-main-on-tertiary-disabled: 225 9% 73.7%;
-  --tecma-color-main-on-tertiary-light: 0 0% 14.9%;
-  --tecma-color-main-on-tertiary-sub: 220 11.1% 94.7%;
-  --tecma-color-main-on-tertiary: 0 0% 100%;
-  --tecma-color-main-primary-active: 222 9.6% 73.5%;
-  --tecma-color-main-primary-border: 219 17.5% 84.3%;
-  --tecma-color-main-primary-hover: 219 17.5% 84.3%;
-  --tecma-color-main-primary-light: 231 53.8% 97.5%;
-  --tecma-color-main-primary: 220 31.9% 90.8%;
-  --tecma-color-main-secondary-active: 215 13.8% 34.1%;
-  --tecma-color-main-secondary-border: 220 8.9% 46.1%;
-  --tecma-color-main-secondary-hover: 220 8.9% 46.1%;
-  --tecma-color-main-secondary-light: 210 22.2% 96.5%;
-  --tecma-color-main-secondary: 218 10.6% 64.9%;
-  --tecma-color-main-tertiary-active: 215 27.9% 16.9%;
-  --tecma-color-main-tertiary-border: 217 19.1% 26.7%;
-  --tecma-color-main-tertiary-hover: 217 19.1% 26.7%;
-  --tecma-color-main-tertiary-light: 210 20% 98%;
-  --tecma-color-main-tertiary: 217 19.1% 26.7%;
-  --tecma-color-neutral-canvas: 240 7.7% 97.5%;
-  --tecma-color-neutral-disabled: 220 11.1% 94.7%;
-  --tecma-color-neutral-general-active: 220 11.1% 94.7%;
-  --tecma-color-neutral-general-border: 231 8.6% 84.1%;
-  --tecma-color-neutral-general-hover: 240 7.7% 97.5%;
-  --tecma-color-neutral-general: 0 0% 100%;
-  --tecma-color-neutral-inverse-active: 231 8.6% 84.1%;
-  --tecma-color-neutral-inverse-border: 220 11.1% 94.7%;
-  --tecma-color-neutral-inverse-hover: 220 11.1% 94.7%;
-  --tecma-color-neutral-inverse: 0 0% 100%;
-  --tecma-color-neutral-negative-active: 226 16.9% 25.5%;
-  --tecma-color-neutral-negative-border: 226 16.9% 25.5%;
-  --tecma-color-neutral-negative-hover: 0 0% 45.1%;
-  --tecma-color-neutral-negative: 0 0% 25.1%;
-  --tecma-color-neutral-on-disabled: 225 9% 73.7%;
-  --tecma-color-neutral-on-general-disabled: 0 0% 63.9%;
-  --tecma-color-neutral-on-general-sub: 228 12% 49%;
-  --tecma-color-neutral-on-general: 226 16.9% 25.5%;
-  --tecma-color-neutral-on-inverse-disabled: 0 0% 32.2%;
-  --tecma-color-neutral-on-inverse-sub: 0 0% 25.1%;
-  --tecma-color-neutral-on-inverse: 226 16.9% 25.5%;
-  --tecma-color-neutral-on-negative-disabled: 0 0% 63.9%;
-  --tecma-color-neutral-on-negative-sub: 231 8.6% 84.1%;
-  --tecma-color-neutral-on-negative: 0 0% 100%;
-  --tecma-color-semantic-danger-danger-active: 1 51.8% 32.5%;
-  --tecma-color-semantic-danger-danger-border: 2 55.5% 53.3%;
-  --tecma-color-semantic-danger-danger-hover: 2 48.9% 42.9%;
-  --tecma-color-semantic-danger-danger-light: 0 93.3% 94.1%;
-  --tecma-color-semantic-danger-danger: 2 55.5% 53.3%;
-  --tecma-color-semantic-danger-on-danger-disabled: 225 9% 73.7%;
-  --tecma-color-semantic-danger-on-danger-light-sub: 0 0% 14.9%;
-  --tecma-color-semantic-danger-on-danger-light: 1 51.8% 32.5%;
-  --tecma-color-semantic-danger-on-danger: 0 0% 100%;
-  --tecma-color-semantic-info-info-active: 226 70.7% 40.2%;
-  --tecma-color-semantic-info-info-border: 221 83.2% 53.3%;
-  --tecma-color-semantic-info-info-hover: 224 76.3% 48%;
-  --tecma-color-semantic-info-info-light: 214 94.6% 92.7%;
-  --tecma-color-semantic-info-info: 221 83.2% 53.3%;
-  --tecma-color-semantic-info-on-info-disabled: 213 26.8% 83.9%;
-  --tecma-color-semantic-info-on-info-light-sub: 225 13.3% 29.4%;
-  --tecma-color-semantic-info-on-info-light: 226 70.7% 40.2%;
-  --tecma-color-semantic-info-on-info: 0 0% 100%;
-  --tecma-color-semantic-success-on-success-disabled: 225 9% 73.7%;
-  --tecma-color-semantic-success-on-success-light-sub: 225 13.3% 29.4%;
-  --tecma-color-semantic-success-on-success-light: 143 64.2% 24.1%;
-  --tecma-color-semantic-success-on-success: 0 0% 100%;
-  --tecma-color-semantic-success-success-active: 143 64.2% 24.1%;
-  --tecma-color-semantic-success-success-border: 142 76.2% 36.3%;
-  --tecma-color-semantic-success-success-hover: 142 71.8% 29.2%;
-  --tecma-color-semantic-success-success-light: 141 84.2% 92.5%;
-  --tecma-color-semantic-success-success: 142 76.2% 36.3%;
-  --tecma-color-semantic-warning-on-warning-disabled: 225 9% 73.7%;
-  --tecma-color-semantic-warning-on-warning-light-sub: 0 0% 14.9%;
-  --tecma-color-semantic-warning-on-warning-light: 36 100% 20%;
-  --tecma-color-semantic-warning-on-warning: 0 0% 100%;
-  --tecma-color-semantic-warning-warning-active: 36 100% 20%;
-  --tecma-color-semantic-warning-warning-border: 34 69.9% 37.8%;
-  --tecma-color-semantic-warning-warning-hover: 36 100% 26.5%;
-  --tecma-color-semantic-warning-warning-light: 34 100% 91.8%;
-  --tecma-color-semantic-warning-warning: 34 69.9% 37.8%;
+  /* Size standard (px) */
+  --tecma-font-size-2xs: 10px;
+  --tecma-font-size-xs: 12px;
+  --tecma-font-size-s: 14px;
+  --tecma-font-size-m: 16px;
+  --tecma-font-size-l: 18px;
+  --tecma-font-size-xl: 20px;
+  --tecma-font-size-2xl: 24px;
+  /* Size oversize */
+  --tecma-font-size-oversize-s: 36px;
+  --tecma-font-size-oversize-m: 48px;
+  --tecma-font-size-oversize-l: 50px;
+  --tecma-font-size-oversize-xl: 62px;
+
+  /* Line height standard (px) */
+  --tecma-line-height-s: 16px;
+  --tecma-line-height-m: 20px;
+  --tecma-line-height-l: 24px;
+  --tecma-line-height-xl: 32px;
+  /* Line height oversize */
+  --tecma-line-height-oversize-s: 48px;
+  --tecma-line-height-oversize-m: 56px;
+  --tecma-line-height-oversize-l: 72px;
+
+  /* --- Color (semantici, HSL senza hsl()) --- */
+  --tecma-background: 0 0% 100%;
+  --tecma-foreground: 224 20% 26%;
+  --tecma-primary: 238 64% 58%;
+  --tecma-primary-foreground: 0 0% 100%;
+  --tecma-secondary: 220 20% 91%;
+  --tecma-secondary-foreground: 224 20% 26%;
+  --tecma-muted: 220 20% 95%;
+  --tecma-muted-foreground: 224 16% 45%;
+  --tecma-accent: 238 64% 58%;
+  --tecma-accent-foreground: 0 0% 100%;
+  --tecma-destructive: 1 58% 52%;
+  --tecma-destructive-foreground: 0 0% 100%;
+  --tecma-border: 220 17% 86%;
+  --tecma-input: 220 17% 86%;
+  --tecma-ring: 238 64% 58%;
+  --tecma-card: 0 0% 100%;
+  --tecma-card-foreground: 224 20% 26%;
+  --tecma-sidebar: 222 24% 90%;
+  --tecma-sidebar-foreground: 224 20% 26%;
+  --tecma-sidebar-border: 220 20% 83%;
+  --tecma-sidebar-accent: 238 64% 95%;
+  --tecma-sidebar-accent-foreground: 238 64% 42%;
+
+  /* Raw (hex/rgba) */
+  --tecma-app-bg: #f8f8f9;
+  --tecma-panel-bg: rgba(255, 255, 255, 0.85);
+  --tecma-panel-border: #dbe2ef;
+  --tecma-scrollbar-thumb: #d3d4da;
+  --tecma-scrollbar-thumb-hover: #b0b3bf;
+
+  /* --- Radius --- */
+  --tecma-radius: 0.85rem;
 }

@@ -10,7 +10,7 @@ Nuovo CRM multi-progetto creato da zero.
 
 ## Design system (Wave 2)
 - **Token condivisi (riusabili da più app):** [tecma-digital-platform/design-system](../design-system) — `@tecma/design-system-tokens` con typography, color, radius da DS Figma (Tecma Software Suite).
-- **Integrazione attiva in followup-3.0:** `fe-followup-v3` dipende da `@tecma/design-system-tokens`, importa `tokens.css` in `src/styles.css` e usa `var(--tecma-typography-*)` in `tailwind.config.js`. Dettagli: [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md). Piano wave per l’import delle **componenti** Figma: [docs/DESIGN_SYSTEM_COMPONENTS_WAVES.md](docs/DESIGN_SYSTEM_COMPONENTS_WAVES.md).
+- **Integrazione attiva in followup-3.0:** `fe-followup-v3` dipende da `@tecma/design-system-tokens`, importa i CSS token in `src/styles.css` e estende `tailwind.config.js` con il tema del pacchetto. Dettagli: [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md). Piano wave per l’import delle **componenti** Figma: [docs/DESIGN_SYSTEM_COMPONENTS_WAVES.md](docs/DESIGN_SYSTEM_COMPONENTS_WAVES.md).
 - **Token/tema locali:** `fe-followup-v3/src/styles.css` (`:root` per override/app-specific) e `tailwind.config.js` (colori, backgroundImage, boxShadow).
 - **Regole Figma e convenzioni:** `fe-followup-v3/.cursor/rules/figma-design-system.mdc` (componenti `src/components/ui/`, flusso get_design_context + get_screenshot).
 
