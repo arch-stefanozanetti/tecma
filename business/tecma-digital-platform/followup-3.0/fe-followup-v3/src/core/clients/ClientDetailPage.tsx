@@ -937,14 +937,26 @@ export const ClientDetailPage = () => {
           >
             <History className="h-4 w-4" />
             Timeline
-          </TabsTrigger>
-          <TabsTrigger value="documenti" icon={<FileText className="h-4 w-4" />}>
+          </Button>
+          <Button
+            variant={activeTab === "documenti" ? "default" : "outline"}
+            onClick={() => setActiveTab("documenti")}
+            type="button"
+            className="gap-2"
+          >
+            <FileText className="h-4 w-4" />
             Documenti
-          </TabsTrigger>
-          <TabsTrigger value="appuntamenti" icon={<CalendarCheck className="h-4 w-4" />}>
+          </Button>
+          <Button
+            variant={activeTab === "appuntamenti" ? "default" : "outline"}
+            onClick={() => setActiveTab("appuntamenti")}
+            type="button"
+            className="gap-2"
+          >
+            <CalendarCheck className="h-4 w-4" />
             Appuntamenti
-          </TabsTrigger>
-        </TabsList>
+          </Button>
+        </ButtonGroup>
 
         {/* Tab Profilo — allineato a scheda cliente e match: Contatti, Profilazione, Dettaglio/Info, Date e ID */}
         <TabsContent value="profilo" className="space-y-6 mt-4">

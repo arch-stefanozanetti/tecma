@@ -86,6 +86,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Risoluzione esplicita per CI: il pacchetto file:../../design-system può non risolversi in tutti gli ambienti
+      "@tecma/design-system-tokens/button": path.resolve(__dirname, "../../design-system/src/components/Button/Button.tsx"),
+      "@tecma/design-system-tokens/button-group": path.resolve(__dirname, "../../design-system/src/components/ButtonGroup/ButtonGroup.tsx"),
     },
   },
   server: {
