@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Link2, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
-import { requestsApi } from "../../api/domains/requestsApi";
+import { followupApi } from "../../api/followupApi";
 import type {
   RequestRow,
   RequestStatus,
@@ -9,13 +9,11 @@ import type {
   ClientRole,
   RequestTransitionRow,
   RequestActionRow,
-  RequestActionType,
 } from "../../types/domain";
 import { useWorkspace } from "../../auth/projectScope";
+import { useIsMobile } from "../shared/useIsMobile";
 import { usePaginatedList } from "../shared/usePaginatedList";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { Textarea } from "../../components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -46,18 +44,23 @@ import {
   REQUESTS_PER_PAGE,
   type ViewMode,
 } from "./requestsPageConstants";
+import { RequestsActionDrawer } from "./RequestsActionDrawer";
 import { RequestsBoardSection } from "./RequestsBoardSection";
 
 export const RequestsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const isMobile = useIsMobile();
   const { workspaceId, selectedProjectIds } = useWorkspace();
   const { toastError } = useToast();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [viewMode, setViewMode] = useState<ViewMode>(() => (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches ? "kanban" : "table"));
   const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false);
+  useEffect(() => {
+    if (isMobile && viewMode === "table") setViewMode("kanban");
+  }, [isMobile]);
   const [statusDraft, setStatusDraft] = useState("all");
   const [typeDraft, setTypeDraft] = useState("all");
   const [selectedRequest, setSelectedRequest] = useState<RequestRow | null>(null);
@@ -82,12 +85,6 @@ export const RequestsPage = () => {
   const [actionDrawerOpen, setActionDrawerOpen] = useState(false);
   const [actionDrawerMode, setActionDrawerMode] = useState<"create" | "edit">("create");
   const [editingAction, setEditingAction] = useState<RequestActionRow | null>(null);
-  const [actionFormType, setActionFormType] = useState<RequestActionType>("note");
-  const [actionFormTitle, setActionFormTitle] = useState("");
-  const [actionFormDescription, setActionFormDescription] = useState("");
-  const [actionFormRequestIds, setActionFormRequestIds] = useState<string[]>([]);
-  const [actionFormSaving, setActionFormSaving] = useState(false);
-  const [actionFormError, setActionFormError] = useState<string | null>(null);
   const [deletingActionId, setDeletingActionId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -104,7 +101,7 @@ export const RequestsPage = () => {
       return;
     }
     setTransitionsLoading(true);
-    requestsApi
+    followupApi.requests
       .getRequestTransitions(selectedRequest._id)
       .then((r) => setRequestTransitions(r.transitions ?? []))
       .catch(() => setRequestTransitions([]))
@@ -117,7 +114,7 @@ export const RequestsPage = () => {
       return;
     }
     setActionsLoading(true);
-    requestsApi
+    followupApi.requests
       .getRequestActions(workspaceId, selectedRequest?._id)
       .then((r) => setRequestActions(r.actions ?? []))
       .catch(() => setRequestActions([]))
@@ -128,7 +125,7 @@ export const RequestsPage = () => {
   useEffect(() => {
     const openRequestId = (location.state as { openRequestId?: string } | null)?.openRequestId;
     if (!openRequestId) return;
-    requestsApi
+    followupApi.requests
       .getRequestById(openRequestId)
       .then((r) => {
         setSelectedRequest(r.request);
@@ -148,12 +145,12 @@ export const RequestsPage = () => {
     setFormType("sell");
     setFormStatus("new");
     setFormClientRole("");
-    requestsApi
+    followupApi.requests
       .queryClientsLite(workspaceId, selectedProjectIds)
       .then((r) =>
         setClientsLite((r.data ?? []).map((c) => ({ ...c, email: c.email ?? "" })))
       );
-    requestsApi
+    followupApi.requests
       .queryApartments({
         workspaceId,
         projectIds: selectedProjectIds,
@@ -177,7 +174,7 @@ export const RequestsPage = () => {
     setFormError(null);
     setFormSaving(true);
     try {
-      await requestsApi.createRequest({
+      await followupApi.requests.createRequest({
         workspaceId,
         projectId: formProjectId,
         clientId: formClientId,
@@ -216,7 +213,7 @@ export const RequestsPage = () => {
     error,
     refetch,
   } = usePaginatedList<RequestRow>({
-    loader: requestsApi.queryRequests,
+    loader: followupApi.requests.queryRequests,
     workspaceId: workspaceId ?? "",
     projectIds: selectedProjectIds,
     defaultSortField: "updatedAt",
@@ -271,7 +268,7 @@ export const RequestsPage = () => {
   const handleStatusChange = async (requestId: string, newStatus: RequestStatus) => {
     setStatusChangingId(requestId);
     try {
-      await requestsApi.updateRequestStatus(requestId, { status: newStatus });
+      await followupApi.requests.updateRequestStatus(requestId, { status: newStatus });
       refetch();
       setSelectedRequest((prev) => (prev?._id === requestId ? { ...prev, status: newStatus } : prev));
     } catch (err) {
@@ -295,10 +292,10 @@ export const RequestsPage = () => {
     if (!selectedRequest) return;
     setRevertingTransitionId(transitionId);
     try {
-      const { request } = await requestsApi.revertRequestStatus(selectedRequest._id, transitionId);
+      const { request } = await followupApi.requests.revertRequestStatus(selectedRequest._id, transitionId);
       setSelectedRequest(request);
       refetch();
-      const { transitions } = await requestsApi.getRequestTransitions(selectedRequest._id);
+      const { transitions } = await followupApi.requests.getRequestTransitions(selectedRequest._id);
       setRequestTransitions(transitions ?? []);
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Errore durante il ripristino dello stato.");
@@ -323,83 +320,33 @@ export const RequestsPage = () => {
   const openActionDrawerCreate = () => {
     setEditingAction(null);
     setActionDrawerMode("create");
-    setActionFormType("note");
-    setActionFormTitle("");
-    setActionFormDescription("");
-    setActionFormRequestIds(selectedRequest ? [selectedRequest._id] : []);
-    setActionFormError(null);
     setActionDrawerOpen(true);
   };
 
   const openActionDrawerEdit = (action: RequestActionRow) => {
     setEditingAction(action);
     setActionDrawerMode("edit");
-    setActionFormType(action.type);
-    setActionFormTitle(action.title ?? "");
-    setActionFormDescription(action.description ?? "");
-    setActionFormRequestIds([...action.requestIds]);
-    setActionFormError(null);
     setActionDrawerOpen(true);
   };
 
-  const handleActionFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleActionSaved = () => {
     if (!workspaceId) return;
-    if (actionFormRequestIds.length === 0) {
-      setActionFormError("Seleziona almeno una trattativa.");
-      return;
-    }
-    setActionFormError(null);
-    setActionFormSaving(true);
-    try {
-      if (actionDrawerMode === "edit" && editingAction) {
-        await requestsApi.updateRequestAction(editingAction._id, {
-          type: actionFormType,
-          title: actionFormTitle.trim() || undefined,
-          description: actionFormDescription.trim() || undefined,
-          requestIds: actionFormRequestIds,
-        });
-      } else {
-        await requestsApi.createRequestAction({
-          workspaceId,
-          requestIds: actionFormRequestIds,
-          type: actionFormType,
-          title: actionFormTitle.trim() || undefined,
-          description: actionFormDescription.trim() || undefined,
-        });
-      }
-      setActionDrawerOpen(false);
-      const { actions } = await requestsApi.getRequestActions(workspaceId, selectedRequest?._id);
-      setRequestActions(actions ?? []);
-    } catch (err) {
-      setActionFormError(err instanceof Error ? err.message : "Errore nel salvataggio.");
-    } finally {
-      setActionFormSaving(false);
-    }
+    followupApi.requests
+      .getRequestActions(workspaceId, selectedRequest?._id)
+      .then((r) => setRequestActions(r.actions ?? []));
   };
 
   const handleDeleteAction = async (actionId: string) => {
     if (!window.confirm("Eliminare questa azione?")) return;
     setDeletingActionId(actionId);
     try {
-      await requestsApi.deleteRequestAction(actionId);
+      await followupApi.requests.deleteRequestAction(actionId);
       setRequestActions((prev) => prev.filter((a) => a._id !== actionId));
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Errore durante l'eliminazione.");
     } finally {
       setDeletingActionId(null);
     }
-  };
-
-  const addRequestIdToActionForm = (requestId: string) => {
-    if (!actionFormRequestIds.includes(requestId)) {
-      setActionFormRequestIds((prev) => [...prev, requestId]);
-    }
-  };
-
-  const removeRequestIdFromActionForm = (requestId: string) => {
-    if (actionFormRequestIds.length <= 1) return;
-    setActionFormRequestIds((prev) => prev.filter((id) => id !== requestId));
   };
 
   return (
@@ -446,7 +393,7 @@ export const RequestsPage = () => {
           <div>
             <label className="mb-1.5 block text-sm font-medium text-foreground">Tipo</label>
             <Select value={typeDraft} onValueChange={setTypeDraft}>
-              <SelectTrigger className="h-10 w-full rounded-lg border-border text-sm">
+              <SelectTrigger className="min-h-11 w-full rounded-lg border-border text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -461,7 +408,7 @@ export const RequestsPage = () => {
           <div>
             <label className="mb-1.5 block text-sm font-medium text-foreground">Stato</label>
             <Select value={statusDraft} onValueChange={setStatusDraft}>
-              <SelectTrigger className="h-10 w-full rounded-lg border-border text-sm">
+              <SelectTrigger className="min-h-11 w-full rounded-lg border-border text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -485,7 +432,7 @@ export const RequestsPage = () => {
           }
         }}
       >
-        <DrawerContent side="right" className="sm:max-w-md flex flex-col">
+        <DrawerContent side="right" size={isMobile ? "full" : "md"} className="flex flex-col">
           {selectedRequest && (
             <>
               <DrawerHeader actions={<DrawerCloseButton />}>
@@ -606,7 +553,7 @@ export const RequestsPage = () => {
                 <section>
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Azioni</h3>
-                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={openActionDrawerCreate}>
+                    <Button variant="outline" size="sm" className="min-h-11 text-xs gap-1" onClick={openActionDrawerCreate}>
                       <Plus className="h-3 w-3" />
                       Nuova azione
                     </Button>
@@ -686,7 +633,7 @@ export const RequestsPage = () => {
                     <Button
                       variant="default"
                       size="sm"
-                      className="w-full gap-2"
+                      className="w-full min-h-11 gap-2"
                       onClick={() => {
                         navigate("/?section=associateAptClient", {
                           state: {
@@ -708,117 +655,20 @@ export const RequestsPage = () => {
         </DrawerContent>
       </Drawer>
 
-      {/* Drawer Nuova / Modifica azione timeline */}
-      <Drawer open={actionDrawerOpen} onOpenChange={setActionDrawerOpen}>
-        <DrawerContent side="right" className="sm:max-w-md">
-          <DrawerHeader actions={<DrawerCloseButton />}>
-            <DrawerTitle>{actionDrawerMode === "edit" ? "Modifica azione" : "Nuova azione"}</DrawerTitle>
-          </DrawerHeader>
-          <form onSubmit={handleActionFormSubmit} id="action-form">
-            <DrawerBody className="space-y-4">
-              {actionFormError && (
-                <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{actionFormError}</p>
-              )}
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-foreground">Tipo</label>
-                <Select value={actionFormType} onValueChange={(v) => setActionFormType(v as RequestActionType)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(Object.entries(ACTION_TYPE_LABEL) as [RequestActionType, string][]).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-foreground">Titolo (opzionale)</label>
-                <Input
-                  className="w-full"
-                  value={actionFormTitle}
-                  onChange={(e) => setActionFormTitle(e.target.value)}
-                  placeholder="Es. Chiamata di follow-up"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-foreground">Descrizione (opzionale)</label>
-                <Textarea
-                  className="min-h-[80px] w-full"
-                  value={actionFormDescription}
-                  onChange={(e) => setActionFormDescription(e.target.value)}
-                  placeholder="Note..."
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-foreground">Trattative collegate</label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {actionFormRequestIds.map((rid) => {
-                    const req = requests.find((r) => r._id === rid);
-                    return (
-                      <span
-                        key={rid}
-                        className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/50 px-2 py-0.5 text-xs"
-                      >
-                        {req?.clientName ?? req?.clientId ?? rid.slice(0, 8)}
-                        <button
-                          type="button"
-                          className="rounded hover:bg-muted"
-                          onClick={() => removeRequestIdFromActionForm(rid)}
-                          disabled={actionFormRequestIds.length <= 1}
-                          aria-label="Rimuovi"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    );
-                  })}
-                </div>
-                <Select
-                  value="_add"
-                  onValueChange={(v) => {
-                    if (v && v !== "_add") addRequestIdToActionForm(v);
-                  }}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Aggiungi trattativa..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_add" disabled>
-                      Aggiungi trattativa...
-                    </SelectItem>
-                    {requests
-                      .filter((r) => !actionFormRequestIds.includes(r._id))
-                      .map((r) => (
-                        <SelectItem key={r._id} value={r._id}>
-                          {r.clientName ?? r.clientId} — {r.apartmentCode ?? "—"}
-                        </SelectItem>
-                      ))}
-                    {requests.filter((r) => !actionFormRequestIds.includes(r._id)).length === 0 && (
-                      <SelectItem value="_none" disabled>
-                        Tutte le trattative della pagina già collegate
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            </DrawerBody>
-            <DrawerFooter>
-              <Button type="button" variant="outline" onClick={() => setActionDrawerOpen(false)}>
-                Annulla
-              </Button>
-              <Button type="submit" form="action-form" disabled={actionFormSaving}>
-                {actionFormSaving ? "Salvataggio..." : actionDrawerMode === "edit" ? "Salva" : "Crea azione"}
-              </Button>
-            </DrawerFooter>
-          </form>
-        </DrawerContent>
-      </Drawer>
+      <RequestsActionDrawer
+        open={actionDrawerOpen}
+        onOpenChange={setActionDrawerOpen}
+        mode={actionDrawerMode}
+        editingAction={editingAction}
+        initialRequestIds={selectedRequest ? [selectedRequest._id] : []}
+        requests={requests}
+        workspaceId={workspaceId ?? undefined}
+        onSaved={handleActionSaved}
+        isMobile={isMobile}
+      />
 
       <Drawer open={newRequestOpen} onOpenChange={(o) => !o && setNewRequestOpen(false)}>
-        <DrawerContent side="right" className="sm:max-w-md">
+        <DrawerContent side="right" size={isMobile ? "full" : "md"}>
           <DrawerHeader actions={<DrawerCloseButton />}>
             <DrawerTitle>Nuova trattativa</DrawerTitle>
           </DrawerHeader>
@@ -916,10 +766,10 @@ export const RequestsPage = () => {
               </div>
             </DrawerBody>
             <DrawerFooter>
-              <Button type="button" variant="outline" onClick={() => setNewRequestOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setNewRequestOpen(false)} className="min-h-11">
                 Annulla
               </Button>
-              <Button type="submit" disabled={formSaving}>
+              <Button type="submit" disabled={formSaving} className="min-h-11">
                 {formSaving ? "Creazione..." : "Crea trattativa"}
               </Button>
             </DrawerFooter>

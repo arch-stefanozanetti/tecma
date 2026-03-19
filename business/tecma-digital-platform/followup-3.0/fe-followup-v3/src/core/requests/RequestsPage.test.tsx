@@ -24,20 +24,22 @@ vi.mock("react-router-dom", async (importOriginal) => {
   };
 });
 
-vi.mock("../../api/domains/requestsApi", () => ({
-  requestsApi: {
-    queryRequests: mocks.queryRequestsMock,
-    queryClientsLite: mocks.queryClientsLiteMock,
-    queryApartments: mocks.queryApartmentsMock,
-    getRequestTransitions: mocks.getRequestTransitionsMock,
-    getRequestActions: mocks.getRequestActionsMock,
-    createRequest: mocks.createRequestMock,
-    updateRequestStatus: mocks.updateRequestStatusMock,
-    getRequestById: mocks.getRequestByIdMock,
-    createRequestAction: vi.fn(),
-    updateRequestAction: vi.fn(),
-    deleteRequestAction: vi.fn(),
-    revertRequestStatus: vi.fn(),
+vi.mock("../../api/followupApi", () => ({
+  followupApi: {
+    requests: {
+      queryRequests: mocks.queryRequestsMock,
+      queryClientsLite: mocks.queryClientsLiteMock,
+      queryApartments: mocks.queryApartmentsMock,
+      getRequestTransitions: mocks.getRequestTransitionsMock,
+      getRequestActions: mocks.getRequestActionsMock,
+      createRequest: mocks.createRequestMock,
+      updateRequestStatus: mocks.updateRequestStatusMock,
+      getRequestById: mocks.getRequestByIdMock,
+      createRequestAction: vi.fn(),
+      updateRequestAction: vi.fn(),
+      deleteRequestAction: vi.fn(),
+      revertRequestStatus: vi.fn(),
+    },
   },
 }));
 
