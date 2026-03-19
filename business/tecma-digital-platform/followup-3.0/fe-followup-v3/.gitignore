@@ -1,4 +1,5 @@
 node_modules
+*.tsbuildinfo
 .vercel
 dist
 lighthouse-report.json
