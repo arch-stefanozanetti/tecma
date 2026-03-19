@@ -176,7 +176,7 @@ const toCalendarEvent = (doc: CalendarEvent & { _id?: ObjectId; startsAt?: Date 
 
 const queryPrimaryCalendarEvents = async (input: ListQueryInput): Promise<PaginatedResponse<CalendarEvent>> => {
   const db = getDb();
-  const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("calendar_events");
+  const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("tz_calendar_events");
 
   const [rawData, total] = await Promise.all([
     collection
@@ -252,7 +252,7 @@ export const queryCalendarEvents = async (rawInput: unknown): Promise<PaginatedR
 export const createCalendarEvent = async (rawInput: unknown): Promise<{ event: CalendarEvent }> => {
   const input = CalendarEventCreateSchema.parse(rawInput);
   const db = getDb();
-  const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("calendar_events");
+  const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("tz_calendar_events");
   const startsAtDate = new Date(input.startsAt);
   const endsAtDate = new Date(input.endsAt);
   type InsertDoc = {
@@ -308,13 +308,22 @@ export const createCalendarEvent = async (rawInput: unknown): Promise<{ event: C
   return { event };
 };
 
+export const getCalendarEventById = async (eventId: string): Promise<CalendarEvent | null> => {
+  if (!ObjectId.isValid(eventId)) return null;
+  const db = getDb();
+  const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("tz_calendar_events");
+  const doc = await collection.findOne({ _id: new ObjectId(eventId) } as never);
+  if (!doc) return null;
+  return toCalendarEvent(doc as CalendarEvent & { _id?: ObjectId; startsAt?: Date | string; endsAt?: Date | string });
+};
+
 export const updateCalendarEvent = async (
   eventId: string,
   rawInput: unknown
 ): Promise<{ event: CalendarEvent }> => {
   const input = CalendarEventUpdateSchema.parse(rawInput);
   const db = getDb();
-  const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("calendar_events");
+  const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("tz_calendar_events");
   if (!ObjectId.isValid(eventId)) {
     throw new HttpError("Event not found", 404);
   }
@@ -374,7 +383,7 @@ export const deleteCalendarEvent = async (eventId: string): Promise<{ deleted: b
     throw new HttpError("Event not found", 404);
   }
   const db = getDb();
-  const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("calendar_events");
+  const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("tz_calendar_events");
   const _id = new ObjectId(eventId);
   const result = await collection.deleteOne({ _id } as never);
   if (result.deletedCount === 0) {

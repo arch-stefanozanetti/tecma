@@ -46,7 +46,7 @@ const buildFindChain = (toArrayMock: ReturnType<typeof vi.fn>) => ({
 vi.mock("../../config/db.js", () => ({
   getDb: () => ({
     collection: (name: string) => {
-      if (name === "calendar_events") {
+      if (name === "tz_calendar_events") {
         return {
           find: primaryFindMock.mockImplementation(() => buildFindChain(primaryFindToArrayMock)),
           countDocuments: primaryCountDocumentsMock,

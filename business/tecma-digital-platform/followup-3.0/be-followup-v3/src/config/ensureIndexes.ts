@@ -30,7 +30,7 @@ const INDEX_SPECS: IndexSpec[] = [
   { collection: "tz_request_transitions", key: { requestId: 1, createdAt: -1 }, options: { name: "idx_tz_request_transitions_requestId_createdAt" } },
   { collection: "tz_request_actions", key: { requestId: 1, createdAt: -1 }, options: { name: "idx_tz_request_actions_requestId_createdAt" } },
 
-  { collection: "calendar_events", key: { workspaceId: 1, projectId: 1, startsAt: 1 }, options: { name: "idx_calendar_events_workspace_project_startsAt" } },
+  { collection: "tz_calendar_events", key: { workspaceId: 1, projectId: 1, startsAt: 1 }, options: { name: "idx_tz_calendar_events_workspace_project_startsAt" } },
 
   { collection: "tz_workflow_configs", key: { workspaceId: 1, projectId: 1, flowType: 1 }, options: { name: "idx_tz_workflow_configs_scope_flowType" } },
   { collection: "tz_workflows", key: { workspaceId: 1, flowType: 1 }, options: { name: "idx_tz_workflows_workspace_flowType" } },
