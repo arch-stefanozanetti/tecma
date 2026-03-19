@@ -15,7 +15,15 @@ Deploy FollowUp 3.0 su **Render**: backend **Web Service** (Node), frontend **St
 
 ---
 
-## 2. Blueprint (`render.yaml` in root repo)
+## 2. Servizio Docker "tecma" (root)
+
+Se su Render hai un **Web Service** di tipo **Docker** collegato alla root del repo (es. servizio "tecma"), Render si aspetta un **Dockerfile nella root**. In repo è presente **`Dockerfile`** in root che builda il backend FollowUp 3.0 (`be-followup-v3`). Dopo push su `main`, il deploy Docker può completare senza errore *Dockerfile: no such file or directory*.
+
+**Alternativa senza Dockerfile in root:** in Dashboard → servizio → **Settings** → **Build & Deploy** impostare **Root Directory** su `business/tecma-digital-platform/followup-3.0/be-followup-v3`. Render userà il Dockerfile in quella cartella.
+
+---
+
+## 3. Blueprint (`render.yaml` in root repo)
 
 Nel repo **tecma**, alla root, è presente [`render.yaml`](../../../../render.yaml) con due servizi:
 
@@ -44,7 +52,7 @@ Il **backend Node** usa **`plan: starter`** (e opz. `region: frankfurt`). Il **f
 
 ---
 
-## 3. Variabili d’ambiente (BE)
+## 4. Variabili d’ambiente (BE)
 
 Allineate a [env.ts](../be-followup-v3/src/config/env.ts):
 
@@ -73,13 +81,13 @@ Per **upload logo/email header** (branding workspace), **immagini progetto**, **
 
 ---
 
-## 4. CORS
+## 5. CORS
 
 Il BE usa `cors()` senza restrizioni di origine ([server.ts](../be-followup-v3/src/server.ts)): il FE su un altro dominio (es. `*.onrender.com`) può chiamare l’API senza ulteriori modifiche.
 
 ---
 
-## 5. CI GitHub (senza deploy)
+## 6. CI GitHub (senza deploy)
 
 La pipeline [.github/workflows/followup-3.0-ci-cd.yml](../../../../.github/workflows/followup-3.0-ci-cd.yml) esegue solo **build + test** (FE con **pnpm**, BE con **npm**). Il deploy è su **Render** (push sul branch collegato al Blueprint).
 
@@ -87,7 +95,7 @@ Opzionale: [Deploy Hook](https://render.com/docs/deploy-hooks) Render + `curl` d
 
 ---
 
-## 6. Troubleshooting
+## 7. Troubleshooting
 
 - **FE bianco su refresh su route profonde:** verifica che le rewrite SPA in `render.yaml` (`/*` → `/index.html`) siano applicate.
 - **401 / rete dal FE:** controlla `VITE_API_BASE_URL` (URL del BE, HTTPS).

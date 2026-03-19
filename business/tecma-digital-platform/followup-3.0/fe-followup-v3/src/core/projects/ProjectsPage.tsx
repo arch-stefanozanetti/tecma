@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { followupApi } from "../../api/followupApi";
 import { useWorkspace } from "../../auth/projectScope";
+import { useIsMobile } from "../shared/useIsMobile";
 import { Button } from "../../components/ui/button";
 import { cn } from "../../lib/utils";
 import { Building2, ExternalLink, Plus, RefreshCcw, Settings } from "lucide-react";
@@ -27,11 +28,16 @@ const MODE_LABEL: Record<string, string> = {
 
 export const ProjectsPage = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { workspaceId, isAdmin } = useWorkspace();
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>(() => loadViewModeFromStorage("projects", "table"));
+
+  useEffect(() => {
+    if (isMobile) setViewMode("card");
+  }, [isMobile]);
 
   const load = async () => {
     if (!workspaceId) {
@@ -74,17 +80,19 @@ export const ProjectsPage = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <ViewModeToggle
-              value={viewMode}
-              onValueChange={setViewMode}
-              storageKey="projects"
-            />
-            <Button variant="outline" size="sm" className="gap-2" onClick={() => load()}>
+            <div className={cn(isMobile && "hidden")}>
+              <ViewModeToggle
+                value={viewMode}
+                onValueChange={setViewMode}
+                storageKey="projects"
+              />
+            </div>
+            <Button variant="outline" size="sm" className="min-h-11 gap-2" onClick={() => load()}>
               <RefreshCcw className="h-4 w-4" />
               Aggiorna
             </Button>
             {isAdmin && (
-              <Button size="sm" className="gap-2" onClick={() => navigate("/?section=workspaces")}>
+              <Button size="sm" className="min-h-11 gap-2" onClick={() => navigate("/?section=workspaces")}>
                 <Plus className="h-4 w-4" />
                 Nuovo progetto
               </Button>
@@ -108,7 +116,7 @@ export const ProjectsPage = () => {
                 Nessun progetto nel workspace corrente.
               </p>
               {isAdmin && (
-                <Button variant="outline" size="sm" className="mt-4 gap-2" onClick={() => navigate("/?section=workspaces")}>
+                <Button variant="outline" size="sm" className="mt-4 min-h-11 gap-2" onClick={() => navigate("/?section=workspaces")}>
                   <Plus className="h-4 w-4" />
                   Aggiungi un progetto
                 </Button>
@@ -134,7 +142,7 @@ export const ProjectsPage = () => {
                       return (
                         <tr
                           key={pid}
-                          className="group border-b border-border text-sm text-foreground hover:bg-muted cursor-pointer"
+                          className="group border-b border-border text-sm text-foreground hover:bg-muted cursor-pointer min-h-11"
                           role="button"
                           tabIndex={0}
                           onClick={() => goToProject(pid)}
@@ -162,10 +170,10 @@ export const ProjectsPage = () => {
                             </span>
                           </td>
                           <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+<Button
+                            variant="ghost"
+                            size="icon"
+                            className="min-h-11 min-w-11 opacity-0 group-hover:opacity-100 transition-opacity"
                               onClick={() => goToProject(pid)}
                               aria-label="Configura progetto"
                             >
@@ -204,7 +212,7 @@ export const ProjectsPage = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 gap-1"
+                            className="min-h-11 gap-1"
                             onClick={(e) => {
                               e.stopPropagation();
                               goToProject(pid);
