@@ -29,6 +29,15 @@ const CORE_INDEXES: IndexDefinition[] = [
   { collection: "tz_price_calendar", keys: { unitId: 1, date: 1 }, options: { unique: true } },
   { collection: "tz_contracts", keys: { requestId: 1 }, options: { unique: true } },
   { collection: "tz_contracts", keys: { unitId: 1 } },
+
+  { collection: "tz_magic_links", keys: { tokenHash: 1 }, options: { unique: true } },
+  { collection: "tz_magic_links", keys: { expiresAt: 1 } },
+  { collection: "tz_magic_links", keys: { workspaceId: 1, clientId: 1 } },
+  { collection: "tz_portal_sessions", keys: { accessTokenHash: 1 }, options: { unique: true } },
+  { collection: "tz_portal_sessions", keys: { expiresAt: 1 } },
+  { collection: "tz_portal_sessions", keys: { workspaceId: 1, clientId: 1 } },
+  { collection: "tz_platform_api_usage", keys: { apiKey: 1, date: 1 }, options: { unique: true } },
+  { collection: "tz_portal_access_audit", keys: { at: -1 } },
 ];
 
 function createIndexName(collection: string, keys: IndexDefinition["keys"]): string {

@@ -1278,6 +1278,25 @@ export const openApiV1 = {
         responses: { "200": { description: "Dati overview portale cliente" }, "401": { description: "Invalid/expired portal session" } }
       }
     },
+    "/portal/logout": {
+      post: {
+        tags: ["portal"],
+        summary: "Revoca sessione portale cliente",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["accessToken"],
+                properties: { accessToken: { type: "string" } }
+              }
+            }
+          }
+        },
+        responses: { "200": { description: "{ ok: true }" } }
+      }
+    },
     "/projects/{projectId}": {
       get: {
         tags: ["projects"],

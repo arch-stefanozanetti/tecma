@@ -650,6 +650,8 @@ export const followupApi = {
       deals: Array<{ id: string; type: string; status: string; updatedAt: string; quoteNumber?: string; quoteTotalPrice?: number }>;
       documents: Array<{ id: string; title: string; type: "quote" | "document"; createdAt: string; url?: string }>;
     }>("/portal/overview", { accessToken }),
+  portalLogout: (accessToken: string) =>
+    postJson<{ ok: boolean }>("/portal/logout", { accessToken }),
   /** Log comunicazioni inviate (Notification Center). */
   listCommunicationDeliveries: (workspaceId: string, limit?: number) =>
     getJson<{ data: Array<{ _id: string; channel: string; templateId: string; recipientMasked: string; status: string; sentAt: string }> }>(

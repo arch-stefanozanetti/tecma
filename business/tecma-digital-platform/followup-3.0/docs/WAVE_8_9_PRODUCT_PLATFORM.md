@@ -73,6 +73,12 @@ Questa wave implementa la base operativa per passare dal solo hardening a cresci
   - `POST /v1/portal/magic-links` (interno, JWT richiesto)
   - `POST /v1/portal/auth/exchange` (pubblico)
   - `POST /v1/portal/overview` (pubblico)
+  - `POST /v1/portal/logout` (pubblico)
+- Hardening portal:
+  - token magic-link/session salvati solo in forma hash (`sha256`)
+  - revoca sessioni precedenti su nuovo exchange
+  - rate limit stretto su exchange (`5/h`)
+  - audit trail accessi portal (`tz_portal_access_audit`)
 - FE:
   - nuova route pubblica `/portal?token=...`
   - pagina `CustomerPortalPage` con:

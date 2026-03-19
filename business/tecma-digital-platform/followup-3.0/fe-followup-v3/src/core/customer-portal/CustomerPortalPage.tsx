@@ -12,6 +12,7 @@ export const CustomerPortalPage = () => {
   const [portalAccessToken, setPortalAccessToken] = useState<string>("");
   const [overview, setOverview] = useState<PortalOverview | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [error, setError] = useState<string>("");
 
   useEffect(() => {
@@ -78,6 +79,27 @@ export const CustomerPortalPage = () => {
           <p className="text-sm text-muted-foreground">
             {overview?.client.fullName ?? "Cliente"} - stato pratica e documenti
           </p>
+          <div className="mt-3">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!portalAccessToken || loggingOut}
+              onClick={async () => {
+                if (!portalAccessToken) return;
+                setLoggingOut(true);
+                try {
+                  await followupApi.portalLogout(portalAccessToken);
+                } finally {
+                  setPortalAccessToken("");
+                  setOverview(null);
+                  setLoggingOut(false);
+                  window.location.assign("/");
+                }
+              }}
+            >
+              Esci dal portale
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
@@ -154,4 +176,3 @@ export const CustomerPortalPage = () => {
     </div>
   );
 };
-

@@ -46,3 +46,13 @@ export const platformApiKeyRateLimiter = rateLimit({
   skip: () => skipRateLimit,
   keyGenerator: (req) => req.get("x-api-key") ?? ipKeyGenerator(req.ip ?? "")
 });
+
+/** Exchange magic-link portale cliente: limite stretto per prevenire brute-force token. */
+export const portalExchangeRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { error: "Troppi tentativi di accesso al portale, riprova tra un'ora." },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => skipRateLimit
+});

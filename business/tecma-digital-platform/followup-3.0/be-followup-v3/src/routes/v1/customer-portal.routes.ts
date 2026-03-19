@@ -4,7 +4,9 @@ import {
   createCustomerPortalMagicLink,
   exchangeCustomerPortalMagicLink,
   getCustomerPortalOverview,
+  logoutCustomerPortalSession,
 } from "../../core/auth/customer-portal.service.js";
+import { portalExchangeRateLimiter } from "../rateLimitMiddleware.js";
 
 export const customerPortalRoutes = Router();
 export const customerPortalPublicRoutes = Router();
@@ -22,6 +24,7 @@ customerPortalRoutes.post(
  */
 customerPortalPublicRoutes.post(
   "/portal/auth/exchange",
+  portalExchangeRateLimiter,
   handleAsync((req) => exchangeCustomerPortalMagicLink(req.body)),
 );
 
@@ -31,4 +34,9 @@ customerPortalPublicRoutes.post(
 customerPortalPublicRoutes.post(
   "/portal/overview",
   handleAsync((req) => getCustomerPortalOverview(req.body)),
+);
+
+customerPortalPublicRoutes.post(
+  "/portal/logout",
+  handleAsync((req) => logoutCustomerPortalSession(req.body)),
 );

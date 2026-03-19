@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import crypto from "node:crypto";
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
@@ -7,6 +8,7 @@ import { HttpError } from "../../types/http.js";
 const MAGIC_LINK_COLLECTION = "tz_magic_links";
 const PORTAL_SESSION_COLLECTION = "tz_portal_sessions";
 const PORTAL_DOCUMENTS_COLLECTION = "tz_portal_documents";
+const PORTAL_AUDIT_COLLECTION = "tz_portal_access_audit";
 
 const CreateMagicLinkSchema = z.object({
   workspaceId: z.string().min(1),
@@ -30,6 +32,20 @@ export interface PortalOverviewResponse {
 }
 
 const nowIso = (): string => new Date().toISOString();
+const hashToken = (raw: string): string => crypto.createHash("sha256").update(raw, "utf8").digest("hex");
+
+const logPortalAudit = async (eventType: string, payload: Record<string, unknown>): Promise<void> => {
+  try {
+    const db = getDb();
+    await db.collection(PORTAL_AUDIT_COLLECTION).insertOne({
+      eventType,
+      at: nowIso(),
+      ...payload,
+    });
+  } catch {
+    // best effort
+  }
+};
 
 export const createCustomerPortalMagicLink = async (rawInput: unknown): Promise<{ token: string; expiresAt: string }> => {
   const input = CreateMagicLinkSchema.parse(rawInput);
@@ -38,7 +54,7 @@ export const createCustomerPortalMagicLink = async (rawInput: unknown): Promise<
   const expiresAt = new Date(Date.now() + input.expiresInHours * 60 * 60 * 1000).toISOString();
 
   await db.collection(MAGIC_LINK_COLLECTION).insertOne({
-    token,
+    tokenHash: hashToken(token),
     workspaceId: input.workspaceId,
     clientId: input.clientId,
     projectIds: input.projectIds,
@@ -52,32 +68,50 @@ export const createCustomerPortalMagicLink = async (rawInput: unknown): Promise<
 export const exchangeCustomerPortalMagicLink = async (rawInput: unknown): Promise<{ accessToken: string; expiresAt: string }> => {
   const input = ExchangeMagicLinkSchema.parse(rawInput);
   const db = getDb();
-  const record = await db.collection(MAGIC_LINK_COLLECTION).findOne({ token: input.token, used: false });
+  const tokenHash = hashToken(input.token);
+  const record = await db.collection(MAGIC_LINK_COLLECTION).findOne({ tokenHash, used: false });
   if (!record) throw new HttpError("Magic link non valido", 401);
   const expiresAt = typeof record.expiresAt === "string" ? record.expiresAt : nowIso();
-  if (new Date(expiresAt).getTime() < Date.now()) throw new HttpError("Magic link scaduto", 401);
+  if (new Date(expiresAt).getTime() < Date.now()) {
+    await logPortalAudit("portal.magic_link.exchange_failed", { reason: "expired" });
+    throw new HttpError("Magic link scaduto", 401);
+  }
 
   const accessToken = randomUUID();
+  const accessTokenHash = hashToken(accessToken);
   const sessionExpiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
+  const workspaceId = String(record.workspaceId ?? "");
+  const clientId = String(record.clientId ?? "");
+  const projectIds = Array.isArray(record.projectIds) ? record.projectIds : [];
+  await db.collection(PORTAL_SESSION_COLLECTION).updateMany(
+    { workspaceId, clientId, revokedAt: { $exists: false } },
+    { $set: { revokedAt: nowIso(), revokedReason: "new_session" } },
+  );
   await db.collection(PORTAL_SESSION_COLLECTION).insertOne({
-    accessToken,
-    workspaceId: String(record.workspaceId ?? ""),
-    clientId: String(record.clientId ?? ""),
-    projectIds: Array.isArray(record.projectIds) ? record.projectIds : [],
+    accessTokenHash,
+    workspaceId,
+    clientId,
+    projectIds,
     createdAt: nowIso(),
     expiresAt: sessionExpiresAt,
   });
   await db.collection(MAGIC_LINK_COLLECTION).updateOne(
-    { token: input.token },
+    { tokenHash },
     { $set: { used: true, usedAt: nowIso() } },
   );
+  await logPortalAudit("portal.magic_link.exchanged", {
+    workspaceId,
+    clientId,
+    projectIds,
+  });
 
   return { accessToken, expiresAt: sessionExpiresAt };
 };
 
 const loadPortalSession = async (accessToken: string) => {
   const db = getDb();
-  const session = await db.collection(PORTAL_SESSION_COLLECTION).findOne({ accessToken });
+  const accessTokenHash = hashToken(accessToken);
+  const session = await db.collection(PORTAL_SESSION_COLLECTION).findOne({ accessTokenHash, revokedAt: { $exists: false } });
   if (!session) throw new HttpError("Sessione portale non valida", 401);
   const expiresAt = typeof session.expiresAt === "string" ? session.expiresAt : nowIso();
   if (new Date(expiresAt).getTime() < Date.now()) throw new HttpError("Sessione portale scaduta", 401);
@@ -158,4 +192,16 @@ export const getCustomerPortalOverview = async (rawInput: unknown): Promise<Port
     deals,
     documents: [...quoteDocuments, ...externalDocuments].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
   };
+};
+
+export const logoutCustomerPortalSession = async (rawInput: unknown): Promise<{ ok: boolean }> => {
+  const input = PortalSessionSchema.parse(rawInput);
+  const db = getDb();
+  const accessTokenHash = hashToken(input.accessToken);
+  await db.collection(PORTAL_SESSION_COLLECTION).updateOne(
+    { accessTokenHash },
+    { $set: { revokedAt: nowIso(), revokedReason: "logout" } },
+  );
+  await logPortalAudit("portal.session.logout", {});
+  return { ok: true };
 };
