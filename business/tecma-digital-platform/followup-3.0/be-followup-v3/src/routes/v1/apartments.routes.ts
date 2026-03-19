@@ -8,7 +8,8 @@ import {
 import { queryRequests } from "../../core/requests/requests.service.js";
 import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
-import { record as auditRecord } from "../../core/audit/audit-log.service.js";
+import { requireCanAccessWorkspace, requireCanAccessProject } from "../accessMiddleware.js";
+import { auditAndDispatchEntityEvent } from "../helpers/auditAndDispatch.js";
 import { requireAdmin } from "../authMiddleware.js";
 import { getCurrentPriceForUnit } from "../../core/unit-pricing/unit-pricing.service.js";
 import { listSalePricesByUnitId, createSalePrice, updateSalePrice } from "../../core/sale-prices/sale-prices.service.js";
@@ -22,16 +23,14 @@ import {
   executeImport,
   type OnDuplicate,
 } from "../../core/units-import/units-import.service.js";
-import { safeAsync } from "../../core/shared/safeAsync.js";
-
 export const apartmentsRoutes = Router();
 
-apartmentsRoutes.post("/apartments/query", handleAsync((req) => queryApartments(req.body)));
+apartmentsRoutes.post("/apartments/query", requireCanAccessWorkspace("workspaceId"), handleAsync((req) => queryApartments(req.body)));
 
-apartmentsRoutes.post("/apartments", handleAsync(async (req) => {
+apartmentsRoutes.post("/apartments", requireCanAccessProject("workspaceId", "projectId"), handleAsync(async (req) => {
   const result = await createApartment(req.body);
   if (result?.apartmentId && req.body.workspaceId) {
-    safeAsync(auditRecord({
+    auditAndDispatchEntityEvent({
       action: "apartment.created",
       workspaceId: req.body.workspaceId,
       projectId: req.body.projectId,
@@ -39,22 +38,16 @@ apartmentsRoutes.post("/apartments", handleAsync(async (req) => {
       entityId: result.apartmentId,
       actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
       payload: { code: result.apartment?.code },
-    }), {
-      operation: "audit.apartment.created",
-      workspaceId: req.body.workspaceId,
-      projectId: req.body.projectId,
-      entityType: "apartment",
-      entityId: result.apartmentId,
       userId: req.user?.sub,
     });
   }
   return result;
 }));
 
-apartmentsRoutes.patch("/apartments/:id", handleAsync(async (req) => {
+apartmentsRoutes.patch("/apartments/:id", requireCanAccessProject("workspaceId", "projectId"), handleAsync(async (req) => {
   const result = await updateApartment({ ...req.body, apartmentId: req.params.id });
   if (req.body.workspaceId) {
-    safeAsync(auditRecord({
+    auditAndDispatchEntityEvent({
       action: "apartment.updated",
       workspaceId: req.body.workspaceId,
       projectId: req.body.projectId,
@@ -62,21 +55,15 @@ apartmentsRoutes.patch("/apartments/:id", handleAsync(async (req) => {
       entityId: req.params.id,
       actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
       payload: req.body,
-    }), {
-      operation: "audit.apartment.updated",
-      workspaceId: req.body.workspaceId,
-      projectId: req.body.projectId,
-      entityType: "apartment",
-      entityId: req.params.id,
       userId: req.user?.sub,
     });
   }
   return result;
 }));
 
-apartmentsRoutes.get("/apartments/:id", handleAsync((req) => getApartmentById(req.params.id)));
+apartmentsRoutes.get("/apartments/:id", requireCanAccessWorkspace("workspaceId"), handleAsync((req) => getApartmentById(req.params.id)));
 
-apartmentsRoutes.get("/apartments/:id/prices", handleAsync(async (req) => {
+apartmentsRoutes.get("/apartments/:id/prices", requireCanAccessWorkspace("workspaceId"), handleAsync(async (req) => {
   const unitId = req.params.id;
   const [current, salePrices, monthlyRents] = await Promise.all([
     getCurrentPriceForUnit(unitId),
@@ -86,7 +73,7 @@ apartmentsRoutes.get("/apartments/:id/prices", handleAsync(async (req) => {
   return { current, salePrices, monthlyRents };
 }));
 
-apartmentsRoutes.get("/apartments/:id/inventory", handleAsync(async (req) => {
+apartmentsRoutes.get("/apartments/:id/inventory", requireCanAccessWorkspace("workspaceId"), handleAsync(async (req) => {
   const unitId = req.params.id;
   const [inventory, lock] = await Promise.all([
     getInventoryByUnitId(unitId),
@@ -100,7 +87,7 @@ apartmentsRoutes.get("/apartments/:id/inventory", handleAsync(async (req) => {
   };
 }));
 
-apartmentsRoutes.patch("/apartments/:id/inventory", handleAsync(async (req) => {
+apartmentsRoutes.patch("/apartments/:id/inventory", requireCanAccessWorkspace("workspaceId"), handleAsync(async (req) => {
   const unitId = req.params.id;
   const body = req.body as { workspaceId?: string; inventoryStatus?: "available" | "locked" | "reserved" | "sold" };
   if (!body.workspaceId) throw new HttpError("workspaceId required", 400);
@@ -108,7 +95,7 @@ apartmentsRoutes.patch("/apartments/:id/inventory", handleAsync(async (req) => {
   return setInventoryStatus(unitId, body.workspaceId, status);
 }));
 
-apartmentsRoutes.post("/apartments/:id/prices/sale", handleAsync(async (req) => {
+apartmentsRoutes.post("/apartments/:id/prices/sale", requireCanAccessWorkspace("workspaceId"), handleAsync(async (req) => {
   const unitId = req.params.id;
   const body = req.body as { workspaceId: string; price: number; currency?: string; validFrom?: string; validTo?: string };
   if (!body.workspaceId) throw new HttpError("workspaceId required", 400);
@@ -122,7 +109,7 @@ apartmentsRoutes.post("/apartments/:id/prices/sale", handleAsync(async (req) => 
   });
 }));
 
-apartmentsRoutes.post("/apartments/:id/prices/monthly-rent", handleAsync(async (req) => {
+apartmentsRoutes.post("/apartments/:id/prices/monthly-rent", requireCanAccessWorkspace("workspaceId"), handleAsync(async (req) => {
   const unitId = req.params.id;
   const body = req.body as { workspaceId: string; pricePerMonth: number; deposit?: number; currency?: string; validFrom?: string; validTo?: string };
   if (!body.workspaceId) throw new HttpError("workspaceId required", 400);
@@ -137,14 +124,14 @@ apartmentsRoutes.post("/apartments/:id/prices/monthly-rent", handleAsync(async (
   });
 }));
 
-apartmentsRoutes.patch("/apartments/:id/prices/sale/:priceId", handleAsync(async (req) => {
+apartmentsRoutes.patch("/apartments/:id/prices/sale/:priceId", requireCanAccessWorkspace("workspaceId"), handleAsync(async (req) => {
   const unitId = req.params.id;
   const priceId = req.params.priceId;
   const body = req.body as { validTo?: string; price?: number };
   return updateSalePrice(unitId, priceId, { validTo: body.validTo, price: body.price });
 }));
 
-apartmentsRoutes.patch("/apartments/:id/prices/monthly-rent/:rentId", handleAsync(async (req) => {
+apartmentsRoutes.patch("/apartments/:id/prices/monthly-rent/:rentId", requireCanAccessWorkspace("workspaceId"), handleAsync(async (req) => {
   const unitId = req.params.id;
   const rentId = req.params.rentId;
   const body = req.body as { validTo?: string; pricePerMonth?: number; deposit?: number };
@@ -155,7 +142,7 @@ apartmentsRoutes.patch("/apartments/:id/prices/monthly-rent/:rentId", handleAsyn
   });
 }));
 
-apartmentsRoutes.get("/apartments/:id/prices/calendar", handleAsync(async (req) => {
+apartmentsRoutes.get("/apartments/:id/prices/calendar", requireCanAccessWorkspace("workspaceId"), handleAsync(async (req) => {
   const unitId = req.params.id;
   const from = (req.query.from as string) ?? "";
   const to = (req.query.to as string) ?? "";
@@ -163,7 +150,7 @@ apartmentsRoutes.get("/apartments/:id/prices/calendar", handleAsync(async (req) 
   return listPriceCalendarByUnitAndRange(unitId, from, to);
 }));
 
-apartmentsRoutes.put("/apartments/:id/prices/calendar", handleAsync(async (req) => {
+apartmentsRoutes.put("/apartments/:id/prices/calendar", requireCanAccessWorkspace("workspaceId"), handleAsync(async (req) => {
   const unitId = req.params.id;
   const body = req.body as { date: string; price: number; minStay?: number; availability?: "available" | "blocked" | "reserved" };
   if (!body.date || typeof body.price !== "number") throw new HttpError("date and price required", 400);
@@ -177,7 +164,7 @@ apartmentsRoutes.put("/apartments/:id/prices/calendar", handleAsync(async (req) 
   return { ok: true };
 }));
 
-apartmentsRoutes.post("/workspaces/:workspaceId/projects/:projectId/units/import/preview", requireAdmin, handleAsync(async (req) => {
+apartmentsRoutes.post("/workspaces/:workspaceId/projects/:projectId/units/import/preview", requireCanAccessProject("workspaceId", "projectId"), requireAdmin, handleAsync(async (req) => {
   const workspaceId = req.params.workspaceId;
   const projectId = req.params.projectId;
   const body = req.body as { fileBase64?: string; fileName?: string };
@@ -188,7 +175,7 @@ apartmentsRoutes.post("/workspaces/:workspaceId/projects/:projectId/units/import
   return validateRows(rows, workspaceId, projectId);
 }));
 
-apartmentsRoutes.post("/workspaces/:workspaceId/projects/:projectId/units/import/execute", requireAdmin, handleAsync(async (req) => {
+apartmentsRoutes.post("/workspaces/:workspaceId/projects/:projectId/units/import/execute", requireCanAccessProject("workspaceId", "projectId"), requireAdmin, handleAsync(async (req) => {
   const workspaceId = req.params.workspaceId;
   const projectId = req.params.projectId;
   const body = req.body as { validRows?: unknown[]; onDuplicate?: OnDuplicate };
@@ -199,6 +186,7 @@ apartmentsRoutes.post("/workspaces/:workspaceId/projects/:projectId/units/import
 
 apartmentsRoutes.get(
   "/apartments/:id/requests",
+  requireCanAccessWorkspace("workspaceId"),
   handleAsync(async (req) => {
     const apartmentId = req.params.id;
     const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";
