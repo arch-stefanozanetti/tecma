@@ -17,7 +17,7 @@ alwaysApply: true
    - Colori, tipografia, spacing, radius: usare le variabili CSS `--tecma-*` e le classi definite in `components.css` (es. `tecma-button`, `tecma-inline-edit`, `tecma-avatar`).
 
 2. **Componenti React**: solo quelli **esportati** dal DS o **adapter sottili** in `src/components/ui/`
-   - Se il package `@tecma/design-system-tokens` (o il DS) esporta un componente (es. Button, InlineEdit, Avatar), **usare quello**; import da `@tecma/design-system-tokens/<path>`.
+   - Se il DS espone un componente React (es. Button, InlineEdit, Avatar), **usare quello** tramite **`@/tecma-ds/...`** (ponti in `src/tecma-ds/`) o gli adapter in `src/components/ui/`; non importare direttamente `@tecma/design-system-tokens/button` ecc. (risoluzione fragile in CI).
    - In `src/components/ui/` sono ammessi **solo**:
      - Re-export dei componenti del DS, oppure
      - Adapter molto sottili che wrappano il componente DS e espongono la stessa API (es. Button che usa il Button del DS).
