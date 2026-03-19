@@ -15,7 +15,11 @@ I file in `src/tecma-ds/*.ts` fanno `export *` verso `../../../../design-system/
 ## Build
 
 - `pnpm run build` → `prebuild` (`verify-design-system.mjs`) poi `tsc --noEmit` poi `vite build`.
-- Se manca la cartella `design-system` sul runner, `prebuild` fallisce con messaggio chiaro.
+- **`design-system` deve avere `node_modules`** (almeno `react` + tipi): altrimenti `tsc` sui file DS importati via `src/tecma-ds` fallisce. In locale, una volta:
+  ```bash
+  cd business/tecma-digital-platform/design-system && npm ci
+  ```
+- In **CI** (workflow Followup 3.0) lo step `npm ci` nel design-system è già incluso prima dell’install del FE.
 
 ## Troubleshooting
 

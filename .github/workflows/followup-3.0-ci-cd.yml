@@ -50,6 +50,11 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: ${{ env.FOLLOWUP_FE_DIR }}/pnpm-lock.yaml
 
+      - name: Install dependencies (design-system)
+        # Necessario per tsc: il FE re-esporta sorgenti DS; TypeScript risolve `react` da design-system/node_modules
+        working-directory: business/tecma-digital-platform/design-system
+        run: npm ci
+
       - name: Install dependencies (FE)
         working-directory: ${{ env.FOLLOWUP_FE_DIR }}
         run: pnpm install --frozen-lockfile
