@@ -1,5 +1,6 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
+import { VitePWA } from "vite-plugin-pwa";
 import path from "path";
 import { readFileSync } from "fs";
 
@@ -14,7 +15,70 @@ const proxyTarget =
     : "http://localhost:8080";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: "autoUpdate",
+      injectRegister: "auto",
+      includeAssets: ["apple-touch-icon.svg", "tecma-favicon.png", "itd-logo.svg"],
+      manifest: {
+        name: "Followup 3.0",
+        short_name: "Followup",
+        description: "CRM Real Estate multi-progetto per agenzie immobiliari",
+        theme_color: "#0f172a",
+        background_color: "#f8fafc",
+        display: "standalone",
+        start_url: "/",
+        scope: "/",
+        icons: [
+          {
+            src: "/tecma-favicon.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+          {
+            src: "/tecma-favicon.png",
+            sizes: "512x512",
+            type: "image/png",
+          },
+          {
+            src: "/tecma-favicon.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
+        ],
+      },
+      workbox: {
+        navigateFallback: "/index.html",
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith("/v1/"),
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "followup-api",
+              networkTimeoutSeconds: 5,
+              expiration: {
+                maxEntries: 150,
+                maxAgeSeconds: 60 * 60 * 6,
+              },
+            },
+          },
+          {
+            urlPattern: ({ request }) => request.destination === "script" || request.destination === "style",
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "followup-static-assets",
+              expiration: {
+                maxEntries: 200,
+                maxAgeSeconds: 60 * 60 * 24 * 7,
+              },
+            },
+          },
+        ],
+      },
+    }),
+  ],
   define: {
     "import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion),
   },
