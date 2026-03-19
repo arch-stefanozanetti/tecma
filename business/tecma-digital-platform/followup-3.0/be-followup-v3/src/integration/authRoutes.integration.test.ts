@@ -54,7 +54,7 @@ describe("integration: auth HTTP routes", () => {
     await db.collection("tz_users").insertOne({
       email: "reset-user@test.local",
       password: await bcrypt.hash("OldPass12345", 12),
-      role: "vendor",
+      role: "collaborator",
       status: "active",
       project_ids: ["proj-auth-1"]
     });
@@ -221,7 +221,7 @@ describe("integration: auth HTTP routes", () => {
       .set("Authorization", `Bearer ${token}`)
       .send({
         email: "invite-api@test.local",
-        role: "vendor",
+        role: "collaborator",
         projectId: "proj-auth-1",
         projectName: "Auth test project",
         appPublicUrl: "http://localhost:5177"
@@ -248,7 +248,7 @@ describe("integration: auth HTTP routes", () => {
       .set("Authorization", `Bearer ${token}`)
       .send({
         email: "dup-invite@test.local",
-        role: "vendor",
+        role: "collaborator",
         projectId: "proj-auth-1",
         projectName: "P"
       });
@@ -257,7 +257,7 @@ describe("integration: auth HTTP routes", () => {
       .set("Authorization", `Bearer ${token}`)
       .send({
         email: "dup-invite@test.local",
-        role: "vendor",
+        role: "collaborator",
         projectId: "proj-auth-1",
         projectName: "P"
       });

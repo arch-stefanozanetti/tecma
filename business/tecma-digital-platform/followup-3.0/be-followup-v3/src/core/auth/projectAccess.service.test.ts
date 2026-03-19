@@ -59,7 +59,7 @@ describe("projectAccess.service", () => {
   it("returns only assigned projects for non-admin user", async () => {
     usersFindOneMock.mockResolvedValueOnce({
       email: "agent@test.com",
-      role: "vendor",
+      role: "collaborator",
       project_ids: ["64b64f3fd9024a2a53111111"],
     });
     tzProjectsFindToArrayMock.mockResolvedValueOnce([{ _id: new ObjectId("64b64f3fd9024a2a53111111"), name: "Assigned" }]);

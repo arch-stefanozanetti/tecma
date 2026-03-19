@@ -54,7 +54,7 @@ export const UsersPage = () => {
   const [workspaces, setWorkspaces] = useState<WorkspaceRow[]>([]);
   const [addUserWorkspaceId, setAddUserWorkspaceId] = useState("");
   const [addUserEmail, setAddUserEmail] = useState("");
-  const [addUserRole, setAddUserRole] = useState<WorkspaceUserRole>("vendor");
+  const [addUserRole, setAddUserRole] = useState<WorkspaceUserRole>("collaborator");
   const [addUserSaving, setAddUserSaving] = useState(false);
   const [addUserError, setAddUserError] = useState<string | null>(null);
   /** invite = nuovo utente con email set-password; existing = solo membership workspace */
@@ -87,7 +87,7 @@ export const UsersPage = () => {
       setAddUserError(null);
       setAddUserEmail("");
       setAddUserWorkspaceId("");
-      setAddUserRole("vendor");
+      setAddUserRole("collaborator");
       setAddUserMode("invite");
       setWorkspaceProjectsForInvite([]);
       setInviteProjectId("");
@@ -275,7 +275,7 @@ export const UsersPage = () => {
             setAddUserError(null);
             setAddUserEmail("");
             setAddUserWorkspaceId("");
-            setAddUserRole("vendor");
+            setAddUserRole("collaborator");
             setAddUserMode("invite");
             setWorkspaceProjectsForInvite([]);
             setInviteProjectId("");
@@ -434,9 +434,10 @@ export const UsersPage = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="vendor">Vendor</SelectItem>
-                  <SelectItem value="vendor_manager">Vendor manager</SelectItem>
+                  <SelectItem value="owner">Owner</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="collaborator">Collaborator</SelectItem>
+                  <SelectItem value="viewer">Viewer</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -470,7 +471,7 @@ export const UsersPage = () => {
                         email,
                         projectId: inviteProjectId,
                         projectName,
-                        roleLabel: addUserRole === "vendor_manager" ? "Vendor manager" : addUserRole === "admin" ? "Admin" : "Vendor"
+                        roleLabel: addUserRole === "admin" ? "Admin" : addUserRole === "owner" ? "Owner" : addUserRole === "viewer" ? "Viewer" : "Collaborator"
                       });
                       try {
                         await followupApi.addWorkspaceUser(addUserWorkspaceId, { userId: email, role: addUserRole });
@@ -516,9 +517,13 @@ export const UsersPage = () => {
                 <p className="text-xs text-muted-foreground">
                   {selectedUser.workspaces.length} workspace · ruolo max:{" "}
                   {selectedUser.workspaces.reduce(
-                    (best, w) =>
-                      ["admin", "owner"].includes(w.role) ? "admin" : ["vendor_manager", "collaborator"].includes(w.role) ? (best === "admin" ? best : "vendor_manager") : best === "admin" || best === "vendor_manager" ? best : "vendor",
-                    "vendor"
+                    (best, w) => {
+                      const order: Record<string, number> = { owner: 4, admin: 3, collaborator: 2, viewer: 1 };
+                      const o = order[w.role] ?? 0;
+                      const bestOrder = order[best] ?? 0;
+                      return o > bestOrder ? w.role : best;
+                    },
+                    "viewer" as string
                   )}
                 </p>
               </div>
@@ -557,9 +562,10 @@ export const UsersPage = () => {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="vendor">Vendor</SelectItem>
-                            <SelectItem value="vendor_manager">Vendor manager</SelectItem>
+                            <SelectItem value="owner">Owner</SelectItem>
                             <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="collaborator">Collaborator</SelectItem>
+                            <SelectItem value="viewer">Viewer</SelectItem>
                           </SelectContent>
                         </Select>
                       </li>

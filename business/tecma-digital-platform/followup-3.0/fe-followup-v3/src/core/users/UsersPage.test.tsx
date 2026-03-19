@@ -56,7 +56,7 @@ describe("UsersPage — invito utente", () => {
         {
           email: "already@registered.local",
           isAdmin: false,
-          role: "vendor",
+          role: "collaborator",
           workspaces: [],
           projectIds: [],
         },
@@ -98,13 +98,13 @@ describe("UsersPage — invito utente", () => {
           email: "brandnew@invite.test",
           projectId: "proj-x",
           projectName: "Progetto X",
-          roleLabel: "Vendor",
+          roleLabel: "Collaborator",
         })
       );
     });
     expect(followupApi.addWorkspaceUser).toHaveBeenCalledWith("ws1", {
       userId: "brandnew@invite.test",
-      role: "vendor",
+      role: "collaborator",
     });
   });
 

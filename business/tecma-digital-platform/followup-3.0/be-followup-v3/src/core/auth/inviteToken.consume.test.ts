@@ -19,7 +19,7 @@ describe("consumeInviteToken (mock DB)", () => {
               return {
                 email: "consume-invite@test.local",
                 tokenHash,
-                role: "vendor",
+                role: "collaborator",
                 projectId: "p1",
                 userId: "u1",
                 used: false

@@ -58,6 +58,19 @@ Allineate a [env.ts](../be-followup-v3/src/config/env.ts):
 
 `PORT` è impostata da Render; non serve sovrascriverla.
 
+### 3.1 Storage S3 (asset e branding workspace)
+
+Per **upload logo/email header** (branding workspace), **immagini progetto**, **planimetrie** e **documenti cliente** il BE genera URL presigned e scrive su S3. Senza bucket configurato, le chiamate a `GET /workspaces/:id/assets/upload-url` e `POST .../assets` falliscono con *Storage non configurato*.
+
+| Variabile | Obbligatorio | Note |
+|-----------|--------------|------|
+| `ASSETS_S3_BUCKET` | Per asset/branding | Nome bucket S3. Se assente, il BE usa `EMAIL_FLOW_S3_BUCKET` (stesso bucket degli allegati email). |
+| `EMAIL_FLOW_S3_BUCKET` | Alternativa | Usato anche per upload immagini nell'editor email; se impostato, può fare da fallback per asset workspace. |
+| `AWS_REGION` | No | Default `eu-west-1`. Impostare se il bucket è in un'altra region. |
+| Credenziali AWS | Per upload reali | `AWS_ACCESS_KEY_ID` e `AWS_SECRET_ACCESS_KEY`, oppure IAM role se il servizio gira su AWS. Su Render: **Environment** → aggiungi le variabili (o usa Secret Files). |
+
+**Cosa fare:** in Render → **followup-3-be** → **Environment** aggiungere almeno `ASSETS_S3_BUCKET` (nome del bucket) e le credenziali AWS. Il bucket deve esistere e la policy IAM deve consentire `s3:PutObject`, `s3:GetObject`, `s3:DeleteObject` sulla risorsa.
+
 ---
 
 ## 4. CORS

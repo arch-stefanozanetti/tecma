@@ -77,11 +77,11 @@ describe("userAccessPayload", () => {
 
   it("derives permissions from workspace memberships when present", async () => {
     listWorkspaceMembershipsForUserMock.mockResolvedValueOnce([
-      { workspaceId: "w1", role: "vendor" },
+      { workspaceId: "w1", role: "collaborator" },
       { workspaceId: "w2", role: "admin" },
     ]);
     getPermissionsForRoleMock
-      .mockResolvedValueOnce(["apartments.read", "deals.close"])
+      .mockResolvedValueOnce(["apartments.read", "deals.create", "deals.close"])
       .mockResolvedValueOnce("*");
 
     const payload = await buildAccessPayloadFromUserDoc(
@@ -98,6 +98,8 @@ describe("userAccessPayload", () => {
     expect(payload.isAdmin).toBe(true);
     expect(payload.role).toBe("admin");
     expect(payload.permissions).toContain("*");
+    expect(getPermissionsForRoleMock).toHaveBeenCalledWith("collaborator");
+    expect(getPermissionsForRoleMock).toHaveBeenCalledWith("admin");
     expect(getPermissionsForRoleMock).toHaveBeenCalledTimes(2);
   });
 

@@ -92,15 +92,15 @@ describe("integration: identity (MDOO)", () => {
     const app = express();
     app.use(express.json());
     app.use("/v1", v1Router);
-    const vendorToken = signAccessToken({
-      sub: "vendor-1",
-      email: "vendor@test.local",
-      role: "vendor",
+    const collaboratorToken = signAccessToken({
+      sub: "collab-1",
+      email: "collab@test.local",
+      role: "collaborator",
       isAdmin: false,
-      permissions: ["apartments.read", "deals.close"],
+      permissions: ["apartments.read", "deals.create", "deals.close"],
       projectId: null
     });
-    const res = await request(app).get("/v1/users").set("Authorization", `Bearer ${vendorToken}`);
+    const res = await request(app).get("/v1/users").set("Authorization", `Bearer ${collaboratorToken}`);
     expect(res.status).toBe(403);
   });
 

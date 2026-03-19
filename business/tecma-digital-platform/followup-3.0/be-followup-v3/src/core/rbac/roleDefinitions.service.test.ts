@@ -58,10 +58,10 @@ describe("rbac/roleDefinitions.service", () => {
     expect(perms).toBe(PERMISSIONS.ALL);
   });
 
-  it("falls back to builtin role when db role missing", async () => {
+  it("falls back to builtin role when db role missing (legacy agent maps to collaborator)", async () => {
     findOneMock.mockResolvedValueOnce(null);
     const perms = await getPermissionsForRole("agent");
-    expect(perms).toEqual(BUILTIN_ROLE_PERMISSIONS.agent);
+    expect(perms).toEqual(BUILTIN_ROLE_PERMISSIONS.collaborator);
   });
 
   it("upsertRoleDefinition stores normalized role and permissions", async () => {

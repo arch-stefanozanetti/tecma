@@ -38,7 +38,7 @@ describe("rbac/permissions", () => {
 
   it("builtin role permissions expose expected defaults", () => {
     expect(BUILTIN_ROLE_PERMISSIONS.admin).toBe(PERMISSIONS.ALL);
-    expect(BUILTIN_ROLE_PERMISSIONS.vendor).toContain(PERMISSIONS.DEALS_CLOSE);
+    expect(BUILTIN_ROLE_PERMISSIONS.collaborator).toContain(PERMISSIONS.DEALS_CLOSE);
     expect(BUILTIN_ROLE_PERMISSIONS.user).toContain(PERMISSIONS.APARTMENTS_READ);
   });
 });

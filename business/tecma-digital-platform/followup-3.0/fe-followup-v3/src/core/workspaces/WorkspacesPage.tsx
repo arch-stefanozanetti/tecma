@@ -636,8 +636,6 @@ export const WorkspacesPage = () => {
                                   <option value="admin">Admin</option>
                                   <option value="collaborator">Collaborator</option>
                                   <option value="viewer">Viewer</option>
-                                  <option value="vendor">Vendor</option>
-                                  <option value="vendor_manager">Vendor Manager</option>
                                 </select>
                                 {wu.access_scope != null && (
                                   <span className="text-xs text-muted-foreground">
@@ -1115,8 +1113,6 @@ export const WorkspacesPage = () => {
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="collaborator">Collaborator</SelectItem>
                   <SelectItem value="viewer">Viewer</SelectItem>
-                  <SelectItem value="vendor">Vendor</SelectItem>
-                  <SelectItem value="vendor_manager">Vendor Manager</SelectItem>
                 </SelectContent>
               </Select>
             </Field>

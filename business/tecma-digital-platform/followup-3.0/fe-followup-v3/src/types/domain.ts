@@ -68,7 +68,7 @@ export interface ClientDocumentRow {
   created_at: string;
 }
 
-export type WorkspaceUserRole = "owner" | "admin" | "collaborator" | "viewer" | "vendor" | "vendor_manager";
+export type WorkspaceUserRole = "owner" | "admin" | "collaborator" | "viewer";
 
 /** In UI: toggle "Tutto" / "Solo assegnati". */
 export type AccessScope = "all" | "assigned";
