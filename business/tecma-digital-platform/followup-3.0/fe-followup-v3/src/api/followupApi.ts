@@ -674,14 +674,32 @@ export const followupApi = {
     postJson<{ token: string; expiresAt: string }>("/portal/magic-links", payload),
   portalExchangeMagicLink: (token: string) =>
     postJson<{ accessToken: string; expiresAt: string }>("/portal/auth/exchange", { token }),
-  portalGetOverview: (accessToken: string) =>
+  portalGetOverview: (
+    accessToken: string,
+    filters?: { statuses?: string[]; documentTypes?: Array<"quote" | "document"> },
+  ) =>
     postJson<{
       client: { id: string; fullName: string; email?: string; phone?: string };
       deals: Array<{ id: string; type: string; status: string; updatedAt: string; quoteNumber?: string; quoteTotalPrice?: number }>;
       documents: Array<{ id: string; title: string; type: "quote" | "document"; createdAt: string; url?: string }>;
-    }>("/portal/overview", { accessToken }),
+      timeline: Array<{ id: string; kind: "deal_status" | "document"; title: string; status?: string; at: string; requestId?: string }>;
+    }>("/portal/overview", { accessToken, filters }),
   portalLogout: (accessToken: string) =>
     postJson<{ ok: boolean }>("/portal/logout", { accessToken }),
+  privacyUpsertConsent: (
+    clientId: string,
+    payload: { workspaceId: string; consentType: "marketing_email" | "marketing_sms" | "profiling" | "third_party_sharing"; granted: boolean; source?: string },
+  ) => postJson<{ ok: boolean }>(`/privacy/clients/${encodeURIComponent(clientId)}/consents`, payload),
+  privacyRevokeConsent: (clientId: string, consentType: string, workspaceId: string) =>
+    deleteJson<{ ok: boolean }>(
+      `/privacy/clients/${encodeURIComponent(clientId)}/consents/${encodeURIComponent(consentType)}?workspaceId=${encodeURIComponent(workspaceId)}`
+    ),
+  privacyExportClient: (clientId: string, workspaceId: string) =>
+    getJson<Record<string, unknown>>(`/privacy/clients/${encodeURIComponent(clientId)}/export?workspaceId=${encodeURIComponent(workspaceId)}`),
+  privacyEraseClient: (clientId: string, payload: { workspaceId: string; reason?: string }) =>
+    postJson<{ ok: boolean; erasedAt: string }>(`/privacy/clients/${encodeURIComponent(clientId)}/erase`, payload),
+  privacyRunRetention: (payload?: { olderThanDays?: number }) =>
+    postJson<{ ok: boolean; olderThanDays: number; deletedAuditRows: number; runAt: string }>("/privacy/retention/run", payload ?? {}),
   /** Log comunicazioni inviate (Notification Center). */
   listCommunicationDeliveries: (workspaceId: string, limit?: number) =>
     getJson<{ data: Array<{ _id: string; channel: string; templateId: string; recipientMasked: string; status: string; sentAt: string }> }>(

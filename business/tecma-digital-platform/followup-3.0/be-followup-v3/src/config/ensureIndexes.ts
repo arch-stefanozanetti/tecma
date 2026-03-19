@@ -40,6 +40,10 @@ const CORE_INDEXES: IndexDefinition[] = [
   { collection: "tz_platform_api_keys", keys: { keyHash: 1 }, options: { unique: true } },
   { collection: "tz_platform_api_keys", keys: { workspaceId: 1, active: 1 } },
   { collection: "tz_platform_api_keys", keys: { workspaceId: 1, label: 1 } },
+  { collection: "tz_automation_dispatch_log", keys: { keyHash: 1 }, options: { unique: true } },
+  { collection: "tz_automation_dispatch_log", keys: { workspaceId: 1, status: 1, updatedAt: -1 } },
+  { collection: "tz_privacy_consents", keys: { workspaceId: 1, clientId: 1, consentType: 1 }, options: { unique: true } },
+  { collection: "tz_privacy_consents", keys: { workspaceId: 1, updatedAt: -1 } },
   { collection: "tz_portal_access_audit", keys: { at: -1 } },
 ];
 

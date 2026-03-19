@@ -26,6 +26,7 @@ export const openApiV1 = {
     { name: "platform", description: "Platform API riusabili per consumer esterni via API key" },
     { name: "realtime", description: "Realtime stream (SSE) con envelope versionato" },
     { name: "portal", description: "Customer portal via magic link" },
+    { name: "privacy", description: "GDPR: consensi, export, erase, retention" },
     { name: "Riusabili", description: "API per uso esterno (listings, integrazioni)" },
     { name: "hc", description: "Home Config (appartamenti HC)" },
     { name: "associations", description: "Associazioni appartamento-cliente" },
@@ -1340,7 +1341,16 @@ export const openApiV1 = {
               schema: {
                 type: "object",
                 required: ["accessToken"],
-                properties: { accessToken: { type: "string" } }
+                properties: {
+                  accessToken: { type: "string" },
+                  filters: {
+                    type: "object",
+                    properties: {
+                      statuses: { type: "array", items: { type: "string" } },
+                      documentTypes: { type: "array", items: { type: "string", enum: ["quote", "document"] } }
+                    }
+                  }
+                }
               }
             }
           }
@@ -1365,6 +1375,100 @@ export const openApiV1 = {
           }
         },
         responses: { "200": { description: "{ ok: true }" } }
+      }
+    },
+    "/privacy/clients/{clientId}/consents": {
+      post: {
+        tags: ["privacy"],
+        summary: "Grant/revoke consenso cliente (admin)",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "clientId", in: "path", required: true, schema: { type: "string" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["workspaceId", "consentType", "granted"],
+                properties: {
+                  workspaceId: { type: "string" },
+                  consentType: { type: "string", enum: ["marketing_email", "marketing_sms", "profiling", "third_party_sharing"] },
+                  granted: { type: "boolean" },
+                  source: { type: "string" }
+                }
+              }
+            }
+          }
+        },
+        responses: { "200": { description: "ok" } }
+      }
+    },
+    "/privacy/clients/{clientId}/consents/{consentType}": {
+      delete: {
+        tags: ["privacy"],
+        summary: "Revoke consenso cliente (admin)",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "clientId", in: "path", required: true, schema: { type: "string" } },
+          { name: "consentType", in: "path", required: true, schema: { type: "string" } },
+          { name: "workspaceId", in: "query", required: true, schema: { type: "string" } }
+        ],
+        responses: { "200": { description: "ok" } }
+      }
+    },
+    "/privacy/clients/{clientId}/export": {
+      get: {
+        tags: ["privacy"],
+        summary: "Export portabilità dati cliente (admin)",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "clientId", in: "path", required: true, schema: { type: "string" } },
+          { name: "workspaceId", in: "query", required: true, schema: { type: "string" } }
+        ],
+        responses: { "200": { description: "Bundle JSON export" } }
+      }
+    },
+    "/privacy/clients/{clientId}/erase": {
+      post: {
+        tags: ["privacy"],
+        summary: "Erase/anonimizzazione cliente (admin)",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "clientId", in: "path", required: true, schema: { type: "string" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["workspaceId"],
+                properties: {
+                  workspaceId: { type: "string" },
+                  reason: { type: "string" }
+                }
+              }
+            }
+          }
+        },
+        responses: { "200": { description: "Erase eseguito" } }
+      }
+    },
+    "/privacy/retention/run": {
+      post: {
+        tags: ["privacy"],
+        summary: "Run retention job manuale (admin)",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: false,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: { olderThanDays: { type: "integer", minimum: 1, default: 365 } }
+              }
+            }
+          }
+        },
+        responses: { "200": { description: "Retention job report" } }
       }
     },
     "/projects/{projectId}": {

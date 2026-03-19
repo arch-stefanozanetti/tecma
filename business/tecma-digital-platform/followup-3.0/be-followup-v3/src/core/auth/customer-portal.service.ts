@@ -23,12 +23,24 @@ const ExchangeMagicLinkSchema = z.object({
 
 const PortalSessionSchema = z.object({
   accessToken: z.string().min(1),
+  filters: z.object({
+    statuses: z.array(z.string().min(1)).optional(),
+    documentTypes: z.array(z.enum(["quote", "document"])).optional(),
+  }).optional(),
 });
 
 export interface PortalOverviewResponse {
   client: { id: string; fullName: string; email?: string; phone?: string };
   deals: Array<{ id: string; type: string; status: string; updatedAt: string; quoteNumber?: string; quoteTotalPrice?: number }>;
   documents: Array<{ id: string; title: string; type: "quote" | "document"; createdAt: string; url?: string }>;
+  timeline: Array<{
+    id: string;
+    kind: "deal_status" | "document";
+    title: string;
+    status?: string;
+    at: string;
+    requestId?: string;
+  }>;
 }
 
 const nowIso = (): string => new Date().toISOString();
@@ -136,7 +148,7 @@ export const getCustomerPortalOverview = async (rawInput: unknown): Promise<Port
   const clientDoc = await clientsColl.findOne(clientIdFilter);
   if (!clientDoc) throw new HttpError("Cliente non trovato", 404);
 
-  const requestDocs = await requestsColl
+  const requestDocsRaw = await requestsColl
     .find({
       workspaceId: session.workspaceId,
       projectId: { $in: session.projectIds },
@@ -145,6 +157,11 @@ export const getCustomerPortalOverview = async (rawInput: unknown): Promise<Port
     .sort({ updatedAt: -1 })
     .limit(30)
     .toArray();
+  const allowedStatuses = new Set((input.filters?.statuses ?? []).filter(Boolean));
+  const requestDocs =
+    allowedStatuses.size === 0
+      ? requestDocsRaw
+      : requestDocsRaw.filter((doc) => typeof doc.status === "string" && allowedStatuses.has(doc.status));
 
   const manualDocs = await portalDocsColl
     .find({
@@ -165,7 +182,7 @@ export const getCustomerPortalOverview = async (rawInput: unknown): Promise<Port
     quoteTotalPrice: typeof doc.quoteTotalPrice === "number" ? doc.quoteTotalPrice : undefined,
   }));
 
-  const quoteDocuments = requestDocs
+  const quoteDocumentsRaw = requestDocs
     .filter((doc) => typeof doc.quoteNumber === "string" || typeof doc.quoteId === "string")
     .map((doc) => ({
       id: `quote-${doc._id instanceof ObjectId ? doc._id.toHexString() : String(doc._id ?? "")}`,
@@ -174,13 +191,45 @@ export const getCustomerPortalOverview = async (rawInput: unknown): Promise<Port
       createdAt: typeof doc.updatedAt === "string" ? doc.updatedAt : nowIso(),
     }));
 
-  const externalDocuments = manualDocs.map((doc) => ({
+  const externalDocumentsRaw = manualDocs.map((doc) => ({
     id: doc._id instanceof ObjectId ? doc._id.toHexString() : String(doc._id ?? ""),
     title: typeof doc.title === "string" && doc.title ? doc.title : "Documento",
     type: "document" as const,
     createdAt: typeof doc.createdAt === "string" ? doc.createdAt : nowIso(),
     url: typeof doc.url === "string" ? doc.url : undefined,
   }));
+  const allowedDocTypes = new Set(input.filters?.documentTypes ?? []);
+  const filterDocType = allowedDocTypes.size > 0;
+  const quoteDocuments = filterDocType ? quoteDocumentsRaw.filter((doc) => allowedDocTypes.has(doc.type)) : quoteDocumentsRaw;
+  const externalDocuments = filterDocType ? externalDocumentsRaw.filter((doc) => allowedDocTypes.has(doc.type)) : externalDocumentsRaw;
+
+  const requestIds = requestDocs
+    .map((doc) => (doc._id instanceof ObjectId ? doc._id.toHexString() : String(doc._id ?? "")))
+    .filter(Boolean);
+  const transitionDocs = requestIds.length
+    ? await db.collection("tz_request_transitions").find({ requestId: { $in: requestIds } }).sort({ createdAt: -1 }).limit(200).toArray()
+    : [];
+
+  const dealTimeline = transitionDocs.map((transition) => {
+    const requestId = typeof transition.requestId === "string" ? transition.requestId : "";
+    const toState = typeof transition.toState === "string" ? transition.toState : "unknown";
+    const at = typeof transition.createdAt === "string" ? transition.createdAt : nowIso();
+    return {
+      id: transition._id instanceof ObjectId ? transition._id.toHexString() : `${requestId}-${at}`,
+      kind: "deal_status" as const,
+      title: `Stato pratica aggiornato a ${toState}`,
+      status: toState,
+      at,
+      requestId,
+    };
+  });
+  const documentTimeline = [...quoteDocuments, ...externalDocuments].map((doc) => ({
+    id: `doc-${doc.id}`,
+    kind: "document" as const,
+    title: doc.title,
+    at: doc.createdAt,
+  }));
+  const timeline = [...dealTimeline, ...documentTimeline].sort((a, b) => b.at.localeCompare(a.at));
 
   return {
     client: {
@@ -191,6 +240,7 @@ export const getCustomerPortalOverview = async (rawInput: unknown): Promise<Port
     },
     deals,
     documents: [...quoteDocuments, ...externalDocuments].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    timeline,
   };
 };
 

@@ -21,6 +21,7 @@ import { discoveryWorkflowRoutes } from "./v1/discovery-workflow.routes.js";
 import { intelligenceRoutes } from "./v1/intelligence.routes.js";
 import { realtimeRoutes } from "./v1/realtime.routes.js";
 import { platformRoutes } from "./v1/platform.routes.js";
+import { privacyRoutes } from "./v1/privacy.routes.js";
 
 export const v1Router = Router();
 
@@ -51,3 +52,4 @@ v1Router.use("/", emailFlowsRoutes);
 v1Router.use("/", workspacesRoutes);
 v1Router.use("/", discoveryWorkflowRoutes);
 v1Router.use("/", intelligenceRoutes);
+v1Router.use("/", privacyRoutes);

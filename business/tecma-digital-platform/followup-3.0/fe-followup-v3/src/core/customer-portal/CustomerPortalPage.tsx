@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { followupApi } from "../../api/followupApi";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 
 type PortalOverview = Awaited<ReturnType<typeof followupApi.portalGetOverview>>;
 
@@ -14,6 +15,8 @@ export const CustomerPortalPage = () => {
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
   const [error, setError] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [documentTypeFilter, setDocumentTypeFilter] = useState<"all" | "quote" | "document">("all");
 
   useEffect(() => {
     let mounted = true;
@@ -26,7 +29,10 @@ export const CustomerPortalPage = () => {
           (await followupApi.portalExchangeMagicLink(magicToken)).accessToken;
         if (!mounted) return;
         setPortalAccessToken(accessToken);
-        const data = await followupApi.portalGetOverview(accessToken);
+        const data = await followupApi.portalGetOverview(accessToken, {
+          statuses: statusFilter === "all" ? undefined : [statusFilter],
+          documentTypes: documentTypeFilter === "all" ? undefined : [documentTypeFilter],
+        });
         if (!mounted) return;
         setOverview(data);
       } catch (err) {
@@ -45,7 +51,7 @@ export const CustomerPortalPage = () => {
     return () => {
       mounted = false;
     };
-  }, [magicToken, portalAccessToken]);
+  }, [magicToken, portalAccessToken, statusFilter, documentTypeFilter]);
 
   const lastDeal = useMemo(() => overview?.deals[0], [overview]);
 
@@ -79,6 +85,38 @@ export const CustomerPortalPage = () => {
           <p className="text-sm text-muted-foreground">
             {overview?.client.fullName ?? "Cliente"} - stato pratica e documenti
           </p>
+          <div className="mt-4 grid gap-3 md:max-w-2xl md:grid-cols-2">
+            <label className="space-y-1">
+              <span className="text-xs text-muted-foreground">Filtra stato pratica</span>
+              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutti gli stati</SelectItem>
+                  <SelectItem value="new">Nuovo</SelectItem>
+                  <SelectItem value="contacted">Contattato</SelectItem>
+                  <SelectItem value="visit_scheduled">Visita programmata</SelectItem>
+                  <SelectItem value="proposal_sent">Proposta inviata</SelectItem>
+                  <SelectItem value="won">Conclusa</SelectItem>
+                  <SelectItem value="lost">Persa</SelectItem>
+                </SelectContent>
+              </Select>
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs text-muted-foreground">Filtra documenti</span>
+              <Select value={documentTypeFilter} onValueChange={(value) => setDocumentTypeFilter(value as "all" | "quote" | "document")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutti i documenti</SelectItem>
+                  <SelectItem value="quote">Solo preventivi</SelectItem>
+                  <SelectItem value="document">Solo allegati</SelectItem>
+                </SelectContent>
+              </Select>
+            </label>
+          </div>
           <div className="mt-3">
             <Button
               variant="outline"
@@ -169,6 +207,35 @@ export const CustomerPortalPage = () => {
                   )}
                 </li>
               ))}
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Timeline attività</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              {(overview?.timeline ?? []).map((item) => (
+                <li key={item.id} className="rounded border border-border p-3 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-medium">{item.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.kind === "deal_status" ? "Aggiornamento pratica" : "Documento"}
+                        {item.status ? ` - ${item.status}` : ""}
+                      </p>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{new Date(item.at).toLocaleString("it-IT")}</span>
+                  </div>
+                </li>
+              ))}
+              {(overview?.timeline ?? []).length === 0 && (
+                <li className="rounded border border-dashed border-border p-3 text-sm text-muted-foreground">
+                  Nessun evento timeline disponibile.
+                </li>
+              )}
             </ul>
           </CardContent>
         </Card>
