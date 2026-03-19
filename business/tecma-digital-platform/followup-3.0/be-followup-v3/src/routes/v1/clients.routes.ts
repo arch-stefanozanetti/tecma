@@ -6,6 +6,7 @@ import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
 import { record as auditRecord } from "../../core/audit/audit-log.service.js";
 import { dispatchEvent } from "../../core/automations/automation-events.service.js";
+import { safeAsync } from "../../core/shared/safeAsync.js";
 
 export const clientsRoutes = Router();
 
@@ -37,7 +38,7 @@ clientsRoutes.get(
 clientsRoutes.post("/clients", handleAsync(async (req) => {
   const result = await createClient(req.body);
   const workspaceId = req.body.workspaceId as string;
-  auditRecord({
+  safeAsync(auditRecord({
     action: "client.created",
     workspaceId,
     projectId: req.body.projectId,
@@ -45,13 +46,27 @@ clientsRoutes.post("/clients", handleAsync(async (req) => {
     entityId: result.client._id,
     actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
     payload: { fullName: result.client.fullName },
-  }).catch(() => {});
-  dispatchEvent(workspaceId, "client.created", {
+  }), {
+    operation: "audit.client.created",
     workspaceId,
     projectId: req.body.projectId,
     entityType: "client",
     entityId: result.client._id,
-  }).catch(() => {});
+    userId: req.user?.sub,
+  });
+  safeAsync(dispatchEvent(workspaceId, "client.created", {
+    workspaceId,
+    projectId: req.body.projectId,
+    entityType: "client",
+    entityId: result.client._id,
+  }), {
+    operation: "event.client.created",
+    workspaceId,
+    projectId: req.body.projectId,
+    entityType: "client",
+    entityId: result.client._id,
+    userId: req.user?.sub,
+  });
   return result;
 }));
 
@@ -59,7 +74,7 @@ clientsRoutes.patch("/clients/:id", handleAsync(async (req) => {
   const result = await updateClient(req.params.id, req.body);
   const workspaceId = result.workspaceId ?? "";
   if (workspaceId) {
-    auditRecord({
+    safeAsync(auditRecord({
       action: "client.updated",
       workspaceId,
       projectId: result.client.projectId || undefined,
@@ -67,7 +82,14 @@ clientsRoutes.patch("/clients/:id", handleAsync(async (req) => {
       entityId: req.params.id,
       actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
       payload: req.body,
-    }).catch(() => {});
+    }), {
+      operation: "audit.client.updated",
+      workspaceId,
+      projectId: result.client.projectId || undefined,
+      entityType: "client",
+      entityId: req.params.id,
+      userId: req.user?.sub,
+    });
   }
   return { client: result.client };
 }));

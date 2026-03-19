@@ -15,10 +15,13 @@
     "test:coverage:core": "vitest run -c vitest.core.config.ts --coverage",
     "test:e2e": "playwright test",
     "test:e2e:core": "playwright test e2e/core --project=chromium",
+    "test:e2e:enterprise": "playwright test e2e/core/enterprise-journeys.spec.ts --project=chromium",
     "test:e2e:ui": "playwright test --ui",
     "test:visual": "playwright test e2e/visual",
     "test:a11y": "playwright test e2e/a11y",
     "check:panels": "node ./scripts/panel-guard.mjs",
+    "check:detail-architecture": "node ./scripts/check-detail-architecture.mjs",
+    "check:bundle-budget": "node ./scripts/check-bundle-budget.mjs",
     "test:panels": "vitest run -c vitest.panels.config.ts",
     "test:lint": "eslint src",
     "test:lint:core": "eslint src/api src/auth src/core/clients src/core/apartments src/core/requests src/components src/hooks src/lib src/App.tsx"

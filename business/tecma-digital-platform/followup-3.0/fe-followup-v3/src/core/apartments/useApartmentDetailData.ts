@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { followupApi } from "../../api/followupApi";
 import type { ApartmentRow, RequestRow } from "../../types/domain";
+import { useAsync } from "../shared/useAsync";
 
 export interface UseApartmentDetailDataResult {
   apartment: ApartmentRow | null;
@@ -20,44 +21,59 @@ export function useApartmentDetailData(
 ): UseApartmentDetailDataResult {
   const [apartment, setApartment] = useState<ApartmentRow | null>(null);
   const [requests, setRequests] = useState<RequestRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [requestsLoading, setRequestsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const {
+    run: loadApartment,
+    isLoading: loading,
+    error: loadApartmentError,
+  } = useAsync(async (id: string) => {
+    const response = await followupApi.getApartmentById(id);
+    return response.apartment;
+  });
+  const {
+    run: loadRequests,
+    isLoading: requestsLoading,
+  } = useAsync(async (payload: {
+    workspaceId: string;
+    projectId: string;
+    apartmentId: string;
+  }) => followupApi.queryRequests({
+    workspaceId: payload.workspaceId,
+    projectIds: [payload.projectId],
+    page: 1,
+    perPage: 50,
+    filters: { apartmentId: payload.apartmentId },
+  }));
 
   useEffect(() => {
     if (!apartmentId) return;
-    setLoading(true);
     setError(null);
-    followupApi
-      .getApartmentById(apartmentId)
-      .then((r) => setApartment(r.apartment))
-      .catch((err) => {
-        const msg = err?.message ?? "Errore nel caricamento";
-        const is404 =
-          /not found/i.test(String(msg)) ||
-          (typeof (err as { statusCode?: number })?.statusCode === "number" &&
-            (err as { statusCode: number }).statusCode === 404);
-        setError(is404 ? "Appartamento non trovato" : msg);
+    void loadApartment(apartmentId).then((loadedApartment) => {
+      if (!loadedApartment) {
         setApartment(null);
-      })
-      .finally(() => setLoading(false));
-  }, [apartmentId]);
+        return;
+      }
+      setApartment(loadedApartment);
+    });
+  }, [apartmentId, loadApartment]);
+
+  useEffect(() => {
+    if (!loadApartmentError) return;
+    const is404 = /not found/i.test(loadApartmentError);
+    setError(is404 ? "Appartamento non trovato" : loadApartmentError);
+    setApartment(null);
+  }, [loadApartmentError]);
 
   const reloadRequests = useCallback(() => {
     if (!apartmentId || !apartment || !workspaceId || selectedProjectIds.length === 0) return;
-    setRequestsLoading(true);
-    followupApi
-      .queryRequests({
+    void loadRequests({
         workspaceId,
-        projectIds: [apartment.projectId],
-        page: 1,
-        perPage: 50,
-        filters: { apartmentId },
+        projectId: apartment.projectId,
+        apartmentId,
       })
-      .then((r) => setRequests(r.data ?? []))
-      .catch(() => setRequests([]))
-      .finally(() => setRequestsLoading(false));
-  }, [apartmentId, apartment, workspaceId, selectedProjectIds.length]);
+      .then((response) => setRequests(response?.data ?? []))
+      .catch(() => setRequests([]));
+  }, [apartmentId, apartment, workspaceId, selectedProjectIds, loadRequests]);
 
   useEffect(() => {
     reloadRequests();

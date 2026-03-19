@@ -1,11 +1,9 @@
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Routes, Route, useLocation, useSearchParams, useNavigate, Navigate } from "react-router-dom";
 import { clearProjectScope, loadProjectScope, updateSelectedProjectIds, updateWorkspaceId } from "./auth/projectScope";
 import { followupApi } from "./api/followupApi";
 import { PageTemplate } from "./core/shared/PageTemplate";
-import { ClientDetailPage } from "./core/clients/ClientDetailPage";
-import { ApartmentDetailPage } from "./core/apartments/ApartmentDetailPage";
 import { PageSimple } from "./core/shared/PageSimple";
 import { CalendarPage } from "./core/calendar/CalendarPage";
 import { CockpitPage } from "./core/cockpit/CockpitPage";
@@ -45,6 +43,13 @@ import { CommandPalette } from "./core/shared/CommandPalette";
 import type { ProjectAccessProject } from "./types/domain";
 import { PwaInstallPrompt } from "./components/pwa/PwaInstallPrompt";
 import { NetworkStatusBanner } from "./components/pwa/NetworkStatusBanner";
+
+const ClientDetailPage = lazy(() =>
+  import("./core/clients/ClientDetailPage").then((module) => ({ default: module.ClientDetailPage }))
+);
+const ApartmentDetailPage = lazy(() =>
+  import("./core/apartments/ApartmentDetailPage").then((module) => ({ default: module.ApartmentDetailPage }))
+);
 
 type Section =
   | "cockpit"
@@ -582,7 +587,9 @@ export const App = () => {
         path="/clients/:clientId"
         element={
           <PageTemplate {...templateProps}>
-            <ClientDetailPage />
+            <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Caricamento dettaglio cliente...</div>}>
+              <ClientDetailPage />
+            </Suspense>
           </PageTemplate>
         }
       />
@@ -590,7 +597,9 @@ export const App = () => {
         path="/apartments/:apartmentId"
         element={
           <PageTemplate {...templateProps}>
-            <ApartmentDetailPage />
+            <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Caricamento dettaglio appartamento...</div>}>
+              <ApartmentDetailPage />
+            </Suspense>
           </PageTemplate>
         }
       />

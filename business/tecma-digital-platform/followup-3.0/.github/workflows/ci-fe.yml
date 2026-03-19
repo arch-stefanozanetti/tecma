@@ -4,10 +4,12 @@ on:
   push:
     paths:
       - "fe-followup-v3/**"
+      - "scripts/check-no-secrets.sh"
       - ".github/workflows/ci-fe.yml"
   pull_request:
     paths:
       - "fe-followup-v3/**"
+      - "scripts/check-no-secrets.sh"
       - ".github/workflows/ci-fe.yml"
 
 jobs:
@@ -19,6 +21,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Secret scan (tracked files)
+        working-directory: .
+        run: bash scripts/check-no-secrets.sh
+
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -29,9 +35,11 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm run check:panels
+      - run: pnpm run check:detail-architecture
       - run: pnpm run test:panels
       - run: pnpm run test:lint:core
       - run: pnpm run build
+      - run: pnpm run check:bundle-budget
       - run: pnpm run test:coverage:core
 
   fe-e2e-core:
@@ -54,6 +62,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm exec playwright test e2e/core --project=chromium
+        env:
+          PLAYWRIGHT_USE_WEBSERVER: "true"
+          PLAYWRIGHT_WEBSERVER_COMMAND: "pnpm run dev -- --host 127.0.0.1 --port 5177"
+          PLAYWRIGHT_BASE_URL: "http://127.0.0.1:5177"
+      - run: pnpm run test:e2e:enterprise
         env:
           PLAYWRIGHT_USE_WEBSERVER: "true"
           PLAYWRIGHT_WEBSERVER_COMMAND: "pnpm run dev -- --host 127.0.0.1 --port 5177"

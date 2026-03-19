@@ -21,6 +21,7 @@ import {
 import { getClientCandidates, getApartmentCandidates } from "../../core/matching/matching.service.js";
 import { handleAsync } from "../asyncHandler.js";
 import { record as auditRecord } from "../../core/audit/audit-log.service.js";
+import { safeAsync } from "../../core/shared/safeAsync.js";
 
 export const hcRoutes = Router();
 
@@ -37,7 +38,7 @@ hcRoutes.post(
   handleAsync(async (req) => {
     const result = await createAssociation(req.body);
     if (result?.association?._id && req.body.workspaceId) {
-      auditRecord({
+      safeAsync(auditRecord({
         action: "association.created",
         workspaceId: req.body.workspaceId,
         projectId: req.body.projectId,
@@ -45,7 +46,14 @@ hcRoutes.post(
         entityId: String(result.association._id),
         actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
         payload: { apartmentId: req.body.apartmentId, clientId: req.body.clientId },
-      }).catch(() => {});
+      }), {
+        operation: "audit.association.created",
+        workspaceId: req.body.workspaceId,
+        projectId: req.body.projectId,
+        entityType: "association",
+        entityId: String(result.association._id),
+        userId: req.user?.sub,
+      });
     }
     return result;
   })
@@ -58,14 +66,21 @@ hcRoutes.delete(
     const result = await deleteAssociation(req.params.id);
     const workspaceId = (result as { workspaceId?: string }).workspaceId ?? "";
     if (workspaceId) {
-      auditRecord({
+      safeAsync(auditRecord({
         action: "association.deleted",
         workspaceId,
         projectId: (result as { projectId?: string }).projectId,
         entityType: "association",
         entityId: req.params.id,
         actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
-      }).catch(() => {});
+      }), {
+        operation: "audit.association.deleted",
+        workspaceId,
+        projectId: (result as { projectId?: string }).projectId,
+        entityType: "association",
+        entityId: req.params.id,
+        userId: req.user?.sub,
+      });
     }
     return { deleted: true };
   })

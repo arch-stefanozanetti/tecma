@@ -20,6 +20,7 @@ import { createContract } from "../contracts/contracts.service.js";
 import { setInventoryStatus } from "../inventory/inventory.service.js";
 import { dispatchEvent } from "../automations/automation-events.service.js";
 import { logger } from "../../observability/logger.js";
+import { batchLoadApartmentCodes, batchLoadClientNames } from "../shared/batch-enrich.service.js";
 
 /** Ruolo del cliente rispetto all'immobile (compravendita: venditore vs acquirente). */
 export type ClientRole = "buyer" | "seller" | "tenant" | "landlord";
@@ -208,47 +209,11 @@ export const queryRequests = async (
     mapDocToRow(doc as Record<string, unknown>)
   );
 
-  // Arricchimento: clientName da clients, apartmentCode da apartments
-  const clientIds = [...new Set(rows.map((r) => r.clientId).filter(Boolean))];
-  const apartmentIds = [...new Set(rows.map((r) => r.apartmentId).filter(Boolean))] as string[];
-  const clientIdToName: Record<string, string> = {};
-  const apartmentIdToCode: Record<string, string> = {};
-
-  if (clientIds.length > 0) {
-    const clientsColl = db.collection("tz_clients");
-    const clientObjectIds = clientIds.filter((id) => ObjectId.isValid(id)).map((id) => new ObjectId(id));
-    if (clientObjectIds.length > 0) {
-      const clients = await clientsColl
-        .find({ _id: { $in: clientObjectIds } })
-        .project({ _id: 1, fullName: 1 })
-        .toArray();
-      for (const c of clients) {
-        const id = (c._id as ObjectId).toHexString();
-        clientIdToName[id] = typeof c.fullName === "string" && c.fullName.trim() ? c.fullName : id;
-      }
-    }
-    for (const id of clientIds) {
-      if (!clientIdToName[id]) clientIdToName[id] = id;
-    }
-  }
-
-  if (apartmentIds.length > 0) {
-    const aptObjectIds = apartmentIds.filter((id) => ObjectId.isValid(id)).map((id) => new ObjectId(id));
-    if (aptObjectIds.length > 0) {
-      const apartmentsColl = db.collection("tz_apartments");
-      const apartments = await apartmentsColl
-        .find({ _id: { $in: aptObjectIds } })
-        .project({ _id: 1, code: 1 })
-        .toArray();
-      for (const a of apartments) {
-        const id = (a._id as ObjectId).toHexString();
-        apartmentIdToCode[id] = typeof a.code === "string" ? a.code : id;
-      }
-    }
-    for (const id of apartmentIds) {
-      if (!apartmentIdToCode[id]) apartmentIdToCode[id] = id;
-    }
-  }
+  const clientIdToName = await batchLoadClientNames(db, rows.map((row) => row.clientId));
+  const apartmentIdToCode = await batchLoadApartmentCodes(
+    db,
+    rows.map((row) => row.apartmentId).filter(Boolean) as string[]
+  );
 
   const data: RequestRow[] = rows.map((r) => ({
     ...r,

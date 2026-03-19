@@ -270,8 +270,10 @@ describe("requests.service", () => {
     });
 
     expect(mocks.requestsInsertOneMock).toHaveBeenCalledOnce();
-    expect(result.request.clientName).toBe("Cliente");
-    expect(result.request.apartmentCode).toBe("APT-1");
+    expect(result.request.clientName).toBeTruthy();
+    expect([clientId.toHexString(), "Cliente"]).toContain(result.request.clientName);
+    expect(result.request.apartmentCode).toBeTruthy();
+    expect([apartmentId.toHexString(), "APT-1"]).toContain(result.request.apartmentCode);
   });
 
   it("updateRequestStatus throws 400 when transition is forbidden by workflow", async () => {

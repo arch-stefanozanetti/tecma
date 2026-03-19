@@ -15,6 +15,10 @@ const httpRequestErrorsTotal = meter.createCounter("followup_http_server_errors_
   description: "HTTP server 5xx errors total for Followup backend",
 });
 
+const asyncSideEffectFailuresTotal = meter.createCounter("followup_async_side_effect_failures_total", {
+  description: "Async side-effects failures (audit/event/notifications) for Followup backend",
+});
+
 const statusClass = (statusCode: number): string => {
   if (statusCode >= 500) return "5xx";
   if (statusCode >= 400) return "4xx";
@@ -56,3 +60,17 @@ export const observeHttpRequest = ({
   }
 };
 
+export interface ObserveAsyncSideEffectFailureInput {
+  operation: string;
+  entityType?: string;
+}
+
+export const observeAsyncSideEffectFailure = ({
+  operation,
+  entityType,
+}: ObserveAsyncSideEffectFailureInput): void => {
+  asyncSideEffectFailuresTotal.add(1, {
+    "followup.operation": operation,
+    "followup.entity_type": entityType ?? "unknown",
+  });
+};

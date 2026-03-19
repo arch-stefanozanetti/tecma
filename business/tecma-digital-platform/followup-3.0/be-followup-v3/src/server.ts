@@ -33,10 +33,7 @@ function buildCorsOriginChecker(): (origin: string | undefined, cb: (err: Error 
     }
   };
   add(ENV.APP_PUBLIC_URL);
-  for (const part of ENV.CORS_ORIGINS.split(",")) {
-    const t = part.trim();
-    if (t) add(t.includes("://") ? t : `https://${t}`);
-  }
+  ENV.CORS_ORIGINS_LIST.forEach((origin) => add(origin));
   if (!isProductionLike()) {
     ["http://localhost:5173", "http://localhost:5177", "http://127.0.0.1:5173", "http://127.0.0.1:5177"].forEach((o) =>
       allowed.add(o)

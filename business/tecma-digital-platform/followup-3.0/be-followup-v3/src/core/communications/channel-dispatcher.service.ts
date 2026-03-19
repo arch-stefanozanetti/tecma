@@ -13,6 +13,7 @@ import { getClientById } from "../clients/clients.service.js";
 import { getProjectDetail, getProjectBrandingInternal } from "../projects/project-config.service.js";
 import { logDelivery } from "./communication-deliveries.service.js";
 import { logger } from "../../observability/logger.js";
+import { safeAsync } from "../shared/safeAsync.js";
 
 export interface DispatchJob {
   workspaceId: string;
@@ -93,14 +94,20 @@ export async function dispatchCommunicationJob(job: DispatchJob): Promise<void> 
           }
         : undefined,
     });
-    await logDelivery({
+    safeAsync(logDelivery({
       workspaceId: job.workspaceId,
       projectId: job.projectId,
       channel: "email",
       templateId: job.templateId,
       recipient: email,
       status: "sent",
-    }).catch(() => {});
+    }), {
+      operation: "communications.delivery.email",
+      workspaceId: job.workspaceId,
+      projectId: job.projectId,
+      entityType: job.payload.entityType,
+      entityId: job.payload.entityId,
+    });
     return;
   }
 
@@ -111,14 +118,20 @@ export async function dispatchCommunicationJob(job: DispatchJob): Promise<void> 
       return;
     }
     await sendWhatsAppMessage(job.workspaceId, phone, resolved.bodyText);
-    await logDelivery({
+    safeAsync(logDelivery({
       workspaceId: job.workspaceId,
       projectId: job.projectId,
       channel: "whatsapp",
       templateId: job.templateId,
       recipient: phone,
       status: "sent",
-    }).catch(() => {});
+    }), {
+      operation: "communications.delivery.whatsapp",
+      workspaceId: job.workspaceId,
+      projectId: job.projectId,
+      entityType: job.payload.entityType,
+      entityId: job.payload.entityId,
+    });
     return;
   }
 

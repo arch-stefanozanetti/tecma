@@ -4,10 +4,12 @@ on:
   push:
     paths:
       - "be-followup-v3/**"
+      - "scripts/check-no-secrets.sh"
       - ".github/workflows/ci-be.yml"
   pull_request:
     paths:
       - "be-followup-v3/**"
+      - "scripts/check-no-secrets.sh"
       - ".github/workflows/ci-be.yml"
 
 jobs:
@@ -19,6 +21,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Secret scan (tracked files)
+        working-directory: .
+        run: bash scripts/check-no-secrets.sh
+
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -27,6 +33,7 @@ jobs:
 
       - run: npm ci
       - run: npm run test:lint:core
+      - run: npm run check:openapi
       - run: npm run check:no-legacy-runtime
       - run: npm run build
       - run: npm run test:coverage:core

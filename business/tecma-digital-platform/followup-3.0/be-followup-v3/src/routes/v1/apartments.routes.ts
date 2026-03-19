@@ -22,6 +22,7 @@ import {
   executeImport,
   type OnDuplicate,
 } from "../../core/units-import/units-import.service.js";
+import { safeAsync } from "../../core/shared/safeAsync.js";
 
 export const apartmentsRoutes = Router();
 
@@ -30,7 +31,7 @@ apartmentsRoutes.post("/apartments/query", handleAsync((req) => queryApartments(
 apartmentsRoutes.post("/apartments", handleAsync(async (req) => {
   const result = await createApartment(req.body);
   if (result?.apartmentId && req.body.workspaceId) {
-    auditRecord({
+    safeAsync(auditRecord({
       action: "apartment.created",
       workspaceId: req.body.workspaceId,
       projectId: req.body.projectId,
@@ -38,7 +39,14 @@ apartmentsRoutes.post("/apartments", handleAsync(async (req) => {
       entityId: result.apartmentId,
       actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
       payload: { code: result.apartment?.code },
-    }).catch(() => {});
+    }), {
+      operation: "audit.apartment.created",
+      workspaceId: req.body.workspaceId,
+      projectId: req.body.projectId,
+      entityType: "apartment",
+      entityId: result.apartmentId,
+      userId: req.user?.sub,
+    });
   }
   return result;
 }));
@@ -46,7 +54,7 @@ apartmentsRoutes.post("/apartments", handleAsync(async (req) => {
 apartmentsRoutes.patch("/apartments/:id", handleAsync(async (req) => {
   const result = await updateApartment({ ...req.body, apartmentId: req.params.id });
   if (req.body.workspaceId) {
-    auditRecord({
+    safeAsync(auditRecord({
       action: "apartment.updated",
       workspaceId: req.body.workspaceId,
       projectId: req.body.projectId,
@@ -54,7 +62,14 @@ apartmentsRoutes.patch("/apartments/:id", handleAsync(async (req) => {
       entityId: req.params.id,
       actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
       payload: req.body,
-    }).catch(() => {});
+    }), {
+      operation: "audit.apartment.updated",
+      workspaceId: req.body.workspaceId,
+      projectId: req.body.projectId,
+      entityType: "apartment",
+      entityId: req.params.id,
+      userId: req.user?.sub,
+    });
   }
   return result;
 }));

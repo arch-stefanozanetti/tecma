@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import { z } from "zod";
+import { parseCorsOrigins } from "./corsOrigins.js";
 
 dotenv.config();
 
@@ -48,6 +49,8 @@ const parsed = EnvSchema.parse({
   NODE_ENV: process.env.NODE_ENV
 });
 
+const CORS_ORIGINS_LIST = parseCorsOrigins(parsed.CORS_ORIGINS);
+
 function isProductionLike(): boolean {
   return (
     String(parsed.NODE_ENV || "").toLowerCase() === "production" ||
@@ -66,5 +69,8 @@ if (isProductionLike()) {
   }
 }
 
-export const ENV = parsed;
+export const ENV = {
+  ...parsed,
+  CORS_ORIGINS_LIST,
+};
 export { isProductionLike };

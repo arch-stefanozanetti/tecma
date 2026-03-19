@@ -18,6 +18,7 @@ import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
 import { record as auditRecord } from "../../core/audit/audit-log.service.js";
 import { dispatchEvent } from "../../core/automations/automation-events.service.js";
+import { safeAsync } from "../../core/shared/safeAsync.js";
 
 export const requestsRoutes = Router();
 
@@ -45,7 +46,7 @@ requestsRoutes.post("/requests", handleAsync(async (req) => {
   const result = await createRequest(req.body);
   const workspaceId = req.body.workspaceId as string | undefined;
   if (result?.request?._id && workspaceId) {
-    auditRecord({
+    safeAsync(auditRecord({
       action: "request.created",
       workspaceId,
       projectId: req.body.projectId,
@@ -53,14 +54,28 @@ requestsRoutes.post("/requests", handleAsync(async (req) => {
       entityId: result.request._id,
       actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
       payload: { status: result.request.status },
-    }).catch(() => {});
-    dispatchEvent(workspaceId, "request.created", {
+    }), {
+      operation: "audit.request.created",
+      workspaceId,
+      projectId: req.body.projectId,
+      entityType: "request",
+      entityId: result.request._id,
+      userId: req.user?.sub,
+    });
+    safeAsync(dispatchEvent(workspaceId, "request.created", {
       workspaceId,
       projectId: req.body.projectId,
       entityType: "request",
       entityId: result.request._id,
       toStatus: result.request.status,
-    }).catch(() => {});
+    }), {
+      operation: "event.request.created",
+      workspaceId,
+      projectId: req.body.projectId,
+      entityType: "request",
+      entityId: result.request._id,
+      userId: req.user?.sub,
+    });
   }
   return result;
 }));
@@ -71,7 +86,7 @@ requestsRoutes.patch("/requests/:id/status", handleAsync(async (req) => {
     const reqDoc = await getRequestById(req.params.id).catch(() => null);
     const workspaceId = reqDoc?.request?.workspaceId;
     if (workspaceId) {
-      auditRecord({
+      safeAsync(auditRecord({
         action: "request.status_changed",
         workspaceId,
         projectId: reqDoc.request.projectId,
@@ -79,14 +94,28 @@ requestsRoutes.patch("/requests/:id/status", handleAsync(async (req) => {
         entityId: req.params.id,
         actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
         payload: { toStatus: req.body.status, reason: req.body.reason },
-      }).catch(() => {});
-      dispatchEvent(workspaceId, "request.status_changed", {
+      }), {
+        operation: "audit.request.status_changed",
+        workspaceId,
+        projectId: reqDoc.request.projectId,
+        entityType: "request",
+        entityId: req.params.id,
+        userId: req.user?.sub,
+      });
+      safeAsync(dispatchEvent(workspaceId, "request.status_changed", {
         workspaceId,
         projectId: reqDoc.request.projectId,
         entityType: "request",
         entityId: req.params.id,
         toStatus: req.body.status,
-      }).catch(() => {});
+      }), {
+        operation: "event.request.status_changed",
+        workspaceId,
+        projectId: reqDoc.request.projectId,
+        entityType: "request",
+        entityId: req.params.id,
+        userId: req.user?.sub,
+      });
     }
   }
   return result;

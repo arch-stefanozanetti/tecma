@@ -34,8 +34,8 @@ describe("PageTemplate", () => {
   it("rende layout con sidebar e contenuto", () => {
     render(<PageTemplate {...defaultProps} />);
     expect(screen.getByTestId("main-content")).toHaveTextContent("Contenuto");
-    expect(screen.getByRole("button", { name: /home/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /clienti/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /home/i })[0]).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /clienti/i })[0]).toBeInTheDocument();
   });
 
   it("mostra email utente in header", () => {
@@ -45,7 +45,7 @@ describe("PageTemplate", () => {
 
   it("rende link/button per cambio sezione", () => {
     render(<PageTemplate {...defaultProps} />);
-    const clienti = screen.getByRole("button", { name: /clienti/i });
+    const clienti = screen.getAllByRole("button", { name: /clienti/i })[0];
     expect(clienti).toBeInTheDocument();
   });
 
@@ -71,7 +71,7 @@ describe("PageTemplate", () => {
   it("clic su Clienti chiama onSectionChange con clients", async () => {
     const onSectionChange = vi.fn();
     render(<PageTemplate {...defaultProps} onSectionChange={onSectionChange} />);
-    await userEvent.click(screen.getByRole("button", { name: /clienti/i }));
+    await userEvent.click(screen.getAllByRole("button", { name: /clienti/i })[0]);
     expect(onSectionChange).toHaveBeenCalledWith("clients");
   });
 });
