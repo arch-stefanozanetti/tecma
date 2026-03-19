@@ -65,6 +65,9 @@ jobs:
 
       - name: Run tests (BE)
         working-directory: ${{ env.FOLLOWUP_BE_DIR }}
+        env:
+          MONGO_URI: mongodb://localhost:27017
+          MONGO_DB_NAME: followup_ci_test
         run: npm run test
 
       - name: Build (BE)
