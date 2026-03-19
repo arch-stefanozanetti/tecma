@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "prebuild": "node scripts/verify-design-system.mjs",
+    "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "release": "semantic-release",
     "preview": "vite preview",
