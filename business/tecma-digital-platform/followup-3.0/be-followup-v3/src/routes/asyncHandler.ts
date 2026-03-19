@@ -1,4 +1,5 @@
 import type { Request, Response, RequestHandler } from "express";
+import { SpanStatusCode, trace } from "@opentelemetry/api";
 import { ZodError } from "zod";
 import { isProductionLike } from "../config/env.js";
 import { logger } from "../observability/logger.js";
@@ -16,6 +17,16 @@ const messageFromError = (error: unknown): string => {
   return String(error);
 };
 
+const codeFromError = (error: unknown): string => {
+  if (typeof error === "object" && error !== null && "code" in error) {
+    return String((error as { code: unknown }).code);
+  }
+  if (typeof error === "object" && error !== null && "name" in error) {
+    return String((error as { name: unknown }).name);
+  }
+  return "UNKNOWN_ERROR";
+};
+
 /**
  * Sends error response with status from error.statusCode (e.g. HttpError) or 400.
  * In produzione/staging: messaggi generici per 5xx e Zod, dettagli solo in log.
@@ -25,19 +36,30 @@ export const sendError = (res: Response, error: unknown): void => {
   const context = getRequestContext();
   let statusCode = statusCodeFromError(error);
   let message = messageFromError(error);
+  const errorCode = codeFromError(error);
+  const span = trace.getActiveSpan();
 
   if (error instanceof ZodError) {
     statusCode = 400;
-    logger.warn({ err: error, statusCode }, "Request validation failed");
+    logger.warn({ err: error, statusCode, "error.code": errorCode }, "Request validation failed");
     message = strict
       ? "Richiesta non valida"
       : error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join("; ") || "Validazione fallita";
   } else if (strict && statusCode >= 500) {
-    logger.error({ err: error, statusCode }, "[api] server error");
+    logger.error({ err: error, statusCode, "error.code": errorCode }, "[api] server error");
     message =
       statusCode === 503 ? "Servizio temporaneamente non disponibile" : "Errore interno del server";
   } else if (statusCode >= 500) {
-    logger.error({ err: error, statusCode }, "[api] server error");
+    logger.error({ err: error, statusCode, "error.code": errorCode }, "[api] server error");
+  }
+
+  if (span) {
+    span.setStatus({
+      code: statusCode >= 500 ? SpanStatusCode.ERROR : SpanStatusCode.UNSET,
+      message: messageFromError(error),
+    });
+    span.setAttribute("error.code", errorCode);
+    span.setAttribute("http.status_code", statusCode);
   }
 
   res.status(statusCode).json({

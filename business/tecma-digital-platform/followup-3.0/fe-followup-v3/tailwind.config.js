@@ -1,5 +1,18 @@
 /** @type {import('tailwindcss').Config} */
-import tecmaTheme from "@tecma/design-system-tokens/tailwind";
+import { createRequire } from "node:module";
+import fallbackTheme from "./tailwind.theme.fallback.js";
+
+const require = createRequire(import.meta.url);
+
+let tecmaTheme = fallbackTheme;
+try {
+  const importedTheme = require("@tecma/design-system-tokens/tailwind");
+  tecmaTheme = importedTheme.default ?? importedTheme;
+} catch (error) {
+  // In local/dev worktrees the tokens package might not include built dist assets.
+  // Keep FE runnable with a safe fallback and preserve CI/E2E stability.
+  tecmaTheme = fallbackTheme;
+}
 
 export default {
   darkMode: ["class"],

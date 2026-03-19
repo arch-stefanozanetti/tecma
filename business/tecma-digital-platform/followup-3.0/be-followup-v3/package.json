@@ -19,6 +19,7 @@
     "test:integration": "vitest run -c vitest.integration.config.ts",
     "test:lint": "eslint src",
     "test:lint:core": "eslint src/server.ts src/config src/routes src/core src/observability",
+    "check:openapi": "node scripts/check-openapi-spec.mjs",
     "seed": "tsx src/utils/seed.ts",
     "seed:apartments-requests": "tsx src/utils/seedApartmentsAndRequests.ts",
     "seed:fake-projects": "tsx src/utils/seedFakeProjects.ts",

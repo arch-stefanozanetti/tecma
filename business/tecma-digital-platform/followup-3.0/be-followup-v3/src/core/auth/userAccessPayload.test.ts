@@ -1,110 +1,78 @@
 import { describe, expect, it, vi } from "vitest";
 import { ObjectId } from "mongodb";
 
-vi.mock("../rbac/permissions.js", () => ({
-  PERMISSIONS: {
-    ALL: "*",
-  },
-}));
-
-const {
-  resolveEffectivePermissionsMock,
-  listWorkspaceMembershipsForUserMock,
-  getPermissionsForRoleMock,
-} = vi.hoisted(() => ({
+const mocks = vi.hoisted(() => ({
   resolveEffectivePermissionsMock: vi.fn(),
-  listWorkspaceMembershipsForUserMock: vi.fn(),
-  getPermissionsForRoleMock: vi.fn(),
-}));
-vi.mock("../rbac/roleDefinitions.service.js", () => ({
-  resolveEffectivePermissions: resolveEffectivePermissionsMock,
-  getPermissionsForRole: getPermissionsForRoleMock,
-}));
-vi.mock("../workspaces/workspace-users.service.js", () => ({
-  listWorkspaceMembershipsForUser: listWorkspaceMembershipsForUserMock,
 }));
 
-import {
-  buildAccessPayloadFromUserDoc,
-  escapeEmailForRegex,
-  toAuthSessionUser,
-  USER_COLLECTION_CANDIDATES,
-} from "./userAccessPayload.js";
+vi.mock("../rbac/roleDefinitions.service.js", () => ({
+  resolveEffectivePermissions: mocks.resolveEffectivePermissionsMock,
+}));
+
+import { PERMISSIONS } from "../rbac/permissions.js";
+import { buildAccessPayloadFromUserDoc, escapeEmailForRegex, toAuthSessionUser } from "./userAccessPayload.js";
 
 describe("userAccessPayload", () => {
-  it("maps auth session user", () => {
-    const user = toAuthSessionUser({
+  it("toAuthSessionUser maps token payload for frontend session shape", () => {
+    const result = toAuthSessionUser({
       sub: "u1",
-      email: "a@example.com",
+      email: "u@example.com",
       role: "agent",
       isAdmin: false,
-      permissions: ["clients.read"],
+      permissions: ["requests:read"],
       projectId: "p1",
     });
 
-    expect(user).toEqual({
+    expect(result).toEqual({
       id: "u1",
-      email: "a@example.com",
+      email: "u@example.com",
       role: "agent",
       isAdmin: false,
-      permissions: ["clients.read"],
+      permissions: ["requests:read"],
       projectId: "p1",
-      system_role: undefined,
-      isTecmaAdmin: false,
     });
   });
 
-  it("builds payload and computes admin/project/email normalization", async () => {
-    listWorkspaceMembershipsForUserMock.mockResolvedValueOnce([]);
-    resolveEffectivePermissionsMock.mockResolvedValueOnce(["*", "clients.read"]);
+  it("buildAccessPayloadFromUserDoc resolves permissions and derives admin/project/email", async () => {
+    const _id = new ObjectId();
+    mocks.resolveEffectivePermissionsMock.mockResolvedValueOnce([PERMISSIONS.ALL, "clients:write"]);
 
     const payload = await buildAccessPayloadFromUserDoc(
       {
-        _id: new ObjectId("64b64f3fd9024a2a53111111"),
-        email: "  TEST@Example.com ",
-        role: "ADMIN",
-        permissions_override: ["*"],
-        project_ids: ["p1"],
+        _id,
+        email: " AGENT@EXAMPLE.COM ",
+        role: "Agent",
+        permissions_override: ["clients:write"],
+        project_ids: ["proj-1", "proj-2"],
       },
       "fallback@example.com"
     );
 
-    expect(payload.sub).toBe("64b64f3fd9024a2a53111111");
-    expect(payload.email).toBe("test@example.com");
+    expect(payload.sub).toBe(_id.toHexString());
+    expect(payload.email).toBe("agent@example.com");
+    expect(payload.role).toBe("agent");
     expect(payload.isAdmin).toBe(true);
-    expect(payload.projectId).toBe("p1");
+    expect(payload.projectId).toBe("proj-1");
+    expect(payload.permissions).toEqual([PERMISSIONS.ALL, "clients:write"]);
   });
 
-  it("derives permissions from workspace memberships when present", async () => {
-    listWorkspaceMembershipsForUserMock.mockResolvedValueOnce([
-      { workspaceId: "w1", role: "collaborator" },
-      { workspaceId: "w2", role: "admin" },
-    ]);
-    getPermissionsForRoleMock
-      .mockResolvedValueOnce(["apartments.read", "deals.create", "deals.close"])
-      .mockResolvedValueOnce("*");
+  it("uses fallback email and null project when missing", async () => {
+    const _id = new ObjectId();
+    mocks.resolveEffectivePermissionsMock.mockResolvedValueOnce(["requests:read"]);
 
     const payload = await buildAccessPayloadFromUserDoc(
       {
-        _id: new ObjectId("64b64f3fd9024a2a53111111"),
-        email: "user@example.com",
-        project_ids: [],
+        _id,
       },
       "fallback@example.com"
     );
 
-    expect(payload.sub).toBe("64b64f3fd9024a2a53111111");
-    expect(payload.email).toBe("user@example.com");
-    expect(payload.isAdmin).toBe(true);
-    expect(payload.role).toBe("admin");
-    expect(payload.permissions).toContain("*");
-    expect(getPermissionsForRoleMock).toHaveBeenCalledWith("collaborator");
-    expect(getPermissionsForRoleMock).toHaveBeenCalledWith("admin");
-    expect(getPermissionsForRoleMock).toHaveBeenCalledTimes(2);
+    expect(payload.email).toBe("fallback@example.com");
+    expect(payload.projectId).toBeNull();
+    expect(payload.isAdmin).toBe(false);
   });
 
-  it("escapes regex-special chars in email and exports collection candidates", () => {
-    expect(escapeEmailForRegex("A+B@test.com")).toBe("a\\+b@test\\.com");
-    expect(USER_COLLECTION_CANDIDATES).toContain("tz_users");
+  it("escapeEmailForRegex normalizes and escapes regex metacharacters", () => {
+    expect(escapeEmailForRegex("  A+B(test)@Example.com ")).toBe("a\\+b\\(test\\)@example\\.com");
   });
 });

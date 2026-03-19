@@ -4,22 +4,30 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
-TARGET_FILES=(
-  "be-followup-v3/src/core/apartments/apartments.service.ts"
-  "be-followup-v3/src/core/requests/requests.service.ts"
-  "be-followup-v3/src/core/unit-pricing/unit-pricing.service.ts"
-  "be-followup-v3/src/core/future/future.service.ts"
+TARGET_PATHS=(
+  "be-followup-v3/src/core"
+  "be-followup-v3/src/routes"
 )
 
 PATTERNS=(
-  "return queryLegacyApartments\\("
+  "queryLegacy[A-Za-z0-9_]*\\("
   "fetchQuoteFromLegacy\\("
+  "automata_configurations"
+  "status-automata"
+  "collection\\(\"calendars\"\\)"
+  "getDbByName\\(\"asset\"\\)"
+  "apartments_view"
   "source:\\s*\"rawPrice\""
   "collection\\(\"apartments\"\\)"
 )
 
 for pattern in "${PATTERNS[@]}"; do
-  if rg -n "$pattern" "${TARGET_FILES[@]}" >/tmp/legacy_guard_hits.txt; then
+  if rg -n \
+    -g '!**/*.test.ts' \
+    -g '!**/*.spec.ts' \
+    -g '!**/__tests__/**' \
+    "$pattern" \
+    "${TARGET_PATHS[@]}" >/tmp/legacy_guard_hits.txt; then
     echo "[legacy-guard] Forbidden runtime legacy pattern found: $pattern"
     cat /tmp/legacy_guard_hits.txt
     rm -f /tmp/legacy_guard_hits.txt
@@ -28,4 +36,3 @@ for pattern in "${PATTERNS[@]}"; do
 done
 
 echo "[legacy-guard] OK"
-

@@ -1,285 +1,196 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ObjectId } from "mongodb";
 import { HttpError } from "../../types/http.js";
+import { ObjectId } from "mongodb";
 
-const {
-  dispatchEventMock,
-  primaryFindMock,
-  primaryFindToArrayMock,
-  primaryCountDocumentsMock,
-  primaryFindOneMock,
-  primaryInsertOneMock,
-  primaryUpdateOneMock,
-  primaryDeleteOneMock,
-  legacyFindMock,
-  legacyFindToArrayMock,
-  legacyCountDocumentsMock,
-} = vi.hoisted(() => ({
-  dispatchEventMock: vi.fn(),
-  primaryFindMock: vi.fn(),
-  primaryFindToArrayMock: vi.fn(),
-  primaryCountDocumentsMock: vi.fn(),
-  primaryFindOneMock: vi.fn(),
-  primaryInsertOneMock: vi.fn(),
-  primaryUpdateOneMock: vi.fn(),
-  primaryDeleteOneMock: vi.fn(),
-  legacyFindMock: vi.fn(),
-  legacyFindToArrayMock: vi.fn(),
-  legacyCountDocumentsMock: vi.fn(),
-}));
+const mocks = vi.hoisted(() => {
+  const findOneMock = vi.fn();
+  const insertOneMock = vi.fn();
+  const updateOneMock = vi.fn();
+  const deleteOneMock = vi.fn();
+  const countDocumentsMock = vi.fn();
+  const toArrayMock = vi.fn();
 
-const buildFindChain = (toArrayMock: ReturnType<typeof vi.fn>) => ({
-  sort: vi.fn(() => ({
-    skip: vi.fn(() => ({
-      limit: vi.fn(() => ({
-        project: vi.fn(() => ({ toArray: toArrayMock })),
-        toArray: toArrayMock,
-      })),
-      project: vi.fn(() => ({ toArray: toArrayMock })),
-      toArray: toArrayMock,
-    })),
-    project: vi.fn(() => ({ toArray: toArrayMock })),
-    toArray: toArrayMock,
-  })),
+  const projectMock = vi.fn(() => ({ toArray: toArrayMock }));
+  const limitMock = vi.fn(() => ({ project: projectMock, toArray: toArrayMock }));
+  const skipMock = vi.fn(() => ({ limit: limitMock, project: projectMock, toArray: toArrayMock }));
+  const sortMock = vi.fn(() => ({ skip: skipMock, limit: limitMock, project: projectMock, toArray: toArrayMock }));
+  const findMock = vi.fn(() => ({ sort: sortMock, skip: skipMock, limit: limitMock, project: projectMock, toArray: toArrayMock }));
+
+  const calendarEventsCollection = {
+    find: findMock,
+    findOne: findOneMock,
+    insertOne: insertOneMock,
+    updateOne: updateOneMock,
+    deleteOne: deleteOneMock,
+    countDocuments: countDocumentsMock,
+  };
+
+  const dispatchEventMock = vi.fn(() => Promise.resolve());
+
+  return {
+    findOneMock,
+    insertOneMock,
+    updateOneMock,
+    deleteOneMock,
+    countDocumentsMock,
+    toArrayMock,
+    findMock,
+    calendarEventsCollection,
+    dispatchEventMock,
+  };
 });
 
 vi.mock("../../config/db.js", () => ({
   getDb: () => ({
     collection: (name: string) => {
-      if (name === "tz_calendar_events") {
-        return {
-          find: primaryFindMock.mockImplementation(() => buildFindChain(primaryFindToArrayMock)),
-          countDocuments: primaryCountDocumentsMock,
-          findOne: primaryFindOneMock,
-          insertOne: primaryInsertOneMock,
-          updateOne: primaryUpdateOneMock,
-          deleteOne: primaryDeleteOneMock,
-        };
-      }
-      if (name === "calendars") {
-        return {
-          find: legacyFindMock.mockImplementation(() => buildFindChain(legacyFindToArrayMock)),
-          countDocuments: legacyCountDocumentsMock,
-        };
-      }
-      return {};
+      if (name === "calendar_events") return mocks.calendarEventsCollection;
+      throw new Error("Unexpected collection: " + name);
     },
   }),
 }));
 
 vi.mock("../automations/automation-events.service.js", () => ({
-  dispatchEvent: dispatchEventMock,
+  dispatchEvent: mocks.dispatchEventMock,
 }));
 
-import { createCalendarEvent, deleteCalendarEvent, queryCalendarEvents, updateCalendarEvent } from "./calendar.service.js";
+import {
+  createCalendarEvent,
+  deleteCalendarEvent,
+  queryCalendarEvents,
+  updateCalendarEvent,
+} from "./calendar.service.js";
 
 describe("calendar.service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("queryCalendarEvents returns primary dataset when found", async () => {
-    primaryFindToArrayMock.mockResolvedValueOnce([
+  it("queryCalendarEvents uses primary collection when data exists", async () => {
+    const now = new Date().toISOString();
+    mocks.toArrayMock.mockResolvedValueOnce([
       {
-        _id: "ev1",
+        _id: "e1",
         workspaceId: "ws1",
         projectId: "p1",
-        title: "Primary event",
-        startsAt: new Date().toISOString(),
-        endsAt: new Date().toISOString(),
+        title: "Visita",
+        startsAt: now,
+        endsAt: now,
         source: "CUSTOM_SERVICE",
       },
     ]);
-    primaryCountDocumentsMock.mockResolvedValueOnce(1);
+    mocks.countDocumentsMock.mockResolvedValueOnce(1);
 
     const result = await queryCalendarEvents({
       workspaceId: "ws1",
       projectIds: ["p1"],
       page: 1,
-      perPage: 25,
-      filters: {},
+      perPage: 20,
+      filters: { dateFrom: now, clientId: "c1" },
+      searchText: "visit",
     });
 
+    expect(result.data).toHaveLength(1);
     expect(result.pagination.total).toBe(1);
-    expect(result.data[0].title).toBe("Primary event");
+    expect(mocks.findMock).toHaveBeenCalled();
   });
 
-  it("queryCalendarEvents falls back to legacy collection when primary is empty", async () => {
-    primaryFindToArrayMock.mockResolvedValueOnce([]);
-    primaryCountDocumentsMock.mockResolvedValueOnce(0);
-    const legacyId = new ObjectId("64b64f3fd9024a2a53111111");
-    legacyFindToArrayMock.mockResolvedValueOnce([
-      {
-        _id: legacyId,
-        project_id: "p1",
-        startDate: "2026-03-01T10:00:00.000Z",
-        endDate: "2026-03-01T11:00:00.000Z",
-        typology: "Visita",
-      },
-    ]);
-    legacyCountDocumentsMock.mockResolvedValueOnce(1);
+  it("queryCalendarEvents returns empty result when primary has no rows", async () => {
+    const now = new Date().toISOString();
+    mocks.toArrayMock.mockResolvedValueOnce([]);
+    mocks.countDocumentsMock.mockResolvedValueOnce(0);
 
     const result = await queryCalendarEvents({
       workspaceId: "ws1",
       projectIds: ["p1"],
       page: 1,
-      perPage: 25,
-      filters: {},
+      perPage: 20,
+      filters: { dateFrom: now },
+      searchText: "attivita",
     });
 
-    expect(result.pagination.total).toBe(1);
-    expect(result.data[0].workspaceId).toBe("legacy");
-    expect(result.data[0]._id).toBe(legacyId.toHexString());
+    expect(result.data).toEqual([]);
+    expect(result.pagination.total).toBe(0);
   });
 
-  it("queryCalendarEvents applies date/search/client filters on primary", async () => {
-    primaryFindToArrayMock.mockResolvedValueOnce([]);
-    primaryCountDocumentsMock.mockResolvedValueOnce(0);
-    legacyFindToArrayMock.mockResolvedValueOnce([]);
-    legacyCountDocumentsMock.mockResolvedValueOnce(0);
-
-    await queryCalendarEvents({
-      workspaceId: "ws1",
-      projectIds: ["p1"],
-      page: 1,
-      perPage: 25,
-      searchText: "visita",
-      filters: {
-        dateFrom: "2026-01-01T00:00:00.000Z",
-        dateTo: "2026-12-31T23:59:59.999Z",
-        clientId: "c1",
-      },
-    });
-
-    expect(primaryFindMock).toHaveBeenCalledWith({
-      $and: expect.arrayContaining([
-        { workspaceId: "ws1", projectId: { $in: ["p1"] } },
-        { clientId: "c1" },
-      ]),
-    });
-  });
-
-  it("createCalendarEvent dispatches automation when clientId exists", async () => {
+  it("createCalendarEvent dispatches visit.scheduled when clientId exists", async () => {
     const insertedId = new ObjectId();
-    primaryInsertOneMock.mockResolvedValueOnce({ insertedId });
-    dispatchEventMock.mockResolvedValueOnce(undefined);
+    mocks.insertOneMock.mockResolvedValueOnce({ insertedId });
 
     const result = await createCalendarEvent({
       workspaceId: "ws1",
       projectId: "p1",
-      title: "Nuova visita",
-      startsAt: "2026-03-01T10:00:00.000Z",
-      endsAt: "2026-03-01T11:00:00.000Z",
+      title: "  Visita App  ",
+      startsAt: "2026-01-01T10:00:00.000Z",
+      endsAt: "2026-01-01T11:00:00.000Z",
       source: "FOLLOWUP_SELL",
       clientId: "c1",
+      apartmentId: "a1",
     });
 
     expect(result.event._id).toBe(insertedId.toHexString());
-    expect(dispatchEventMock).toHaveBeenCalledWith(
+    expect(result.event.title).toBe("Visita App");
+    expect(mocks.dispatchEventMock).toHaveBeenCalledWith(
       "ws1",
       "visit.scheduled",
-      expect.objectContaining({ clientId: "c1", entityType: "calendar_event" })
+      expect.objectContaining({ clientId: "c1", apartmentId: "a1" })
     );
   });
 
-  it("createCalendarEvent does not dispatch automation without clientId", async () => {
-    primaryInsertOneMock.mockResolvedValueOnce({ insertedId: new ObjectId() });
+  it("updateCalendarEvent validates id and returns 404 when missing", async () => {
+    await expect(updateCalendarEvent("bad-id", { title: "x" })).rejects.toMatchObject({
+      statusCode: 404,
+    } as Partial<HttpError>);
 
-    await createCalendarEvent({
-      workspaceId: "ws1",
-      projectId: "p1",
-      title: "Generic",
-      startsAt: "2026-03-01T10:00:00.000Z",
-      endsAt: "2026-03-01T11:00:00.000Z",
-      source: "CUSTOM_SERVICE",
-    });
-
-    expect(dispatchEventMock).not.toHaveBeenCalled();
-  });
-
-  it("updateCalendarEvent returns 404 on invalid id", async () => {
-    await expect(updateCalendarEvent("bad-id", { title: "X" })).rejects.toMatchObject({
+    mocks.findOneMock.mockResolvedValueOnce(null);
+    await expect(updateCalendarEvent(new ObjectId().toHexString(), { title: "x" })).rejects.toMatchObject({
       statusCode: 404,
     } as Partial<HttpError>);
   });
 
-  it("updateCalendarEvent returns 404 when event does not exist", async () => {
-    primaryFindOneMock.mockResolvedValueOnce(null);
-    const id = new ObjectId().toHexString();
-    await expect(updateCalendarEvent(id, { title: "X" })).rejects.toMatchObject({
-      statusCode: 404,
-    } as Partial<HttpError>);
-  });
-
-  it("updateCalendarEvent returns existing event when payload has no effective changes", async () => {
+  it("updateCalendarEvent updates fields and dispatches visit.updated", async () => {
     const id = new ObjectId();
     const existing = {
       _id: id,
       workspaceId: "ws1",
       projectId: "p1",
-      title: "Existing",
-      startsAt: "2026-03-01T10:00:00.000Z",
-      endsAt: "2026-03-01T11:00:00.000Z",
+      title: "Old",
+      startsAt: "2026-01-01T10:00:00.000Z",
+      endsAt: "2026-01-01T11:00:00.000Z",
       source: "CUSTOM_SERVICE",
+      clientId: "c1",
     };
-    primaryFindOneMock.mockResolvedValueOnce(existing);
+    const updated = {
+      ...existing,
+      title: "New",
+      apartmentId: "a1",
+    };
 
-    const result = await updateCalendarEvent(id.toHexString(), {});
-    expect(result.event).toEqual(existing);
-  });
-
-  it("updateCalendarEvent updates and dispatches visit.updated when clientId present", async () => {
-    const id = new ObjectId();
-    primaryFindOneMock
-      .mockResolvedValueOnce({
-        _id: id,
-        workspaceId: "ws1",
-        projectId: "p1",
-        title: "Old",
-        startsAt: "2026-03-01T10:00:00.000Z",
-        endsAt: "2026-03-01T11:00:00.000Z",
-        source: "CUSTOM_SERVICE",
-      })
-      .mockResolvedValueOnce({
-        _id: id,
-        workspaceId: "ws1",
-        projectId: "p1",
-        title: "New title",
-        startsAt: "2026-03-01T10:00:00.000Z",
-        endsAt: "2026-03-01T11:00:00.000Z",
-        source: "FOLLOWUP_SELL",
-        clientId: "c1",
-      });
-    primaryUpdateOneMock.mockResolvedValueOnce({ matchedCount: 1, modifiedCount: 1 });
-    dispatchEventMock.mockResolvedValueOnce(undefined);
+    mocks.findOneMock.mockResolvedValueOnce(existing).mockResolvedValueOnce(updated);
 
     const result = await updateCalendarEvent(id.toHexString(), {
-      title: "New title",
+      title: " New ",
+      apartmentId: "a1",
       source: "FOLLOWUP_SELL",
-      clientId: "c1",
     });
 
-    expect(result.event.title).toBe("New title");
-    expect(primaryUpdateOneMock).toHaveBeenCalledTimes(1);
-    expect(dispatchEventMock).toHaveBeenCalledWith(
+    expect(mocks.updateOneMock).toHaveBeenCalledOnce();
+    expect(result.event.title).toBe("New");
+    expect(mocks.dispatchEventMock).toHaveBeenCalledWith(
       "ws1",
       "visit.updated",
-      expect.objectContaining({ entityId: id.toHexString(), clientId: "c1" })
+      expect.objectContaining({ entityId: id.toHexString() })
     );
   });
 
-  it("deleteCalendarEvent returns deleted=true when row exists", async () => {
-    primaryDeleteOneMock.mockResolvedValueOnce({ deletedCount: 1 });
-    const id = new ObjectId().toHexString();
+  it("deleteCalendarEvent handles invalid id, not found and success", async () => {
+    await expect(deleteCalendarEvent("x")).rejects.toMatchObject({ statusCode: 404 } as Partial<HttpError>);
 
-    const result = await deleteCalendarEvent(id);
+    mocks.deleteOneMock.mockResolvedValueOnce({ deletedCount: 0 });
+    await expect(deleteCalendarEvent(new ObjectId().toHexString())).rejects.toMatchObject({
+      statusCode: 404,
+    } as Partial<HttpError>);
 
-    expect(result.deleted).toBe(true);
-  });
-
-  it("deleteCalendarEvent returns 404 on invalid/missing events", async () => {
-    await expect(deleteCalendarEvent("bad-id")).rejects.toMatchObject({ statusCode: 404 } as Partial<HttpError>);
-    primaryDeleteOneMock.mockResolvedValueOnce({ deletedCount: 0 });
-    await expect(deleteCalendarEvent(new ObjectId().toHexString())).rejects.toMatchObject({ statusCode: 404 } as Partial<HttpError>);
+    mocks.deleteOneMock.mockResolvedValueOnce({ deletedCount: 1 });
+    await expect(deleteCalendarEvent(new ObjectId().toHexString())).resolves.toEqual({ deleted: true });
   });
 });

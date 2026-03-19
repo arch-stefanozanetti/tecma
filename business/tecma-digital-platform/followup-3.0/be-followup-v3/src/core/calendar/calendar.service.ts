@@ -1,7 +1,6 @@
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
-import { escapeRegex } from "../../utils/escapeRegex.js";
 import { ListQuerySchema, type ListQueryInput, buildPagination } from "../shared/list-query.js";
 import { HttpError, PaginatedResponse } from "../../types/http.js";
 import { dispatchEvent } from "../automations/automation-events.service.js";
@@ -53,8 +52,7 @@ const buildMatch = (q: ListQueryInput) => {
   }
 
   if (q.searchText && q.searchText.trim()) {
-    const safe = escapeRegex(q.searchText.trim());
-    conditions.push({ $or: [{ title: { $regex: safe, $options: "i" } }] });
+    conditions.push({ $or: [{ title: { $regex: q.searchText.trim(), $options: "i" } }] });
   }
 
   const clientId = q.filters?.clientId;
@@ -66,119 +64,11 @@ const buildMatch = (q: ListQueryInput) => {
   return { $and: conditions };
 };
 
-type LegacyCalendarDoc = {
-  _id?: ObjectId | string;
-  project_id?: ObjectId | string;
-  startDate?: Date | string;
-  endDate?: Date | string;
-  typology?: string;
-  activityType?: string;
-  info?: string | null;
-  note?: string | null;
-  comment?: string | null;
-  client?: ObjectId | string | null;
-};
-
-const parseProjectIdsForLegacy = (projectIds: string[]) => {
-  const objectIds: ObjectId[] = [];
-  const asStrings = new Set<string>();
-  for (const projectId of projectIds) {
-    asStrings.add(projectId);
-    if (ObjectId.isValid(projectId)) objectIds.push(new ObjectId(projectId));
-  }
-  return { objectIds, asStrings: [...asStrings] };
-};
-
-const toIsoDate = (value: unknown): string => {
-  if (value instanceof Date) return value.toISOString();
-  if (typeof value === "string" && value) {
-    const parsed = new Date(value);
-    if (!Number.isNaN(parsed.valueOf())) return parsed.toISOString();
-  }
-  return new Date(0).toISOString();
-};
-
-const buildLegacyMatch = (q: ListQueryInput) => {
-  const { objectIds, asStrings } = parseProjectIdsForLegacy(q.projectIds);
-  const projectConditionValues: Array<ObjectId | string> = [...objectIds, ...asStrings];
-  const conditions: Record<string, unknown>[] = [{ project_id: { $in: projectConditionValues } }];
-
-  const dateFrom = q.filters?.dateFrom;
-  const dateTo = q.filters?.dateTo;
-  if (typeof dateFrom === "string" || typeof dateTo === "string") {
-    const range: Record<string, unknown> = {};
-    if (typeof dateFrom === "string" && dateFrom) range.$gte = new Date(dateFrom);
-    if (typeof dateTo === "string" && dateTo) range.$lte = new Date(dateTo);
-    conditions.push({ startDate: range });
-  }
-
-  if (q.searchText && q.searchText.trim()) {
-    const safe = escapeRegex(q.searchText.trim());
-    conditions.push({
-      $or: [
-        { info: { $regex: safe, $options: "i" } },
-        { typology: { $regex: safe, $options: "i" } },
-        { activityType: { $regex: safe, $options: "i" } }
-      ]
-    });
-  }
-
-  if (conditions.length === 1) return conditions[0];
-  return { $and: conditions };
-};
-
-const mapLegacyToCalendarEvent = (doc: LegacyCalendarDoc): CalendarEvent => {
-  const projectId = doc.project_id instanceof ObjectId ? doc.project_id.toHexString() : typeof doc.project_id === "string" ? doc.project_id : "";
-  const startsAt = toIsoDate(doc.startDate);
-  const endsAt = toIsoDate(doc.endDate ?? doc.startDate);
-  const compact = (value: string) => {
-    const firstLine = value
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .find((line) => line.length > 0);
-    if (!firstLine) return "";
-    return firstLine.length > 90 ? `${firstLine.slice(0, 87)}...` : firstLine;
-  };
-  const infoTitle = typeof doc.info === "string" && doc.info.trim() ? compact(doc.info) : "";
-  const activityTitle = typeof doc.activityType === "string" && doc.activityType.trim() ? doc.activityType.trim() : "";
-  const typologyTitle = typeof doc.typology === "string" && doc.typology.trim() ? doc.typology.trim() : "";
-  const title = infoTitle || activityTitle || typologyTitle || "Attivita calendario";
-
-  return {
-    _id: String(doc._id ?? ""),
-    workspaceId: "legacy",
-    projectId,
-    title,
-    startsAt,
-    endsAt,
-    clientId: doc.client ? String(doc.client) : undefined,
-    source: "FOLLOWUP_SELL"
-  };
-};
-
-const toIsoString = (v: unknown): string => {
-  if (v instanceof Date) return v.toISOString();
-  if (typeof v === "string" && v) return v;
-  return new Date(0).toISOString();
-};
-
-const toCalendarEvent = (doc: CalendarEvent & { _id?: ObjectId; startsAt?: Date | string; endsAt?: Date | string }): CalendarEvent => ({
-  _id: (doc._id as unknown) instanceof ObjectId ? (doc._id as ObjectId).toHexString() : String(doc._id ?? ""),
-  workspaceId: doc.workspaceId,
-  projectId: doc.projectId,
-  title: doc.title,
-  startsAt: toIsoString(doc.startsAt),
-  endsAt: toIsoString(doc.endsAt),
-  source: doc.source,
-  ...(doc.clientId && { clientId: doc.clientId }),
-  ...(doc.apartmentId && { apartmentId: doc.apartmentId }),
-});
-
 const queryPrimaryCalendarEvents = async (input: ListQueryInput): Promise<PaginatedResponse<CalendarEvent>> => {
   const db = getDb();
-  const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("tz_calendar_events");
+  const collection = db.collection<CalendarEvent>("calendar_events");
 
-  const [rawData, total] = await Promise.all([
+  const [data, total] = await Promise.all([
     collection
       .find(buildMatch(input))
       .sort({ startsAt: 1 })
@@ -189,47 +79,7 @@ const queryPrimaryCalendarEvents = async (input: ListQueryInput): Promise<Pagina
   ]);
 
   return {
-    data: rawData.map(toCalendarEvent),
-    pagination: {
-      page: input.page,
-      perPage: input.perPage,
-      total,
-      totalPages: Math.ceil(total / input.perPage)
-    }
-  };
-};
-
-const queryLegacyCalendarEvents = async (input: ListQueryInput): Promise<PaginatedResponse<CalendarEvent>> => {
-  const db = getDb();
-  const collection = db.collection<LegacyCalendarDoc>("calendars");
-
-  const match = buildLegacyMatch(input);
-  const { skip, limit } = buildPagination(input.page, input.perPage);
-
-  const [rawData, total] = await Promise.all([
-    collection
-      .find(match)
-      .sort({ startDate: 1 })
-      .skip(skip)
-      .limit(limit)
-      .project({
-        _id: 1,
-        project_id: 1,
-        startDate: 1,
-        endDate: 1,
-        typology: 1,
-        activityType: 1,
-        info: 1,
-        note: 1,
-        comment: 1,
-        client: 1
-      })
-      .toArray(),
-    collection.countDocuments(match)
-  ]);
-
-  return {
-    data: rawData.map(mapLegacyToCalendarEvent),
+    data,
     pagination: {
       page: input.page,
       perPage: input.perPage,
@@ -241,53 +91,32 @@ const queryLegacyCalendarEvents = async (input: ListQueryInput): Promise<Paginat
 
 export const queryCalendarEvents = async (rawInput: unknown): Promise<PaginatedResponse<CalendarEvent>> => {
   const input = ListQuerySchema.parse(rawInput);
-  const primary = await queryPrimaryCalendarEvents(input);
-  // #region agent log
-  fetch("http://127.0.0.1:7857/ingest/45821bd5-f1c6-412c-97d1-2d1ee6a22e0e", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "94c3ac" }, body: JSON.stringify({ sessionId: "94c3ac", location: "calendar.service.ts:queryCalendarEvents", message: "query result", data: { projectIds: input.projectIds, dateFrom: input.filters?.dateFrom, dateTo: input.filters?.dateTo, primaryTotal: primary.pagination.total, primaryDataLength: primary.data.length }, hypothesisId: "H1_H2", timestamp: Date.now() }) }).catch(() => {});
-  // #endregion
-  if (primary.pagination.total > 0) return primary;
-  return queryLegacyCalendarEvents(input);
+  return queryPrimaryCalendarEvents(input);
 };
 
 export const createCalendarEvent = async (rawInput: unknown): Promise<{ event: CalendarEvent }> => {
   const input = CalendarEventCreateSchema.parse(rawInput);
   const db = getDb();
-  const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("tz_calendar_events");
-  const startsAtDate = new Date(input.startsAt);
-  const endsAtDate = new Date(input.endsAt);
-  type InsertDoc = {
-    workspaceId: string;
-    projectId: string;
-    title: string;
-    startsAt: Date;
-    endsAt: Date;
-    source: (typeof SOURCES)[number];
-    clientId?: string;
-    apartmentId?: string;
-    _id?: ObjectId;
-  };
-  const doc: InsertDoc = {
+  const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("calendar_events");
+  const doc: Omit<CalendarEvent, "_id"> & { _id?: ObjectId } = {
     workspaceId: input.workspaceId,
     projectId: input.projectId,
     title: input.title.trim(),
-    startsAt: startsAtDate,
-    endsAt: endsAtDate,
+    startsAt: new Date(input.startsAt).toISOString(),
+    endsAt: new Date(input.endsAt).toISOString(),
     source: input.source,
     ...(input.clientId && input.clientId.trim() && { clientId: input.clientId.trim() }),
     ...(input.apartmentId && input.apartmentId.trim() && { apartmentId: input.apartmentId.trim() }),
   };
   const result = await collection.insertOne(doc as never);
   const _id = result.insertedId.toHexString();
-  // #region agent log
-  fetch("http://127.0.0.1:7857/ingest/45821bd5-f1c6-412c-97d1-2d1ee6a22e0e", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "94c3ac" }, body: JSON.stringify({ sessionId: "94c3ac", location: "calendar.service.ts:createCalendarEvent", message: "inserted", data: { projectId: input.projectId, startsAt: doc.startsAt, endsAt: doc.endsAt, _id }, hypothesisId: "H2", timestamp: Date.now() }) }).catch(() => {});
-  // #endregion
   const event: CalendarEvent = {
     _id,
     workspaceId: doc.workspaceId,
     projectId: doc.projectId,
     title: doc.title,
-    startsAt: startsAtDate.toISOString(),
-    endsAt: endsAtDate.toISOString(),
+    startsAt: doc.startsAt,
+    endsAt: doc.endsAt,
     source: doc.source,
     ...(doc.clientId && { clientId: doc.clientId }),
     ...(doc.apartmentId && { apartmentId: doc.apartmentId }),
@@ -308,22 +137,13 @@ export const createCalendarEvent = async (rawInput: unknown): Promise<{ event: C
   return { event };
 };
 
-export const getCalendarEventById = async (eventId: string): Promise<CalendarEvent | null> => {
-  if (!ObjectId.isValid(eventId)) return null;
-  const db = getDb();
-  const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("tz_calendar_events");
-  const doc = await collection.findOne({ _id: new ObjectId(eventId) } as never);
-  if (!doc) return null;
-  return toCalendarEvent(doc as CalendarEvent & { _id?: ObjectId; startsAt?: Date | string; endsAt?: Date | string });
-};
-
 export const updateCalendarEvent = async (
   eventId: string,
   rawInput: unknown
 ): Promise<{ event: CalendarEvent }> => {
   const input = CalendarEventUpdateSchema.parse(rawInput);
   const db = getDb();
-  const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("tz_calendar_events");
+  const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("calendar_events");
   if (!ObjectId.isValid(eventId)) {
     throw new HttpError("Event not found", 404);
   }
@@ -335,8 +155,8 @@ export const updateCalendarEvent = async (
   const update: Record<string, unknown> = {};
   const unset: Record<string, 1> = {};
   if (input.title !== undefined) update.title = input.title.trim();
-  if (input.startsAt !== undefined) update.startsAt = new Date(input.startsAt);
-  if (input.endsAt !== undefined) update.endsAt = new Date(input.endsAt);
+  if (input.startsAt !== undefined) update.startsAt = new Date(input.startsAt).toISOString();
+  if (input.endsAt !== undefined) update.endsAt = new Date(input.endsAt).toISOString();
   if (input.projectId !== undefined) update.projectId = input.projectId;
   if (input.source !== undefined) update.source = input.source;
   if (input.clientId !== undefined) {
@@ -356,8 +176,8 @@ export const updateCalendarEvent = async (
     workspaceId: String(updated!.workspaceId ?? existing.workspaceId),
     projectId: String(updated!.projectId ?? existing.projectId),
     title: String(updated!.title ?? existing.title),
-    startsAt: toIsoString(updated!.startsAt ?? existing.startsAt),
-    endsAt: toIsoString(updated!.endsAt ?? existing.endsAt),
+    startsAt: String(updated!.startsAt ?? existing.startsAt),
+    endsAt: String(updated!.endsAt ?? existing.endsAt),
     source: (updated!.source ?? existing.source) as CalendarEvent["source"],
     ...(updated!.clientId != null && { clientId: String(updated!.clientId) }),
     ...(updated!.apartmentId != null && { apartmentId: String(updated!.apartmentId) }),
@@ -383,7 +203,7 @@ export const deleteCalendarEvent = async (eventId: string): Promise<{ deleted: b
     throw new HttpError("Event not found", 404);
   }
   const db = getDb();
-  const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("tz_calendar_events");
+  const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("calendar_events");
   const _id = new ObjectId(eventId);
   const result = await collection.deleteOne({ _id } as never);
   if (result.deletedCount === 0) {

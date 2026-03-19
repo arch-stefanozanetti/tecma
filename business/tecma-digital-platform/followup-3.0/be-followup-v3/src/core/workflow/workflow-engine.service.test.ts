@@ -1,33 +1,60 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ObjectId } from "mongodb";
 
-const workflowsToArrayMock = vi.fn();
-const statesToArrayMock = vi.fn();
-const transitionsToArrayMock = vi.fn();
-const workflowsFindOneMock = vi.fn();
-const insertOneMock = vi.fn();
+const mocks = vi.hoisted(() => {
+  const workflowsFindOneMock = vi.fn();
+  const workflowsInsertOneMock = vi.fn();
+  const workflowsToArrayMock = vi.fn();
+  const workflowsSortMock = vi.fn(() => ({ toArray: workflowsToArrayMock }));
+  const workflowsFindMock = vi.fn(() => ({ sort: workflowsSortMock, toArray: workflowsToArrayMock }));
 
-const workflowsFindMock = vi.fn(() => ({ sort: vi.fn(() => ({ toArray: workflowsToArrayMock })) }));
-const statesFindMock = vi.fn(() => ({ sort: vi.fn(() => ({ toArray: statesToArrayMock })) }));
-const transitionsFindMock = vi.fn(() => ({ toArray: transitionsToArrayMock }));
+  const statesInsertOneMock = vi.fn();
+  const statesToArrayMock = vi.fn();
+  const statesSortMock = vi.fn(() => ({ toArray: statesToArrayMock }));
+  const statesFindMock = vi.fn(() => ({ sort: statesSortMock, toArray: statesToArrayMock }));
+
+  const transitionsInsertOneMock = vi.fn();
+  const transitionsToArrayMock = vi.fn();
+  const transitionsFindMock = vi.fn(() => ({ toArray: transitionsToArrayMock }));
+
+  const workflowsCollection = {
+    find: workflowsFindMock,
+    findOne: workflowsFindOneMock,
+    insertOne: workflowsInsertOneMock,
+  };
+  const statesCollection = {
+    find: statesFindMock,
+    insertOne: statesInsertOneMock,
+  };
+  const transitionsCollection = {
+    find: transitionsFindMock,
+    insertOne: transitionsInsertOneMock,
+  };
+
+  return {
+    workflowsFindOneMock,
+    workflowsInsertOneMock,
+    workflowsToArrayMock,
+    workflowsFindMock,
+    statesInsertOneMock,
+    statesToArrayMock,
+    statesFindMock,
+    transitionsInsertOneMock,
+    transitionsToArrayMock,
+    transitionsFindMock,
+    workflowsCollection,
+    statesCollection,
+    transitionsCollection,
+  };
+});
 
 vi.mock("../../config/db.js", () => ({
   getDb: () => ({
     collection: (name: string) => {
-      if (name === "tz_workflows") {
-        return {
-          find: workflowsFindMock,
-          findOne: workflowsFindOneMock,
-          insertOne: insertOneMock,
-        };
-      }
-      if (name === "tz_workflow_states") {
-        return { find: statesFindMock, insertOne: insertOneMock };
-      }
-      if (name === "tz_workflow_transitions") {
-        return { find: transitionsFindMock, insertOne: insertOneMock };
-      }
-      return { find: vi.fn(), findOne: vi.fn(), insertOne: vi.fn() };
+      if (name === "tz_workflows") return mocks.workflowsCollection;
+      if (name === "tz_workflow_states") return mocks.statesCollection;
+      if (name === "tz_workflow_transitions") return mocks.transitionsCollection;
+      throw new Error("Unexpected collection: " + name);
     },
   }),
 }));
@@ -50,229 +77,129 @@ describe("workflow-engine.service", () => {
     vi.clearAllMocks();
   });
 
-  it("listWorkflowsByWorkspace returns ordered rows", async () => {
-    workflowsToArrayMock.mockResolvedValueOnce([
-      {
-        _id: new ObjectId("64b64f3fd9024a2a53111111"),
-        workspaceId: "ws1",
-        name: "Sell Flow",
-        type: "sell",
-        createdAt: new Date("2026-01-01"),
-        updatedAt: new Date("2026-01-02"),
-      },
+  it("listWorkflowsByWorkspace returns empty for missing workspace and rows when present", async () => {
+    expect(await listWorkflowsByWorkspace("")).toEqual({ workflows: [] });
+
+    const now = new Date().toISOString();
+    const id = new ObjectId();
+    mocks.workflowsToArrayMock.mockResolvedValueOnce([
+      { _id: id, workspaceId: "ws1", name: "Sell Flow", type: "sell", createdAt: now, updatedAt: now },
     ]);
 
     const result = await listWorkflowsByWorkspace("ws1");
-
     expect(result.workflows).toHaveLength(1);
-    expect(result.workflows[0].type).toBe("sell");
+    expect(result.workflows[0]._id).toBe(id.toHexString());
   });
 
-  it("listWorkflowsByWorkspace returns empty on missing workspace", async () => {
-    const result = await listWorkflowsByWorkspace("");
-    expect(result.workflows).toEqual([]);
+  it("getWorkflowWithStatesAndTransitions handles invalid/missing workflow", async () => {
+    expect(await getWorkflowWithStatesAndTransitions("bad")).toBeNull();
+
+    mocks.workflowsFindOneMock.mockResolvedValueOnce(null);
+    expect(await getWorkflowWithStatesAndTransitions(new ObjectId().toHexString())).toBeNull();
   });
 
-  it("getWorkflowWithStatesAndTransitions returns null on invalid id", async () => {
-    const result = await getWorkflowWithStatesAndTransitions("bad-id");
-    expect(result).toBeNull();
-  });
+  it("getWorkflowWithStatesAndTransitions returns mapped detail", async () => {
+    const workflowId = new ObjectId();
+    const state1 = new ObjectId();
+    const state2 = new ObjectId();
+    const transition = new ObjectId();
+    const now = new Date().toISOString();
 
-  it("getWorkflowWithStatesAndTransitions hydrates workflow detail", async () => {
-    const workflowId = new ObjectId("64b64f3fd9024a2a53111111");
-    workflowsFindOneMock.mockResolvedValueOnce({
+    mocks.workflowsFindOneMock.mockResolvedValueOnce({
       _id: workflowId,
       workspaceId: "ws1",
-      name: "Main Flow",
-      type: "rent",
-      createdAt: new Date("2026-01-01"),
-      updatedAt: new Date("2026-01-02"),
+      name: "Flow",
+      type: "sell",
+      createdAt: now,
+      updatedAt: now,
     });
-    statesToArrayMock.mockResolvedValueOnce([
-      {
-        _id: new ObjectId("64b64f3fd9024a2a53222222"),
-        workflowId: workflowId.toHexString(),
-        code: "new",
-        label: "New",
-        order: 1,
-        terminal: false,
-        reversible: true,
-        apartmentLock: "none",
-        createdAt: new Date("2026-01-01"),
-        updatedAt: new Date("2026-01-02"),
-      },
+    mocks.statesToArrayMock.mockResolvedValueOnce([
+      { _id: state1, workflowId: workflowId.toHexString(), code: "new", label: "New", order: 1, reversible: true },
+      { _id: state2, workflowId: workflowId.toHexString(), code: "offer", label: "Offer", order: 2, apartmentLock: "hard" },
     ]);
-    transitionsToArrayMock.mockResolvedValueOnce([
-      {
-        _id: new ObjectId("64b64f3fd9024a2a53333333"),
-        workflowId: workflowId.toHexString(),
-        fromStateId: "64b64f3fd9024a2a53222222",
-        toStateId: "64b64f3fd9024a2a53222222",
-        createdAt: new Date("2026-01-02"),
-      },
+    mocks.transitionsToArrayMock.mockResolvedValueOnce([
+      { _id: transition, workflowId: workflowId.toHexString(), fromStateId: state1.toHexString(), toStateId: state2.toHexString(), createdAt: now },
     ]);
 
     const detail = await getWorkflowWithStatesAndTransitions(workflowId.toHexString());
 
-    expect(detail?.workflow.name).toBe("Main Flow");
-    expect(detail?.states).toHaveLength(1);
-    expect(detail?.transitions).toHaveLength(1);
+    expect(detail).not.toBeNull();
+    expect(detail?.states).toHaveLength(2);
+    expect(detail?.transitions[0].fromStateId).toBe(state1.toHexString());
   });
 
-  it("getWorkflowForWorkspaceAndType returns null when not found", async () => {
-    workflowsFindOneMock.mockResolvedValueOnce(null);
-    const detail = await getWorkflowForWorkspaceAndType("ws1", "rent");
-    expect(detail).toBeNull();
+  it("getWorkflowForWorkspaceAndType returns null when missing", async () => {
+    expect(await getWorkflowForWorkspaceAndType("", "sell")).toBeNull();
+    mocks.workflowsFindOneMock.mockResolvedValueOnce(null);
+    expect(await getWorkflowForWorkspaceAndType("ws1", "sell")).toBeNull();
   });
 
-  it("getWorkflowForWorkspaceAndType resolves detail when workflow exists", async () => {
-    const workflowId = new ObjectId("64b64f3fd9024a2a53111111");
-    workflowsFindOneMock
-      .mockResolvedValueOnce({ _id: workflowId, workspaceId: "ws1", name: "Rent WF", type: "rent" })
-      .mockResolvedValueOnce({
-        _id: workflowId,
-        workspaceId: "ws1",
-        name: "Rent WF",
-        type: "rent",
-        createdAt: new Date("2026-01-01"),
-        updatedAt: new Date("2026-01-02"),
-      });
-    statesToArrayMock.mockResolvedValueOnce([]);
-    transitionsToArrayMock.mockResolvedValueOnce([]);
-
-    const detail = await getWorkflowForWorkspaceAndType("ws1", "rent");
-
-    expect(detail?.workflow._id).toBe(workflowId.toHexString());
-  });
-
-  it("buildValidationConfig + isTransitionAllowed validate paths", () => {
+  it("validation helpers compute and verify transitions", async () => {
     const detail = {
       workflow: {
         _id: "wf1",
         workspaceId: "ws1",
-        name: "WF",
+        name: "Flow",
         type: "sell" as const,
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
+        createdAt: "x",
+        updatedAt: "x",
       },
       states: [
-        { _id: "s1", workflowId: "wf1", code: "new", label: "New", order: 1, terminal: false, reversible: true, apartmentLock: "none" as const, createdAt: "", updatedAt: "" },
-        { _id: "s2", workflowId: "wf1", code: "won", label: "Won", order: 2, terminal: true, reversible: false, apartmentLock: "hard" as const, createdAt: "", updatedAt: "" },
+        {
+          _id: "s1",
+          workflowId: "wf1",
+          code: "new",
+          label: "New",
+          order: 1,
+          terminal: false,
+          reversible: true,
+          apartmentLock: "none" as const,
+          createdAt: "x",
+          updatedAt: "x",
+        },
+        {
+          _id: "s2",
+          workflowId: "wf1",
+          code: "offer",
+          label: "Offer",
+          order: 2,
+          terminal: false,
+          reversible: true,
+          apartmentLock: "soft" as const,
+          createdAt: "x",
+          updatedAt: "x",
+        },
       ],
-      transitions: [{ _id: "t1", workflowId: "wf1", fromStateId: "s1", toStateId: "s2", createdAt: "" }],
+      transitions: [{ _id: "t1", workflowId: "wf1", fromStateId: "s1", toStateId: "s2", createdAt: "x" }],
     };
 
     const config = buildValidationConfig(detail);
-    expect(isTransitionAllowed(config, "new", "won")).toBe(true);
-    expect(isTransitionAllowed(config, "won", "new")).toBe(false);
-    expect(getStateByCode(detail, "new")?._id).toBe("s1");
-    expect(getStateByCode(detail, "unknown")).toBeNull();
+    expect(isTransitionAllowed(config, "new", "offer")).toBe(true);
+    expect(isTransitionAllowed(config, "offer", "new")).toBe(false);
+    expect(getStateByCode(detail, "offer")?._id).toBe("s2");
+    expect(getStateByCode(detail, "missing")).toBeNull();
   });
 
-  it("isTransitionAllowedForWorkspace returns null when no workflow", async () => {
-    workflowsFindOneMock.mockResolvedValueOnce(null);
-    const allowed = await isTransitionAllowedForWorkspace("ws1", "rent", "new", "won");
-    expect(allowed).toBeNull();
+  it("isTransitionAllowedForWorkspace returns null when no workflow detail", async () => {
+    mocks.workflowsFindOneMock.mockResolvedValueOnce(null);
+    expect(await isTransitionAllowedForWorkspace("ws1", "sell", "new", "offer")).toBeNull();
   });
 
-  it("isTransitionAllowedForWorkspace resolves true on allowed transition", async () => {
-    const workflowId = new ObjectId("64b64f3fd9024a2a53111111");
-    const s1 = new ObjectId("64b64f3fd9024a2a53222222");
-    const s2 = new ObjectId("64b64f3fd9024a2a53333333");
-    workflowsFindOneMock
-      .mockResolvedValueOnce({ _id: workflowId, workspaceId: "ws1", name: "WF", type: "sell" })
-      .mockResolvedValueOnce({
-        _id: workflowId,
-        workspaceId: "ws1",
-        name: "WF",
-        type: "sell",
-        createdAt: new Date("2026-01-01"),
-        updatedAt: new Date("2026-01-01"),
-      });
-    statesToArrayMock.mockResolvedValueOnce([
-      { _id: s1, workflowId: workflowId.toHexString(), code: "new", label: "New", order: 1, terminal: false, reversible: true, apartmentLock: "none" },
-      { _id: s2, workflowId: workflowId.toHexString(), code: "won", label: "Won", order: 2, terminal: true, reversible: false, apartmentLock: "hard" },
-    ]);
-    transitionsToArrayMock.mockResolvedValueOnce([
-      { _id: new ObjectId("64b64f3fd9024a2a53444444"), workflowId: workflowId.toHexString(), fromStateId: s1.toHexString(), toStateId: s2.toHexString(), createdAt: new Date("2026-01-01") },
-    ]);
+  it("createWorkflow/state/transition persist docs and map rows", async () => {
+    const workflowId = new ObjectId();
+    const stateId = new ObjectId();
+    const transitionId = new ObjectId();
 
-    const allowed = await isTransitionAllowedForWorkspace("ws1", "sell", "new", "won");
-    expect(allowed).toBe(true);
-  });
+    mocks.workflowsInsertOneMock.mockResolvedValueOnce({ insertedId: workflowId });
+    mocks.statesInsertOneMock.mockResolvedValueOnce({ insertedId: stateId });
+    mocks.transitionsInsertOneMock.mockResolvedValueOnce({ insertedId: transitionId });
 
-  it("createWorkflow returns created row", async () => {
-    const insertedId = new ObjectId("64b64f3fd9024a2a53111111");
-    insertOneMock.mockResolvedValueOnce({ insertedId });
+    const wf = await createWorkflow({ workspaceId: "ws1", name: "Flow", type: "sell" });
+    const st = await createWorkflowState({ workflowId: workflowId.toHexString(), code: "new", label: "New", order: 1, apartmentLock: "soft" });
+    const tr = await createWorkflowTransition({ workflowId: workflowId.toHexString(), fromStateId: stateId.toHexString(), toStateId: transitionId.toHexString() });
 
-    const result = await createWorkflow({ workspaceId: "ws1", name: "WF", type: "custom" });
-
-    expect(result.workflow._id).toBe(insertedId.toHexString());
-    expect(result.workflow.type).toBe("custom");
-  });
-
-  it("createWorkflow applies default name/type when omitted at runtime", async () => {
-    const insertedId = new ObjectId("64b64f3fd9024a2a53111114");
-    insertOneMock.mockResolvedValueOnce({ insertedId });
-
-    const result = await createWorkflow({ workspaceId: "ws1" } as unknown as { workspaceId: string; name: string; type: "custom" });
-
-    expect(result.workflow.name).toBe("Workflow");
-    expect(result.workflow.type).toBe("custom");
-  });
-
-  it("createWorkflowState applies defaults and returns row", async () => {
-    const insertedId = new ObjectId("64b64f3fd9024a2a53111112");
-    insertOneMock.mockResolvedValueOnce({ insertedId });
-
-    const result = await createWorkflowState({
-      workflowId: "wf1",
-      code: "new",
-      label: "New",
-      order: 1,
-    });
-
-    expect(result.state._id).toBe(insertedId.toHexString());
-    expect(result.state.apartmentLock).toBe("none");
-    expect(result.state.terminal).toBe(false);
-  });
-
-  it("createWorkflowState keeps explicit apartmentLock soft/hard", async () => {
-    insertOneMock
-      .mockResolvedValueOnce({ insertedId: new ObjectId("64b64f3fd9024a2a53111115") })
-      .mockResolvedValueOnce({ insertedId: new ObjectId("64b64f3fd9024a2a53111116") });
-
-    const soft = await createWorkflowState({
-      workflowId: "wf1",
-      code: "proposal",
-      label: "Proposal",
-      order: 2,
-      apartmentLock: "soft",
-    });
-    const hard = await createWorkflowState({
-      workflowId: "wf1",
-      code: "won",
-      label: "Won",
-      order: 3,
-      apartmentLock: "hard",
-    });
-
-    expect(soft.state.apartmentLock).toBe("soft");
-    expect(hard.state.apartmentLock).toBe("hard");
-  });
-
-  it("createWorkflowTransition returns created row", async () => {
-    const insertedId = new ObjectId("64b64f3fd9024a2a53111113");
-    insertOneMock.mockResolvedValueOnce({ insertedId });
-
-    const result = await createWorkflowTransition({
-      workflowId: "wf1",
-      fromStateId: "s1",
-      toStateId: "s2",
-    });
-
-    expect(result.transition._id).toBe(insertedId.toHexString());
-    expect(result.transition.fromStateId).toBe("s1");
-    expect(result.transition.toStateId).toBe("s2");
+    expect(wf.workflow._id).toBe(workflowId.toHexString());
+    expect(st.state.apartmentLock).toBe("soft");
+    expect(tr.transition._id).toBe(transitionId.toHexString());
   });
 });

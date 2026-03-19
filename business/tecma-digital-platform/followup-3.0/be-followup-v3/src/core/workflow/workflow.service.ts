@@ -1,7 +1,6 @@
 import { getDb } from "../../config/db.js";
 
 const TZ_WORKFLOW_COLLECTION = "tz_workflow_configs";
-const AUTOMATA_COLLECTION = "automata_configurations";
 
 export interface WorkflowState {
   id: string;
@@ -24,10 +23,7 @@ export interface WorkflowConfig {
   version?: number;
 }
 
-/**
- * Get workflow config for a given flow type.
- * Tries tz_workflow_configs (primary DB) first, then falls back to status-automata.automata_configurations.
- */
+/** Get workflow config for a given flow type from tz_workflow_configs. */
 export const getWorkflowConfig = async (
   workspaceId: string,
   projectId: string,
@@ -50,53 +46,7 @@ export const getWorkflowConfig = async (
     };
   }
 
-  const area = flowType === "rent" ? "RENT" : "SELL";
-  const automataDb = getDb();
-  const automataColl = automataDb.collection(AUTOMATA_COLLECTION);
-  const automataDoc = await automataColl.findOne({
-    flow: "REQUEST",
-    area,
-  });
-
-  if (!automataDoc || !automataDoc.automata) {
-    return getDefaultWorkflowConfig(flowType);
-  }
-
-  const automata = automataDoc.automata as Record<
-    string,
-    {
-      nextStates?: Record<string, string>;
-      isRequestEditable?: boolean;
-      notify?: boolean;
-      children?: string[];
-    }
-  >;
-
-  const states: WorkflowState[] = [];
-  const transitions: WorkflowTransition[] = [];
-
-  for (const [stateId, config] of Object.entries(automata)) {
-    const nextStates = config?.nextStates ?? {};
-    const hasNext = Object.keys(nextStates).length > 0;
-    states.push({
-      id: stateId,
-      isTerminal: !hasNext,
-      isRequestEditable: config?.isRequestEditable,
-      notify: config?.notify,
-    });
-    for (const [event, toState] of Object.entries(nextStates)) {
-      if (toState) {
-        transitions.push({ fromState: stateId, toState, event });
-      }
-    }
-  }
-
-  return {
-    flowType,
-    states,
-    transitions,
-    version: typeof automataDoc.version === "number" ? automataDoc.version : undefined,
-  };
+  return getDefaultWorkflowConfig(flowType);
 };
 
 function getDefaultWorkflowConfig(flowType: "rent" | "sell"): WorkflowConfig {

@@ -1,55 +1,118 @@
 import * as React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "../../test-utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "../../test-utils";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ClientDetailPage } from "./ClientDetailPage";
 
-vi.mock("react-router-dom", async () => {
-  const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
-  return { ...actual, useNavigate: () => vi.fn() };
+const mocks = vi.hoisted(() => {
+  const navigateMock = vi.fn();
+  const useClientDetailDataMock = vi.fn();
+  const api = {
+    getClientCandidates: vi.fn(),
+    listAdditionalInfos: vi.fn(),
+    listEntityAssignments: vi.fn(),
+    listWorkspaceUsers: vi.fn(),
+    createClientAction: vi.fn(),
+    getAuditForEntity: vi.fn(),
+    getRequestActions: vi.fn(),
+    getRequestTransitions: vi.fn(),
+    assignEntity: vi.fn(),
+    unassignEntity: vi.fn(),
+    updateClient: vi.fn(),
+    updateRequestStatus: vi.fn(),
+    createRequestAction: vi.fn(),
+    updateRequestAction: vi.fn(),
+    deleteRequestAction: vi.fn(),
+    queryCalendar: vi.fn(),
+  };
+  return { navigateMock, useClientDetailDataMock, api };
 });
 
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual<typeof import("react-router-dom")>("react-router-dom");
+  return { ...actual, useNavigate: () => mocks.navigateMock };
+});
+
+vi.mock("./useClientDetailData", () => ({
+  useClientDetailData: mocks.useClientDetailDataMock,
+}));
+
 vi.mock("../../api/followupApi", () => ({
-  followupApi: {
-    getClientById: vi.fn().mockResolvedValue({
-      client: {
-        _id: "c1",
-        fullName: "Mario Rossi",
-        email: "mario@test.com",
-        status: "lead",
-        projectId: "p1",
-        updatedAt: new Date().toISOString(),
-      },
-    }),
-    getClientRequests: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),
-    queryRequests: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),
-    listAdditionalInfos: vi.fn().mockResolvedValue({ data: [] }),
-    getAuditForEntity: vi.fn().mockResolvedValue({ data: [], pagination: { page: 1, perPage: 25, total: 0, totalPages: 0 } }),
-    listEntityAssignments: vi.fn().mockResolvedValue({ data: [] }),
-    listWorkspaceUsers: vi.fn().mockResolvedValue({ data: [] }),
-    getClientCandidates: vi.fn().mockResolvedValue({ data: [] }),
-    listWorkflowsByWorkspace: vi.fn().mockResolvedValue({ data: [] }),
-    getRequestActions: vi.fn().mockResolvedValue({ actions: [] }),
-    queryCalendar: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),
-  },
+  followupApi: mocks.api,
 }));
 
 vi.mock("../../auth/projectScope", () => ({
   useWorkspace: () => ({
     workspaceId: "ws-1",
     selectedProjectIds: ["p1"],
-    projects: [],
+    projects: [{ id: "p1", name: "Project 1", displayName: "Project 1" }],
     isAdmin: false,
   }),
 }));
 
+vi.mock("../../hooks/useWorkflowConfig", () => ({
+  useWorkflowConfig: () => ({ statusLabelByCode: {}, statuses: [] }),
+}));
+
+vi.mock("../../contexts/ToastContext", () => ({
+  useToast: () => ({ toastError: vi.fn() }),
+}));
+
+vi.mock("../../components/MatchingCandidatesList", () => ({
+  MatchingCandidatesList: () => <div data-testid="matching-candidates" />,
+}));
+
+vi.mock("../../components/RequestStatusRoadmap", () => ({
+  RequestStatusRoadmap: () => <div data-testid="request-roadmap" />,
+}));
+
+vi.mock("../calendar/CalendarEventFormDrawer", () => ({
+  CalendarEventFormDrawer: () => null,
+}));
+
+const baseState = () => ({
+  client: {
+    _id: "c1",
+    fullName: "Mario Rossi",
+    email: "mario@test.com",
+    status: "lead",
+    projectId: "p1",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  setClient: vi.fn(),
+  loading: false,
+  error: null,
+  requests: [],
+  setRequests: vi.fn(),
+  requestsLoading: false,
+  reloadRequests: vi.fn(),
+});
+
 describe("ClientDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.api.getClientCandidates.mockResolvedValue({ data: [] });
+    mocks.api.listAdditionalInfos.mockResolvedValue({ data: [] });
+    mocks.api.listEntityAssignments.mockResolvedValue({ data: [] });
+    mocks.api.listWorkspaceUsers.mockResolvedValue({ data: [] });
+    mocks.api.createClientAction.mockResolvedValue({ ok: true });
+    mocks.api.getAuditForEntity.mockResolvedValue({ data: [] });
+    mocks.api.getRequestActions.mockResolvedValue({ actions: [] });
+    mocks.api.getRequestTransitions.mockResolvedValue({ transitions: [] });
+    mocks.api.assignEntity.mockResolvedValue({ ok: true });
+    mocks.api.unassignEntity.mockResolvedValue({ ok: true });
+    mocks.api.updateClient.mockResolvedValue({ client: baseState().client });
+    mocks.api.updateRequestStatus.mockResolvedValue({ request: { _id: "r1", status: "new" } });
+    mocks.api.createRequestAction.mockResolvedValue({ action: { _id: "a1" } });
+    mocks.api.updateRequestAction.mockResolvedValue({ action: { _id: "a1" } });
+    mocks.api.deleteRequestAction.mockResolvedValue({ ok: true });
+    mocks.api.queryCalendar.mockResolvedValue({ data: [] });
   });
 
   const NoExtraRouter = ({ children }: { children: React.ReactNode }) => <>{children}</>;
-  it("con clientId carica e mostra il cliente", async () => {
+
+  const renderPage = () =>
     render(
       <MemoryRouter initialEntries={["/clients/c1"]}>
         <Routes>
@@ -58,19 +121,32 @@ describe("ClientDetailPage", () => {
       </MemoryRouter>,
       { wrapper: NoExtraRouter }
     );
-    expect(await screen.findByText("Mario Rossi")).toBeInTheDocument();
+
+  it("mostra stato loading", () => {
+    mocks.useClientDetailDataMock.mockReturnValue({ ...baseState(), loading: true, client: null });
+    renderPage();
+    expect(screen.getByText(/caricamento/i)).toBeInTheDocument();
   });
 
-  it("mostra email e sezione dettagli cliente", async () => {
-    render(
-      <MemoryRouter initialEntries={["/clients/c1"]}>
-        <Routes>
-          <Route path="/clients/:clientId" element={<ClientDetailPage />} />
-        </Routes>
-      </MemoryRouter>,
-      { wrapper: NoExtraRouter }
-    );
-    expect(await screen.findByText("Mario Rossi")).toBeInTheDocument();
+  it("mostra errore quando il client non è disponibile", () => {
+    mocks.useClientDetailDataMock.mockReturnValue({ ...baseState(), client: null, error: "Cliente non trovato" });
+    renderPage();
+    expect(screen.getByText("Cliente non trovato")).toBeInTheDocument();
+  });
+
+  it("renderizza anagrafica cliente", async () => {
+    mocks.useClientDetailDataMock.mockReturnValue(baseState());
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: "Mario Rossi" })).toBeInTheDocument();
     expect(screen.getByText("mario@test.com")).toBeInTheDocument();
+  });
+
+  it("apre drawer modifica cliente", async () => {
+    mocks.useClientDetailDataMock.mockReturnValue(baseState());
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: /modifica/i }));
+    expect(await screen.findByText("Modifica cliente")).toBeInTheDocument();
   });
 });

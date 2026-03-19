@@ -7,6 +7,7 @@ import { z } from "zod";
 import { getDb } from "../../config/db.js";
 import { HttpError } from "../../types/http.js";
 import { refreshOpportunityFeedbackCount } from "./opportunities.service.js";
+import { safeAsync } from "../shared/safeAsync.js";
 import { computeNeedScore } from "./scoring-weights.js";
 
 const COLLECTION = "tz_customer_needs";
@@ -169,7 +170,11 @@ export const createCustomerNeed = async (
   const result = await db.collection(COLLECTION).insertOne(doc);
   const _id = result.insertedId.toHexString();
   if (doc.opportunity_id) {
-    refreshOpportunityFeedbackCount(doc.opportunity_id).catch(() => {});
+    safeAsync(refreshOpportunityFeedbackCount(doc.opportunity_id), {
+      operation: "product_discovery.refresh_feedback_count",
+      entityType: "opportunity",
+      entityId: doc.opportunity_id,
+    });
   }
   const score = computeNeedScore({
     severity: doc.severity,
@@ -240,8 +245,20 @@ export const updateCustomerNeed = async (
       ? ((result as Record<string, unknown>).opportunity_id as string)
       : undefined;
   if (oldOpportunityId !== newOpportunityId) {
-    if (oldOpportunityId) refreshOpportunityFeedbackCount(oldOpportunityId).catch(() => {});
-    if (newOpportunityId) refreshOpportunityFeedbackCount(newOpportunityId).catch(() => {});
+    if (oldOpportunityId) {
+      safeAsync(refreshOpportunityFeedbackCount(oldOpportunityId), {
+        operation: "product_discovery.refresh_feedback_count",
+        entityType: "opportunity",
+        entityId: oldOpportunityId,
+      });
+    }
+    if (newOpportunityId) {
+      safeAsync(refreshOpportunityFeedbackCount(newOpportunityId), {
+        operation: "product_discovery.refresh_feedback_count",
+        entityType: "opportunity",
+        entityId: newOpportunityId,
+      });
+    }
   }
   return mapDocToRow(result as Record<string, unknown>);
 };

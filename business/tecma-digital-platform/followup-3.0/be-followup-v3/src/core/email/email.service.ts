@@ -8,7 +8,7 @@ export type SentEmailRecord = {
   to: string;
   subject: string;
   html: string;
-  kind: "invite" | "password_reset" | "email_verification";
+  kind: "invite" | "password_reset" | "email_verification" | "generic";
 };
 
 const mockOutbox: SentEmailRecord[] = [];
@@ -150,6 +150,15 @@ export async function sendEmailVerificationEmail(params: { to: string; token: st
   <p><a href="${escapeHtml(link)}">Verifica email</a></p>
 </body></html>`;
   await sendHtml(params.to, "Verifica email Followup", html, "email_verification");
+}
+
+export async function sendGenericEmail(params: { to: string; subject: string; text: string }): Promise<void> {
+  const html = `
+<!DOCTYPE html>
+<html><body style="font-family: system-ui, sans-serif; max-width: 560px; white-space: pre-wrap;">
+${escapeHtml(params.text)}
+</body></html>`;
+  await sendHtml(params.to, params.subject, html, "generic");
 }
 
 /** Template suggerito (placeholder) per UI admin / documentazione */

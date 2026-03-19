@@ -283,6 +283,7 @@ export const followupApi = {
       | "pipeline"
       | "clients_by_status"
       | "apartments_by_availability"
+      | "kpi_summary"
       | "activity_per_period"
       | "conversions_per_project"
       | "avg_times",
@@ -451,6 +452,36 @@ export const followupApi = {
   updateWorkspace: (id: string, payload: { name?: string }) =>
     patchJson<{ workspace: WorkspaceRow }>(`/workspaces/${id}`, payload),
   deleteWorkspace: (id: string) => deleteJson<{ deleted: boolean }>(`/workspaces/${id}`),
+  listPlatformApiKeys: (workspaceId: string) =>
+    getJson<{ data: Array<{ _id: string; label: string; projectIds: string[]; scopes: string[]; quotaPerDay: number | null; active: boolean; lastUsedAt?: string; createdAt: string; updatedAt: string }> }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/platform-api-keys`
+    ),
+  createPlatformApiKey: (
+    workspaceId: string,
+    payload: { label: string; projectIds?: string[]; scopes?: string[]; quotaPerDay?: number | null }
+  ) =>
+    postJson<{ key: Record<string, unknown>; apiKey: string; apiKeyMasked: string }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/platform-api-keys`,
+      payload
+    ),
+  rotatePlatformApiKey: (workspaceId: string, keyId: string) =>
+    postJson<{ key: Record<string, unknown>; apiKey: string; apiKeyMasked: string }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/platform-api-keys/${encodeURIComponent(keyId)}/rotate`,
+      {}
+    ),
+  revokePlatformApiKey: (workspaceId: string, keyId: string) =>
+    deleteJson<{ deleted: boolean }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/platform-api-keys/${encodeURIComponent(keyId)}`
+    ),
+  getPlatformApiKeyUsage: (workspaceId: string, params?: { dateFrom?: string; dateTo?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.dateFrom) q.set("dateFrom", params.dateFrom);
+    if (params?.dateTo) q.set("dateTo", params.dateTo);
+    const suffix = q.toString() ? `?${q.toString()}` : "";
+    return getJson<{ data: Array<{ keyRef: string; count: number; date: string }> }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/platform-api-keys/usage${suffix}`
+    );
+  },
   listWorkspaceProjects: (workspaceId: string) =>
     getJson<{ data: WorkspaceProjectRow[] }>(`/workspaces/${workspaceId}/projects`),
   getAssetUploadUrl: (
@@ -658,6 +689,28 @@ export const followupApi = {
     patchJson<{ notification: NotificationRow }>(`/notifications/${id}`, { read: true }),
   markAllNotificationsRead: (workspaceId: string) =>
     postJson<{ count: number }>("/notifications/read-all", { workspaceId }),
+  subscribeRealtimeEvents: (
+    workspaceId: string,
+    options: { projectId?: string; eventTypes?: string[] },
+    onEvent: (event: { eventType: string; payload: Record<string, unknown> }) => void
+  ) => {
+    const params = new URLSearchParams({ workspaceId });
+    if (options.projectId) params.set("projectId", options.projectId);
+    if (options.eventTypes && options.eventTypes.length > 0) {
+      params.set("eventTypes", options.eventTypes.join(","));
+    }
+    const token = getAccessToken();
+    if (token) params.set("accessToken", token);
+    const source = new EventSource(`${API_BASE_URL}/realtime/stream?${params.toString()}`);
+    source.addEventListener("domain-event", (evt) => {
+      try {
+        onEvent(JSON.parse((evt as MessageEvent).data) as { eventType: string; payload: Record<string, unknown> });
+      } catch {
+        // ignore invalid payloads
+      }
+    });
+    return () => source.close();
+  },
   listAutomationRules: (workspaceId: string) =>
     getJson<{ data: AutomationRuleRow[] }>(`/workspaces/${encodeURIComponent(workspaceId)}/automation-rules`),
   createAutomationRule: (workspaceId: string, payload: Omit<AutomationRuleRow, "_id" | "workspaceId" | "createdAt" | "updatedAt">) =>
@@ -738,6 +791,81 @@ export const followupApi = {
   updateCommunicationRule: (id: string, body: Record<string, unknown>) =>
     patchJson<{ rule: Record<string, unknown> }>(`/communication-rules/${encodeURIComponent(id)}`, body),
   deleteCommunicationRule: (id: string) => deleteJson<{ deleted: boolean }>(`/communication-rules/${encodeURIComponent(id)}`),
+  createPortalMagicLink: (payload: { workspaceId: string; clientId: string; projectIds: string[]; expiresInHours?: number }) =>
+    postJson<{ token: string; expiresAt: string }>("/portal/magic-links", payload),
+  portalExchangeMagicLink: (token: string) =>
+    postJson<{ accessToken: string; expiresAt: string }>("/portal/auth/exchange", { token }),
+  portalGetOverview: (
+    accessToken: string,
+    filters?: { statuses?: string[]; documentTypes?: Array<"quote" | "document"> },
+  ) =>
+    postJson<{
+      client: { id: string; fullName: string; email?: string; phone?: string };
+      deals: Array<{ id: string; type: string; status: string; updatedAt: string; quoteNumber?: string; quoteTotalPrice?: number }>;
+      documents: Array<{ id: string; title: string; type: "quote" | "document"; createdAt: string; url?: string }>;
+      timeline: Array<{ id: string; kind: "deal_status" | "document"; title: string; status?: string; at: string; requestId?: string }>;
+    }>("/portal/overview", { accessToken, filters }),
+  portalLogout: (accessToken: string) =>
+    postJson<{ ok: boolean }>("/portal/logout", { accessToken }),
+  privacyUpsertConsent: (
+    clientId: string,
+    payload: { workspaceId: string; consentType: "marketing_email" | "marketing_sms" | "profiling" | "third_party_sharing"; granted: boolean; source?: string },
+  ) => postJson<{ ok: boolean }>(`/privacy/clients/${encodeURIComponent(clientId)}/consents`, payload),
+  privacyRevokeConsent: (clientId: string, consentType: string, workspaceId: string) =>
+    deleteJson<{ ok: boolean }>(
+      `/privacy/clients/${encodeURIComponent(clientId)}/consents/${encodeURIComponent(consentType)}?workspaceId=${encodeURIComponent(workspaceId)}`
+    ),
+  privacyExportClient: (clientId: string, workspaceId: string) =>
+    getJson<Record<string, unknown>>(`/privacy/clients/${encodeURIComponent(clientId)}/export?workspaceId=${encodeURIComponent(workspaceId)}`),
+  privacyEraseClient: (clientId: string, payload: { workspaceId: string; reason?: string }) =>
+    postJson<{ ok: boolean; erasedAt: string }>(`/privacy/clients/${encodeURIComponent(clientId)}/erase`, payload),
+  privacyRunRetention: (payload?: { olderThanDays?: number }) =>
+    postJson<{ ok: boolean; olderThanDays: number; deletedAuditRows: number; runAt: string }>("/privacy/retention/run", payload ?? {}),
+  createSignatureRequest: (payload: {
+    workspaceId: string;
+    requestId: string;
+    provider: "docusign" | "yousign";
+    signer: { fullName: string; email: string };
+    document: { title: string; fileUrl: string };
+    callbackUrl?: string;
+  }) => postJson<Record<string, unknown>>("/contracts/signature-requests", payload),
+  getRequestSignatureStatus: (requestId: string, workspaceId: string) =>
+    getJson<{ data: Array<Record<string, unknown>> }>(
+      `/contracts/${encodeURIComponent(requestId)}/signature-status?workspaceId=${encodeURIComponent(workspaceId)}`
+    ),
+  listMarketingWorkflows: (workspaceId: string) =>
+    getJson<{ data: Array<Record<string, unknown>> }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/marketing-workflows`
+    ),
+  createMarketingWorkflow: (workspaceId: string, payload: Record<string, unknown>) =>
+    postJson<Record<string, unknown>>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/marketing-workflows`,
+      payload
+    ),
+  runDueMarketingWorkflows: () => postJson<{ processed: number; failed: number }>("/marketing-workflows/run-due", {}),
+  createMlsMapping: (
+    workspaceId: string,
+    payload: { projectId: string; portal: "immobiliare_it" | "idealista"; titlePrefix?: string; listingBaseUrl?: string },
+  ) =>
+    postJson<{ portal: string; apiKey: string; apiKeyMasked: string }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/mls/mappings`,
+      payload
+    ),
+  runMlsReconciliation: (workspaceId: string) =>
+    postJson<{ ok: boolean; checked: number; issues: number }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/mls/reconcile`,
+      {}
+    ),
+  getScaleOutDecision: (workspaceId: string) =>
+    getJson<Record<string, unknown>>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/platform/scale-out-decision`
+    ),
+  listOperationalAlerts: (workspaceId: string) =>
+    getJson<{ data: Array<Record<string, unknown>> }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/ops/alerts`
+    ),
+  acknowledgeOperationalAlert: (id: string) =>
+    postJson<{ ok: boolean }>(`/ops/alerts/${encodeURIComponent(id)}/ack`, {}),
   /** Log comunicazioni inviate (Notification Center). */
   listCommunicationDeliveries: (workspaceId: string, limit?: number) =>
     getJson<{ data: Array<{ _id: string; channel: string; templateId: string; recipientMasked: string; status: string; sentAt: string }> }>(

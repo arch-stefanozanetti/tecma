@@ -18,6 +18,7 @@ type ReportType =
   | "pipeline"
   | "clients_by_status"
   | "apartments_by_availability"
+  | "kpi_summary"
   | "activity_per_period"
   | "conversions_per_project"
   | "avg_times";
@@ -26,6 +27,7 @@ const REPORT_LABELS: Record<ReportType, string> = {
   pipeline: "Pipeline vendita/affitto",
   clients_by_status: "Clienti per stato",
   apartments_by_availability: "Appartamenti per disponibilità",
+  kpi_summary: "KPI sintetici (5 metriche core)",
   activity_per_period: "Attività per periodo",
   conversions_per_project: "Conversioni per progetto",
   avg_times: "Tempi medi (giorni a vinto)",
@@ -76,12 +78,21 @@ export const ReportsPage = () => {
     URL.revokeObjectURL(url);
   };
 
+  const isKpiSummary = reportType === "kpi_summary";
+  const kpiCards = isKpiSummary
+    ? data.map((row) => ({
+        metric: String(row.metric ?? ""),
+        value: Number(row.value ?? 0),
+        unit: String(row.unit ?? "count"),
+      }))
+    : [];
+
   return (
     <div className="min-h-full bg-app font-body text-foreground">
       <div className="px-5 pb-10 pt-8 lg:px-20">
         <h1 className="text-2xl font-semibold text-foreground">Report</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Pipeline, clienti per stato, appartamenti per disponibilità.
+          Pipeline, KPI sintetici, clienti per stato, appartamenti per disponibilità.
         </p>
 
         <div className="mt-6 flex flex-wrap gap-4 items-end">
@@ -111,6 +122,19 @@ export const ReportsPage = () => {
         </div>
 
         <div className="mt-6 overflow-x-auto rounded-lg border border-border">
+          {isKpiSummary && kpiCards.length > 0 && (
+            <div className="grid gap-3 border-b border-border bg-muted/20 p-4 md:grid-cols-2 xl:grid-cols-5">
+              {kpiCards.map((kpi) => (
+                <div key={kpi.metric} className="rounded-lg border border-border bg-card p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">{kpi.metric.replace(/_/g, " ")}</p>
+                  <p className="mt-1 text-xl font-semibold">
+                    {kpi.value}
+                    {kpi.unit === "percent" ? "%" : ""}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
           {loading ? (
             <div className="px-4 py-12 text-center text-sm text-muted-foreground">Caricamento…</div>
           ) : data.length === 0 ? (

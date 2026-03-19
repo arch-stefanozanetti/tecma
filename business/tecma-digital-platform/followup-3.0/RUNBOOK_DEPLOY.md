@@ -60,9 +60,37 @@ docker run --rm -p 5177:80 followup-fe:latest
 2. Login FE riuscito.
 3. Query clienti con scope valido.
 4. Creazione/modifica trattativa base.
+5. Verifica osservabilita:
+- log backend con `requestId` e `error.code` (in caso errore)
+- nuove metriche HTTP presenti (`followup_http_server_*`)
+- trace HTTP visibile sul collector/APM
 
 ## Rollback minimo
 
 1. Ripristinare immagine precedente (`followup-be:<previous>`, `followup-fe:<previous>`).
 2. Riavviare servizi.
 3. Rieseguire smoke check.
+
+## Link operativi osservabilita
+
+- `docs/OBSERVABILITY.md`
+- `docs/OBSERVABILITY_SLO.md`
+- `docs/RUNBOOK_OBSERVABILITY.md`
+- `infra/prometheus/alerts-followup-observability.yml`
+
+## Gate finali accettazione
+
+Prima del rilascio, eseguire i gate finali:
+
+1. CI hard-fail BE/FE completamente verde (`ci-be.yml`, `ci-fe.yml`).
+2. Journey E2E core verdi (`fe-followup-v3/e2e/core`).
+3. Verifica operativa post-release su ambiente target:
+
+```bash
+BE_URL="https://api.example.com" \
+FE_URL="https://app.example.com" \
+AUTH_BEARER="<token-opzionale>" \
+npm run post-release:verify
+```
+
+Dettaglio policy: `docs/ACCEPTANCE_GATES.md`.

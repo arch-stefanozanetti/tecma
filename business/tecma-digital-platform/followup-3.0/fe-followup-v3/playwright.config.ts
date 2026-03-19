@@ -20,12 +20,13 @@ export default defineConfig({
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
   ],
-  webServer: process.env.CI
-    ? undefined
-    : {
-        command: "npm run dev",
-        url: "http://localhost:5177",
-        reuseExistingServer: !process.env.CI,
-        timeout: 60_000,
-      },
+  webServer:
+    process.env.PLAYWRIGHT_USE_WEBSERVER === "true" || !process.env.CI
+      ? {
+          command: process.env.PLAYWRIGHT_WEBSERVER_COMMAND ?? "npm run dev",
+          url: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:5177",
+          reuseExistingServer: !process.env.CI,
+          timeout: 60_000,
+        }
+      : undefined,
 });

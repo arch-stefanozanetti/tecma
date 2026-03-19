@@ -13,7 +13,11 @@ const ReportInputSchema = z.object({
   dateTo: z.string().optional(),
 });
 
-export type ReportType = "pipeline" | "clients_by_status" | "apartments_by_availability";
+export type ReportType =
+  | "pipeline"
+  | "clients_by_status"
+  | "apartments_by_availability"
+  | "kpi_summary";
 
 export interface PipelineRow {
   status: string;
@@ -30,6 +34,12 @@ export interface ClientsByStatusRow {
 export interface ApartmentsByAvailabilityRow {
   status: string;
   count: number;
+}
+
+export interface KpiSummaryRow {
+  metric: "pipeline_funnel" | "conversion_rate" | "agent_performance" | "pipeline_value" | "apartments_by_status";
+  value: number;
+  unit: "count" | "percent" | "currency";
 }
 
 const buildDateFilter = (dateFrom?: string, dateTo?: string): Record<string, unknown> => {
@@ -125,6 +135,66 @@ export const runApartmentsByAvailabilityReport = async (rawInput: unknown): Prom
   return { data };
 };
 
+/** KPI sintetici operativi (5 metriche minime) */
+export const runKpiSummaryReport = async (rawInput: unknown): Promise<{ data: KpiSummaryRow[] }> => {
+  const input = ReportInputSchema.parse(rawInput);
+  const db = getDb();
+  const requestMatch: Record<string, unknown> = {
+    workspaceId: input.workspaceId,
+    projectId: { $in: input.projectIds },
+  };
+  Object.assign(requestMatch, buildDateFilter(input.dateFrom, input.dateTo));
+
+  const [requestsAgg, apartmentsAgg] = await Promise.all([
+    db.collection("tz_requests").aggregate([
+      { $match: requestMatch },
+      {
+        $group: {
+          _id: null,
+          totalRequests: { $sum: 1 },
+          wonRequests: {
+            $sum: {
+              $cond: [{ $in: ["$status", ["won", "closed_won", "venduto", "locato"]] }, 1, 0],
+            },
+          },
+          activePipeline: {
+            $sum: {
+              $cond: [{ $in: ["$status", ["new", "in_progress", "qualified", "quote", "visit", "negotiation"]] }, 1, 0],
+            },
+          },
+          pipelineValue: { $sum: { $ifNull: ["$budgetMax", { $ifNull: ["$budget", 0] }] } },
+        },
+      },
+    ]).toArray(),
+    db.collection("tz_apartments").aggregate([
+      {
+        $match: {
+          workspaceId: input.workspaceId,
+          projectId: { $in: input.projectIds },
+          ...buildDateFilter(input.dateFrom, input.dateTo),
+        },
+      },
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+    ]).toArray(),
+  ]);
+
+  const reqMetrics = requestsAgg[0] as { totalRequests?: number; wonRequests?: number; activePipeline?: number; pipelineValue?: number } | undefined;
+  const totalRequests = reqMetrics?.totalRequests ?? 0;
+  const wonRequests = reqMetrics?.wonRequests ?? 0;
+  const activePipeline = reqMetrics?.activePipeline ?? 0;
+  const pipelineValue = reqMetrics?.pipelineValue ?? 0;
+  const apartmentsTotal = apartmentsAgg.reduce((acc, row) => acc + (Number((row as { count?: number }).count) || 0), 0);
+
+  const data: KpiSummaryRow[] = [
+    { metric: "pipeline_funnel", value: activePipeline, unit: "count" },
+    { metric: "conversion_rate", value: totalRequests > 0 ? Number(((wonRequests / totalRequests) * 100).toFixed(2)) : 0, unit: "percent" },
+    { metric: "agent_performance", value: wonRequests, unit: "count" },
+    { metric: "pipeline_value", value: Number(pipelineValue.toFixed(2)), unit: "currency" },
+    { metric: "apartments_by_status", value: apartmentsTotal, unit: "count" },
+  ];
+  return { data };
+};
+
 export const runReport = async (reportType: string, rawInput: unknown) => {
   switch (reportType) {
     case "pipeline":
@@ -133,6 +203,8 @@ export const runReport = async (reportType: string, rawInput: unknown) => {
       return runClientsByStatusReport(rawInput);
     case "apartments_by_availability":
       return runApartmentsByAvailabilityReport(rawInput);
+    case "kpi_summary":
+      return runKpiSummaryReport(rawInput);
     default:
       throw new HttpError(`Unknown report type: ${reportType}`, 400);
   }

@@ -36,3 +36,9 @@ Impostare su `main`:
 7. `Restrict who can push to matching branches` (opzionale ma raccomandato).
 
 Nota: la configurazione branch protection non è applicabile da repository locale; va impostata in GitHub repository settings.
+
+## Sicurezza repository
+
+1. Abilitare hook locali una volta per clone: `npm run setup:githooks`.
+2. Verificare sempre `npm run check:secrets` prima di push.
+3. Vietato committare credenziali reali in `.env*`, docs o script.

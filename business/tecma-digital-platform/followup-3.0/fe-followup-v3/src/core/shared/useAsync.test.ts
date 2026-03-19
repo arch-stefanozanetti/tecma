@@ -35,7 +35,7 @@ describe("useAsync", () => {
     );
     result.current.run();
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.error).toBe("Unknown error");
+    await waitFor(() => expect(result.current.error).toBe("Unknown error"));
   });
 
   it("reset azzera data, error e isLoading", async () => {

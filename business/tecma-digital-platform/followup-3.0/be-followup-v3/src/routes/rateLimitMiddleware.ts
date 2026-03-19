@@ -1,4 +1,5 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+import { ENV } from "../config/env.js";
 
 const skipRateLimit =
   process.env.NODE_ENV === "test" ||
@@ -30,6 +31,27 @@ export const refreshRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 30,
   message: { error: "Troppi refresh, riprova tra 15 minuti." },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => skipRateLimit
+});
+
+/** Limite per consumer esterni via API key piattaforma. */
+export const platformApiKeyRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: ENV.PLATFORM_RATE_LIMIT_PER_MIN,
+  message: { error: "Platform API rate limit exceeded, retry in one minute." },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => skipRateLimit,
+  keyGenerator: (req) => req.get("x-api-key") ?? ipKeyGenerator(req.ip ?? "")
+});
+
+/** Exchange magic-link portale cliente: limite stretto per prevenire brute-force token. */
+export const portalExchangeRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { error: "Troppi tentativi di accesso al portale, riprova tra un'ora." },
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => skipRateLimit

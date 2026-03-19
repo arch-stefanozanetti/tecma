@@ -1,12 +1,13 @@
-# Modello Cliente e Appartamento — mapping legacy e API
+# Modello Cliente e Appartamento — API runtime corrente
 
-Questo documento descrive il mapping tra i campi **legacy** (DB client/asset) e il modello **unificato** esposto dalle API Followup 3.0, e le regole per una futura migrazione.
+Questo documento descrive il modello unificato esposto dalle API Followup 3.0 dopo il cutover legacy-free runtime.
+Nota: le note su mapping legacy restano solo come riferimento storico, non come comportamento runtime.
 
 ---
 
 ## 1. Clienti
 
-### 1.1 DB principale (collection `clients`)
+### 1.1 DB principale (collection `tz_clients`)
 
 | Campo API (`ClientRow`) | Campo DB primary | Note |
 |-------------------------|------------------|------|
@@ -23,7 +24,7 @@ Questo documento descrive il mapping tra i campi **legacy** (DB client/asset) e 
 | `myhomeVersion` | `myhomeVersion` | opzionale |
 | `createdBy` | `createdBy` | opzionale |
 
-### 1.2 DB legacy (ENV `MONGO_CLIENT_DB_NAME`, collection `clients`)
+### 1.2 Mapping storico legacy (non runtime)
 
 | Campo API (`ClientRow`) | Campo legacy | Note |
 |-------------------------|--------------|------|
@@ -40,10 +41,11 @@ Questo documento descrive il mapping tra i campi **legacy** (DB client/asset) e 
 | `myhomeVersion` | `myhome_version` | snake_case → camelCase |
 | `createdBy` | `createdBy` | |
 
-### 1.3 Comportamento API
+### 1.3 Comportamento API (runtime)
 
-- **POST /v1/clients/query**: interroga prima il DB principale; se `total === 0`, fallback su DB legacy. Stessa logica per **GET /v1/clients/:id** (getClientById).
-- **POST /v1/clients** (create) e **PATCH /v1/clients/:id** (update) scrivono solo sul DB principale.
+- **POST /v1/clients/query**: legge solo da `tz_clients`.
+- **GET /v1/clients/:id**: legge solo da `tz_clients`.
+- **POST /v1/clients** (create) e **PATCH /v1/clients/:id** (update) scrivono solo su `tz_clients`.
 
 ### 1.4 Profilazione (matching, punto 6.2)
 
@@ -53,7 +55,7 @@ Campi da aggiungere in futuro per il matching domanda/offerta (budget, tipologia
 
 ## 2. Appartamenti
 
-### 2.1 DB principale (collection `apartments`)
+### 2.1 DB principale (collection `tz_apartments`)
 
 | Campo API | Campo DB primary | Note |
 |-----------|------------------|------|
@@ -70,7 +72,7 @@ Campi da aggiungere in futuro per il matching domanda/offerta (budget, tipologia
 | `updatedAt` | `updatedAt` | ISO |
 | `createdAt` | `createdAt` | ISO |
 
-### 2.2 DB legacy (DB `asset`, collection `apartments_view`)
+### 2.2 Mapping storico legacy (non runtime)
 
 | Campo API | Campo legacy | Note |
 |-----------|--------------|------|
@@ -87,11 +89,11 @@ Campi da aggiungere in futuro per il matching domanda/offerta (budget, tipologia
 | `updatedAt` | `updatedOn` \|\| `createdOn` | ISO |
 | `createdAt` | `createdOn` | ISO |
 
-### 2.3 Comportamento API
+### 2.3 Comportamento API (runtime)
 
-- **POST /v1/apartments/query** (apartments.service): prima DB principale; se `total === 0`, fallback su `getDbByName("asset").collection("apartments_view")`.
-- **GET /v1/apartments/:id** (future.service): prima DB principale; se non trovato, fallback su DB `asset`, collection `apartments_view`, con mapping `mapLegacyApartmentToDetail`.
-- Create/Update scrivono solo sul DB principale.
+- **POST /v1/apartments/query** (apartments.service): legge solo da `tz_apartments`.
+- **GET /v1/apartments/:id** (future.service): legge solo da `tz_apartments`.
+- Create/Update scrivono solo su `tz_apartments`.
 
 ### 2.4 Profilazione (matching)
 
@@ -113,4 +115,4 @@ Per ispezionare i documenti effettivi di un progetto (es. dev-1):
 1. **Nessuna modifica distruttiva** alle collection legacy; solo lettura o estensioni additive (prefisso `tz_`).
 2. I campi esposti in API (`ClientRow`, `ApartmentRow` / dettaglio) sono il contratto stabile; in lettura da legacy si mappa allo stesso shape.
 3. Nuovi campi di profilazione (matching): aggiungerli prima al modello primary e alle API; in lettura legacy lasciare undefined o mappare dove esiste già un campo equivalente.
-4. Eventuale migrazione dati legacy → primary: da pianificare a parte; le API continueranno a supportare il dual-read finché necessario.
+4. Eventuale migrazione dati legacy → primary: da pianificare a parte con tool offline; le API runtime non supportano dual-read.

@@ -14,6 +14,8 @@ import type { CommunicationRuleAction } from "../communications/communication-ru
 import { dispatchCommunicationJob } from "../communications/channel-dispatcher.service.js";
 import { createScheduledForRule } from "../communications/scheduled-communications.service.js";
 import { logger } from "../../observability/logger.js";
+import { claimDispatchEvent, markDispatchCompleted, markDispatchFailed } from "./automation-dispatch-guard.service.js";
+import { enqueueMarketingEvent } from "./marketing-automation.service.js";
 
 export interface DispatchEventPayload {
   workspaceId: string;
@@ -33,7 +35,15 @@ export const dispatchEvent = async (
   eventType: string,
   payload: DispatchEventPayload
 ): Promise<void> => {
+  let dispatchKeyHash = "";
   try {
+    const claim = await claimDispatchEvent(workspaceId, eventType, payload);
+    dispatchKeyHash = claim.keyHash;
+    if (!claim.shouldProcess) {
+      logger.info({ workspaceId, eventType, keyHash: claim.keyHash }, "[automation-events] skipped duplicate dispatch");
+      return;
+    }
+
     const [rules, webhookConfigs] = await Promise.all([
       listRules(workspaceId),
       listWebhookConfigs(workspaceId),
@@ -57,17 +67,25 @@ export const dispatchEvent = async (
       (w) => w.enabled && w.events.includes(eventType as AutomationEventType)
     );
     for (const config of matchingWebhooks) {
-      deliverWebhook(config, eventType, payload).catch((err) => {
+      withRetry(
+        () => deliverWebhook(config, eventType, payload),
+        3,
+        150,
+      ).catch((err) => {
         logger.error({ err, webhookId: config._id }, "[automation-events] webhook delivery failed");
       });
     }
 
     const n8nConfig = await getN8nConfig(workspaceId);
     if (n8nConfig?.config?.baseUrl && (n8nConfig.config.defaultWorkflowId ?? "").trim()) {
-      triggerN8nWorkflow(workspaceId, n8nConfig.config.defaultWorkflowId ?? undefined, {
-        eventType,
-        ...payload,
-      }).catch((err) => {
+      withRetry(
+        () => triggerN8nWorkflow(workspaceId, n8nConfig.config.defaultWorkflowId ?? undefined, {
+          eventType,
+          ...payload,
+        }),
+        3,
+        200,
+      ).catch((err) => {
         logger.error({ err, workspaceId }, "[automation-events] n8n trigger failed");
       });
     }
@@ -82,7 +100,7 @@ export const dispatchEvent = async (
     for (const rule of matchingCommRules) {
       for (const action of rule.actions) {
         try {
-          await executeCommunicationAction(action, workspaceId, rule.projectId, payload);
+          await withRetry(() => executeCommunicationAction(action, workspaceId, rule.projectId, payload), 3, 120);
         } catch (err) {
           logger.error(
             { err, ruleId: rule._id, actionType: action.type },
@@ -98,9 +116,37 @@ export const dispatchEvent = async (
         }
       }
     }
+    await enqueueMarketingEvent(workspaceId, eventType, payload).catch((err) => {
+      logger.error({ err, workspaceId, eventType }, "[automation-events] enqueue marketing event failed");
+    });
+    if (dispatchKeyHash) await markDispatchCompleted(dispatchKeyHash);
   } catch (err) {
+    if (dispatchKeyHash) {
+      await markDispatchFailed(dispatchKeyHash, err instanceof Error ? err.message : "unknown_error");
+    }
     logger.error({ err, workspaceId, eventType }, "[automation-events] dispatchEvent failed");
   }
+};
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+const withRetry = async <T>(
+  fn: () => Promise<T>,
+  attempts: number,
+  baseDelayMs: number,
+): Promise<T> => {
+  let lastError: unknown;
+  for (let idx = 0; idx < attempts; idx += 1) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (idx < attempts - 1) {
+        await sleep(baseDelayMs * (idx + 1));
+      }
+    }
+  }
+  throw lastError;
 };
 
 function matchTriggerConditions(

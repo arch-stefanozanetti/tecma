@@ -1,45 +1,67 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ObjectId } from "mongodb";
 
-const findOneMock = vi.fn();
-const insertOneMock = vi.fn();
-const findToArrayMock = vi.fn();
-const deleteManyMock = vi.fn();
-const updateOneMock = vi.fn();
-const requestsToArrayMock = vi.fn();
-const requestsFindMock = vi.fn(() => ({ toArray: requestsToArrayMock }));
+const mocks = vi.hoisted(() => {
+  const lockFindOneMock = vi.fn();
+  const lockInsertOneMock = vi.fn();
+  const lockFindToArrayMock = vi.fn();
+  const lockFindMock = vi.fn(() => ({ toArray: lockFindToArrayMock }));
+  const lockDeleteManyMock = vi.fn();
 
-const locksFindMock = vi.fn(() => ({ toArray: findToArrayMock }));
+  const requestsFindToArrayMock = vi.fn();
+  const requestsFindMock = vi.fn(() => ({ toArray: requestsFindToArrayMock }));
+  const requestsUpdateOneMock = vi.fn();
 
-const setInventoryStatusMock = vi.fn();
+  const transitionsInsertOneMock = vi.fn();
+  const apartmentsUpdateOneMock = vi.fn();
 
-vi.mock("../inventory/inventory.service.js", () => ({
-  setInventoryStatus: setInventoryStatusMock,
-}));
+  const setInventoryStatusMock = vi.fn();
+
+  return {
+    lockFindOneMock,
+    lockInsertOneMock,
+    lockFindToArrayMock,
+    lockFindMock,
+    lockDeleteManyMock,
+    requestsFindToArrayMock,
+    requestsFindMock,
+    requestsUpdateOneMock,
+    transitionsInsertOneMock,
+    apartmentsUpdateOneMock,
+    setInventoryStatusMock,
+  };
+});
 
 vi.mock("../../config/db.js", () => ({
   getDb: () => ({
     collection: (name: string) => {
       if (name === "tz_apartment_locks") {
         return {
-          findOne: findOneMock,
-          find: locksFindMock,
-          insertOne: insertOneMock,
-          deleteMany: deleteManyMock,
+          findOne: mocks.lockFindOneMock,
+          insertOne: mocks.lockInsertOneMock,
+          find: mocks.lockFindMock,
+          deleteMany: mocks.lockDeleteManyMock,
         };
       }
-      if (name === "tz_apartments") {
-        return { updateOne: updateOneMock };
-      }
       if (name === "tz_requests") {
-        return { find: requestsFindMock, updateOne: updateOneMock };
+        return {
+          find: mocks.requestsFindMock,
+          updateOne: mocks.requestsUpdateOneMock,
+        };
       }
       if (name === "tz_request_transitions") {
-        return { insertOne: insertOneMock };
+        return { insertOne: mocks.transitionsInsertOneMock };
       }
-      return { findOne: vi.fn(), find: vi.fn(), insertOne: vi.fn(), deleteMany: vi.fn(), updateOne: vi.fn() };
+      if (name === "tz_apartments") {
+        return { updateOne: mocks.apartmentsUpdateOneMock };
+      }
+      throw new Error("Unexpected collection: " + name);
     },
   }),
+}));
+
+vi.mock("../inventory/inventory.service.js", () => ({
+  setInventoryStatus: mocks.setInventoryStatusMock,
 }));
 
 import {
@@ -55,58 +77,71 @@ describe("apartment-lock.service", () => {
     vi.clearAllMocks();
   });
 
-  it("returns null on invalid apartment id", async () => {
-    const result = await getActiveLockForApartment("bad-id");
-    expect(result).toBeNull();
+  it("getActiveLockForApartment handles invalid, missing and found", async () => {
+    expect(await getActiveLockForApartment("bad")).toBeNull();
+
+    mocks.lockFindOneMock.mockResolvedValueOnce(null);
+    expect(await getActiveLockForApartment(new ObjectId().toHexString())).toBeNull();
+
+    mocks.lockFindOneMock.mockResolvedValueOnce({ requestId: "r1", type: "hard" });
+    await expect(getActiveLockForApartment(new ObjectId().toHexString())).resolves.toEqual({
+      requestId: "r1",
+      type: "hard",
+    });
   });
 
-  it("returns active lock payload", async () => {
-    findOneMock.mockResolvedValueOnce({ requestId: "req1", type: "hard" });
-    const result = await getActiveLockForApartment("64b64f3fd9024a2a53111111");
-    expect(result).toEqual({ requestId: "req1", type: "hard" });
-  });
-
-  it("creates lock and syncs inventory", async () => {
+  it("createLock inserts and updates inventory", async () => {
     await createLock(null, {
       workspaceId: "ws1",
-      apartmentId: "apt1",
-      requestId: "req1",
+      apartmentId: new ObjectId().toHexString(),
+      requestId: "r1",
       type: "soft",
+      workflowStateId: "s1",
     });
 
-    expect(insertOneMock).toHaveBeenCalledTimes(1);
-    expect(setInventoryStatusMock).toHaveBeenCalledWith("apt1", "ws1", "locked", "req1");
+    expect(mocks.lockInsertOneMock).toHaveBeenCalledOnce();
+    expect(mocks.setInventoryStatusMock).toHaveBeenCalledWith(expect.any(String), "ws1", "locked", "r1");
   });
 
-  it("removes locks and sets inventory available", async () => {
-    findToArrayMock.mockResolvedValueOnce([{ apartmentId: "apt1", workspaceId: "ws1" }]);
-    deleteManyMock.mockResolvedValueOnce({ deletedCount: 1 });
+  it("removeLocksForRequest deletes and restores inventory", async () => {
+    mocks.lockFindToArrayMock.mockResolvedValueOnce([
+      { apartmentId: "a1", workspaceId: "ws1" },
+      { apartmentId: "a2", workspaceId: "ws1" },
+    ]);
+    mocks.lockDeleteManyMock.mockResolvedValueOnce({ deletedCount: 2 });
 
-    const deleted = await removeLocksForRequest(null, "req1");
+    const deleted = await removeLocksForRequest(null, "r1");
 
-    expect(deleted).toBe(1);
-    expect(setInventoryStatusMock).toHaveBeenCalledWith("apt1", "ws1", "available");
+    expect(deleted).toBe(2);
+    expect(mocks.setInventoryStatusMock).toHaveBeenCalledWith("a1", "ws1", "available");
+    expect(mocks.setInventoryStatusMock).toHaveBeenCalledWith("a2", "ws1", "available");
   });
 
-  it("forces other requests to lost and clears their locks", async () => {
-    requestsToArrayMock.mockResolvedValueOnce([
-      { _id: new ObjectId("64b64f3fd9024a2a53111112"), status: "negotiation" },
+  it("forceOtherRequestsOnApartmentToLost updates requests/transitions/locks", async () => {
+    const r1 = new ObjectId();
+    const r2 = new ObjectId();
+    mocks.requestsFindToArrayMock.mockResolvedValueOnce([
+      { _id: r1, status: "new" },
+      { _id: r2, status: "viewing" },
     ]);
 
     await forceOtherRequestsOnApartmentToLost(null, {
-      apartmentId: "apt1",
-      excludingRequestId: "64b64f3fd9024a2a53111111",
+      apartmentId: "a1",
+      excludingRequestId: new ObjectId().toHexString(),
       lostStatus: "lost",
-      now: "2026-01-01T00:00:00.000Z",
+      now: new Date().toISOString(),
     });
 
-    expect(updateOneMock).toHaveBeenCalled();
-    expect(insertOneMock).toHaveBeenCalled();
-    expect(deleteManyMock).toHaveBeenCalled();
+    expect(mocks.requestsUpdateOneMock).toHaveBeenCalledTimes(2);
+    expect(mocks.transitionsInsertOneMock).toHaveBeenCalledTimes(2);
+    expect(mocks.lockDeleteManyMock).toHaveBeenCalledTimes(2);
   });
 
-  it("setApartmentStatus no-op on invalid id", async () => {
-    await setApartmentStatus(null, "bad-id", "sold");
-    expect(updateOneMock).not.toHaveBeenCalled();
+  it("setApartmentStatus no-op on invalid id and updates valid id", async () => {
+    await setApartmentStatus(null, "bad", "SOLD");
+    expect(mocks.apartmentsUpdateOneMock).not.toHaveBeenCalled();
+
+    await setApartmentStatus(null, new ObjectId().toHexString(), "SOLD");
+    expect(mocks.apartmentsUpdateOneMock).toHaveBeenCalledOnce();
   });
 });

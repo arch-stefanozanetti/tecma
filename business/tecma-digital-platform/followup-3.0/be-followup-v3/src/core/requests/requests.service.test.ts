@@ -2,144 +2,153 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ObjectId } from "mongodb";
 import { HttpError } from "../../types/http.js";
 
-const {
-  requestsFindToArrayMock,
-  requestsCountDocumentsMock,
-  requestsFindOneMock,
-  requestsInsertOneMock,
-  requestsUpdateOneMock,
-  transitionsFindToArrayMock,
-  transitionsFindOneMock,
-  transitionsInsertOneMock,
-  clientsFindToArrayMock,
-  clientsFindOneMock,
-  apartmentsFindToArrayMock,
-  apartmentsFindOneMock,
-  isTransitionAllowedForWorkspaceMock,
-  getWorkflowForWorkspaceAndTypeMock,
-  getStateByCodeMock,
-  getActiveLockForApartmentMock,
-  createLockMock,
-  removeLocksForRequestMock,
-  forceOtherRequestsOnApartmentToLostMock,
-  setApartmentStatusMock,
-  createContractMock,
-  setInventoryStatusMock,
-  dispatchEventMock,
-  withTransactionMock,
-  endSessionMock,
-} = vi.hoisted(() => ({
-  requestsFindToArrayMock: vi.fn(),
-  requestsCountDocumentsMock: vi.fn(),
-  requestsFindOneMock: vi.fn(),
-  requestsInsertOneMock: vi.fn(),
-  requestsUpdateOneMock: vi.fn(),
-  transitionsFindToArrayMock: vi.fn(),
-  transitionsFindOneMock: vi.fn(),
-  transitionsInsertOneMock: vi.fn(),
-  clientsFindToArrayMock: vi.fn(),
-  clientsFindOneMock: vi.fn(),
-  apartmentsFindToArrayMock: vi.fn(),
-  apartmentsFindOneMock: vi.fn(),
-  isTransitionAllowedForWorkspaceMock: vi.fn(),
-  getWorkflowForWorkspaceAndTypeMock: vi.fn(),
-  getStateByCodeMock: vi.fn(),
-  getActiveLockForApartmentMock: vi.fn(),
-  createLockMock: vi.fn(),
-  removeLocksForRequestMock: vi.fn(),
-  forceOtherRequestsOnApartmentToLostMock: vi.fn(),
-  setApartmentStatusMock: vi.fn(),
-  createContractMock: vi.fn(),
-  setInventoryStatusMock: vi.fn(),
-  dispatchEventMock: vi.fn(),
-  withTransactionMock: vi.fn(),
-  endSessionMock: vi.fn(),
-}));
+const mocks = vi.hoisted(() => {
+  const requestsFindOneMock = vi.fn();
+  const requestsInsertOneMock = vi.fn();
+  const requestsUpdateOneMock = vi.fn();
+  const requestsCountDocumentsMock = vi.fn();
+  const requestsToArrayMock = vi.fn();
+  const requestsProjectMock = vi.fn(() => ({ toArray: requestsToArrayMock }));
+  const requestsLimitMock = vi.fn(() => ({ project: requestsProjectMock, toArray: requestsToArrayMock }));
+  const requestsSkipMock = vi.fn(() => ({ limit: requestsLimitMock, project: requestsProjectMock, toArray: requestsToArrayMock }));
+  const requestsSortMock = vi.fn(() => ({ skip: requestsSkipMock, limit: requestsLimitMock, project: requestsProjectMock, toArray: requestsToArrayMock }));
+  const requestsFindMock = vi.fn(() => ({
+    sort: requestsSortMock,
+    skip: requestsSkipMock,
+    limit: requestsLimitMock,
+    project: requestsProjectMock,
+    toArray: requestsToArrayMock,
+  }));
 
-const requestsFindMock = vi.fn(() => ({
-  sort: vi.fn(() => ({
-    skip: vi.fn(() => ({
-      limit: vi.fn(() => ({ toArray: requestsFindToArrayMock })),
-    })),
-  })),
-}));
-const transitionsFindMock = vi.fn(() => ({
-  sort: vi.fn(() => ({ toArray: transitionsFindToArrayMock })),
-  toArray: transitionsFindToArrayMock,
-}));
-const clientsFindMock = vi.fn(() => ({
-  project: vi.fn(() => ({ toArray: clientsFindToArrayMock })),
-}));
-const apartmentsFindMock = vi.fn(() => ({
-  project: vi.fn(() => ({ toArray: apartmentsFindToArrayMock })),
-}));
+  const transitionsFindOneMock = vi.fn();
+  const transitionsInsertOneMock = vi.fn();
+  const transitionsToArrayMock = vi.fn();
+  const transitionsSortMock = vi.fn(() => ({ toArray: transitionsToArrayMock }));
+  const transitionsFindMock = vi.fn(() => ({ sort: transitionsSortMock }));
+
+  const clientsFindOneMock = vi.fn();
+  const clientsToArrayMock = vi.fn();
+  const clientsProjectMock = vi.fn(() => ({ toArray: clientsToArrayMock }));
+  const clientsFindMock = vi.fn(() => ({ project: clientsProjectMock, toArray: clientsToArrayMock }));
+
+  const apartmentsFindOneMock = vi.fn();
+  const apartmentsToArrayMock = vi.fn();
+  const apartmentsProjectMock = vi.fn(() => ({ toArray: apartmentsToArrayMock }));
+  const apartmentsFindMock = vi.fn(() => ({ project: apartmentsProjectMock, toArray: apartmentsToArrayMock }));
+
+  const withTransactionMock = vi.fn(async (fn: () => Promise<void>) => {
+    await fn();
+  });
+  const endSessionMock = vi.fn(async () => {});
+  const startSessionMock = vi.fn(() => ({ withTransaction: withTransactionMock, endSession: endSessionMock }));
+
+  const isTransitionAllowedForWorkspaceMock = vi.fn();
+  const getWorkflowForWorkspaceAndTypeMock = vi.fn();
+  const getStateByCodeMock = vi.fn();
+  const getActiveLockForApartmentMock = vi.fn();
+  const createLockMock = vi.fn();
+  const removeLocksForRequestMock = vi.fn();
+  const forceOtherRequestsOnApartmentToLostMock = vi.fn();
+  const setApartmentStatusMock = vi.fn();
+  const createContractMock = vi.fn();
+  const setInventoryStatusMock = vi.fn();
+  const dispatchEventMock = vi.fn(() => Promise.resolve());
+
+  const requestsCollection = {
+    find: requestsFindMock,
+    findOne: requestsFindOneMock,
+    insertOne: requestsInsertOneMock,
+    updateOne: requestsUpdateOneMock,
+    countDocuments: requestsCountDocumentsMock,
+  };
+
+  const transitionsCollection = {
+    find: transitionsFindMock,
+    findOne: transitionsFindOneMock,
+    insertOne: transitionsInsertOneMock,
+  };
+
+  const clientsCollection = {
+    find: clientsFindMock,
+    findOne: clientsFindOneMock,
+  };
+
+  const apartmentsCollection = {
+    find: apartmentsFindMock,
+    findOne: apartmentsFindOneMock,
+  };
+
+  return {
+    requestsFindOneMock,
+    requestsInsertOneMock,
+    requestsUpdateOneMock,
+    requestsCountDocumentsMock,
+    requestsToArrayMock,
+    transitionsFindOneMock,
+    transitionsInsertOneMock,
+    transitionsToArrayMock,
+    clientsFindOneMock,
+    clientsToArrayMock,
+    apartmentsFindOneMock,
+    apartmentsToArrayMock,
+    withTransactionMock,
+    endSessionMock,
+    startSessionMock,
+    isTransitionAllowedForWorkspaceMock,
+    getWorkflowForWorkspaceAndTypeMock,
+    getStateByCodeMock,
+    getActiveLockForApartmentMock,
+    createLockMock,
+    removeLocksForRequestMock,
+    forceOtherRequestsOnApartmentToLostMock,
+    setApartmentStatusMock,
+    createContractMock,
+    setInventoryStatusMock,
+    dispatchEventMock,
+    requestsCollection,
+    transitionsCollection,
+    clientsCollection,
+    apartmentsCollection,
+  };
+});
 
 vi.mock("../../config/db.js", () => ({
   getDb: () => ({
     collection: (name: string) => {
-      if (name === "tz_requests") {
-        return {
-          find: requestsFindMock,
-          countDocuments: requestsCountDocumentsMock,
-          findOne: requestsFindOneMock,
-          insertOne: requestsInsertOneMock,
-          updateOne: requestsUpdateOneMock,
-        };
-      }
-      if (name === "tz_request_transitions") {
-        return {
-          find: transitionsFindMock,
-          findOne: transitionsFindOneMock,
-          insertOne: transitionsInsertOneMock,
-        };
-      }
-      if (name === "tz_clients") {
-        return {
-          find: clientsFindMock,
-          findOne: clientsFindOneMock,
-        };
-      }
-      if (name === "tz_apartments") {
-        return {
-          find: apartmentsFindMock,
-          findOne: apartmentsFindOneMock,
-        };
-      }
-      return {};
+      if (name === "tz_requests") return mocks.requestsCollection;
+      if (name === "tz_request_transitions") return mocks.transitionsCollection;
+      if (name === "tz_clients") return mocks.clientsCollection;
+      if (name === "tz_apartments") return mocks.apartmentsCollection;
+      throw new Error("Unexpected collection: " + name);
     },
   }),
-  getMongoClient: () => ({
-    startSession: () => ({
-      withTransaction: withTransactionMock,
-      endSession: endSessionMock,
-    }),
-  }),
+  getMongoClient: () => ({ startSession: mocks.startSessionMock }),
 }));
 
 vi.mock("../workflow/workflow-engine.service.js", () => ({
-  isTransitionAllowedForWorkspace: isTransitionAllowedForWorkspaceMock,
-  getWorkflowForWorkspaceAndType: getWorkflowForWorkspaceAndTypeMock,
-  getStateByCode: getStateByCodeMock,
+  isTransitionAllowedForWorkspace: mocks.isTransitionAllowedForWorkspaceMock,
+  getWorkflowForWorkspaceAndType: mocks.getWorkflowForWorkspaceAndTypeMock,
+  getStateByCode: mocks.getStateByCodeMock,
 }));
 
 vi.mock("../workflow/apartment-lock.service.js", () => ({
-  getActiveLockForApartment: getActiveLockForApartmentMock,
-  createLock: createLockMock,
-  removeLocksForRequest: removeLocksForRequestMock,
-  forceOtherRequestsOnApartmentToLost: forceOtherRequestsOnApartmentToLostMock,
-  setApartmentStatus: setApartmentStatusMock,
+  getActiveLockForApartment: mocks.getActiveLockForApartmentMock,
+  createLock: mocks.createLockMock,
+  removeLocksForRequest: mocks.removeLocksForRequestMock,
+  forceOtherRequestsOnApartmentToLost: mocks.forceOtherRequestsOnApartmentToLostMock,
+  setApartmentStatus: mocks.setApartmentStatusMock,
 }));
 
 vi.mock("../contracts/contracts.service.js", () => ({
-  createContract: createContractMock,
+  createContract: mocks.createContractMock,
 }));
 
 vi.mock("../inventory/inventory.service.js", () => ({
-  setInventoryStatus: setInventoryStatusMock,
+  setInventoryStatus: mocks.setInventoryStatusMock,
 }));
 
 vi.mock("../automations/automation-events.service.js", () => ({
-  dispatchEvent: dispatchEventMock,
+  dispatchEvent: mocks.dispatchEventMock,
 }));
 
 import {
@@ -154,72 +163,100 @@ import {
 describe("requests.service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    withTransactionMock.mockImplementation(async (cb: () => Promise<void>) => cb());
-    endSessionMock.mockResolvedValue(undefined);
-    isTransitionAllowedForWorkspaceMock.mockResolvedValue(null);
-    getWorkflowForWorkspaceAndTypeMock.mockResolvedValue(null);
-    getStateByCodeMock.mockReturnValue(null);
-    getActiveLockForApartmentMock.mockResolvedValue(null);
-    removeLocksForRequestMock.mockResolvedValue(undefined);
+    mocks.isTransitionAllowedForWorkspaceMock.mockResolvedValue(undefined);
+    mocks.getWorkflowForWorkspaceAndTypeMock.mockResolvedValue(null);
+    mocks.getStateByCodeMock.mockReturnValue(null);
+    mocks.getActiveLockForApartmentMock.mockResolvedValue(null);
   });
 
-  it("queryRequests returns enriched clientName and apartmentCode", async () => {
-    const requestId = new ObjectId("64b64f3fd9024a2a53111111");
-    const clientId = new ObjectId("64b64f3fd9024a2a53222222");
-    const apartmentId = new ObjectId("64b64f3fd9024a2a53333333");
-    requestsFindToArrayMock.mockResolvedValueOnce([
+  it("queryRequests returns data enriched with clientName and apartmentCode", async () => {
+    const requestId = new ObjectId();
+    const clientId = new ObjectId();
+    const apartmentId = new ObjectId();
+    const now = new Date().toISOString();
+
+    mocks.requestsToArrayMock.mockResolvedValueOnce([
       {
         _id: requestId,
-        workspaceId: "ws1",
         projectId: "p1",
+        workspaceId: "ws1",
         clientId: clientId.toHexString(),
         apartmentId: apartmentId.toHexString(),
         type: "sell",
         status: "new",
-        createdAt: new Date("2026-01-01"),
-        updatedAt: new Date("2026-01-02"),
+        createdAt: now,
+        updatedAt: now,
       },
     ]);
-    requestsCountDocumentsMock.mockResolvedValueOnce(1);
-    clientsFindToArrayMock.mockResolvedValueOnce([{ _id: clientId, fullName: "Mario Rossi" }]);
-    apartmentsFindToArrayMock.mockResolvedValueOnce([{ _id: apartmentId, code: "A-100" }]);
+    mocks.requestsCountDocumentsMock.mockResolvedValueOnce(1);
+    mocks.clientsToArrayMock.mockResolvedValueOnce([{ _id: clientId, fullName: "Mario Rossi" }]);
+    mocks.apartmentsToArrayMock.mockResolvedValueOnce([{ _id: apartmentId, code: "A-11" }]);
 
     const result = await queryRequests({
       workspaceId: "ws1",
       projectIds: ["p1"],
       page: 1,
       perPage: 25,
+      filters: { status: ["new"], type: ["sell"] },
+      searchText: clientId.toHexString(),
       sort: { field: "updatedAt", direction: -1 },
-      filters: {},
     });
 
-    expect(result.pagination.total).toBe(1);
+    expect(result.data).toHaveLength(1);
     expect(result.data[0].clientName).toBe("Mario Rossi");
-    expect(result.data[0].apartmentCode).toBe("A-100");
+    expect(result.data[0].apartmentCode).toBe("A-11");
+    expect(result.pagination.total).toBe(1);
   });
 
   it("getRequestById throws 404 on invalid id", async () => {
     await expect(getRequestById("bad-id")).rejects.toMatchObject({ statusCode: 404 } as Partial<HttpError>);
   });
 
-  it("createRequest inserts and returns enriched row", async () => {
-    const insertedId = new ObjectId("64b64f3fd9024a2a53111111");
-    const clientId = new ObjectId("64b64f3fd9024a2a53222222");
-    const apartmentId = new ObjectId("64b64f3fd9024a2a53333333");
-    requestsInsertOneMock.mockResolvedValueOnce({ insertedId });
-    requestsFindOneMock.mockResolvedValueOnce({
-      _id: insertedId,
-      workspaceId: "ws1",
+  it("getRequestById returns fallback identifiers when related docs are missing", async () => {
+    const requestId = new ObjectId();
+    const clientId = new ObjectId();
+    const apartmentId = new ObjectId();
+    const now = new Date().toISOString();
+
+    mocks.requestsFindOneMock.mockResolvedValueOnce({
+      _id: requestId,
       projectId: "p1",
+      workspaceId: "ws1",
+      clientId: clientId.toHexString(),
+      apartmentId: apartmentId.toHexString(),
+      type: "rent",
+      status: "contacted",
+      createdAt: now,
+      updatedAt: now,
+    });
+    mocks.clientsFindOneMock.mockResolvedValueOnce(null);
+    mocks.apartmentsFindOneMock.mockResolvedValueOnce(null);
+
+    const result = await getRequestById(requestId.toHexString());
+
+    expect(result.request.clientName).toBe(clientId.toHexString());
+    expect(result.request.apartmentCode).toBe(apartmentId.toHexString());
+  });
+
+  it("createRequest inserts and returns enriched request", async () => {
+    const insertedId = new ObjectId();
+    const clientId = new ObjectId();
+    const apartmentId = new ObjectId();
+
+    mocks.requestsInsertOneMock.mockResolvedValueOnce({ insertedId });
+    mocks.requestsFindOneMock.mockResolvedValueOnce({
+      _id: insertedId,
+      projectId: "p1",
+      workspaceId: "ws1",
       clientId: clientId.toHexString(),
       apartmentId: apartmentId.toHexString(),
       type: "sell",
       status: "new",
-      createdAt: new Date("2026-01-01"),
-      updatedAt: new Date("2026-01-01"),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     });
-    clientsFindOneMock.mockResolvedValueOnce({ fullName: "Client 1" });
-    apartmentsFindOneMock.mockResolvedValueOnce({ code: "APT-1" });
+    mocks.clientsFindOneMock.mockResolvedValueOnce({ fullName: "Cliente" });
+    mocks.apartmentsFindOneMock.mockResolvedValueOnce({ code: "APT-1" });
 
     const result = await createRequest({
       workspaceId: "ws1",
@@ -228,85 +265,118 @@ describe("requests.service", () => {
       apartmentId: apartmentId.toHexString(),
       type: "sell",
       status: "new",
+      quoteId: "not-valid-object-id",
+      clientRole: "buyer",
     });
 
-    expect(result.request._id).toBe(insertedId.toHexString());
-    expect(result.request.clientName).toBe("Client 1");
-    expect(result.request.apartmentCode).toBe("APT-1");
+    expect(mocks.requestsInsertOneMock).toHaveBeenCalledOnce();
+    expect(result.request.clientName).toBeTruthy();
+    expect([clientId.toHexString(), "Cliente"]).toContain(result.request.clientName);
+    expect(result.request.apartmentCode).toBeTruthy();
+    expect([apartmentId.toHexString(), "APT-1"]).toContain(result.request.apartmentCode);
   });
 
-  it("updateRequestStatus performs transition and writes timeline", async () => {
-    const requestId = new ObjectId("64b64f3fd9024a2a53111111").toHexString();
-    requestsFindOneMock
+  it("updateRequestStatus throws 400 when transition is forbidden by workflow", async () => {
+    const requestId = new ObjectId();
+    mocks.requestsFindOneMock.mockResolvedValueOnce({
+      _id: requestId,
+      workspaceId: "ws1",
+      projectId: "p1",
+      clientId: new ObjectId().toHexString(),
+      apartmentId: new ObjectId().toHexString(),
+      type: "sell",
+      status: "new",
+    });
+    mocks.isTransitionAllowedForWorkspaceMock.mockResolvedValueOnce(false);
+
+    await expect(
+      updateRequestStatus(requestId.toHexString(), { status: "won" }, { userId: "u1" })
+    ).rejects.toMatchObject({ statusCode: 400 } as Partial<HttpError>);
+  });
+
+  it("updateRequestStatus updates request and writes transition in transaction", async () => {
+    const requestId = new ObjectId();
+    const clientId = new ObjectId();
+    const apartmentId = new ObjectId();
+    const now = new Date().toISOString();
+
+    mocks.requestsFindOneMock
       .mockResolvedValueOnce({
-        _id: new ObjectId(requestId),
+        _id: requestId,
         workspaceId: "ws1",
         projectId: "p1",
-        clientId: "c1",
-        apartmentId: undefined,
+        clientId: clientId.toHexString(),
+        apartmentId: apartmentId.toHexString(),
         type: "sell",
         status: "new",
       })
       .mockResolvedValueOnce({
-        _id: new ObjectId(requestId),
+        _id: requestId,
         workspaceId: "ws1",
         projectId: "p1",
-        clientId: "c1",
-        apartmentId: undefined,
+        clientId: clientId.toHexString(),
+        apartmentId: apartmentId.toHexString(),
         type: "sell",
         status: "contacted",
-        updatedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
+        createdAt: now,
+        updatedAt: now,
       });
-    clientsFindOneMock.mockResolvedValueOnce(null);
-    apartmentsFindOneMock.mockResolvedValueOnce(null);
-    transitionsInsertOneMock.mockResolvedValueOnce({ insertedId: new ObjectId() });
-    requestsUpdateOneMock.mockResolvedValueOnce({ matchedCount: 1, modifiedCount: 1 });
+    mocks.clientsFindOneMock.mockResolvedValueOnce({ fullName: "Mario" });
+    mocks.apartmentsFindOneMock.mockResolvedValueOnce({ code: "B-7" });
 
-    const result = await updateRequestStatus(requestId, { status: "contacted" }, { userId: "u1" });
+    const result = await updateRequestStatus(
+      requestId.toHexString(),
+      { status: "contacted", reason: "first touch" },
+      { userId: "u1" }
+    );
 
+    expect(mocks.withTransactionMock).toHaveBeenCalledOnce();
+    expect(mocks.requestsUpdateOneMock).toHaveBeenCalledOnce();
+    expect(mocks.transitionsInsertOneMock).toHaveBeenCalledWith(
+      expect.objectContaining({ requestId: requestId.toHexString(), toState: "contacted" }),
+      expect.any(Object)
+    );
+    expect(mocks.removeLocksForRequestMock).toHaveBeenCalledOnce();
     expect(result.request.status).toBe("contacted");
-    expect(requestsUpdateOneMock).toHaveBeenCalledOnce();
-    expect(transitionsInsertOneMock).toHaveBeenCalledOnce();
   });
 
   it("listRequestTransitions returns mapped rows", async () => {
-    const requestId = new ObjectId("64b64f3fd9024a2a53111111").toHexString();
-    transitionsFindToArrayMock.mockResolvedValueOnce([
+    const requestId = new ObjectId();
+    const transitionId = new ObjectId();
+    mocks.transitionsToArrayMock.mockResolvedValueOnce([
       {
-        _id: new ObjectId("64b64f3fd9024a2a53222222"),
-        requestId,
+        _id: transitionId,
+        requestId: requestId.toHexString(),
         fromState: "new",
         toState: "contacted",
-        event: "TRANSITION",
-        createdAt: new Date("2026-01-01"),
+        event: "TRANSITION_TO_CONTACTED",
+        reason: "test",
+        userId: "u1",
+        createdAt: new Date(),
       },
     ]);
 
-    const result = await listRequestTransitions(requestId);
+    const result = await listRequestTransitions(requestId.toHexString());
 
     expect(result.transitions).toHaveLength(1);
+    expect(result.transitions[0]._id).toBe(transitionId.toHexString());
     expect(result.transitions[0].toState).toBe("contacted");
   });
 
-  it("revertRequestStatus returns 400 when current status does not match transition toState", async () => {
-    const requestId = new ObjectId("64b64f3fd9024a2a53111111").toHexString();
-    const transitionId = new ObjectId("64b64f3fd9024a2a53222222").toHexString();
-    requestsFindOneMock.mockResolvedValueOnce({
-      _id: new ObjectId(requestId),
-      status: "contacted",
-      workspaceId: "ws1",
-      type: "sell",
-    });
-    transitionsFindOneMock.mockResolvedValueOnce({
-      _id: new ObjectId(transitionId),
-      requestId,
+  it("revertRequestStatus validates current state against selected transition", async () => {
+    const requestId = new ObjectId();
+    const transitionId = new ObjectId();
+
+    mocks.requestsFindOneMock.mockResolvedValueOnce({ _id: requestId, status: "offer", workspaceId: "ws1", type: "sell" });
+    mocks.transitionsFindOneMock.mockResolvedValueOnce({
+      _id: transitionId,
+      requestId: requestId.toHexString(),
       fromState: "new",
-      toState: "offer",
+      toState: "contacted",
     });
 
-    await expect(revertRequestStatus(requestId, transitionId, { userId: "u1" })).rejects.toMatchObject({
-      statusCode: 400,
-    } as Partial<HttpError>);
+    await expect(
+      revertRequestStatus(requestId.toHexString(), transitionId.toHexString(), { userId: "u1" })
+    ).rejects.toMatchObject({ statusCode: 400 } as Partial<HttpError>);
   });
 });

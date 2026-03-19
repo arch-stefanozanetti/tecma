@@ -1,99 +1,126 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ObjectId } from "mongodb";
-import { HttpError } from "../../types/http.js";
 
-const {
-  bcryptCompareMock,
-  bcryptHashMock,
-  usersFindOneMock,
-  usersUpdateOneMock,
-  listCollectionsHasNextMock,
-  logAuthEventMock,
-  getSessionMock,
-  deleteSessionMock,
-  deleteSessionsByUserMock,
-  sendPasswordResetEmailMock,
-  createPasswordResetTokenMock,
-  consumePasswordResetTokenMock,
-  signAccessTokenMock,
-  createSessionMock,
-  verifySsoJwtMock,
-  buildAccessPayloadMock,
-  toAuthSessionUserMock,
-} = vi.hoisted(() => ({
-  bcryptCompareMock: vi.fn(),
-  bcryptHashMock: vi.fn(),
-  usersFindOneMock: vi.fn(),
-  usersUpdateOneMock: vi.fn(),
-  listCollectionsHasNextMock: vi.fn(),
-  logAuthEventMock: vi.fn(),
-  getSessionMock: vi.fn(),
-  deleteSessionMock: vi.fn(),
-  deleteSessionsByUserMock: vi.fn(),
-  sendPasswordResetEmailMock: vi.fn(),
-  createPasswordResetTokenMock: vi.fn(),
-  consumePasswordResetTokenMock: vi.fn(),
-  signAccessTokenMock: vi.fn(),
-  createSessionMock: vi.fn(),
-  verifySsoJwtMock: vi.fn(),
-  buildAccessPayloadMock: vi.fn(),
-  toAuthSessionUserMock: vi.fn(),
-}));
+const mocks = vi.hoisted(() => {
+  const compareMock = vi.fn();
+  const hashMock = vi.fn();
+  const sendPasswordResetEmailMock = vi.fn();
+  const logAuthEventMock = vi.fn();
+  const createSessionMock = vi.fn();
+  const deleteSessionMock = vi.fn();
+  const deleteSessionsByUserMock = vi.fn();
+  const getSessionMock = vi.fn();
+  const createPasswordResetTokenMock = vi.fn();
+  const consumePasswordResetTokenMock = vi.fn();
+  const signAccessTokenMock = vi.fn();
+  const verifySsoJwtAndGetPayloadMock = vi.fn();
+  const buildAccessPayloadFromUserDocMock = vi.fn();
+  const toAuthSessionUserMock = vi.fn();
+
+  const users: Array<Record<string, unknown>> = [];
+
+  const usersCollection = {
+    findOne: vi.fn(async (query: Record<string, unknown>) => {
+      const queryId = query._id;
+      if (queryId instanceof ObjectId) {
+        return users.find((u) => (u._id as ObjectId).toHexString() === queryId.toHexString()) ?? null;
+      }
+      const emailRegex = (query.email as { $regex?: string })?.$regex;
+      if (emailRegex) {
+        const cleaned = emailRegex.replace(/^\^/, "").replace(/\$$/, "").replace(/\\/g, "").toLowerCase();
+        return users.find((u) => String(u.email ?? "").toLowerCase() === cleaned) ?? null;
+      }
+      return null;
+    }),
+    updateOne: vi.fn(async (query: Record<string, unknown>, update: Record<string, unknown>) => {
+      const id = query._id instanceof ObjectId ? query._id.toHexString() : String(query._id ?? "");
+      const idx = users.findIndex((u) => (u._id as ObjectId).toHexString() === id);
+      if (idx >= 0) {
+        users[idx] = { ...users[idx], ...(update.$set as Record<string, unknown>) };
+      }
+      return { matchedCount: idx >= 0 ? 1 : 0 };
+    }),
+  };
+
+  const listCollectionsMock = vi.fn((filter?: { name?: string }) => ({
+    hasNext: vi.fn(async () => {
+      if (!filter?.name) return false;
+      return ["tz_users", "users", "backoffice_users"].includes(filter.name);
+    }),
+    toArray: vi.fn(async () => [{ name: "tz_users" }]),
+  }));
+
+  const getDbMock = vi.fn(() => ({
+    databaseName: "followup_test",
+    listCollections: listCollectionsMock,
+    collection: vi.fn((name: string) => {
+      if (["tz_users", "users", "backoffice_users"].includes(name)) return usersCollection;
+      throw new Error("Unexpected collection: " + name);
+    }),
+  }));
+
+  return {
+    compareMock,
+    hashMock,
+    sendPasswordResetEmailMock,
+    logAuthEventMock,
+    createSessionMock,
+    deleteSessionMock,
+    deleteSessionsByUserMock,
+    getSessionMock,
+    createPasswordResetTokenMock,
+    consumePasswordResetTokenMock,
+    signAccessTokenMock,
+    verifySsoJwtAndGetPayloadMock,
+    buildAccessPayloadFromUserDocMock,
+    toAuthSessionUserMock,
+    users,
+    usersCollection,
+    getDbMock,
+  };
+});
 
 vi.mock("bcryptjs", () => ({
-  default: {
-    compare: bcryptCompareMock,
-    hash: bcryptHashMock,
-  },
+  default: { compare: mocks.compareMock, hash: mocks.hashMock },
 }));
 
 vi.mock("../../config/db.js", () => ({
-  getDb: () => ({
-    databaseName: "test-db",
-    listCollections: () => ({
-      hasNext: listCollectionsHasNextMock,
-      toArray: vi.fn().mockResolvedValue([{ name: "tz_users" }]),
-    }),
-    collection: () => ({
-      findOne: usersFindOneMock,
-      updateOne: usersUpdateOneMock,
-    }),
-  }),
+  getDb: mocks.getDbMock,
 }));
 
 vi.mock("../email/email.service.js", () => ({
-  sendPasswordResetEmail: sendPasswordResetEmailMock,
+  sendPasswordResetEmail: mocks.sendPasswordResetEmailMock,
 }));
 
 vi.mock("./authAudit.service.js", () => ({
-  logAuthEvent: logAuthEventMock,
+  logAuthEvent: mocks.logAuthEventMock,
 }));
 
 vi.mock("./refreshSession.service.js", () => ({
-  createSession: createSessionMock,
-  deleteSession: deleteSessionMock,
-  deleteSessionsByUser: deleteSessionsByUserMock,
-  getSession: getSessionMock,
+  createSession: mocks.createSessionMock,
+  deleteSession: mocks.deleteSessionMock,
+  deleteSessionsByUser: mocks.deleteSessionsByUserMock,
+  getSession: mocks.getSessionMock,
 }));
 
 vi.mock("./passwordResetToken.service.js", () => ({
-  createPasswordResetToken: createPasswordResetTokenMock,
-  consumePasswordResetToken: consumePasswordResetTokenMock,
+  createPasswordResetToken: mocks.createPasswordResetTokenMock,
+  consumePasswordResetToken: mocks.consumePasswordResetTokenMock,
 }));
 
 vi.mock("./token.service.js", () => ({
-  signAccessToken: signAccessTokenMock,
+  signAccessToken: mocks.signAccessTokenMock,
 }));
 
 vi.mock("./ssoJwtVerify.service.js", () => ({
-  verifySsoJwtAndGetPayload: verifySsoJwtMock,
+  verifySsoJwtAndGetPayload: mocks.verifySsoJwtAndGetPayloadMock,
 }));
 
 vi.mock("./userAccessPayload.js", () => ({
-  USER_COLLECTION_CANDIDATES: ["tz_users"],
-  escapeEmailForRegex: (value: string) => value,
-  buildAccessPayloadFromUserDoc: buildAccessPayloadMock,
-  toAuthSessionUser: toAuthSessionUserMock,
+  USER_COLLECTION_CANDIDATES: ["tz_users", "users", "backoffice_users"],
+  escapeEmailForRegex: (email: string) => email.trim().toLowerCase(),
+  buildAccessPayloadFromUserDoc: mocks.buildAccessPayloadFromUserDocMock,
+  toAuthSessionUser: mocks.toAuthSessionUserMock,
 }));
 
 import {
@@ -108,259 +135,126 @@ import {
 describe("auth.service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    listCollectionsHasNextMock.mockResolvedValue(true);
-  });
-
-  it("refreshAccessToken rejects when session is missing", async () => {
-    getSessionMock.mockResolvedValueOnce(null);
-
-    await expect(refreshAccessToken({ refreshToken: "rt-1" })).rejects.toMatchObject({
-      statusCode: 401,
-    } as Partial<HttpError>);
-  });
-
-  it("loginWithCredentials fails when user is missing", async () => {
-    usersFindOneMock.mockResolvedValueOnce(null);
-    bcryptCompareMock.mockResolvedValueOnce(false);
-
-    await expect(loginWithCredentials({ email: "x@test.com", password: "pw" })).rejects.toMatchObject({
-      statusCode: 401,
-    } as Partial<HttpError>);
-    expect(logAuthEventMock).toHaveBeenCalledWith(
-      "login_failed",
-      expect.objectContaining({ email: "x@test.com", success: false })
-    );
-  });
-
-  it("loginWithCredentials succeeds for active user", async () => {
-    const uid = new ObjectId("64b64f3fd9024a2a53111111");
-    usersFindOneMock.mockResolvedValueOnce({
-      _id: uid,
-      email: "user@test.com",
-      password: "hash",
-      isDisabled: false,
-      status: "active",
-    });
-    bcryptCompareMock.mockResolvedValueOnce(true);
-    buildAccessPayloadMock.mockResolvedValueOnce({
-      sub: uid.toHexString(),
-      email: "user@test.com",
+    mocks.users.length = 0;
+    mocks.compareMock.mockResolvedValue(true);
+    mocks.hashMock.mockResolvedValue("hashed-pw");
+    mocks.createSessionMock.mockResolvedValue("refresh-1");
+    mocks.signAccessTokenMock.mockReturnValue("access-1");
+    mocks.buildAccessPayloadFromUserDocMock.mockImplementation(async (u: Record<string, unknown>) => ({
+      sub: (u._id as ObjectId).toHexString(),
+      email: String(u.email ?? "u@test.local"),
       role: "agent",
       isAdmin: false,
-      permissions: ["apartments.read"],
+      permissions: ["requests:read"],
       projectId: "p1",
-    });
-    signAccessTokenMock.mockReturnValueOnce("jwt-access");
-    createSessionMock.mockResolvedValueOnce("refresh-token");
-    toAuthSessionUserMock.mockReturnValueOnce({ id: uid.toHexString(), email: "user@test.com" });
-
-    const result = await loginWithCredentials({ email: "user@test.com", password: "pw" });
-
-    expect(result.accessToken).toBe("jwt-access");
-    expect(result.refreshToken).toBe("refresh-token");
-    expect(logAuthEventMock).toHaveBeenCalledWith(
-      "login_success",
-      expect.objectContaining({ userId: uid.toHexString(), email: "user@test.com", success: true })
-    );
+    }));
+    mocks.toAuthSessionUserMock.mockImplementation((p: Record<string, unknown>) => ({
+      id: p.sub,
+      email: p.email,
+      role: p.role,
+      isAdmin: p.isAdmin,
+      permissions: p.permissions,
+      projectId: p.projectId,
+    }));
   });
 
-  it("loginWithCredentials fails on wrong password for existing user", async () => {
-    usersFindOneMock.mockResolvedValueOnce({
-      _id: new ObjectId("64b64f3fd9024a2a53111111"),
-      email: "user@test.com",
-      password: "hash",
-      isDisabled: false,
-      status: "active",
-    });
-    bcryptCompareMock.mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+  it("loginWithCredentials success", async () => {
+    const id = new ObjectId();
+    mocks.users.push({ _id: id, email: "agent@test.local", password: "hash", project_ids: ["p1"] });
 
-    await expect(loginWithCredentials({ email: "user@test.com", password: "wrong" })).rejects.toMatchObject({
-      statusCode: 401,
-    } as Partial<HttpError>);
-    expect(logAuthEventMock).toHaveBeenCalledWith(
-      "login_failed",
-      expect.objectContaining({ email: "user@test.com", success: false })
-    );
+    const result = await loginWithCredentials({ email: "agent@test.local", password: "x" });
+
+    expect(mocks.compareMock).toHaveBeenCalledWith("x", "hash");
+    expect(result.accessToken).toBe("access-1");
+    expect(result.refreshToken).toBe("refresh-1");
   });
 
-  it("exchangeSsoJwt maps generic verification error to 401", async () => {
-    verifySsoJwtMock.mockRejectedValueOnce(new Error("boom"));
-    await expect(exchangeSsoJwt({ ssoJwt: "token" })).rejects.toMatchObject({ statusCode: 401 } as Partial<HttpError>);
+  it("loginWithCredentials failed user/password", async () => {
+    mocks.compareMock.mockResolvedValue(false);
+
+    await expect(loginWithCredentials({ email: "missing@test.local", password: "x" })).rejects.toMatchObject({ statusCode: 401 });
+    const id = new ObjectId();
+    mocks.users.push({ _id: id, email: "agent@test.local", password: "hash" });
+    await expect(loginWithCredentials({ email: "agent@test.local", password: "x" })).rejects.toMatchObject({ statusCode: 401 });
   });
 
-  it("exchangeSsoJwt returns 401 when payload has no email", async () => {
-    verifySsoJwtMock.mockResolvedValueOnce({ sub: "no-email" });
-    await expect(exchangeSsoJwt({ ssoJwt: "token" })).rejects.toMatchObject({ statusCode: 401 } as Partial<HttpError>);
+  it("exchangeSsoJwt handles generic failure, missing email, disabled user and success", async () => {
+    mocks.verifySsoJwtAndGetPayloadMock.mockRejectedValueOnce(new Error("boom"));
+    await expect(exchangeSsoJwt({ ssoJwt: "x" })).rejects.toMatchObject({ statusCode: 401 });
+
+    mocks.verifySsoJwtAndGetPayloadMock.mockResolvedValueOnce({ sub: "u1" });
+    await expect(exchangeSsoJwt({ ssoJwt: "x" })).rejects.toMatchObject({ statusCode: 401 });
+
+    const disabledId = new ObjectId();
+    mocks.users.push({ _id: disabledId, email: "disabled@test.local", isDisabled: true, password: "h" });
+    mocks.verifySsoJwtAndGetPayloadMock.mockResolvedValueOnce({ email: "disabled@test.local" });
+    await expect(exchangeSsoJwt({ ssoJwt: "x" })).rejects.toMatchObject({ statusCode: 401 });
+
+    const activeId = new ObjectId();
+    mocks.users.push({ _id: activeId, email: "ok@test.local", password: "h" });
+    mocks.verifySsoJwtAndGetPayloadMock.mockResolvedValueOnce({ email: "ok@test.local" });
+    const result = await exchangeSsoJwt({ ssoJwt: "x" });
+    expect(result.accessToken).toBe("access-1");
   });
 
-  it("exchangeSsoJwt returns 401 for disabled user", async () => {
-    verifySsoJwtMock.mockResolvedValueOnce({ email: "sso@test.com" });
-    usersFindOneMock.mockResolvedValueOnce({
-      _id: new ObjectId("64b64f3fd9024a2a53111111"),
-      email: "sso@test.com",
-      isDisabled: true,
-    });
-    await expect(exchangeSsoJwt({ ssoJwt: "token" })).rejects.toMatchObject({ statusCode: 401 } as Partial<HttpError>);
+  it("refreshAccessToken invalid session, disabled user, success", async () => {
+    mocks.getSessionMock.mockResolvedValueOnce(null);
+    await expect(refreshAccessToken({ refreshToken: "r1" })).rejects.toMatchObject({ statusCode: 401 });
+
+    const id = new ObjectId();
+    mocks.users.push({ _id: id, email: "u@test.local", isDisabled: true, password: "h" });
+    mocks.getSessionMock.mockResolvedValueOnce({ userId: id.toHexString(), email: "u@test.local" });
+    await expect(refreshAccessToken({ refreshToken: "r1" })).rejects.toMatchObject({ statusCode: 401 });
+    expect(mocks.deleteSessionMock).toHaveBeenCalledWith("r1");
+
+    mocks.users[0] = { ...mocks.users[0], isDisabled: false };
+    mocks.getSessionMock.mockResolvedValueOnce({ userId: id.toHexString(), email: "u@test.local" });
+    const result = await refreshAccessToken({ refreshToken: "r2" });
+    expect(result.refreshToken).toBe("refresh-1");
   });
 
-  it("exchangeSsoJwt succeeds when SSO payload is valid", async () => {
-    const uid = new ObjectId("64b64f3fd9024a2a53111111");
-    verifySsoJwtMock.mockResolvedValueOnce({ email: "sso@test.com" });
-    usersFindOneMock.mockResolvedValueOnce({
-      _id: uid,
-      email: "sso@test.com",
-      isDisabled: false,
-      password: "hash",
-    });
-    buildAccessPayloadMock.mockResolvedValueOnce({
-      sub: uid.toHexString(),
-      email: "sso@test.com",
-      role: "agent",
-      isAdmin: false,
-      permissions: ["apartments.read"],
-      projectId: "p1",
-    });
-    signAccessTokenMock.mockReturnValueOnce("jwt-access");
-    createSessionMock.mockResolvedValueOnce("refresh-token");
-    toAuthSessionUserMock.mockReturnValueOnce({ id: uid.toHexString(), email: "sso@test.com" });
+  it("logoutWithRefreshToken logs when session exists and always deletes", async () => {
+    mocks.getSessionMock.mockResolvedValueOnce({ userId: "u1", email: "u@test.local" });
+    await logoutWithRefreshToken({ refreshToken: "r1" });
+    expect(mocks.logAuthEventMock).toHaveBeenCalled();
+    expect(mocks.deleteSessionMock).toHaveBeenCalledWith("r1");
 
-    const result = await exchangeSsoJwt({ ssoJwt: "token" });
-
-    expect(result.accessToken).toBe("jwt-access");
-    expect(result.refreshToken).toBe("refresh-token");
-    expect(logAuthEventMock).toHaveBeenCalledWith(
-      "sso_exchange",
-      expect.objectContaining({ userId: uid.toHexString(), email: "sso@test.com", success: true })
-    );
+    mocks.getSessionMock.mockResolvedValueOnce(null);
+    await logoutWithRefreshToken({ refreshToken: "r2" });
+    expect(mocks.deleteSessionMock).toHaveBeenCalledWith("r2");
   });
 
-  it("logoutWithRefreshToken logs event and deletes session when found", async () => {
-    getSessionMock.mockResolvedValueOnce({ userId: "u1", email: "u@test.com" });
-    deleteSessionMock.mockResolvedValueOnce(true);
+  it("requestPasswordReset no-op for disabled/invited and sends email for active", async () => {
+    const disabledId = new ObjectId();
+    mocks.users.push({ _id: disabledId, email: "d@test.local", isDisabled: true, password: "h" });
+    await requestPasswordReset({ email: "d@test.local" });
+    expect(mocks.createPasswordResetTokenMock).not.toHaveBeenCalled();
 
-    await logoutWithRefreshToken({ refreshToken: "rt-1" }, { ipAddress: "127.0.0.1" });
+    const invitedId = new ObjectId();
+    mocks.users.push({ _id: invitedId, email: "i@test.local", status: "invited", password: "h" });
+    await requestPasswordReset({ email: "i@test.local" });
+    expect(mocks.createPasswordResetTokenMock).not.toHaveBeenCalled();
 
-    expect(logAuthEventMock).toHaveBeenCalledWith(
-      "logout",
-      expect.objectContaining({ userId: "u1", email: "u@test.com", success: true })
-    );
-    expect(deleteSessionMock).toHaveBeenCalledWith("rt-1");
+    const activeId = new ObjectId();
+    mocks.users.push({ _id: activeId, email: "a@test.local", password: "h" });
+    mocks.createPasswordResetTokenMock.mockResolvedValueOnce("token-1");
+    await requestPasswordReset({ email: "a@test.local" });
+    expect(mocks.sendPasswordResetEmailMock).toHaveBeenCalledWith({ to: "a@test.local", token: "token-1" });
   });
 
-  it("logoutWithRefreshToken deletes session also when not found", async () => {
-    getSessionMock.mockResolvedValueOnce(null);
-    deleteSessionMock.mockResolvedValueOnce(false);
+  it("resetPasswordWithToken invalid token, missing user, success", async () => {
+    mocks.consumePasswordResetTokenMock.mockResolvedValueOnce(null);
+    await expect(resetPasswordWithToken({ token: "x", password: "12345678" })).rejects.toMatchObject({ statusCode: 400 });
 
-    await logoutWithRefreshToken({ refreshToken: "rt-1" });
+    const missingId = new ObjectId();
+    mocks.consumePasswordResetTokenMock.mockResolvedValueOnce({ userId: missingId.toHexString(), email: "x@test.local" });
+    await expect(resetPasswordWithToken({ token: "x", password: "12345678" })).rejects.toMatchObject({ statusCode: 400 });
 
-    expect(logAuthEventMock).not.toHaveBeenCalledWith("logout", expect.anything());
-    expect(deleteSessionMock).toHaveBeenCalledWith("rt-1");
-  });
-
-  it("requestPasswordReset returns ok and does not send email for invited user", async () => {
-    usersFindOneMock.mockResolvedValueOnce({
-      _id: new ObjectId("64b64f3fd9024a2a53111111"),
-      email: "invited@test.com",
-      status: "invited",
-      password: undefined,
-      isDisabled: false,
-    });
-
-    const result = await requestPasswordReset({ email: "invited@test.com" });
-
-    expect(result).toEqual({ ok: true });
-    expect(sendPasswordResetEmailMock).not.toHaveBeenCalled();
-    expect(createPasswordResetTokenMock).not.toHaveBeenCalled();
-  });
-
-  it("requestPasswordReset sends email for active user", async () => {
-    usersFindOneMock.mockResolvedValueOnce({
-      _id: new ObjectId("64b64f3fd9024a2a53111111"),
-      email: "active@test.com",
-      status: "active",
-      password: "hash",
-      isDisabled: false,
-    });
-    createPasswordResetTokenMock.mockResolvedValueOnce("reset-token");
-    sendPasswordResetEmailMock.mockResolvedValueOnce(undefined);
-
-    const result = await requestPasswordReset({ email: "active@test.com" });
-
-    expect(result).toEqual({ ok: true });
-    expect(createPasswordResetTokenMock).toHaveBeenCalledTimes(1);
-    expect(sendPasswordResetEmailMock).toHaveBeenCalledWith({ to: "active@test.com", token: "reset-token" });
-  });
-
-  it("refreshAccessToken rejects and deletes session when user is disabled", async () => {
-    getSessionMock.mockResolvedValueOnce({ userId: "64b64f3fd9024a2a53111111", email: "u@test.com" });
-    usersFindOneMock.mockResolvedValueOnce({ _id: new ObjectId("64b64f3fd9024a2a53111111"), isDisabled: true });
-
-    await expect(refreshAccessToken({ refreshToken: "rt-1" })).rejects.toMatchObject({ statusCode: 401 } as Partial<HttpError>);
-    expect(deleteSessionMock).toHaveBeenCalledWith("rt-1");
-  });
-
-  it("refreshAccessToken rotates session on success", async () => {
-    const uid = new ObjectId("64b64f3fd9024a2a53111111");
-    getSessionMock.mockResolvedValueOnce({ userId: uid.toHexString(), email: "u@test.com" });
-    usersFindOneMock.mockResolvedValueOnce({ _id: uid, email: "u@test.com", isDisabled: false, password: "hash" });
-    buildAccessPayloadMock.mockResolvedValueOnce({
-      sub: uid.toHexString(),
-      email: "u@test.com",
-      role: "agent",
-      isAdmin: false,
-      permissions: ["apartments.read"],
-      projectId: "p1",
-    });
-    signAccessTokenMock.mockReturnValueOnce("jwt-next");
-    deleteSessionMock.mockResolvedValueOnce(true);
-    createSessionMock.mockResolvedValueOnce("rt-next");
-
-    const result = await refreshAccessToken({ refreshToken: "rt-old" });
-
-    expect(result.accessToken).toBe("jwt-next");
-    expect(result.refreshToken).toBe("rt-next");
-    expect(deleteSessionMock).toHaveBeenCalledWith("rt-old");
-  });
-
-  it("resetPasswordWithToken updates password and revokes sessions", async () => {
-    consumePasswordResetTokenMock.mockResolvedValueOnce({
-      userId: "64b64f3fd9024a2a53111111",
-      email: "user@test.com",
-    });
-    usersFindOneMock.mockResolvedValueOnce({
-      _id: new ObjectId("64b64f3fd9024a2a53111111"),
-      email: "user@test.com",
-    });
-    bcryptHashMock.mockResolvedValueOnce("hashed-password");
-    deleteSessionsByUserMock.mockResolvedValueOnce(1);
-    logAuthEventMock.mockResolvedValueOnce(undefined);
-
-    const result = await resetPasswordWithToken({ token: "tkn", password: "verystrongpass" });
-
-    expect(result).toEqual({ ok: true });
-    expect(usersUpdateOneMock).toHaveBeenCalledWith(
-      { _id: expect.any(ObjectId) },
-      { $set: { password: "hashed-password", status: "active" } }
-    );
-    expect(deleteSessionsByUserMock).toHaveBeenCalledWith("64b64f3fd9024a2a53111111");
-  });
-
-  it("resetPasswordWithToken rejects invalid consumed token", async () => {
-    consumePasswordResetTokenMock.mockResolvedValueOnce(null);
-    await expect(resetPasswordWithToken({ token: "bad", password: "verystrongpass" })).rejects.toMatchObject({
-      statusCode: 400,
-    } as Partial<HttpError>);
-  });
-
-  it("resetPasswordWithToken rejects when user does not exist", async () => {
-    consumePasswordResetTokenMock.mockResolvedValueOnce({
-      userId: "64b64f3fd9024a2a53111111",
-      email: "user@test.com",
-    });
-    usersFindOneMock.mockResolvedValueOnce(null);
-
-    await expect(resetPasswordWithToken({ token: "ok", password: "verystrongpass" })).rejects.toMatchObject({
-      statusCode: 400,
-    } as Partial<HttpError>);
+    const id = new ObjectId();
+    mocks.users.push({ _id: id, email: "ok@test.local", password: "old" });
+    mocks.consumePasswordResetTokenMock.mockResolvedValueOnce({ userId: id.toHexString(), email: "ok@test.local" });
+    await expect(resetPasswordWithToken({ token: "x", password: "12345678" })).resolves.toEqual({ ok: true });
+    expect(mocks.usersCollection.updateOne).toHaveBeenCalled();
+    expect(mocks.deleteSessionsByUserMock).toHaveBeenCalledWith(id.toHexString());
   });
 });

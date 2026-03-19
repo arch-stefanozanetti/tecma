@@ -15,6 +15,7 @@
     "test:integration": "cd be-followup-v3 && npm run test:integration",
     "test:coverage": "cd be-followup-v3 && npm run test:coverage && cd ../fe-followup-v3 && npm run test:coverage",
     "test:e2e": "cd fe-followup-v3 && npm run test:e2e",
+    "test:e2e:core": "cd fe-followup-v3 && npm run test:e2e:core",
     "test:e2e:ui": "cd fe-followup-v3 && npm run test:e2e:ui",
     "test:visual": "cd fe-followup-v3 && npm run test:visual",
     "test:a11y": "cd fe-followup-v3 && npm run test:a11y",
@@ -26,7 +27,10 @@
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f --tail=200",
     "test:security": "cd be-followup-v3 && npm audit --audit-level=high && cd ../fe-followup-v3 && npm audit --audit-level=high",
-    "test:lint": "cd be-followup-v3 && npm run test:lint && cd ../fe-followup-v3 && npm run test:lint"
+    "check:secrets": "bash scripts/check-no-secrets.sh",
+    "setup:githooks": "git config core.hooksPath .githooks",
+    "test:lint": "cd be-followup-v3 && npm run test:lint && cd ../fe-followup-v3 && npm run test:lint",
+    "post-release:verify": "bash scripts/post-release-verify.sh"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

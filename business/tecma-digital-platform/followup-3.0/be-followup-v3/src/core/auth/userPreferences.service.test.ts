@@ -1,14 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const findOneMock = vi.fn();
-const updateOneMock = vi.fn();
+const mocks = vi.hoisted(() => {
+  const findOneMock = vi.fn();
+  const updateOneMock = vi.fn();
+  const collectionMock = {
+    findOne: findOneMock,
+    updateOne: updateOneMock,
+  };
+
+  return {
+    findOneMock,
+    updateOneMock,
+    collectionMock,
+  };
+});
 
 vi.mock("../../config/db.js", () => ({
   getDb: () => ({
-    collection: () => ({
-      findOne: findOneMock,
-      updateOne: updateOneMock,
-    }),
+    collection: () => mocks.collectionMock,
   }),
 }));
 
@@ -19,28 +28,42 @@ describe("userPreferences.service", () => {
     vi.clearAllMocks();
   });
 
-  it("reads normalized user preferences", async () => {
-    findOneMock.mockResolvedValueOnce({ email: "x@example.com", workspaceId: "ws1", selectedProjectIds: ["p1"] });
+  it("getUserPreferences normalizes email", async () => {
+    const doc = { email: "x@example.com", workspaceId: "ws1", selectedProjectIds: ["p1"], updatedAt: new Date() };
+    mocks.findOneMock.mockResolvedValueOnce(doc);
 
-    const result = await getUserPreferences(" X@Example.com ");
+    const result = await getUserPreferences("  X@Example.Com ");
 
-    expect(findOneMock).toHaveBeenCalledWith({ email: "x@example.com" });
-    expect(result?.workspaceId).toBe("ws1");
+    expect(mocks.findOneMock).toHaveBeenCalledWith({ email: "x@example.com" });
+    expect(result).toBe(doc);
   });
 
-  it("upserts and reloads preferences", async () => {
-    updateOneMock.mockResolvedValueOnce({ acknowledged: true });
-    findOneMock.mockResolvedValueOnce({ email: "x@example.com", workspaceId: "ws1", selectedProjectIds: ["p1"] });
+  it("upsertUserPreferences updates and returns stored doc", async () => {
+    const doc = { email: "x@example.com", workspaceId: "ws2", selectedProjectIds: ["p2"], updatedAt: new Date() };
+    mocks.updateOneMock.mockResolvedValueOnce({ acknowledged: true });
+    mocks.findOneMock.mockResolvedValueOnce(doc);
 
-    const result = await upsertUserPreferences(" X@Example.com ", "ws1", ["p1"]);
+    const result = await upsertUserPreferences("  X@Example.Com ", "ws2", ["p2"]);
 
-    expect(updateOneMock).toHaveBeenCalledTimes(1);
-    expect(result.email).toBe("x@example.com");
+    expect(mocks.updateOneMock).toHaveBeenCalledOnce();
+    expect(mocks.updateOneMock).toHaveBeenCalledWith(
+      { email: "x@example.com" },
+      expect.objectContaining({
+        $set: expect.objectContaining({
+          email: "x@example.com",
+          workspaceId: "ws2",
+          selectedProjectIds: ["p2"],
+          updatedAt: expect.any(Date),
+        }),
+      }),
+      { upsert: true }
+    );
+    expect(result).toBe(doc);
   });
 
-  it("throws when upsert reload misses document", async () => {
-    updateOneMock.mockResolvedValueOnce({ acknowledged: true });
-    findOneMock.mockResolvedValueOnce(null);
+  it("throws if post-upsert document is not readable", async () => {
+    mocks.updateOneMock.mockResolvedValueOnce({ acknowledged: true });
+    mocks.findOneMock.mockResolvedValueOnce(null);
 
     await expect(upsertUserPreferences("x@example.com", "ws1", ["p1"])).rejects.toThrow(
       "Unable to load user preferences after upsert"

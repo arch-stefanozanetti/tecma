@@ -114,6 +114,12 @@ const navItems: NavItem[] = [
 ];
 
 const mainNav = navItems.filter((item) => !item.compact);
+const mobileQuickNav: Array<{ id: Section; label: string; icon: React.ElementType }> = [
+  { id: "calendar", label: "Agenda", icon: CalendarDays },
+  { id: "requests", label: "Follow-up", icon: Handshake },
+  { id: "clients", label: "Clienti", icon: Users },
+  { id: "apartments", label: "Stato unità", icon: Building2 },
+];
 const getMainNav = (isAdmin: boolean, enabledFeatures?: string[]) =>
   mainNav.filter(
     (item) =>
@@ -791,7 +797,7 @@ export const PageTemplate = ({
           </div>
         )}
 
-        <main className="min-h-0 flex-1 overflow-auto">
+        <main className="min-h-0 flex-1 overflow-auto pb-16 lg:pb-0">
           <WorkspaceOverrideProvider
             value={{
               workspaceId,
@@ -802,6 +808,30 @@ export const PageTemplate = ({
             {children}
           </WorkspaceOverrideProvider>
         </main>
+
+        <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 px-2 py-2 backdrop-blur lg:hidden">
+          <div className="grid grid-cols-4 gap-1">
+            {mobileQuickNav.map((item) => {
+              if (!isSectionEnabledByFeature(item.id, enabledFeatures)) return null;
+              const Icon = item.icon;
+              const active = section === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onSectionChange(item.id)}
+                  className={cn(
+                    "inline-flex min-h-11 flex-col items-center justify-center gap-1 rounded-chrome px-2 text-[11px] font-medium",
+                    active ? "bg-sidebar-accent text-primary" : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span className="truncate">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
 
         <footer className="flex shrink-0 items-center justify-end gap-4 border-t border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
           <button

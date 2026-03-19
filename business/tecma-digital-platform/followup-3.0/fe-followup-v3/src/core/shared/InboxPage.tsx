@@ -90,6 +90,18 @@ export function InboxPage({ workspaceId, onSectionChange, navigate }: InboxPageP
     load();
   }, [load]);
 
+  useEffect(() => {
+    if (!workspaceId) return;
+    const unsubscribe = followupApi.subscribeRealtimeEvents(
+      workspaceId,
+      { eventTypes: ["notification.created", "request.status_changed", "calendar.event.created"] },
+      () => {
+        load();
+      }
+    );
+    return () => unsubscribe();
+  }, [workspaceId, load]);
+
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
 
   const handleRowClick = useCallback(

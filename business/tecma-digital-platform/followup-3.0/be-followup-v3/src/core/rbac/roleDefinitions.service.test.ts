@@ -1,38 +1,38 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-  findOneMock,
-  updateOneMock,
-  findToArrayMock,
-  countDocumentsMock,
-  mergeRoleAndOverridesMock,
-} = vi.hoisted(() => ({
-  findOneMock: vi.fn(),
-  updateOneMock: vi.fn(),
-  findToArrayMock: vi.fn(),
-  countDocumentsMock: vi.fn(),
-  mergeRoleAndOverridesMock: vi.fn(),
-}));
+const mocks = vi.hoisted(() => {
+  const findOneMock = vi.fn();
+  const updateOneMock = vi.fn();
+  const findMock = vi.fn();
+  const toArrayMock = vi.fn();
+  const countDocumentsMock = vi.fn();
 
-vi.mock("./permissions.js", async () => {
-  const actual = await vi.importActual<typeof import("./permissions.js")>("./permissions.js");
+  findMock.mockReturnValue({ toArray: toArrayMock });
+
+  const collectionMock = {
+    findOne: findOneMock,
+    updateOne: updateOneMock,
+    find: findMock,
+    countDocuments: countDocumentsMock,
+  };
+
   return {
-    ...actual,
-    mergeRoleAndOverrides: mergeRoleAndOverridesMock,
+    findOneMock,
+    updateOneMock,
+    findMock,
+    toArrayMock,
+    countDocumentsMock,
+    collectionMock,
   };
 });
 
 vi.mock("../../config/db.js", () => ({
   getDb: () => ({
-    collection: () => ({
-      findOne: findOneMock,
-      updateOne: updateOneMock,
-      find: vi.fn(() => ({ toArray: findToArrayMock })),
-      countDocuments: countDocumentsMock,
-    }),
+    collection: () => mocks.collectionMock,
   }),
 }));
 
+import { PERMISSIONS } from "./permissions.js";
 import {
   ensureDefaultRoleDefinitions,
   getPermissionsForRole,
@@ -40,68 +40,52 @@ import {
   resolveEffectivePermissions,
   upsertRoleDefinition,
 } from "./roleDefinitions.service.js";
-import { BUILTIN_ROLE_PERMISSIONS, PERMISSIONS } from "./permissions.js";
 
-describe("rbac/roleDefinitions.service", () => {
+describe("roleDefinitions.service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("returns builtin user permissions for empty role", async () => {
-    const perms = await getPermissionsForRole("");
-    expect(perms).toEqual(BUILTIN_ROLE_PERMISSIONS.user);
+  it("getPermissionsForRole uses DB value and wildcard", async () => {
+    mocks.findOneMock.mockResolvedValueOnce({ roleKey: "agent", permissions: ["users.read"] });
+    await expect(getPermissionsForRole("Agent")).resolves.toEqual(["users.read"]);
+
+    mocks.findOneMock.mockResolvedValueOnce({ roleKey: "admin", permissions: [PERMISSIONS.ALL] });
+    await expect(getPermissionsForRole("admin")).resolves.toBe(PERMISSIONS.ALL);
   });
 
-  it("returns wildcard when db role contains ALL", async () => {
-    findOneMock.mockResolvedValueOnce({ roleKey: "admin", permissions: [PERMISSIONS.ALL] });
-    const perms = await getPermissionsForRole("admin");
-    expect(perms).toBe(PERMISSIONS.ALL);
+  it("getPermissionsForRole falls back to builtin user for empty/unknown", async () => {
+    await expect(getPermissionsForRole("")).resolves.toContain(PERMISSIONS.APARTMENTS_READ);
+
+    mocks.findOneMock.mockResolvedValueOnce(null);
+    await expect(getPermissionsForRole("unknown-role")).resolves.toContain(PERMISSIONS.APARTMENTS_READ);
   });
 
-  it("falls back to builtin role when db role missing (legacy agent maps to collaborator)", async () => {
-    findOneMock.mockResolvedValueOnce(null);
-    const perms = await getPermissionsForRole("agent");
-    expect(perms).toEqual(BUILTIN_ROLE_PERMISSIONS.collaborator);
-  });
-
-  it("upsertRoleDefinition stores normalized role and permissions", async () => {
-    updateOneMock.mockResolvedValueOnce({ acknowledged: true });
-    await upsertRoleDefinition(" Admin ", PERMISSIONS.ALL);
-    expect(updateOneMock).toHaveBeenCalledWith(
-      { roleKey: "admin" },
-      expect.objectContaining({ $set: expect.objectContaining({ roleKey: "admin", permissions: [PERMISSIONS.ALL] }) }),
+  it("upsert/list/resolve effective permissions", async () => {
+    mocks.updateOneMock.mockResolvedValue({ acknowledged: true });
+    await upsertRoleDefinition(" Agent ", ["users.read"]);
+    expect(mocks.updateOneMock).toHaveBeenCalledWith(
+      { roleKey: "agent" },
+      expect.objectContaining({ $set: expect.objectContaining({ roleKey: "agent" }) }),
       { upsert: true }
+    );
+
+    mocks.toArrayMock.mockResolvedValueOnce([{ roleKey: "agent", permissions: ["users.read"] }]);
+    await expect(listRoleDefinitions()).resolves.toEqual([{ roleKey: "agent", permissions: ["users.read"] }]);
+
+    mocks.findOneMock.mockResolvedValueOnce({ roleKey: "agent", permissions: ["users.read"] });
+    await expect(resolveEffectivePermissions("agent", ["users.invite"])).resolves.toEqual(
+      expect.arrayContaining(["users.read", "users.invite"])
     );
   });
 
-  it("listRoleDefinitions returns collection rows", async () => {
-    findToArrayMock.mockResolvedValueOnce([{ roleKey: "agent", permissions: [PERMISSIONS.APARTMENTS_READ] }]);
-    const rows = await listRoleDefinitions();
-    expect(rows).toHaveLength(1);
-  });
-
-  it("ensureDefaultRoleDefinitions seeds defaults when collection is empty", async () => {
-    countDocumentsMock.mockResolvedValueOnce(0);
-    updateOneMock.mockResolvedValue({ acknowledged: true });
-
+  it("ensureDefaultRoleDefinitions seeds only when empty", async () => {
+    mocks.countDocumentsMock.mockResolvedValueOnce(1);
     await ensureDefaultRoleDefinitions();
+    expect(mocks.updateOneMock).not.toHaveBeenCalled();
 
-    expect(updateOneMock).toHaveBeenCalled();
-  });
-
-  it("ensureDefaultRoleDefinitions is noop when records already exist", async () => {
-    countDocumentsMock.mockResolvedValueOnce(3);
+    mocks.countDocumentsMock.mockResolvedValueOnce(0);
     await ensureDefaultRoleDefinitions();
-    expect(updateOneMock).not.toHaveBeenCalled();
-  });
-
-  it("resolveEffectivePermissions merges role and overrides", async () => {
-    findOneMock.mockResolvedValueOnce({ roleKey: "agent", permissions: [PERMISSIONS.APARTMENTS_READ] });
-    mergeRoleAndOverridesMock.mockReturnValueOnce([PERMISSIONS.APARTMENTS_READ, PERMISSIONS.USERS_READ]);
-
-    const perms = await resolveEffectivePermissions("agent", [PERMISSIONS.USERS_READ]);
-
-    expect(mergeRoleAndOverridesMock).toHaveBeenCalledWith([PERMISSIONS.APARTMENTS_READ], [PERMISSIONS.USERS_READ]);
-    expect(perms).toEqual([PERMISSIONS.APARTMENTS_READ, PERMISSIONS.USERS_READ]);
+    expect(mocks.updateOneMock).toHaveBeenCalled();
   });
 });

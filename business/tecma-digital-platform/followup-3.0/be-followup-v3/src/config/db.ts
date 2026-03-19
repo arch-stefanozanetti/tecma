@@ -1,5 +1,6 @@
 import { Db, MongoClient } from "mongodb";
 import { ENV } from "./env.js";
+import { logger } from "../observability/logger.js";
 
 let client: MongoClient | null = null;
 let db: Db | null = null;
@@ -26,7 +27,9 @@ export const connectDb = async (): Promise<Db> => {
     return db;
   }
   if (client) {
-    await client.close().catch(() => {});
+    await client.close().catch((err) => {
+      logger.warn({ err }, "[db] close previous client failed during reconnect");
+    });
     client = null;
     db = null;
     connectedUri = null;
@@ -54,7 +57,9 @@ export const getMongoClient = (): MongoClient => {
 /** Chiude la connessione (per test integration che cambiano MONGO_URI tra file). */
 export const disconnectDb = async (): Promise<void> => {
   if (client) {
-    await client.close().catch(() => {});
+    await client.close().catch((err) => {
+      logger.warn({ err }, "[db] close client failed during disconnect");
+    });
     client = null;
     db = null;
     connectedUri = null;

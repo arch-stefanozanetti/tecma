@@ -8,8 +8,6 @@ import {
 import { queryRequests } from "../../core/requests/requests.service.js";
 import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
-import { requireCanAccessWorkspace, requireCanAccessProject } from "../accessMiddleware.js";
-import { canAccess } from "../../core/access/canAccess.js";
 import { record as auditRecord } from "../../core/audit/audit-log.service.js";
 import { requireAdmin } from "../authMiddleware.js";
 import { getCurrentPriceForUnit } from "../../core/unit-pricing/unit-pricing.service.js";
@@ -24,21 +22,16 @@ import {
   executeImport,
   type OnDuplicate,
 } from "../../core/units-import/units-import.service.js";
+import { safeAsync } from "../../core/shared/safeAsync.js";
 
 export const apartmentsRoutes = Router();
 
-function toAccessUser(req: { user?: { sub?: string; email?: string; system_role?: string | null; isTecmaAdmin?: boolean } }): { sub: string; email: string; system_role?: string | null; isTecmaAdmin?: boolean } | null {
-  const u = req.user;
-  if (!u) return null;
-  return { sub: u.sub ?? "", email: u.email ?? "", system_role: u.system_role ?? undefined, isTecmaAdmin: u.isTecmaAdmin };
-}
+apartmentsRoutes.post("/apartments/query", handleAsync((req) => queryApartments(req.body)));
 
-apartmentsRoutes.post("/apartments/query", requireCanAccessWorkspace("workspaceId"), handleAsync((req) => queryApartments(req.body)));
-
-apartmentsRoutes.post("/apartments", requireCanAccessProject("workspaceId", "projectId"), handleAsync(async (req) => {
+apartmentsRoutes.post("/apartments", handleAsync(async (req) => {
   const result = await createApartment(req.body);
   if (result?.apartmentId && req.body.workspaceId) {
-    auditRecord({
+    safeAsync(auditRecord({
       action: "apartment.created",
       workspaceId: req.body.workspaceId,
       projectId: req.body.projectId,
@@ -46,26 +39,22 @@ apartmentsRoutes.post("/apartments", requireCanAccessProject("workspaceId", "pro
       entityId: result.apartmentId,
       actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
       payload: { code: result.apartment?.code },
-    }).catch((err) => console.warn("[audit] failed", err));
+    }), {
+      operation: "audit.apartment.created",
+      workspaceId: req.body.workspaceId,
+      projectId: req.body.projectId,
+      entityType: "apartment",
+      entityId: result.apartmentId,
+      userId: req.user?.sub,
+    });
   }
   return result;
 }));
 
 apartmentsRoutes.patch("/apartments/:id", handleAsync(async (req) => {
-  const existing = await getApartmentById(req.params.id);
-  const workspaceId = existing.apartment?.workspaceId ?? "";
-  const projectId = existing.apartment?.projectId ?? "";
-  if (workspaceId || projectId) {
-    const user = toAccessUser(req);
-    if (!user) throw new HttpError("Unauthorized", 401);
-    const ok = projectId
-      ? await canAccess(user, { type: "project", projectId, workspaceId: workspaceId || undefined })
-      : await canAccess(user, { type: "workspace", workspaceId });
-    if (!ok) throw new HttpError("Accesso al progetto non consentito", 403);
-  }
   const result = await updateApartment({ ...req.body, apartmentId: req.params.id });
   if (req.body.workspaceId) {
-    auditRecord({
+    safeAsync(auditRecord({
       action: "apartment.updated",
       workspaceId: req.body.workspaceId,
       projectId: req.body.projectId,
@@ -73,28 +62,19 @@ apartmentsRoutes.patch("/apartments/:id", handleAsync(async (req) => {
       entityId: req.params.id,
       actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
       payload: req.body,
-    }).catch((err) => console.warn("[audit] failed", err));
+    }), {
+      operation: "audit.apartment.updated",
+      workspaceId: req.body.workspaceId,
+      projectId: req.body.projectId,
+      entityType: "apartment",
+      entityId: req.params.id,
+      userId: req.user?.sub,
+    });
   }
   return result;
 }));
 
-apartmentsRoutes.get(
-  "/apartments/:id",
-  handleAsync(async (req) => {
-    const result = await getApartmentById(req.params.id);
-    const workspaceId = result.apartment?.workspaceId ?? "";
-    const projectId = result.apartment?.projectId ?? "";
-    if (workspaceId || projectId) {
-      const user = toAccessUser(req);
-      if (!user) throw new HttpError("Unauthorized", 401);
-      const ok = projectId
-        ? await canAccess(user, { type: "project", projectId, workspaceId: workspaceId || undefined })
-        : await canAccess(user, { type: "workspace", workspaceId });
-      if (!ok) throw new HttpError("Accesso al progetto non consentito", 403);
-    }
-    return result;
-  })
-);
+apartmentsRoutes.get("/apartments/:id", handleAsync((req) => getApartmentById(req.params.id)));
 
 apartmentsRoutes.get("/apartments/:id/prices", handleAsync(async (req) => {
   const unitId = req.params.id;
@@ -219,7 +199,6 @@ apartmentsRoutes.post("/workspaces/:workspaceId/projects/:projectId/units/import
 
 apartmentsRoutes.get(
   "/apartments/:id/requests",
-  requireCanAccessWorkspace("workspaceId"),
   handleAsync(async (req) => {
     const apartmentId = req.params.id;
     const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";

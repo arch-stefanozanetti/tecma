@@ -31,7 +31,7 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
   const [webhookConfigs, setWebhookConfigs] = useState<WebhookConfigRow[]>([]);
   const [n8nConfig, setN8nConfig] = useState<N8nConfigSnapshot>(null);
   const [outlookConnected, setOutlookConnected] = useState(false);
-  const { selectedProjectIds: projectIds } = useWorkspace();
+  const { selectedProjectIds: projectIds, isAdmin } = useWorkspace();
 
   const loadWebhooks = useCallback(() => {
     if (!workspaceId) return;
@@ -78,7 +78,7 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
         return next;
       });
     }
-  }, [searchParams, loadOutlookStatus]);
+  }, [searchParams, loadOutlookStatus, setSearchParams]);
 
   useEffect(() => {
     setConnectors((prev) =>
@@ -189,7 +189,7 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
             <WebhookTab workspaceId={workspaceId} />
           </TabsContent>
           <TabsContent value="api" className="mt-6" role="tabpanel">
-            <ApiTab />
+            <ApiTab workspaceId={workspaceId} isAdmin={isAdmin} />
           </TabsContent>
         </Tabs>
       </div>

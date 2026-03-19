@@ -1,7 +1,9 @@
 import type { Request, Response, NextFunction } from "express";
+import { context, trace } from "@opentelemetry/api";
 import { writeAccessLog } from "../core/audit/accessLog.service.js";
 import { getClientIp } from "./requestMeta.js";
 import { logger } from "../observability/logger.js";
+import { observeHttpRequest } from "../observability/metrics.js";
 
 /**
  * Registra ogni richiesta su /v1 con tempo di risposta (dopo che req.user è eventualmente impostato da requireAuth).
@@ -10,6 +12,7 @@ export function accessLoggerMiddleware(req: Request, res: Response, next: NextFu
   const start = Date.now();
   const path = req.originalUrl?.split("?")[0] ?? req.path;
   const method = req.method;
+  const span = trace.getSpan(context.active());
 
   res.on("finish", () => {
     const ms = Date.now() - start;
@@ -26,6 +29,20 @@ export function accessLoggerMiddleware(req: Request, res: Response, next: NextFu
       responseTimeMs: ms,
       ipAddress: getClientIp(req)
     });
+    observeHttpRequest({
+      method,
+      endpoint: path,
+      statusCode: res.statusCode,
+      latencyMs: ms,
+    });
+
+    if (span) {
+      span.setAttribute("app.endpoint", path);
+      span.setAttribute("app.latency_ms", ms);
+      span.setAttribute("app.workspace_id", workspaceId ?? "");
+      span.setAttribute("http.status_code", res.statusCode);
+    }
+
     logger.info({
       userId: req.user?.sub ?? null,
       workspaceId,

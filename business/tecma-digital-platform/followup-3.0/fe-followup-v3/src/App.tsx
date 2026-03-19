@@ -1,11 +1,9 @@
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Routes, Route, useLocation, useSearchParams, useNavigate, Navigate } from "react-router-dom";
 import { clearProjectScope, loadProjectScope, updateSelectedProjectIds, updateWorkspaceId } from "./auth/projectScope";
 import { followupApi } from "./api/followupApi";
 import { PageTemplate } from "./core/shared/PageTemplate";
-import { ClientDetailPage } from "./core/clients/ClientDetailPage";
-import { ApartmentDetailPage } from "./core/apartments/ApartmentDetailPage";
 import { PageSimple } from "./core/shared/PageSimple";
 import { CalendarPage } from "./core/calendar/CalendarPage";
 import { CockpitPage } from "./core/cockpit/CockpitPage";
@@ -36,12 +34,22 @@ import { PriceAvailabilityPage } from "./core/prices/PriceAvailabilityPage";
 import { ReleasesPage } from "./core/releases/ReleasesPage";
 import { IntegrationsPage } from "./core/integrations/IntegrationsPage";
 import { ProductDiscoveryPage } from "./core/product-discovery/ProductDiscoveryPage";
+import { CustomerPortalPage } from "./core/customer-portal/CustomerPortalPage";
 import { ProjectsPage } from "./core/projects/ProjectsPage";
 import { InboxPage } from "./core/shared/InboxPage";
 import { Customer360Page } from "./core/customer360/Customer360Page";
 import { isSectionEnabledByFeature, isPriceAvailabilityRelevant } from "./core/features";
 import { CommandPalette } from "./core/shared/CommandPalette";
 import type { ProjectAccessProject } from "./types/domain";
+import { PwaInstallPrompt } from "./components/pwa/PwaInstallPrompt";
+import { NetworkStatusBanner } from "./components/pwa/NetworkStatusBanner";
+
+const ClientDetailPage = lazy(() =>
+  import("./core/clients/ClientDetailPage").then((module) => ({ default: module.ClientDetailPage }))
+);
+const ApartmentDetailPage = lazy(() =>
+  import("./core/apartments/ApartmentDetailPage").then((module) => ({ default: module.ApartmentDetailPage }))
+);
 
 type Section =
   | "cockpit"
@@ -460,6 +468,9 @@ export const App = () => {
   if (pathname.startsWith("/set-password")) {
     return <SetPasswordFromInvitePage />;
   }
+  if (pathname.startsWith("/portal")) {
+    return <CustomerPortalPage />;
+  }
   if (pathname.startsWith("/reset-password")) {
     return <ResetPasswordPage />;
   }
@@ -555,6 +566,7 @@ export const App = () => {
 
   return (
     <>
+      <NetworkStatusBanner />
       <CommandPalette
         isOpen={commandPaletteOpen}
         onClose={() => setCommandPaletteOpen(false)}
@@ -570,12 +582,14 @@ export const App = () => {
         projects={filteredProjects}
         selectedProjectIds={filteredSelected}
       />
-      <Routes>
+    <Routes>
       <Route
         path="/clients/:clientId"
         element={
           <PageTemplate {...templateProps}>
-            <ClientDetailPage />
+            <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Caricamento dettaglio cliente...</div>}>
+              <ClientDetailPage />
+            </Suspense>
           </PageTemplate>
         }
       />
@@ -583,7 +597,9 @@ export const App = () => {
         path="/apartments/:apartmentId"
         element={
           <PageTemplate {...templateProps}>
-            <ApartmentDetailPage />
+            <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Caricamento dettaglio appartamento...</div>}>
+              <ApartmentDetailPage />
+            </Suspense>
           </PageTemplate>
         }
       />
@@ -607,6 +623,7 @@ export const App = () => {
         }
       />
     </Routes>
+      <PwaInstallPrompt />
     </>
   );
 };

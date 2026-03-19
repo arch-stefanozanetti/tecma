@@ -1,80 +1,82 @@
-import type { CreateIndexesOptions } from "mongodb";
+import type { Db, IndexDirection, IndexSpecification } from "mongodb";
 import { getDb } from "./db.js";
 import { logger } from "../observability/logger.js";
 
-type IndexSpec = {
+interface IndexDefinition {
   collection: string;
-  key: Record<string, 1 | -1>;
-  options?: CreateIndexesOptions;
-};
+  keys: Record<string, IndexDirection> | IndexSpecification;
+  options?: Parameters<Db["collection"]>[1] extends never ? never : Record<string, unknown>;
+}
 
-const INDEX_SPECS: IndexSpec[] = [
-  { collection: "tz_users", key: { email: 1 }, options: { unique: true, name: "uq_tz_users_email" } },
-  { collection: "tz_users", key: { system_role: 1 }, options: { name: "idx_tz_users_system_role", sparse: true } },
-  { collection: "tz_authSessions", key: { userId: 1, createdAt: -1 }, options: { name: "idx_tz_authSessions_userId_createdAt" } },
-  { collection: "tz_authEvents", key: { userId: 1, createdAt: -1 }, options: { name: "idx_tz_authEvents_userId_createdAt" } },
-  { collection: "tz_inviteTokens", key: { token: 1 }, options: { unique: true, name: "uq_tz_inviteTokens_token" } },
-  { collection: "tz_passwordResetTokens", key: { token: 1 }, options: { unique: true, name: "uq_tz_passwordResetTokens_token" } },
+const CORE_INDEXES: IndexDefinition[] = [
+  { collection: "tz_workspace_users", keys: { workspaceId: 1, userId: 1 }, options: { unique: true } },
+  { collection: "tz_workspace_user_projects", keys: { workspaceId: 1, userId: 1, projectId: 1 }, options: { unique: true } },
+  { collection: "tz_entity_assignments", keys: { workspaceId: 1, entityType: 1, entityId: 1, userId: 1 }, options: { unique: true } },
+  { collection: "tz_entity_assignments", keys: { workspaceId: 1, userId: 1 } },
 
-  { collection: "tz_clients", key: { workspaceId: 1, projectId: 1 }, options: { name: "idx_tz_clients_workspace_project" } },
-  { collection: "tz_clients", key: { workspaceId: 1, projectId: 1, updatedAt: -1 }, options: { name: "idx_tz_clients_workspace_project_updatedAt" } },
-  { collection: "tz_clients", key: { workspaceId: 1, email: 1 }, options: { unique: true, name: "uq_tz_clients_workspace_email", partialFilterExpression: { email: { $exists: true, $ne: "" } } } },
+  { collection: "tz_inventory", keys: { unitId: 1 }, options: { unique: true } },
+  { collection: "tz_inventory", keys: { workspaceId: 1 } },
 
-  { collection: "tz_apartments", key: { workspaceId: 1, projectId: 1 }, options: { name: "idx_tz_apartments_workspace_project" } },
-  { collection: "tz_apartments", key: { workspaceId: 1, projectId: 1, updatedAt: -1 }, options: { name: "idx_tz_apartments_workspace_project_updatedAt" } },
+  { collection: "tz_commercial_models", keys: { unitId: 1 } },
+  { collection: "tz_commercial_models", keys: { workspaceId: 1 } },
+  { collection: "tz_rate_plans", keys: { commercialModelId: 1 } },
 
-  { collection: "tz_requests", key: { workspaceId: 1, projectId: 1, updatedAt: -1 }, options: { name: "idx_tz_requests_workspace_project_updatedAt" } },
-  { collection: "tz_requests", key: { workspaceId: 1, projectId: 1, currentStateId: 1 }, options: { name: "idx_tz_requests_workspace_project_state" } },
-  { collection: "tz_requests", key: { clientId: 1 }, options: { name: "idx_tz_requests_clientId" } },
-  { collection: "tz_requests", key: { apartmentId: 1 }, options: { name: "idx_tz_requests_apartmentId" } },
-  { collection: "tz_request_transitions", key: { requestId: 1, createdAt: -1 }, options: { name: "idx_tz_request_transitions_requestId_createdAt" } },
-  { collection: "tz_request_actions", key: { requestId: 1, createdAt: -1 }, options: { name: "idx_tz_request_actions_requestId_createdAt" } },
+  { collection: "tz_sale_prices", keys: { unitId: 1, validFrom: -1 } },
+  { collection: "tz_sale_prices", keys: { ratePlanId: 1, validFrom: -1 } },
+  { collection: "tz_monthly_rents", keys: { unitId: 1, validFrom: -1 } },
+  { collection: "tz_monthly_rents", keys: { ratePlanId: 1, validFrom: -1 } },
 
-  { collection: "tz_calendar_events", key: { workspaceId: 1, projectId: 1, startsAt: 1 }, options: { name: "idx_tz_calendar_events_workspace_project_startsAt" } },
+  { collection: "tz_price_calendar", keys: { unitId: 1, date: 1 }, options: { unique: true } },
+  { collection: "tz_contracts", keys: { requestId: 1 }, options: { unique: true } },
+  { collection: "tz_contracts", keys: { unitId: 1 } },
 
-  { collection: "tz_workflow_configs", key: { workspaceId: 1, projectId: 1, flowType: 1 }, options: { name: "idx_tz_workflow_configs_scope_flowType" } },
-  { collection: "tz_workflows", key: { workspaceId: 1, flowType: 1 }, options: { name: "idx_tz_workflows_workspace_flowType" } },
-  { collection: "tz_workflow_states", key: { workflowId: 1, id: 1 }, options: { unique: true, name: "uq_tz_workflow_states_workflow_stateId" } },
-  { collection: "tz_workflow_transitions", key: { workflowId: 1, fromStateId: 1, toStateId: 1 }, options: { unique: true, name: "uq_tz_workflow_transitions_unique_path" } },
-  { collection: "tz_apartment_locks", key: { apartmentId: 1 }, options: { name: "idx_tz_apartment_locks_apartmentId" } },
-
-  { collection: "tz_workspaces", key: { slug: 1 }, options: { unique: true, name: "uq_tz_workspaces_slug" } },
-  { collection: "tz_workspace_projects", key: { workspaceId: 1, projectId: 1 }, options: { unique: true, name: "uq_tz_workspace_projects_workspace_project" } },
-  { collection: "tz_user_workspaces", key: { workspaceId: 1, userId: 1 }, options: { unique: true, name: "uq_tz_user_workspaces_workspace_user" } },
-  { collection: "tz_workspace_user_projects", key: { workspaceId: 1, userId: 1, projectId: 1 }, options: { unique: true, name: "uq_tz_workspace_user_projects_scope" } },
-  { collection: "tz_entity_assignments", key: { workspaceId: 1, entityType: 1, entityId: 1, userId: 1 }, options: { unique: true, name: "uq_tz_entity_assignments_scope_entity_user" } },
-  { collection: "tz_entity_assignments", key: { workspaceId: 1, userId: 1 }, options: { name: "idx_tz_entity_assignments_workspace_user" } },
-
-  { collection: "tz_projects", key: { workspace_id: 1 }, options: { name: "idx_tz_projects_workspace_id" } },
-  { collection: "tz_project_access", key: { project_id: 1, workspace_id: 1 }, options: { unique: true, name: "uq_tz_project_access_project_workspace" } },
-  { collection: "tz_project_access", key: { workspace_id: 1 }, options: { name: "idx_tz_project_access_workspace_id" } },
-
-  { collection: "tz_audit_log", key: { workspaceId: 1, at: -1 }, options: { name: "idx_tz_audit_log_workspace_at" } },
-  { collection: "tz_audit_log", key: { "actor.userId": 1, at: -1 }, options: { name: "idx_tz_audit_log_actor_at" } },
-
-  { collection: "tz_assets", key: { workspace_id: 1 }, options: { name: "idx_tz_assets_workspace_id" } },
-  { collection: "tz_assets", key: { workspace_id: 1, project_id: 1 }, options: { name: "idx_tz_assets_workspace_project" } },
-  { collection: "tz_assets", key: { workspace_id: 1, project_id: 1, apartment_id: 1 }, options: { name: "idx_tz_assets_workspace_project_apartment" } },
-  { collection: "tz_assets", key: { workspace_id: 1, type: 1 }, options: { name: "idx_tz_assets_workspace_type" } },
-
-  { collection: "tz_client_documents", key: { workspace_id: 1, client_id: 1 }, options: { name: "idx_tz_client_documents_workspace_client" } },
-  { collection: "tz_client_documents", key: { workspace_id: 1, client_id: 1, visibility: 1 }, options: { name: "idx_tz_client_documents_workspace_client_visibility" } },
-
-  { collection: "tz_workspace_branding", key: { workspaceId: 1 }, options: { unique: true, name: "uq_tz_workspace_branding_workspaceId" } },
+  { collection: "tz_magic_links", keys: { tokenHash: 1 }, options: { unique: true } },
+  { collection: "tz_magic_links", keys: { expiresAt: 1 } },
+  { collection: "tz_magic_links", keys: { workspaceId: 1, clientId: 1 } },
+  { collection: "tz_portal_sessions", keys: { accessTokenHash: 1 }, options: { unique: true } },
+  { collection: "tz_portal_sessions", keys: { expiresAt: 1 } },
+  { collection: "tz_portal_sessions", keys: { workspaceId: 1, clientId: 1 } },
+  { collection: "tz_platform_api_usage", keys: { apiKey: 1, date: 1 }, options: { unique: true } },
+  { collection: "tz_platform_api_keys", keys: { keyHash: 1 }, options: { unique: true } },
+  { collection: "tz_platform_api_keys", keys: { workspaceId: 1, active: 1 } },
+  { collection: "tz_platform_api_keys", keys: { workspaceId: 1, label: 1 } },
+  { collection: "tz_automation_dispatch_log", keys: { keyHash: 1 }, options: { unique: true } },
+  { collection: "tz_automation_dispatch_log", keys: { workspaceId: 1, status: 1, updatedAt: -1 } },
+  { collection: "tz_privacy_consents", keys: { workspaceId: 1, clientId: 1, consentType: 1 }, options: { unique: true } },
+  { collection: "tz_privacy_consents", keys: { workspaceId: 1, updatedAt: -1 } },
+  { collection: "tz_signature_requests", keys: { workspaceId: 1, requestId: 1, createdAt: -1 } },
+  { collection: "tz_signature_requests", keys: { provider: 1, providerRequestId: 1 }, options: { unique: true } },
+  { collection: "tz_marketing_workflows", keys: { workspaceId: 1, enabled: 1, triggerEventType: 1 } },
+  { collection: "tz_marketing_enrollments", keys: { workspaceId: 1, status: 1, nextRunAt: 1 } },
+  { collection: "tz_marketing_step_executions", keys: { executionKey: 1 }, options: { unique: true } },
+  { collection: "tz_mls_portal_mappings", keys: { workspaceId: 1, projectId: 1, portal: 1 }, options: { unique: true } },
+  { collection: "tz_mls_feed_runs", keys: { workspaceId: 1, projectId: 1, generatedAt: -1 } },
+  { collection: "tz_operational_alerts", keys: { workspaceId: 1, acknowledgedAt: 1, createdAt: -1 } },
+  { collection: "tz_operational_alerts", keys: { source: 1, severity: 1, createdAt: -1 } },
+  { collection: "tz_portal_access_audit", keys: { at: -1 } },
 ];
 
-export async function ensureIndexes(): Promise<void> {
-  const db = getDb();
-  let ok = 0;
-  let failed = 0;
-  for (const spec of INDEX_SPECS) {
+function createIndexName(collection: string, keys: IndexDefinition["keys"]): string {
+  const parts = Object.entries(keys).map(([k, v]) => `${k}_${String(v)}`);
+  return `${collection}__${parts.join("__")}`;
+}
+
+export async function ensureCoreIndexes(db: Db = getDb()): Promise<void> {
+  for (const index of CORE_INDEXES) {
+    const indexName = createIndexName(index.collection, index.keys);
     try {
-      await db.collection(spec.collection).createIndex(spec.key, spec.options);
-      ok += 1;
+      await db.collection(index.collection).createIndex(index.keys, {
+        name: indexName,
+        ...(index.options ?? {}),
+      });
     } catch (err) {
-      failed += 1;
-      logger.error({ err, collection: spec.collection, key: spec.key, options: spec.options }, "MongoDB index ensure failed");
+      logger.error(
+        { err, collection: index.collection, indexName, keys: index.keys },
+        "[db] ensureCoreIndexes createIndex failed"
+      );
+      throw err;
     }
   }
-  logger.info({ ensuredIndexes: ok, failedIndexes: failed, totalIndexes: INDEX_SPECS.length }, "MongoDB indexes ensured");
+
+  logger.info({ count: CORE_INDEXES.length }, "[db] ensureCoreIndexes completed");
 }
