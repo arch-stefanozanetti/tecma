@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Home, Calendar, FileText, User, ClipboardList, Pencil, History, UserPlus, Trash2, Mail, Phone, CalendarCheck, ExternalLink, TrendingUp, Upload, Link2, Loader2 } from "lucide-react";
+import { ArrowLeft, Home, Calendar, FileText, User, ClipboardList, History, UserPlus, Trash2, Mail, Phone, CalendarCheck, ExternalLink, TrendingUp, Upload, Link2, Loader2 } from "lucide-react";
 import { followupApi } from "../../api/followupApi";
 import { useWorkspace } from "../../auth/projectScope";
 import type {
@@ -35,18 +35,15 @@ import {
 } from "../../components/ui/select";
 import { cn } from "../../lib/utils";
 import { formatDate } from "../../lib/formatDate";
-import { STATUS_FILTER_OPTIONS } from "./constants";
-import {
-  ACTION_TYPE_LABEL,
-  STATUS_LABEL,
-  statusLabel,
-} from "./clientDetailConstants";
+import { ACTION_TYPE_LABEL, statusLabel } from "./clientDetailConstants";
 import { Textarea } from "../../components/ui/textarea";
 import { FileUpload } from "../../components/ui/file-upload";
 import { MatchingCandidatesList } from "../../components/MatchingCandidatesList";
 import { RequestStatusRoadmap } from "../../components/RequestStatusRoadmap";
 import { useWorkflowConfig } from "../../hooks/useWorkflowConfig";
 import { CalendarEventFormDrawer } from "../calendar/CalendarEventFormDrawer";
+import ClientDetailAnagrafica from "./ClientDetailAnagrafica";
+import ClientDetailHeader from "./ClientDetailHeader";
 import { ClientProfilationCard } from "./ClientProfilationCard";
 import { useClientDetailData } from "./useClientDetailData";
 import { useToast } from "../../contexts/ToastContext";
@@ -549,7 +546,7 @@ export const ClientDetailPage = () => {
   if (loading) {
     return (
       <div className="flex flex-1 flex-col gap-4 p-6">
-        <Button variant="ghost" size="sm" className="w-fit gap-2" onClick={goBack}>
+        <Button variant="ghost" size="sm" className="min-h-11 w-fit gap-2" onClick={goBack}>
           <ArrowLeft className="h-4 w-4" />
           Torna a Clienti
         </Button>
@@ -561,7 +558,7 @@ export const ClientDetailPage = () => {
   if (error && !client) {
     return (
       <div className="flex flex-1 flex-col gap-4 p-6">
-        <Button variant="ghost" size="sm" className="w-fit gap-2" onClick={goBack}>
+        <Button variant="ghost" size="sm" className="min-h-11 w-fit gap-2" onClick={goBack}>
           <ArrowLeft className="h-4 w-4" />
           Torna a Clienti
         </Button>
@@ -574,30 +571,11 @@ export const ClientDetailPage = () => {
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="ghost" size="sm" className="gap-2" onClick={goBack}>
-          <ArrowLeft className="h-4 w-4" />
-          Torna a Clienti
-        </Button>
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => setEditDialogOpen(true)}>
-          <Pencil className="h-4 w-4" />
-          Modifica
-        </Button>
-      </div>
-
-      <header className="flex flex-wrap items-start gap-3 border-b border-border pb-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">{client.fullName}</h1>
-          <span
-            className={cn(
-              "mt-1 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium",
-              "bg-muted text-muted-foreground"
-            )}
-          >
-            {statusLabel(client.status)}
-          </span>
-        </div>
-      </header>
+      <ClientDetailHeader
+        client={client}
+        onBack={goBack}
+        onOpenEdit={() => setEditDialogOpen(true)}
+      />
 
       {/* Blocco Prossimi appuntamenti + Riepilogo trattative (Customer 360) */}
       <div className="grid gap-4 sm:grid-cols-2">
@@ -640,7 +618,7 @@ export const ClientDetailPage = () => {
               <FileText className="h-3.5 w-3.5" />
               Trattative
             </span>
-            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setActiveTab("trattative")}>
+            <Button variant="ghost" size="sm" className="min-h-11 text-xs" onClick={() => setActiveTab("trattative")}>
               Vai alla tab
             </Button>
           </div>
@@ -662,124 +640,26 @@ export const ClientDetailPage = () => {
         </div>
       </div>
 
-      <Drawer open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DrawerContent side="right" className="sm:max-w-md">
-          <DrawerHeader actions={<DrawerCloseButton />}>
-            <DrawerTitle>Modifica cliente</DrawerTitle>
-          </DrawerHeader>
-          <form onSubmit={handleEditSubmit} className="flex flex-col flex-1 min-h-0">
-            <DrawerBody className="space-y-4">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Nome *</label>
-              <Input
-                className="h-10 rounded-lg border-border"
-                value={formFullName}
-                onChange={(e) => setFormFullName(e.target.value)}
-                required
-                placeholder="Nome e cognome"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Email</label>
-              <Input
-                type="email"
-                className="h-10 rounded-lg border-border"
-                value={formEmail}
-                onChange={(e) => setFormEmail(e.target.value)}
-                placeholder="email@esempio.it"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Telefono</label>
-              <Input
-                className="h-10 rounded-lg border-border"
-                value={formPhone}
-                onChange={(e) => setFormPhone(e.target.value)}
-                placeholder="+39 ..."
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Città</label>
-              <Input
-                className="h-10 rounded-lg border-border"
-                value={formCity}
-                onChange={(e) => setFormCity(e.target.value)}
-                placeholder="Città"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Stato</label>
-              <Select value={formStatus} onValueChange={setFormStatus}>
-                <SelectTrigger className="h-10 rounded-lg border-border">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUS_FILTER_OPTIONS.filter((o) => o.value !== "all").map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {additionalInfos
-              .filter((ai) => (ai.path ?? "additionalInfo") === "additionalInfo" && ai.active !== false)
-              .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-              .map((ai) => (
-                <div key={ai._id}>
-                  <label className="mb-1.5 block text-sm font-medium text-foreground">
-                    {ai.label}
-                    {ai.required && <span className="ml-0.5 text-destructive">*</span>}
-                  </label>
-                  {ai.type === "radio" && ai.options && ai.options.length > 0 ? (
-                    <Select
-                      value={String(formAdditionalInfo[ai.name] ?? "")}
-                      onValueChange={(v) => setFormAdditionalInfo((prev) => ({ ...prev, [ai.name]: v }))}
-                    >
-                      <SelectTrigger className="h-10 rounded-lg border-border">
-                        <SelectValue placeholder={`Seleziona ${ai.label}`} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ai.options.map((opt) => (
-                          <SelectItem key={opt} value={opt}>
-                            {opt}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Input
-                      className="h-10 rounded-lg border-border"
-                      type={ai.type === "number" ? "number" : "text"}
-                      value={String(formAdditionalInfo[ai.name] ?? "")}
-                      onChange={(e) =>
-                        setFormAdditionalInfo((prev) => ({
-                          ...prev,
-                          [ai.name]: ai.type === "number" ? (e.target.value ? Number(e.target.value) : "") : e.target.value,
-                        }))
-                      }
-                      placeholder={ai.label}
-                    />
-                  )}
-                </div>
-              ))}
-            {formSubmitError && (
-              <p className="text-sm text-destructive">{formSubmitError}</p>
-            )}
-            </DrawerBody>
-            <DrawerFooter>
-              <div className="flex gap-2 justify-end">
-                <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
-                  Annulla
-                </Button>
-                <Button type="submit" disabled={formSaving}>
-                  {formSaving ? "Salvataggio..." : "Salva"}
-                </Button>
-              </div>
-            </DrawerFooter>
-          </form>
-        </DrawerContent>
-      </Drawer>
+      <ClientDetailAnagrafica
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        formFullName={formFullName}
+        setFormFullName={setFormFullName}
+        formEmail={formEmail}
+        setFormEmail={setFormEmail}
+        formPhone={formPhone}
+        setFormPhone={setFormPhone}
+        formCity={formCity}
+        setFormCity={setFormCity}
+        formStatus={formStatus}
+        setFormStatus={setFormStatus}
+        formAdditionalInfo={formAdditionalInfo}
+        setFormAdditionalInfo={setFormAdditionalInfo}
+        additionalInfos={additionalInfos}
+        onEditSubmit={handleEditSubmit}
+        formSaving={formSaving}
+        formSubmitError={formSubmitError}
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="w-full flex flex-wrap border-b border-border bg-transparent p-0">
@@ -1032,7 +912,7 @@ export const ClientDetailPage = () => {
                 {assignments.map((a) => (
                   <li key={a.userId} className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 text-sm">
                     <span>{a.userId}</span>
-                    <Button variant="ghost" size="sm" className="h-7 text-muted-foreground hover:text-destructive" onClick={() => handleUnassign(a.userId)}>
+                    <Button variant="ghost" size="sm" className="min-h-11 text-muted-foreground hover:text-destructive" onClick={() => handleUnassign(a.userId)}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </li>
@@ -1413,7 +1293,7 @@ export const ClientDetailPage = () => {
                                   <Calendar className="h-3 w-3" />
                                   Fissa in calendario
                                 </Button>
-                                <Button type="button" variant="outline" size="sm" className="h-6 text-[11px]" onClick={() => openActionDrawerEdit(item.action)}>
+                                <Button type="button" variant="outline" size="sm" className="min-h-11 text-[11px]" onClick={() => openActionDrawerEdit(item.action)}>
                                   Modifica
                                 </Button>
                                 <Button
@@ -1646,10 +1526,10 @@ export const ClientDetailPage = () => {
               </div>
             </DrawerBody>
             <DrawerFooter>
-              <Button type="button" variant="outline" onClick={() => setActionDrawerOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setActionDrawerOpen(false)} className="min-h-11">
                 Annulla
               </Button>
-              <Button type="submit" form="timeline-action-form" disabled={actionFormSaving}>
+              <Button type="submit" form="timeline-action-form" disabled={actionFormSaving} className="min-h-11">
                 {actionFormSaving ? "Salvataggio..." : actionDrawerMode === "edit" ? "Salva" : "Crea azione"}
               </Button>
             </DrawerFooter>
