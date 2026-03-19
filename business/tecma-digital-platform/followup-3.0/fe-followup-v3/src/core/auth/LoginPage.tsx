@@ -59,7 +59,21 @@ export const LoginPage = () => {
   const bssAuthMode = isBssAuth();
 
   const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
-  const backTo = params.get("backTo") || "/";
+  const backToRaw = params.get("backTo") || "/";
+  const backTo = (() => {
+    if (typeof window === "undefined") return "/";
+    try {
+      const resolved = new URL(backToRaw, window.location.origin);
+      if (resolved.origin !== window.location.origin) return "/";
+      const targetPath = `${resolved.pathname}${resolved.search}${resolved.hash}` || "/";
+      if (targetPath.startsWith("/login")) return "/";
+      return targetPath;
+    } catch {
+      if (backToRaw.startsWith("/login")) return "/";
+      if (backToRaw.startsWith("/")) return backToRaw;
+      return "/";
+    }
+  })();
 
   useEffect(() => {
     if (isBssAuth()) {

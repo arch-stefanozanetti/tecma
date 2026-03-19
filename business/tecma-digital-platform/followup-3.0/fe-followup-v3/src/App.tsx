@@ -42,6 +42,7 @@ import { isSectionEnabledByFeature, isPriceAvailabilityRelevant } from "./core/f
 import { CommandPalette } from "./core/shared/CommandPalette";
 import type { ProjectAccessProject } from "./types/domain";
 import { PwaInstallPrompt } from "./components/pwa/PwaInstallPrompt";
+import { PwaUpdatePrompt } from "./components/pwa/PwaUpdatePrompt";
 import { NetworkStatusBanner } from "./components/pwa/NetworkStatusBanner";
 
 const ClientDetailPage = lazy(() =>
@@ -485,7 +486,11 @@ export const App = () => {
     typeof window !== "undefined" ? window.sessionStorage.getItem("followup3.accessToken") !== null : false;
 
   if (!hasAccessToken) {
-    window.location.replace(`/login?backTo=${encodeURIComponent(window.location.href)}`);
+    const currentPath =
+      typeof window !== "undefined"
+        ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+        : "/";
+    window.location.replace(`/login?backTo=${encodeURIComponent(currentPath)}`);
     return null;
   }
 
@@ -624,6 +629,7 @@ export const App = () => {
       />
     </Routes>
       <PwaInstallPrompt />
+      <PwaUpdatePrompt />
     </>
   );
 };
