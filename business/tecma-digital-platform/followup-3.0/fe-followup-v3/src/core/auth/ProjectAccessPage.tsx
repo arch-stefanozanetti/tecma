@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { followupApi } from "../../api/followupApi";
+import { getAccessToken } from "../../api/http";
 import { me as authMe } from "../../api/authApi";
 import { saveProjectScope } from "../../auth/projectScope";
 import { useAsync } from "../shared/useAsync";
@@ -128,18 +129,27 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
     [runLoadProjects]
   );
 
-  useEffect(() => {
+  const runAuthMe = useCallback(() => {
+    if (!getAccessToken()) {
+      sessionStorage.removeItem("followup3.accessToken");
+      sessionStorage.removeItem("followup3.lastEmail");
+      setAuthStatus("fail");
+      return;
+    }
+    setAuthStatus("pending");
     authMe()
       .then((user) => {
         setMeEmail(user.email);
         setAuthStatus("ok");
       })
       .catch(() => {
-        sessionStorage.removeItem("followup3.accessToken");
-        sessionStorage.removeItem("followup3.lastEmail");
         setAuthStatus("fail");
       });
   }, []);
+
+  useEffect(() => {
+    runAuthMe();
+  }, [runAuthMe]);
 
   useEffect(() => {
     if (didAutoLoadRef.current || !meEmail) return;
@@ -244,11 +254,16 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
         <div className="flex flex-col items-center gap-4 rounded-ui glass-panel px-8 py-8 shadow-panel max-w-md">
           <p className="text-center text-foreground font-medium">Sessione non valida o scaduta</p>
           <p className="text-center text-sm text-muted-foreground">
-            Effettua di nuovo l’accesso per continuare.
+            Verifica che il backend sia avviato (porta 8080). Puoi riprovare o effettuare di nuovo l'accesso.
           </p>
-          <Button onClick={goToLogin} className="w-full">
-            Vai al login
-          </Button>
+          <div className="flex w-full gap-3">
+            <Button variant="outline" onClick={runAuthMe} className="flex-1">
+              Riprova
+            </Button>
+            <Button onClick={goToLogin} className="flex-1">
+              Vai al login
+            </Button>
+          </div>
         </div>
       </div>
     );

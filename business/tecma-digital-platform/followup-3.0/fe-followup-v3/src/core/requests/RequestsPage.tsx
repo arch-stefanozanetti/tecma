@@ -56,7 +56,7 @@ export const RequestsPage = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false);
   const [statusDraft, setStatusDraft] = useState("all");
   const [typeDraft, setTypeDraft] = useState("all");

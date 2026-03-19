@@ -466,50 +466,44 @@ export const App = () => {
     else navigate(`/?section=${s}`, { state: navState });
   };
 
+  let appContent: ReactNode = null;
+
   if (pathname.startsWith("/set-password")) {
-    return <SetPasswordFromInvitePage />;
-  }
-  if (pathname.startsWith("/portal")) {
-    return <CustomerPortalPage />;
-  }
-  if (pathname.startsWith("/reset-password")) {
-    return <ResetPasswordPage />;
-  }
-  if (pathname.startsWith("/forgot-password")) {
-    return <ForgotPasswordPage />;
-  }
-  if (pathname.includes("/login")) {
-    return <LoginPage />;
-  }
+    appContent = <SetPasswordFromInvitePage />;
+  } else if (pathname.startsWith("/portal")) {
+    appContent = <CustomerPortalPage />;
+  } else if (pathname.startsWith("/reset-password")) {
+    appContent = <ResetPasswordPage />;
+  } else if (pathname.startsWith("/forgot-password")) {
+    appContent = <ForgotPasswordPage />;
+  } else if (pathname.includes("/login")) {
+    appContent = <LoginPage />;
+  } else {
+    const hasAccessToken =
+      typeof window !== "undefined" ? window.sessionStorage.getItem("followup3.accessToken") !== null : false;
 
-  const hasAccessToken =
-    typeof window !== "undefined" ? window.sessionStorage.getItem("followup3.accessToken") !== null : false;
+    if (!hasAccessToken) {
+      const currentPath =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+          : "/";
+      window.location.replace(`/login?backTo=${encodeURIComponent(currentPath)}`);
+      appContent = null;
+    } else if (!projectScope || projectScope.selectedProjectIds.length === 0) {
+      appContent = <ProjectAccessPage onCompleted={() => setAccessVersion((v) => v + 1)} />;
+    } else {
+      const allProjects = projectScope.projects ?? [];
+      const wsIds = workspaceProjectIds;
+      const isTzWorkspace = projectScope.workspaceId && !isLegacyWorkspace(projectScope.workspaceId);
+      const filteredProjects =
+        !isTzWorkspace || wsIds === null || (Array.isArray(wsIds) && wsIds.length === 0)
+          ? allProjects
+          : allProjects.filter((p) => wsIds.includes(p.id));
+      const filteredSelected = projectScope.selectedProjectIds?.filter((id) =>
+        filteredProjects.some((p) => p.id === id)
+      ) ?? [];
 
-  if (!hasAccessToken) {
-    const currentPath =
-      typeof window !== "undefined"
-        ? `${window.location.pathname}${window.location.search}${window.location.hash}`
-        : "/";
-    window.location.replace(`/login?backTo=${encodeURIComponent(currentPath)}`);
-    return null;
-  }
-
-  if (!projectScope || projectScope.selectedProjectIds.length === 0) {
-    return <ProjectAccessPage onCompleted={() => setAccessVersion((v) => v + 1)} />;
-  }
-
-  const allProjects = projectScope.projects ?? [];
-  const wsIds = workspaceProjectIds;
-  const isTzWorkspace = projectScope.workspaceId && !isLegacyWorkspace(projectScope.workspaceId);
-  const filteredProjects =
-    !isTzWorkspace || wsIds === null || (Array.isArray(wsIds) && wsIds.length === 0)
-      ? allProjects
-      : allProjects.filter((p) => wsIds.includes(p.id));
-  const filteredSelected = projectScope.selectedProjectIds?.filter((id) =>
-    filteredProjects.some((p) => p.id === id)
-  ) ?? [];
-
-  const templateProps = {
+      const templateProps = {
     section: effectiveSection,
     onSectionChange,
     userEmail: projectScope.email,
@@ -569,65 +563,73 @@ export const App = () => {
     navigate
   );
 
+      appContent = (
+        <>
+          <CommandPalette
+            isOpen={commandPaletteOpen}
+            onClose={() => setCommandPaletteOpen(false)}
+            onSelectSection={(s) => {
+              onSectionChange(s);
+              setCommandPaletteOpen(false);
+            }}
+            navigate={navigate}
+            workspaceId={projectScope.workspaceId ?? ""}
+            projectIds={effectiveProjectIds}
+            enabledFeatures={workspaceFeatures}
+            isAdmin={projectScope.isAdmin ?? false}
+            projects={filteredProjects}
+            selectedProjectIds={filteredSelected}
+          />
+          <Routes>
+            <Route
+              path="/clients/:clientId"
+              element={
+                <PageTemplate {...templateProps}>
+                  <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Caricamento dettaglio cliente...</div>}>
+                    <ClientDetailPage />
+                  </Suspense>
+                </PageTemplate>
+              }
+            />
+            <Route
+              path="/apartments/:apartmentId"
+              element={
+                <PageTemplate {...templateProps}>
+                  <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Caricamento dettaglio appartamento...</div>}>
+                    <ApartmentDetailPage />
+                  </Suspense>
+                </PageTemplate>
+              }
+            />
+            <Route
+              path="/projects/:projectId"
+              element={
+                <PageTemplate {...templateProps}>
+                  <ProjectDetailPage />
+                </PageTemplate>
+              }
+            />
+            <Route path="/automations" element={<Navigate to="/integrations?tab=regole" replace />} />
+            <Route
+              path="/*"
+              element={
+                <PageTemplate {...templateProps}>
+                  <div key={section} className="contents">
+                    {sectionContent}
+                  </div>
+                </PageTemplate>
+              }
+            />
+          </Routes>
+        </>
+      );
+    }
+  }
+
   return (
     <>
+      {appContent}
       <NetworkStatusBanner />
-      <CommandPalette
-        isOpen={commandPaletteOpen}
-        onClose={() => setCommandPaletteOpen(false)}
-        onSelectSection={(s) => {
-          onSectionChange(s);
-          setCommandPaletteOpen(false);
-        }}
-        navigate={navigate}
-        workspaceId={projectScope.workspaceId ?? ""}
-        projectIds={effectiveProjectIds}
-        enabledFeatures={workspaceFeatures}
-        isAdmin={projectScope.isAdmin ?? false}
-        projects={filteredProjects}
-        selectedProjectIds={filteredSelected}
-      />
-    <Routes>
-      <Route
-        path="/clients/:clientId"
-        element={
-          <PageTemplate {...templateProps}>
-            <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Caricamento dettaglio cliente...</div>}>
-              <ClientDetailPage />
-            </Suspense>
-          </PageTemplate>
-        }
-      />
-      <Route
-        path="/apartments/:apartmentId"
-        element={
-          <PageTemplate {...templateProps}>
-            <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Caricamento dettaglio appartamento...</div>}>
-              <ApartmentDetailPage />
-            </Suspense>
-          </PageTemplate>
-        }
-      />
-      <Route
-        path="/projects/:projectId"
-        element={
-          <PageTemplate {...templateProps}>
-            <ProjectDetailPage />
-          </PageTemplate>
-        }
-      />
-      <Route path="/automations" element={<Navigate to="/integrations?tab=regole" replace />} />
-      <Route
-        path="/*"
-        element={
-          <PageTemplate {...templateProps}>
-            <div key={section} className="contents">
-              {sectionContent}
-            </div>
-          </PageTemplate>
-        }
-      />
-    </Routes>
       <PwaInstallPrompt />
       <PwaUpdatePrompt />
     </>

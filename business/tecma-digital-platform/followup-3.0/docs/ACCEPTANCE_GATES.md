@@ -43,12 +43,12 @@ Gate bloccanti:
 5. `pnpm run test:coverage:core`
 6. `pnpm exec playwright test e2e/core --project=chromium`
 
-Coverage threshold (core):
+Coverage threshold (core, allineate a `vitest.core.config.ts`; include esteso a api, auth, clients, apartments, requests, projects, calendar, releases, customer-portal, workflows, settings, prices, integrations, product-discovery, customer360):
 
-- `lines >= 60`
-- `statements >= 60`
-- `functions >= 34`
-- `branches >= 60`
+- `lines >= 46`
+- `statements >= 46`
+- `functions >= 24`
+- `branches >= 55`
 
 Config: `fe-followup-v3/vitest.core.config.ts`
 

@@ -41,9 +41,20 @@ import {
   rotatePlatformApiKey,
 } from "../../core/platform/platform-api-keys.service.js";
 import { getPriceAvailabilityMatrix } from "../../core/price-availability-matrix/price-availability-matrix.service.js";
+import type { MembershipRole } from "../../types/models.js";
 import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
 import { requireAdmin } from "../authMiddleware.js";
+
+/** Mappa ruoli API (vendor, vendor_manager, admin) a MembershipRole. */
+function toMembershipRole(r: string | undefined): MembershipRole {
+  if (!r) return "collaborator";
+  const lower = r.toLowerCase();
+  if (lower === "vendor_manager") return "admin";
+  if (lower === "vendor") return "collaborator";
+  if (lower === "admin" || lower === "owner" || lower === "viewer") return lower;
+  return "collaborator";
+}
 
 export const workspacesRoutes = Router();
 
@@ -65,8 +76,11 @@ workspacesRoutes.post(
   "/workspaces/:id/users",
   requireAdmin,
   handleAsync((req) => {
-    const body = req.body as { userId?: string; role?: "vendor" | "vendor_manager" | "admin" };
-    return addWorkspaceUser(req.params.id, { userId: body.userId ?? "", role: body.role ?? "vendor" });
+    const body = req.body as { userId?: string; role?: string };
+    return addWorkspaceUser(req.params.id, {
+      userId: body.userId ?? "",
+      role: toMembershipRole(body.role ?? "vendor"),
+    });
   })
 );
 
@@ -75,7 +89,10 @@ workspacesRoutes.patch(
   requireAdmin,
   handleAsync((req) => {
     const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
-    return updateWorkspaceUser(req.params.id, userId, req.body as { role?: "vendor" | "vendor_manager" | "admin" });
+    const body = req.body as { role?: string };
+    return updateWorkspaceUser(req.params.id, userId, {
+      role: body.role !== undefined ? toMembershipRole(body.role) : undefined,
+    });
   })
 );
 

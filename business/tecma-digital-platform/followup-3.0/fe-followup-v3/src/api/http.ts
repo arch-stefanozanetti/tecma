@@ -76,14 +76,27 @@ const callRefresh = async (): Promise<RefreshResponse> => {
   return res.json() as Promise<RefreshResponse>;
 };
 
+const isOnLoginPage = (): boolean =>
+  typeof window !== "undefined" && window.location.pathname.includes("/login");
+
 const redirectToLogin = (): void => {
   clearTokens();
-  const backTo = typeof window !== "undefined" ? encodeURIComponent(window.location.href) : "";
+  if (typeof window === "undefined") return;
+  if (isOnLoginPage()) return;
+  const href = window.location.href;
+  const backTo = encodeURIComponent(href);
   window.location.replace(`/login${backTo ? `?backTo=${backTo}` : ""}`);
 };
 
 const requestJson = async <T>(path: string, options: RequestInit, isRetry = false): Promise<T> => {
   const token = getAccessToken();
+  if (!isPublicAuthPath(path) && !token) {
+    if (import.meta.env.DEV) {
+      console.warn("[http] Protected API call without token; redirecting to login.", path);
+    }
+    if (!isOnLoginPage()) redirectToLogin();
+    throw new Error("Sessione non valida. Reindirizzamento al login.");
+  }
   const headers = new Headers(options.headers);
   headers.set("Content-Type", "application/json");
   if (!isPublicAuthPath(path) && token) {
@@ -113,7 +126,7 @@ const requestJson = async <T>(path: string, options: RequestInit, isRetry = fals
       setTokens(data.accessToken, data.refreshToken);
       return requestJson<T>(path, options, true);
     } catch {
-      redirectToLogin();
+      if (!isOnLoginPage()) redirectToLogin();
       throw new Error("Sessione scaduta. Effettua di nuovo l'accesso.");
     }
   }
@@ -121,11 +134,17 @@ const requestJson = async <T>(path: string, options: RequestInit, isRetry = fals
   if (!response.ok) {
     const text = await response.text();
     let message = text || `Errore API HTTP ${response.status} su ${path}`;
+    let authCode: string | undefined;
     try {
-      const j = JSON.parse(text) as { error?: string };
+      const j = JSON.parse(text) as { error?: string; code?: string };
       if (typeof j?.error === "string" && j.error.length > 0) message = j.error;
+      if (typeof j?.code === "string") authCode = j.code;
     } catch {
       /* testo non JSON */
+    }
+    if (response.status === 401 && (authCode === "MISSING_AUTH" || authCode === "INVALID_TOKEN" || message.includes("Authorization"))) {
+      if (!isOnLoginPage()) redirectToLogin();
+      throw new Error("Sessione non valida o scaduta. Reindirizzamento al login.");
     }
     throw new Error(message);
   }
@@ -146,6 +165,13 @@ export const postJson = async <T>(path: string, body: unknown): Promise<T> =>
 /** POST multipart (es. upload); non imposta Content-Type così il browser aggiunge boundary. */
 export const postFormData = async <T>(path: string, form: FormData): Promise<T> => {
   const token = getAccessToken();
+  if (!isPublicAuthPath(path) && !token) {
+    if (import.meta.env.DEV) {
+      console.warn("[http] Protected API call without token; redirecting to login.", path);
+    }
+    if (!isOnLoginPage()) redirectToLogin();
+    throw new Error("Sessione non valida. Reindirizzamento al login.");
+  }
   const headers = new Headers();
   if (!isPublicAuthPath(path) && token) {
     headers.set("Authorization", `Bearer ${token}`);
@@ -166,7 +192,7 @@ export const postFormData = async <T>(path: string, form: FormData): Promise<T> 
       if (t2) h2.set("Authorization", `Bearer ${t2}`);
       response = await fetch(`${API_BASE_URL}${path}`, { method: "POST", headers: h2, body: form });
     } catch {
-      redirectToLogin();
+      if (!isOnLoginPage()) redirectToLogin();
       throw new Error("Sessione scaduta. Effettua di nuovo l'accesso.");
     }
   }

@@ -35,7 +35,7 @@ usersAdminRoutes.post(
     const appPublicBaseUrl = resolveInviteAppBaseUrl(req, body.appPublicUrl ?? null);
     const result = await inviteUser({
       email: body.email,
-      role: body.role,
+      roleLabel: body.role,
       projectId: body.projectId,
       projectName: body.projectName ?? body.projectId,
       appPublicBaseUrl,

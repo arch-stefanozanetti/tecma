@@ -79,7 +79,7 @@ export const RequestsBoardSection = ({
 
       <Tabs value={viewMode} onValueChange={(v) => onViewModeChange(v as ViewMode)} className="mt-6">
         <TabsList className="h-auto w-auto border-b border-border bg-transparent p-0">
-          <TabsTrigger value="list" className="rounded-t-lg">Lista</TabsTrigger>
+          <TabsTrigger value="table" className="rounded-t-lg">Lista</TabsTrigger>
           <TabsTrigger value="kanban" className="rounded-t-lg">Kanban</TabsTrigger>
         </TabsList>
       </Tabs>
@@ -112,7 +112,7 @@ export const RequestsBoardSection = ({
 
           {error && <div className="border-b border-border bg-destructive/5 px-6 py-3 text-sm text-destructive">{error}</div>}
 
-          {viewMode === "list" && (
+          {viewMode === "table" && (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[700px]">
                 <thead>

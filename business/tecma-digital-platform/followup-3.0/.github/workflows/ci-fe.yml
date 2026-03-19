@@ -38,6 +38,7 @@ jobs:
       - run: pnpm run check:detail-architecture
       - run: pnpm run test:panels
       - run: pnpm run test:lint:core
+      - run: pnpm run typecheck
       - run: pnpm run build
       - run: pnpm run check:bundle-budget
       - run: pnpm run test:coverage:core
@@ -71,3 +72,29 @@ jobs:
           PLAYWRIGHT_USE_WEBSERVER: "true"
           PLAYWRIGHT_WEBSERVER_COMMAND: "pnpm run dev -- --host 127.0.0.1 --port 5177"
           PLAYWRIGHT_BASE_URL: "http://127.0.0.1:5177"
+
+  lighthouse-pwa:
+    runs-on: ubuntu-latest
+    needs: fe-core-strict
+    defaults:
+      run:
+        working-directory: fe-followup-v3
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - name: Start preview server
+        run: pnpm run preview &
+      - name: Wait for preview
+        run: npx wait-on http://127.0.0.1:4173 -t 30000
+      - name: Lighthouse PWA audit
+        run: pnpm run check:lighthouse-pwa http://127.0.0.1:4173

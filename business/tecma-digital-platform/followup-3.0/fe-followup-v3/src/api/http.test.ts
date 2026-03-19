@@ -78,6 +78,8 @@ describe("http", () => {
   });
 
   describe("postJson / getJson", () => {
+    beforeEach(() => setTokens("test-token"));
+
     it("postJson invoca fetch con method POST e body JSON", async () => {
       const mockFetch = vi.mocked(fetch);
       mockFetch.mockResolvedValueOnce(
@@ -138,6 +140,8 @@ describe("http", () => {
   });
 
   describe("putJson e patchJson e deleteJson", () => {
+    beforeEach(() => setTokens("test-token"));
+
     it("putJson usa method PUT", async () => {
       const mockFetch = vi.mocked(fetch);
       mockFetch.mockResolvedValueOnce(

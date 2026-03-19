@@ -1,5 +1,13 @@
 /// <reference types="vite/client" />
 
+declare module "virtual:pwa-register" {
+  export function registerSW(options?: {
+    onNeedRefresh?: () => void;
+    onOfflineReady?: () => void;
+    onRegisterError?: (error: unknown) => void;
+  }): (reloadPage?: boolean) => Promise<void>;
+}
+
 interface ImportMetaEnv {
   readonly VITE_APP_VERSION?: string;
   readonly VITE_API_BASE_URL?: string;

@@ -11,7 +11,10 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   const authHeader = req.headers.authorization ?? "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
   if (!token) {
-    sendError(res, new HttpError("Missing or invalid Authorization header", 401));
+    const hint = !authHeader
+      ? "Header mancante: invia Authorization: Bearer <token> (effettua login per ottenere il token)."
+      : "Formato non valido: usa Authorization: Bearer <token>.";
+    sendError(res, new HttpError("Missing or invalid Authorization header", 401, "MISSING_AUTH", hint));
     return;
   }
   try {
@@ -19,7 +22,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     req.user = payload;
     next();
   } catch {
-    sendError(res, new HttpError("Invalid or expired token", 401));
+    sendError(res, new HttpError("Invalid or expired token", 401, "INVALID_TOKEN"));
   }
 }
 

@@ -76,7 +76,7 @@ export const loadProjectScope = (): ProjectScopeState | null => {
     const data = parsed.data;
     return {
       ...data,
-      projects: data.projects.map((p) => ({
+      projects: data.projects.map((p: { id: string; name: string; displayName?: string }) => ({
         id: p.id,
         name: p.name,
         displayName: p.displayName ?? p.name,

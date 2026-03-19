@@ -69,7 +69,15 @@ export async function ensureCoreIndexes(db: Db = getDb()): Promise<void> {
         name: indexName,
         ...(index.options ?? {}),
       });
-    } catch (err) {
+    } catch (err: unknown) {
+      const code = err && typeof err === "object" && "code" in err ? (err as { code?: number }).code : undefined;
+      if (code === 85) {
+        logger.warn(
+          { collection: index.collection, indexName, keys: index.keys },
+          "[db] ensureCoreIndexes: index already exists with different name, skip"
+        );
+        continue;
+      }
       logger.error(
         { err, collection: index.collection, indexName, keys: index.keys },
         "[db] ensureCoreIndexes createIndex failed"

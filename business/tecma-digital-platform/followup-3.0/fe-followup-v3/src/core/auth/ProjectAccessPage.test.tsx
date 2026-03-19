@@ -7,6 +7,10 @@ vi.mock("../../api/authApi", () => ({
   me: vi.fn().mockResolvedValue({ email: "user@test.com" }),
 }));
 
+vi.mock("../../api/http", () => ({
+  getAccessToken: vi.fn(() => "test-token"),
+}));
+
 vi.mock("../../api/followupApi", () => ({
   followupApi: {
     getProjectsByEmail: vi.fn().mockResolvedValue({

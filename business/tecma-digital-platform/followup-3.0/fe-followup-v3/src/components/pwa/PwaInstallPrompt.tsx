@@ -2,6 +2,35 @@ import { useEffect, useState } from "react";
 import { Download, X } from "lucide-react";
 import { Button } from "../ui/button";
 
+const PWA_INSTALL_DISMISSED_KEY = "pwa-install-dismissed";
+const PWA_INSTALL_DISMISS_DAYS = 7;
+
+function isStandalone(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+  );
+}
+
+function getDismissedAt(): number | null {
+  try {
+    const raw = localStorage.getItem(PWA_INSTALL_DISMISSED_KEY);
+    if (raw == null) return null;
+    const ts = parseInt(raw, 10);
+    return Number.isFinite(ts) ? ts : null;
+  } catch {
+    return null;
+  }
+}
+
+function shouldShowAfterDismiss(): boolean {
+  const dismissedAt = getDismissedAt();
+  if (dismissedAt == null) return true;
+  const elapsed = Date.now() - dismissedAt;
+  return elapsed > PWA_INSTALL_DISMISS_DAYS * 24 * 60 * 60 * 1000;
+}
+
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
@@ -12,6 +41,9 @@ export const PwaInstallPrompt = () => {
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
+    if (isStandalone()) return;
+    if (!shouldShowAfterDismiss()) return;
+
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
       setDeferredPrompt(event as BeforeInstallPromptEvent);
@@ -20,6 +52,17 @@ export const PwaInstallPrompt = () => {
     return () => window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
   }, []);
 
+  const handleDismiss = () => {
+    setDismissed(true);
+    try {
+      localStorage.setItem(PWA_INSTALL_DISMISSED_KEY, String(Date.now()));
+    } catch {
+      // ignore
+    }
+  };
+
+  if (isStandalone()) return null;
+  if (!shouldShowAfterDismiss()) return null;
   if (!deferredPrompt || dismissed) return null;
 
   return (
@@ -44,7 +87,7 @@ export const PwaInstallPrompt = () => {
             >
               Installa
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setDismissed(true)}>
+            <Button size="sm" variant="ghost" onClick={handleDismiss}>
               Dopo
             </Button>
           </div>
@@ -52,7 +95,7 @@ export const PwaInstallPrompt = () => {
         <button
           type="button"
           className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-          onClick={() => setDismissed(true)}
+          onClick={handleDismiss}
           aria-label="Chiudi prompt installazione"
         >
           <X className="h-4 w-4" />

@@ -94,6 +94,25 @@ export const queryCalendarEvents = async (rawInput: unknown): Promise<PaginatedR
   return queryPrimaryCalendarEvents(input);
 };
 
+export const getCalendarEventById = async (eventId: string): Promise<CalendarEvent | null> => {
+  if (!ObjectId.isValid(eventId)) return null;
+  const db = getDb();
+  const collection = db.collection<CalendarEvent & { _id?: ObjectId }>("calendar_events");
+  const doc = await collection.findOne({ _id: new ObjectId(eventId) } as never);
+  if (!doc) return null;
+  return {
+    _id: String(doc._id),
+    workspaceId: String(doc.workspaceId),
+    projectId: String(doc.projectId),
+    title: String(doc.title),
+    startsAt: String(doc.startsAt),
+    endsAt: String(doc.endsAt),
+    source: (doc.source ?? "CUSTOM_SERVICE") as CalendarEvent["source"],
+    ...(doc.clientId != null && { clientId: String(doc.clientId) }),
+    ...(doc.apartmentId != null && { apartmentId: String(doc.apartmentId) }),
+  };
+};
+
 export const createCalendarEvent = async (rawInput: unknown): Promise<{ event: CalendarEvent }> => {
   const input = CalendarEventCreateSchema.parse(rawInput);
   const db = getDb();

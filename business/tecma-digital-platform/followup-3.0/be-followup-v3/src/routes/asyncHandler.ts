@@ -62,10 +62,17 @@ export const sendError = (res: Response, error: unknown): void => {
     span.setAttribute("http.status_code", statusCode);
   }
 
-  res.status(statusCode).json({
+  const payload: { error: string; requestId?: string; code?: string; hint?: string } = {
     error: message,
-    ...(context?.requestId ? { requestId: context.requestId } : {})
-  });
+    ...(context?.requestId ? { requestId: context.requestId } : {}),
+  };
+  if (typeof error === "object" && error !== null && "code" in error && typeof (error as { code: unknown }).code === "string") {
+    payload.code = (error as { code: string }).code;
+  }
+  if (typeof error === "object" && error !== null && "hint" in error && typeof (error as { hint: unknown }).hint === "string") {
+    payload.hint = (error as { hint: string }).hint;
+  }
+  res.status(statusCode).json(payload);
 };
 
 export const handleAsync = (
