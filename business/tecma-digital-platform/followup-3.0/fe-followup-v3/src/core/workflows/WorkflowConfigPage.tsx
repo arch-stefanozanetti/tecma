@@ -27,6 +27,7 @@ import {
 } from "../../components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../../components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { WorkflowCanvas } from "./WorkflowCanvas";
 
 const WORKFLOW_TYPE_LABEL: Record<WorkflowType, string> = {
   sell: "Vendita",
@@ -57,7 +58,7 @@ export const WorkflowConfigPage = () => {
     states: WorkflowStateRow[];
     transitions: WorkflowTransitionRow[];
   } | null>(null);
-  const [detailTab, setDetailTab] = useState<"stati" | "transizioni">("stati");
+  const [detailTab, setDetailTab] = useState<"diagramma" | "stati" | "transizioni">("diagramma");
   const [createName, setCreateName] = useState("");
   const [createType, setCreateType] = useState<WorkflowType>("sell");
   const [creating, setCreating] = useState(false);
@@ -137,7 +138,7 @@ export const WorkflowConfigPage = () => {
 
   const openDetail = useCallback((wfId: string) => {
     setEditingWorkflowId(wfId);
-    setDetailTab("stati");
+    setDetailTab("diagramma");
     setDetail(null);
     loadDetail(wfId);
   }, [loadDetail]);
@@ -261,9 +262,9 @@ export const WorkflowConfigPage = () => {
 
       {workspaces.length > 0 && effectiveWorkspaceId && (
       <>
-      <section className="rounded-lg border border-border bg-card p-4">
-        <h2 className="text-sm font-semibold text-foreground mb-3">Nuovo workflow</h2>
-        <p className="text-xs text-muted-foreground mb-2">Creato per: {selectedWorkspaceName}</p>
+      <section className="glass-panel rounded-ui border border-border p-4">
+        <h2 className="text-sm font-semibold text-foreground mb-1">Nuovo workflow</h2>
+        <p className="text-xs text-muted-foreground mb-3">Creato per: {selectedWorkspaceName}</p>
         <div className="flex flex-wrap gap-3 items-end">
           <div>
             <label className="block text-xs text-muted-foreground mb-1">Nome</label>
@@ -293,7 +294,7 @@ export const WorkflowConfigPage = () => {
         </div>
       </section>
 
-      <section className="rounded-lg border border-border bg-card p-4">
+      <section className="glass-panel rounded-ui border border-border p-4">
         <div className="flex items-center justify-between gap-2 mb-3">
           <h2 className="text-sm font-semibold text-foreground">Workflow del workspace ({selectedWorkspaceName})</h2>
           <Button onClick={loadWorkflows} variant="outline" size="sm">
@@ -307,19 +308,19 @@ export const WorkflowConfigPage = () => {
         ) : workflows.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nessun workflow per questo workspace. Creane uno sopra.</p>
         ) : (
-          <ul className="space-y-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             {workflows.map((wf) => (
-              <li key={wf._id} className="rounded-lg border border-border bg-muted/20 flex items-center justify-between px-3 py-2">
+              <button
+                key={wf._id}
+                type="button"
+                onClick={() => openDetail(wf._id)}
+                className="rounded-ui border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-muted/30 focus:outline-none focus:ring-2 focus:ring-ring"
+              >
                 <span className="font-medium text-foreground">{wf.name}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">{WORKFLOW_TYPE_LABEL[wf.type]}</span>
-                  <Button type="button" variant="outline" size="sm" onClick={() => openDetail(wf._id)}>
-                    Stati e transizioni
-                  </Button>
-                </div>
-              </li>
+                <span className="ml-2 text-xs text-muted-foreground">{WORKFLOW_TYPE_LABEL[wf.type]}</span>
+              </button>
             ))}
-          </ul>
+          </div>
         )}
       </section>
       </>
@@ -335,11 +336,23 @@ export const WorkflowConfigPage = () => {
           {detailLoading && !detail ? (
             <p className="mt-4 text-sm text-muted-foreground">Caricamento dettaglio workflow...</p>
           ) : detail ? (
-            <Tabs value={detailTab} onValueChange={(v) => setDetailTab(v as "stati" | "transizioni")} className="mt-4">
+            <Tabs value={detailTab} onValueChange={(v) => setDetailTab(v as "diagramma" | "stati" | "transizioni")} className="mt-4">
               <TabsList>
+                <TabsTrigger value="diagramma">Diagramma</TabsTrigger>
                 <TabsTrigger value="stati">Stati ({detail.states.length})</TabsTrigger>
                 <TabsTrigger value="transizioni">Transizioni ({detail.transitions.length})</TabsTrigger>
               </TabsList>
+              <TabsContent value="diagramma" className="mt-4">
+                <WorkflowCanvas states={detail.states} transitions={detail.transitions} className="rounded-ui border border-border" />
+                <div className="mt-3 flex gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={openAddStateModal} disabled={detailLoading}>
+                    {detailLoading ? "Aggiornamento..." : "Aggiungi stato"}
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={openAddTransModal} disabled={detail.states.length < 2 || detailLoading}>
+                    {detailLoading ? "Aggiornamento..." : "Aggiungi transizione"}
+                  </Button>
+                </div>
+              </TabsContent>
               <TabsContent value="stati" className="mt-4 space-y-3">
                 {detail.states.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nessuno stato. Aggiungine uno.</p>

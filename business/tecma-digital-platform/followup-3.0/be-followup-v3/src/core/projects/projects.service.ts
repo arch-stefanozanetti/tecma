@@ -10,6 +10,7 @@ const COLLECTION_TZ_PROJECTS = "tz_projects";
 
 const CreateProjectSchema = z.object({
   name: z.string().min(1).max(200),
+  workspace_id: z.string().min(1).optional(),
   displayName: z.string().max(200).optional(),
   mode: z.enum(["rent", "sell"]).default("sell"),
   city: z.string().max(200).optional(),
@@ -57,11 +58,12 @@ export const createProject = async (rawInput: unknown): Promise<{ project: Proje
   const resolvedAssetKey = input.assetKey?.trim() || baseId;
   const resolvedFeVendorKey = input.feVendorKey?.trim() || feVendorKey;
 
-  const doc = {
+  const doc: Record<string, unknown> = {
     _id: baseId,
     id: baseId,
     name: input.name.trim(),
     displayName,
+    ...(input.workspace_id && { workspace_id: input.workspace_id.trim() }),
     code: resolvedFeVendorKey,
     hostKey: resolvedHostKey,
     assetKey: resolvedAssetKey,
@@ -95,8 +97,8 @@ export const createProject = async (rawInput: unknown): Promise<{ project: Proje
   return {
     project: {
       id: baseId,
-      name: doc.name,
-      displayName: doc.displayName,
+      name: String(doc.name ?? input.name),
+      displayName: String(doc.displayName ?? displayName),
       mode: input.mode,
     },
   };

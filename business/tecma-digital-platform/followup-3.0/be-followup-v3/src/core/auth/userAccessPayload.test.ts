@@ -7,11 +7,21 @@ vi.mock("../rbac/permissions.js", () => ({
   },
 }));
 
-const { resolveEffectivePermissionsMock } = vi.hoisted(() => ({
+const {
+  resolveEffectivePermissionsMock,
+  listWorkspaceMembershipsForUserMock,
+  getPermissionsForRoleMock,
+} = vi.hoisted(() => ({
   resolveEffectivePermissionsMock: vi.fn(),
+  listWorkspaceMembershipsForUserMock: vi.fn(),
+  getPermissionsForRoleMock: vi.fn(),
 }));
 vi.mock("../rbac/roleDefinitions.service.js", () => ({
   resolveEffectivePermissions: resolveEffectivePermissionsMock,
+  getPermissionsForRole: getPermissionsForRoleMock,
+}));
+vi.mock("../workspaces/workspace-users.service.js", () => ({
+  listWorkspaceMembershipsForUser: listWorkspaceMembershipsForUserMock,
 }));
 
 import {
@@ -39,10 +49,13 @@ describe("userAccessPayload", () => {
       isAdmin: false,
       permissions: ["clients.read"],
       projectId: "p1",
+      system_role: undefined,
+      isTecmaAdmin: false,
     });
   });
 
   it("builds payload and computes admin/project/email normalization", async () => {
+    listWorkspaceMembershipsForUserMock.mockResolvedValueOnce([]);
     resolveEffectivePermissionsMock.mockResolvedValueOnce(["*", "clients.read"]);
 
     const payload = await buildAccessPayloadFromUserDoc(
@@ -60,6 +73,32 @@ describe("userAccessPayload", () => {
     expect(payload.email).toBe("test@example.com");
     expect(payload.isAdmin).toBe(true);
     expect(payload.projectId).toBe("p1");
+  });
+
+  it("derives permissions from workspace memberships when present", async () => {
+    listWorkspaceMembershipsForUserMock.mockResolvedValueOnce([
+      { workspaceId: "w1", role: "vendor" },
+      { workspaceId: "w2", role: "admin" },
+    ]);
+    getPermissionsForRoleMock
+      .mockResolvedValueOnce(["apartments.read", "deals.close"])
+      .mockResolvedValueOnce("*");
+
+    const payload = await buildAccessPayloadFromUserDoc(
+      {
+        _id: new ObjectId("64b64f3fd9024a2a53111111"),
+        email: "user@example.com",
+        project_ids: [],
+      },
+      "fallback@example.com"
+    );
+
+    expect(payload.sub).toBe("64b64f3fd9024a2a53111111");
+    expect(payload.email).toBe("user@example.com");
+    expect(payload.isAdmin).toBe(true);
+    expect(payload.role).toBe("admin");
+    expect(payload.permissions).toContain("*");
+    expect(getPermissionsForRoleMock).toHaveBeenCalledTimes(2);
   });
 
   it("escapes regex-special chars in email and exports collection candidates", () => {

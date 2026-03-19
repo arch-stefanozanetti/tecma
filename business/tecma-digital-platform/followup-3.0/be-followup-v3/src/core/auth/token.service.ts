@@ -9,6 +9,9 @@ export interface AccessTokenPayload {
   /** Permessi effettivi; "*" = admin completo */
   permissions: string[];
   projectId: string | null;
+  /** TECMA global access: bypass tutti i controlli workspace/project */
+  system_role?: string | null;
+  isTecmaAdmin?: boolean;
 }
 
 function jwtSecret(): string {
@@ -38,12 +41,15 @@ export const verifyAccessToken = (token: string): AccessTokenPayload => {
     perms = ["*"];
   }
 
+  const isTecmaAdmin = decoded.system_role === "tecma_admin" || decoded.isTecmaAdmin === true;
   return {
     sub: String(decoded.sub ?? ""),
     email: String(decoded.email ?? ""),
     role: decoded.role ?? null,
     isAdmin,
     permissions: perms,
-    projectId: decoded.projectId != null && decoded.projectId !== "" ? String(decoded.projectId) : null
+    projectId: decoded.projectId != null && decoded.projectId !== "" ? String(decoded.projectId) : null,
+    system_role: decoded.system_role ?? null,
+    isTecmaAdmin
   };
 };

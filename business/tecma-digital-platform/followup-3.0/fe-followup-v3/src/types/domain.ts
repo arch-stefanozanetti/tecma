@@ -35,15 +35,60 @@ export interface WorkspaceProjectRow {
   createdAt: string;
 }
 
-export type WorkspaceUserRole = "vendor" | "vendor_manager" | "admin";
+export type AssetType = "image" | "document" | "planimetry" | "branding";
+
+export interface AssetRow {
+  _id: string;
+  workspace_id: string;
+  project_id?: string;
+  apartment_id?: string;
+  type: AssetType;
+  name: string;
+  file_key: string;
+  file_size: number;
+  mime_type: string;
+  uploaded_by: string;
+  created_at: string;
+}
+
+export type ClientDocumentType = "proposta" | "contratto" | "altro";
+export type ClientDocumentVisibility = "internal" | "client";
+
+export interface ClientDocumentRow {
+  _id: string;
+  workspace_id: string;
+  client_id: string;
+  project_id?: string;
+  name: string;
+  file_key: string;
+  file_size: number;
+  type: ClientDocumentType;
+  visibility: ClientDocumentVisibility;
+  uploaded_by: string;
+  created_at: string;
+}
+
+export type WorkspaceUserRole = "owner" | "admin" | "collaborator" | "viewer" | "vendor" | "vendor_manager";
+
+/** In UI: toggle "Tutto" / "Solo assegnati". */
+export type AccessScope = "all" | "assigned";
 
 export interface WorkspaceUserRow {
   _id: string;
   workspaceId: string;
   userId: string;
   role: WorkspaceUserRole;
+  access_scope: AccessScope;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProjectAccessRow {
+  _id: string;
+  projectId: string;
+  workspaceId: string;
+  role: "owner" | "collaborator" | "viewer";
+  createdAt: string;
 }
 
 /** Membership workspace per utente (pagina User admin). */

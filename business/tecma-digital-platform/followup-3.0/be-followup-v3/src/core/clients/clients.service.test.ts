@@ -115,6 +115,7 @@ describe("clients.service", () => {
 
     findOneMock
       .mockResolvedValueOnce(existing)
+      .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(updated);
     updateOneMock.mockResolvedValueOnce({ matchedCount: 1, modifiedCount: 1 });
 

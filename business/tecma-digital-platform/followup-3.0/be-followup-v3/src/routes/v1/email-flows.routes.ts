@@ -72,13 +72,15 @@ emailFlowsRoutes.put(
       const msg = e instanceof Error ? e.message : String(e);
       throw new HttpError(msg, 400);
     });
+    const workspaceId = (req.body as Record<string, unknown>).workspaceId as string ?? (req.query.workspaceId as string);
     await writeAuditLog({
       userId: req.user!.sub,
       action: "email_flow.update",
       entityType: "email_flow",
       entityId: flowKey,
       changes: { after: { enabled: payload.enabled, editorMode: payload.editorMode } },
-      projectId: req.user!.projectId
+      projectId: req.user!.projectId ?? undefined,
+      workspaceId
     });
     return item;
   })

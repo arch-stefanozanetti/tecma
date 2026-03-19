@@ -10,6 +10,7 @@ type IndexSpec = {
 
 const INDEX_SPECS: IndexSpec[] = [
   { collection: "tz_users", key: { email: 1 }, options: { unique: true, name: "uq_tz_users_email" } },
+  { collection: "tz_users", key: { system_role: 1 }, options: { name: "idx_tz_users_system_role", sparse: true } },
   { collection: "tz_authSessions", key: { userId: 1, createdAt: -1 }, options: { name: "idx_tz_authSessions_userId_createdAt" } },
   { collection: "tz_authEvents", key: { userId: 1, createdAt: -1 }, options: { name: "idx_tz_authEvents_userId_createdAt" } },
   { collection: "tz_inviteTokens", key: { token: 1 }, options: { unique: true, name: "uq_tz_inviteTokens_token" } },
@@ -17,6 +18,7 @@ const INDEX_SPECS: IndexSpec[] = [
 
   { collection: "tz_clients", key: { workspaceId: 1, projectId: 1 }, options: { name: "idx_tz_clients_workspace_project" } },
   { collection: "tz_clients", key: { workspaceId: 1, projectId: 1, updatedAt: -1 }, options: { name: "idx_tz_clients_workspace_project_updatedAt" } },
+  { collection: "tz_clients", key: { workspaceId: 1, email: 1 }, options: { unique: true, name: "uq_tz_clients_workspace_email", partialFilterExpression: { email: { $exists: true, $ne: "" } } } },
 
   { collection: "tz_apartments", key: { workspaceId: 1, projectId: 1 }, options: { name: "idx_tz_apartments_workspace_project" } },
   { collection: "tz_apartments", key: { workspaceId: 1, projectId: 1, updatedAt: -1 }, options: { name: "idx_tz_apartments_workspace_project_updatedAt" } },
@@ -42,6 +44,23 @@ const INDEX_SPECS: IndexSpec[] = [
   { collection: "tz_workspace_user_projects", key: { workspaceId: 1, userId: 1, projectId: 1 }, options: { unique: true, name: "uq_tz_workspace_user_projects_scope" } },
   { collection: "tz_entity_assignments", key: { workspaceId: 1, entityType: 1, entityId: 1, userId: 1 }, options: { unique: true, name: "uq_tz_entity_assignments_scope_entity_user" } },
   { collection: "tz_entity_assignments", key: { workspaceId: 1, userId: 1 }, options: { name: "idx_tz_entity_assignments_workspace_user" } },
+
+  { collection: "tz_projects", key: { workspace_id: 1 }, options: { name: "idx_tz_projects_workspace_id" } },
+  { collection: "tz_project_access", key: { project_id: 1, workspace_id: 1 }, options: { unique: true, name: "uq_tz_project_access_project_workspace" } },
+  { collection: "tz_project_access", key: { workspace_id: 1 }, options: { name: "idx_tz_project_access_workspace_id" } },
+
+  { collection: "tz_audit_log", key: { workspaceId: 1, at: -1 }, options: { name: "idx_tz_audit_log_workspace_at" } },
+  { collection: "tz_audit_log", key: { "actor.userId": 1, at: -1 }, options: { name: "idx_tz_audit_log_actor_at" } },
+
+  { collection: "tz_assets", key: { workspace_id: 1 }, options: { name: "idx_tz_assets_workspace_id" } },
+  { collection: "tz_assets", key: { workspace_id: 1, project_id: 1 }, options: { name: "idx_tz_assets_workspace_project" } },
+  { collection: "tz_assets", key: { workspace_id: 1, project_id: 1, apartment_id: 1 }, options: { name: "idx_tz_assets_workspace_project_apartment" } },
+  { collection: "tz_assets", key: { workspace_id: 1, type: 1 }, options: { name: "idx_tz_assets_workspace_type" } },
+
+  { collection: "tz_client_documents", key: { workspace_id: 1, client_id: 1 }, options: { name: "idx_tz_client_documents_workspace_client" } },
+  { collection: "tz_client_documents", key: { workspace_id: 1, client_id: 1, visibility: 1 }, options: { name: "idx_tz_client_documents_workspace_client_visibility" } },
+
+  { collection: "tz_workspace_branding", key: { workspaceId: 1 }, options: { unique: true, name: "uq_tz_workspace_branding_workspaceId" } },
 ];
 
 export async function ensureIndexes(): Promise<void> {

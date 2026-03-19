@@ -68,10 +68,10 @@ describe("integration: identity (MDOO)", () => {
     const { loginWithCredentials } = await import("../core/auth/auth.service.js");
     await inviteUser({
       email: "invited-flow@test.local",
-      role: "vendor",
       projectId: "proj-1",
       projectName: "Test Project",
-      appPublicBaseUrl: "http://localhost:5177"
+      appPublicBaseUrl: "http://localhost:5177",
+      roleLabel: "Vendor"
     });
     const out = getEmailMockOutbox();
     expect(out.length).toBe(1);

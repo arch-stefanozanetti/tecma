@@ -1,21 +1,18 @@
-import type { OptionalId } from "mongodb";
-import { getDb } from "../../config/db.js";
-import { logger } from "../../observability/logger.js";
-
-const COLLECTION = "tz_auditLogs";
+/**
+ * Audit unificato: scrive su tz_audit_log tramite audit-log.service.
+ * workspace_id obbligatorio (multi-tenant). UPDATE e DELETE vanno sempre loggati.
+ */
+import { record } from "./audit-log.service.js";
 
 export interface AuditLogDoc {
-  _id?: import("mongodb").ObjectId;
   userId: string;
   action: string;
   entityType: string;
   entityId: string;
-  changes: { before?: unknown; after?: unknown } | null;
-  projectId: string | null;
-  createdAt: Date;
+  changes?: { before?: unknown; after?: unknown } | null;
+  projectId?: string | null;
+  workspaceId: string;
 }
-
-const coll = () => getDb().collection<AuditLogDoc>(COLLECTION);
 
 export async function writeAuditLog(params: {
   userId: string;
@@ -24,19 +21,21 @@ export async function writeAuditLog(params: {
   entityId: string;
   changes?: { before?: unknown; after?: unknown } | null;
   projectId?: string | null;
+  workspaceId?: string;
 }): Promise<void> {
-  try {
-    const doc: OptionalId<AuditLogDoc> = {
-      userId: params.userId,
-      action: params.action,
-      entityType: params.entityType,
-      entityId: params.entityId,
-      changes: params.changes ?? null,
-      projectId: params.projectId ?? null,
-      createdAt: new Date()
-    };
-    await coll().insertOne(doc as AuditLogDoc);
-  } catch (err) {
-    logger.error({ err }, "[audit] write failed");
+  const workspaceId = (params.workspaceId || "").trim();
+  if (!workspaceId) {
+    return;
   }
+  await record({
+    action: params.action,
+    workspaceId,
+    projectId: params.projectId ?? undefined,
+    entityType: params.entityType,
+    entityId: params.entityId,
+    actor: { type: "user", userId: params.userId },
+    payload: params.changes && (params.changes.before !== undefined || params.changes.after !== undefined)
+      ? { before: params.changes.before, after: params.changes.after }
+      : undefined,
+  });
 }

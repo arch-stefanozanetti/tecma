@@ -1,11 +1,12 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Home, Calendar, FileText, User, ClipboardList, Pencil, History, UserPlus, Trash2, Mail, Phone, CalendarCheck, ExternalLink, TrendingUp } from "lucide-react";
+import { ArrowLeft, Home, Calendar, FileText, User, ClipboardList, Pencil, History, UserPlus, Trash2, Mail, Phone, CalendarCheck, ExternalLink, TrendingUp, Upload, Link2, Loader2 } from "lucide-react";
 import { followupApi } from "../../api/followupApi";
 import { useWorkspace } from "../../auth/projectScope";
 import type {
   AdditionalInfoRow,
   CalendarEvent,
+  ClientDocumentRow,
   ClientRow,
   RequestRow,
   RequestStatus,
@@ -41,6 +42,7 @@ import {
   statusLabel,
 } from "./clientDetailConstants";
 import { Textarea } from "../../components/ui/textarea";
+import { FileUpload } from "../../components/ui/file-upload";
 import { MatchingCandidatesList } from "../../components/MatchingCandidatesList";
 import { RequestStatusRoadmap } from "../../components/RequestStatusRoadmap";
 import { useWorkflowConfig } from "../../hooks/useWorkflowConfig";
@@ -67,7 +69,7 @@ export const ClientDetailPage = () => {
     requestsLoading,
     reloadRequests,
   } = useClientDetailData(clientId, workspaceId, selectedProjectIds);
-  const { toastError } = useToast();
+  const { toastError, toastSuccess } = useToast();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [formFullName, setFormFullName] = useState("");
   const [formEmail, setFormEmail] = useState("");
@@ -111,6 +113,11 @@ export const ClientDetailPage = () => {
     projectId?: string;
   }>({});
   const [calendarEventsRefreshKey, setCalendarEventsRefreshKey] = useState(0);
+  const [clientDocuments, setClientDocuments] = useState<ClientDocumentRow[]>([]);
+  const [clientDocumentsLoading, setClientDocumentsLoading] = useState(false);
+  const [documentUploading, setDocumentUploading] = useState(false);
+  const [shareLinkDocId, setShareLinkDocId] = useState<string | null>(null);
+  const [documentVisibility, setDocumentVisibility] = useState<"internal" | "client">("internal");
 
   useEffect(() => {
     if (!clientId || !client || !workspaceId || selectedProjectIds.length === 0) return;
@@ -180,6 +187,54 @@ export const ClientDetailPage = () => {
       })
       .catch(() => {});
   }, [activeTab, requests, transitionsByRequestId]);
+
+  useEffect(() => {
+    if (activeTab !== "documenti" || !clientId || !workspaceId) return;
+    setClientDocumentsLoading(true);
+    followupApi
+      .listClientDocuments(workspaceId, clientId)
+      .then((r) => setClientDocuments(r.data ?? []))
+      .catch(() => setClientDocuments([]))
+      .finally(() => setClientDocumentsLoading(false));
+  }, [activeTab, clientId, workspaceId]);
+
+  const loadClientDocuments = useCallback(() => {
+    if (!clientId || !workspaceId) return;
+    followupApi.listClientDocuments(workspaceId, clientId).then((r) => setClientDocuments(r.data ?? []));
+  }, [clientId, workspaceId]);
+
+  const handleDocumentFilesSelected = useCallback(
+    async (files: FileList | null) => {
+      if (!files?.length || !workspaceId || !clientId) return;
+      setDocumentUploading(true);
+      try {
+        for (const file of Array.from(files)) {
+          const { uploadUrl, key } = await followupApi.getClientDocumentUploadUrl(workspaceId, clientId, {
+            name: file.name,
+            mimeType: file.type || "application/pdf",
+            fileSize: file.size,
+            type: "altro",
+          });
+          await followupApi.uploadFileToPresignedUrl(uploadUrl, file);
+          await followupApi.createClientDocument(workspaceId, clientId, {
+            key,
+            name: file.name,
+            mimeType: file.type || "application/pdf",
+            fileSize: file.size,
+            type: "altro",
+            visibility: documentVisibility,
+          });
+        }
+        toastSuccess("Documento/i caricati");
+        loadClientDocuments();
+      } catch (e) {
+        toastError(e instanceof Error ? e.message : "Errore upload");
+      } finally {
+        setDocumentUploading(false);
+      }
+    },
+    [workspaceId, clientId, documentVisibility, loadClientDocuments, toastSuccess, toastError]
+  );
 
   const timelineSorted = useMemo(
     () =>
@@ -739,6 +794,9 @@ export const ClientDetailPage = () => {
           </TabsTrigger>
           <TabsTrigger value="timeline" icon={<History className="h-4 w-4" />}>
             Timeline
+          </TabsTrigger>
+          <TabsTrigger value="documenti" icon={<FileText className="h-4 w-4" />}>
+            Documenti
           </TabsTrigger>
         </TabsList>
 
@@ -1377,6 +1435,114 @@ export const ClientDetailPage = () => {
                   ))}
                 </ul>
               </div>
+            )}
+          </section>
+        </TabsContent>
+
+        {/* Tab Documenti — documenti cliente (proposta, contratto), upload e link condiviso */}
+        <TabsContent value="documenti" className="space-y-4 mt-4">
+          <section className="rounded-lg border border-border bg-card p-4">
+            <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              Documenti cliente
+            </h2>
+            <p className="text-xs text-muted-foreground mb-4">
+              Carica proposte, contratti o altri documenti. Visibilità &quot;cliente&quot;: il cliente può vedere il documento (es. via link con scadenza 7 giorni).
+            </p>
+            <div className="flex flex-wrap items-center gap-3 mb-4">
+              <Select value={documentVisibility} onValueChange={(v) => setDocumentVisibility(v as "internal" | "client")}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Visibilità" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="internal">Solo interno</SelectItem>
+                  <SelectItem value="client">Visibile al cliente</SelectItem>
+                </SelectContent>
+              </Select>
+              <FileUpload
+                title={documentUploading ? "Caricamento…" : "Carica documento"}
+                onFilesSelected={handleDocumentFilesSelected}
+                accept="application/pdf,.pdf"
+                multiple
+                disabled={documentUploading}
+              />
+              {documentUploading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+            </div>
+            {clientDocumentsLoading ? (
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Caricamento documenti…
+              </p>
+            ) : clientDocuments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nessun documento caricato.</p>
+            ) : (
+              <ul className="space-y-2">
+                {clientDocuments.map((doc) => (
+                  <li
+                    key={doc._id}
+                    className="flex items-center justify-between gap-2 rounded border border-border bg-background px-3 py-2 text-sm"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-foreground truncate">{doc.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {doc.type} • {doc.visibility === "client" ? "Visibile al cliente" : "Solo interno"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8"
+                        onClick={async () => {
+                          const res = await followupApi.getClientDocumentDownloadUrl(workspaceId!, clientId!, doc._id);
+                          window.open(res.downloadUrl, "_blank");
+                        }}
+                      >
+                        Scarica
+                      </Button>
+                      {doc.visibility === "client" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 gap-1"
+                          disabled={shareLinkDocId === doc._id}
+                          onClick={async () => {
+                            setShareLinkDocId(doc._id);
+                            try {
+                              const res = await followupApi.getClientDocumentShareLink(workspaceId!, clientId!, doc._id);
+                              await navigator.clipboard.writeText(res.downloadUrl);
+                              toastSuccess("Link (7 giorni) copiato negli appunti");
+                            } catch (e) {
+                              toastError(e instanceof Error ? e.message : "Errore link");
+                            } finally {
+                              setShareLinkDocId(null);
+                            }
+                          }}
+                        >
+                          {shareLinkDocId === doc._id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
+                          Invia link
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-destructive hover:text-destructive"
+                        onClick={async () => {
+                          if (!window.confirm("Eliminare questo documento?")) return;
+                          try {
+                            await followupApi.deleteClientDocument(workspaceId!, clientId!, doc._id);
+                            loadClientDocuments();
+                          } catch (e) {
+                            toastError(e instanceof Error ? e.message : "Errore eliminazione");
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             )}
           </section>
         </TabsContent>

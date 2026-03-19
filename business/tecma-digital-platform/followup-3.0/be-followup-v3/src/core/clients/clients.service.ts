@@ -264,36 +264,65 @@ const ClientUpdateSchema = z.object({
   city: z.string().optional(),
 });
 
+/**
+ * Vincolo multi-tenant: (workspaceId, email) univoco. Stessa email in workspace diversi = due clienti diversi.
+ */
+async function assertClientEmailUnique(
+  collection: ReturnType<ReturnType<typeof getDb>["collection"]>,
+  workspaceId: string,
+  email: string | undefined,
+  excludeClientId?: ObjectId
+): Promise<void> {
+  const normalized = (email || "").trim().toLowerCase();
+  if (!normalized) return;
+  const filter: Record<string, unknown> = { workspaceId, email: { $regex: `^${normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" } };
+  if (excludeClientId) filter._id = { $ne: excludeClientId };
+  const existing = await collection.findOne(filter as never);
+  if (existing) {
+    throw new HttpError("Un cliente con questa email esiste già in questo workspace", 409);
+  }
+}
+
 export const createClient = async (rawInput: unknown): Promise<{ client: ClientRow }> => {
   const input = ClientCreateSchema.parse(rawInput) as ClientCreateInput;
   const db = getDb();
   const collection = db.collection("tz_clients");
+  const emailVal = (input.email || "").trim() || undefined;
+  await assertClientEmailUnique(collection, input.workspaceId, emailVal);
   const now = new Date().toISOString();
   const doc = {
     workspaceId: input.workspaceId,
     projectId: input.projectId,
     fullName: (input.fullName || "").trim(),
-    email: (input.email || "").trim() || undefined,
+    email: emailVal,
     phone: (input.phone || "").trim() || undefined,
     status: CLIENT_STATUSES.includes(input.status as (typeof CLIENT_STATUSES)[number]) ? input.status : "lead",
     city: (input.city || "").trim() || undefined,
     updatedAt: now,
     createdAt: now,
   };
-  const result = await collection.insertOne(doc);
-  const _id = result.insertedId.toHexString();
-  const client: ClientRow = {
-    _id,
-    projectId: input.projectId,
-    fullName: doc.fullName,
-    email: doc.email,
-    phone: doc.phone,
-    status: doc.status ?? "lead",
-    updatedAt: doc.updatedAt ?? now,
-    createdAt: doc.createdAt,
-    city: doc.city,
-  };
-  return { client };
+  try {
+    const result = await collection.insertOne(doc);
+    const _id = result.insertedId.toHexString();
+    const client: ClientRow = {
+      _id,
+      workspaceId: input.workspaceId,
+      projectId: input.projectId,
+      fullName: doc.fullName,
+      email: doc.email,
+      phone: doc.phone,
+      status: doc.status ?? "lead",
+      updatedAt: doc.updatedAt ?? now,
+      createdAt: doc.createdAt,
+      city: doc.city,
+    };
+    return { client };
+  } catch (err: unknown) {
+    if (err && typeof err === "object" && "code" in err && (err as { code: number }).code === 11000) {
+      throw new HttpError("Un cliente con questa email esiste già in questo workspace", 409);
+    }
+    throw err;
+  }
 };
 
 export const updateClient = async (
@@ -311,6 +340,11 @@ export const updateClient = async (
   if (!existing) {
     throw new HttpError("Client not found", 404);
   }
+  const workspaceId = String((existing as Record<string, unknown>).workspaceId ?? "");
+  if (input.email !== undefined) {
+    const newEmail = (input.email || "").trim() || undefined;
+    await assertClientEmailUnique(collection, workspaceId, newEmail, _id);
+  }
   const updateDoc: Record<string, unknown> = {
     updatedAt: new Date().toISOString(),
   };
@@ -320,19 +354,26 @@ export const updateClient = async (
   if (input.status !== undefined && CLIENT_STATUSES.includes(input.status as (typeof CLIENT_STATUSES)[number]))
     updateDoc.status = input.status;
   if (input.city !== undefined) updateDoc.city = (input.city || "").trim() || undefined;
-  await collection.updateOne({ _id }, { $set: updateDoc });
+  try {
+    await collection.updateOne({ _id }, { $set: updateDoc });
+  } catch (err: unknown) {
+    if (err && typeof err === "object" && "code" in err && (err as { code: number }).code === 11000) {
+      throw new HttpError("Un cliente con questa email esiste già in questo workspace", 409);
+    }
+    throw err;
+  }
   const updated = await collection.findOne({ _id });
   const row: ClientRow = {
     _id: String(updated!._id),
-    projectId: String(updated!.projectId ?? existing.projectId),
-    fullName: String(updated!.fullName ?? existing.fullName),
+    workspaceId: workspaceId || undefined,
+    projectId: String(updated!.projectId ?? (existing as Record<string, unknown>).projectId),
+    fullName: String(updated!.fullName ?? (existing as Record<string, unknown>).fullName),
     email: typeof updated!.email === "string" ? updated!.email : undefined,
     phone: typeof updated!.phone === "string" ? updated!.phone : undefined,
-    status: String(updated!.status ?? existing.status),
+    status: String(updated!.status ?? (existing as Record<string, unknown>).status),
     updatedAt: String(updated!.updatedAt),
     createdAt: updated!.createdAt ? String(updated!.createdAt) : undefined,
     city: typeof updated!.city === "string" ? updated!.city : undefined,
   };
-  const workspaceId = String(existing.workspaceId ?? "");
   return { client: row, workspaceId };
 };

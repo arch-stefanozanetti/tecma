@@ -97,6 +97,8 @@ vi.mock("./userAccessPayload.js", () => ({
 }));
 
 import {
+  exchangeSsoJwt,
+  loginWithCredentials,
   logoutWithRefreshToken,
   refreshAccessToken,
   requestPasswordReset,
@@ -117,6 +119,121 @@ describe("auth.service", () => {
     } as Partial<HttpError>);
   });
 
+  it("loginWithCredentials fails when user is missing", async () => {
+    usersFindOneMock.mockResolvedValueOnce(null);
+    bcryptCompareMock.mockResolvedValueOnce(false);
+
+    await expect(loginWithCredentials({ email: "x@test.com", password: "pw" })).rejects.toMatchObject({
+      statusCode: 401,
+    } as Partial<HttpError>);
+    expect(logAuthEventMock).toHaveBeenCalledWith(
+      "login_failed",
+      expect.objectContaining({ email: "x@test.com", success: false })
+    );
+  });
+
+  it("loginWithCredentials succeeds for active user", async () => {
+    const uid = new ObjectId("64b64f3fd9024a2a53111111");
+    usersFindOneMock.mockResolvedValueOnce({
+      _id: uid,
+      email: "user@test.com",
+      password: "hash",
+      isDisabled: false,
+      status: "active",
+    });
+    bcryptCompareMock.mockResolvedValueOnce(true);
+    buildAccessPayloadMock.mockResolvedValueOnce({
+      sub: uid.toHexString(),
+      email: "user@test.com",
+      role: "agent",
+      isAdmin: false,
+      permissions: ["apartments.read"],
+      projectId: "p1",
+    });
+    signAccessTokenMock.mockReturnValueOnce("jwt-access");
+    createSessionMock.mockResolvedValueOnce("refresh-token");
+    toAuthSessionUserMock.mockReturnValueOnce({ id: uid.toHexString(), email: "user@test.com" });
+
+    const result = await loginWithCredentials({ email: "user@test.com", password: "pw" });
+
+    expect(result.accessToken).toBe("jwt-access");
+    expect(result.refreshToken).toBe("refresh-token");
+    expect(logAuthEventMock).toHaveBeenCalledWith(
+      "login_success",
+      expect.objectContaining({ userId: uid.toHexString(), email: "user@test.com", success: true })
+    );
+  });
+
+  it("loginWithCredentials fails on wrong password for existing user", async () => {
+    usersFindOneMock.mockResolvedValueOnce({
+      _id: new ObjectId("64b64f3fd9024a2a53111111"),
+      email: "user@test.com",
+      password: "hash",
+      isDisabled: false,
+      status: "active",
+    });
+    bcryptCompareMock.mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+
+    await expect(loginWithCredentials({ email: "user@test.com", password: "wrong" })).rejects.toMatchObject({
+      statusCode: 401,
+    } as Partial<HttpError>);
+    expect(logAuthEventMock).toHaveBeenCalledWith(
+      "login_failed",
+      expect.objectContaining({ email: "user@test.com", success: false })
+    );
+  });
+
+  it("exchangeSsoJwt maps generic verification error to 401", async () => {
+    verifySsoJwtMock.mockRejectedValueOnce(new Error("boom"));
+    await expect(exchangeSsoJwt({ ssoJwt: "token" })).rejects.toMatchObject({ statusCode: 401 } as Partial<HttpError>);
+  });
+
+  it("exchangeSsoJwt returns 401 when payload has no email", async () => {
+    verifySsoJwtMock.mockResolvedValueOnce({ sub: "no-email" });
+    await expect(exchangeSsoJwt({ ssoJwt: "token" })).rejects.toMatchObject({ statusCode: 401 } as Partial<HttpError>);
+  });
+
+  it("exchangeSsoJwt returns 401 for disabled user", async () => {
+    verifySsoJwtMock.mockResolvedValueOnce({ email: "sso@test.com" });
+    usersFindOneMock.mockResolvedValueOnce({
+      _id: new ObjectId("64b64f3fd9024a2a53111111"),
+      email: "sso@test.com",
+      isDisabled: true,
+    });
+    await expect(exchangeSsoJwt({ ssoJwt: "token" })).rejects.toMatchObject({ statusCode: 401 } as Partial<HttpError>);
+  });
+
+  it("exchangeSsoJwt succeeds when SSO payload is valid", async () => {
+    const uid = new ObjectId("64b64f3fd9024a2a53111111");
+    verifySsoJwtMock.mockResolvedValueOnce({ email: "sso@test.com" });
+    usersFindOneMock.mockResolvedValueOnce({
+      _id: uid,
+      email: "sso@test.com",
+      isDisabled: false,
+      password: "hash",
+    });
+    buildAccessPayloadMock.mockResolvedValueOnce({
+      sub: uid.toHexString(),
+      email: "sso@test.com",
+      role: "agent",
+      isAdmin: false,
+      permissions: ["apartments.read"],
+      projectId: "p1",
+    });
+    signAccessTokenMock.mockReturnValueOnce("jwt-access");
+    createSessionMock.mockResolvedValueOnce("refresh-token");
+    toAuthSessionUserMock.mockReturnValueOnce({ id: uid.toHexString(), email: "sso@test.com" });
+
+    const result = await exchangeSsoJwt({ ssoJwt: "token" });
+
+    expect(result.accessToken).toBe("jwt-access");
+    expect(result.refreshToken).toBe("refresh-token");
+    expect(logAuthEventMock).toHaveBeenCalledWith(
+      "sso_exchange",
+      expect.objectContaining({ userId: uid.toHexString(), email: "sso@test.com", success: true })
+    );
+  });
+
   it("logoutWithRefreshToken logs event and deletes session when found", async () => {
     getSessionMock.mockResolvedValueOnce({ userId: "u1", email: "u@test.com" });
     deleteSessionMock.mockResolvedValueOnce(true);
@@ -127,6 +244,16 @@ describe("auth.service", () => {
       "logout",
       expect.objectContaining({ userId: "u1", email: "u@test.com", success: true })
     );
+    expect(deleteSessionMock).toHaveBeenCalledWith("rt-1");
+  });
+
+  it("logoutWithRefreshToken deletes session also when not found", async () => {
+    getSessionMock.mockResolvedValueOnce(null);
+    deleteSessionMock.mockResolvedValueOnce(false);
+
+    await logoutWithRefreshToken({ refreshToken: "rt-1" });
+
+    expect(logAuthEventMock).not.toHaveBeenCalledWith("logout", expect.anything());
     expect(deleteSessionMock).toHaveBeenCalledWith("rt-1");
   });
 
@@ -144,6 +271,55 @@ describe("auth.service", () => {
     expect(result).toEqual({ ok: true });
     expect(sendPasswordResetEmailMock).not.toHaveBeenCalled();
     expect(createPasswordResetTokenMock).not.toHaveBeenCalled();
+  });
+
+  it("requestPasswordReset sends email for active user", async () => {
+    usersFindOneMock.mockResolvedValueOnce({
+      _id: new ObjectId("64b64f3fd9024a2a53111111"),
+      email: "active@test.com",
+      status: "active",
+      password: "hash",
+      isDisabled: false,
+    });
+    createPasswordResetTokenMock.mockResolvedValueOnce("reset-token");
+    sendPasswordResetEmailMock.mockResolvedValueOnce(undefined);
+
+    const result = await requestPasswordReset({ email: "active@test.com" });
+
+    expect(result).toEqual({ ok: true });
+    expect(createPasswordResetTokenMock).toHaveBeenCalledTimes(1);
+    expect(sendPasswordResetEmailMock).toHaveBeenCalledWith({ to: "active@test.com", token: "reset-token" });
+  });
+
+  it("refreshAccessToken rejects and deletes session when user is disabled", async () => {
+    getSessionMock.mockResolvedValueOnce({ userId: "64b64f3fd9024a2a53111111", email: "u@test.com" });
+    usersFindOneMock.mockResolvedValueOnce({ _id: new ObjectId("64b64f3fd9024a2a53111111"), isDisabled: true });
+
+    await expect(refreshAccessToken({ refreshToken: "rt-1" })).rejects.toMatchObject({ statusCode: 401 } as Partial<HttpError>);
+    expect(deleteSessionMock).toHaveBeenCalledWith("rt-1");
+  });
+
+  it("refreshAccessToken rotates session on success", async () => {
+    const uid = new ObjectId("64b64f3fd9024a2a53111111");
+    getSessionMock.mockResolvedValueOnce({ userId: uid.toHexString(), email: "u@test.com" });
+    usersFindOneMock.mockResolvedValueOnce({ _id: uid, email: "u@test.com", isDisabled: false, password: "hash" });
+    buildAccessPayloadMock.mockResolvedValueOnce({
+      sub: uid.toHexString(),
+      email: "u@test.com",
+      role: "agent",
+      isAdmin: false,
+      permissions: ["apartments.read"],
+      projectId: "p1",
+    });
+    signAccessTokenMock.mockReturnValueOnce("jwt-next");
+    deleteSessionMock.mockResolvedValueOnce(true);
+    createSessionMock.mockResolvedValueOnce("rt-next");
+
+    const result = await refreshAccessToken({ refreshToken: "rt-old" });
+
+    expect(result.accessToken).toBe("jwt-next");
+    expect(result.refreshToken).toBe("rt-next");
+    expect(deleteSessionMock).toHaveBeenCalledWith("rt-old");
   });
 
   it("resetPasswordWithToken updates password and revokes sessions", async () => {
@@ -167,5 +343,24 @@ describe("auth.service", () => {
       { $set: { password: "hashed-password", status: "active" } }
     );
     expect(deleteSessionsByUserMock).toHaveBeenCalledWith("64b64f3fd9024a2a53111111");
+  });
+
+  it("resetPasswordWithToken rejects invalid consumed token", async () => {
+    consumePasswordResetTokenMock.mockResolvedValueOnce(null);
+    await expect(resetPasswordWithToken({ token: "bad", password: "verystrongpass" })).rejects.toMatchObject({
+      statusCode: 400,
+    } as Partial<HttpError>);
+  });
+
+  it("resetPasswordWithToken rejects when user does not exist", async () => {
+    consumePasswordResetTokenMock.mockResolvedValueOnce({
+      userId: "64b64f3fd9024a2a53111111",
+      email: "user@test.com",
+    });
+    usersFindOneMock.mockResolvedValueOnce(null);
+
+    await expect(resetPasswordWithToken({ token: "ok", password: "verystrongpass" })).rejects.toMatchObject({
+      statusCode: 400,
+    } as Partial<HttpError>);
   });
 });

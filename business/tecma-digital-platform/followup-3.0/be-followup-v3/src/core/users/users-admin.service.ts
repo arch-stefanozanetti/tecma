@@ -18,7 +18,7 @@ export interface UserWithVisibilityRow {
   /** _id tz_users quando presente */
   userId: string | null;
   email: string;
-  /** Ruolo globale da tz_users (admin, vendor, …) */
+  /** Ruolo globale derivato (owner, admin, collaborator, viewer) */
   role: string | null;
   isAdmin: boolean;
   /** Id progetti da tz_users.project_ids (legacy) */
@@ -30,6 +30,15 @@ export interface UserWithVisibilityRow {
 function normalizeEmail(v: unknown): string {
   if (typeof v === "string" && v.trim()) return v.trim().toLowerCase();
   return "";
+}
+
+/** Mappa ruolo da DB a ruolo spec (legacy vendor → collaborator, vendor_manager → admin). */
+function normalizeMembershipRole(r: string): string {
+  const lower = (r || "").toLowerCase().trim();
+  if (lower === "vendor") return "collaborator";
+  if (lower === "vendor_manager") return "admin";
+  if (["owner", "admin", "collaborator", "viewer"].includes(lower)) return lower;
+  return "collaborator";
 }
 
 /** Lista tutti gli utenti con visibilità e associazioni. Solo per admin. */
@@ -75,7 +84,8 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
   for (const m of membershipDocs as { userId?: unknown; workspaceId?: unknown; role?: unknown }[]) {
     const email = normalizeEmail(m.userId);
     const workspaceId = typeof m.workspaceId === "string" ? m.workspaceId : "";
-    const role = typeof m.role === "string" ? m.role : "vendor";
+    const rawRole = typeof m.role === "string" ? m.role : "collaborator";
+    const role = normalizeMembershipRole(rawRole);
     if (!email || !workspaceId) continue;
     const list = membershipsByUser.get(email) ?? [];
     list.push({ workspaceId, role });
@@ -85,11 +95,29 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
   const allEmails = new Set(emailsFromUsers);
   for (const e of membershipsByUser.keys()) allEmails.add(e);
 
+  const ROLE_ORDER: Record<string, number> = {
+    admin: 100,
+    owner: 95,
+    collaborator: 45,
+    viewer: 10
+  };
+  const maxRoleFromMemberships = (roles: string[]): string | null => {
+    let best: string | null = null;
+    let bestOrder = -1;
+    for (const r of roles) {
+      const key = (r || "").toLowerCase().trim();
+      const order = ROLE_ORDER[key] ?? 0;
+      if (order > bestOrder) {
+        bestOrder = order;
+        best = key || null;
+      }
+    }
+    return best;
+  };
+
   const users: UserWithVisibilityRow[] = [];
   for (const email of Array.from(allEmails).sort()) {
     const fromTzUsers = userByEmail.get(email);
-    const role = fromTzUsers?.role ?? null;
-    const isAdmin = role?.toLowerCase() === "admin";
     const projectIds = fromTzUsers?.projectIds ?? [];
     const userId = fromTzUsers?.userId ?? null;
     const memberships = (membershipsByUser.get(email) ?? []).map((m) => ({
@@ -97,6 +125,9 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
       workspaceName: workspaceNames.get(m.workspaceId) ?? m.workspaceId,
       role: m.role,
     }));
+    const wsRoles = memberships.map((m) => m.role);
+    const role = memberships.length > 0 ? maxRoleFromMemberships(wsRoles) : fromTzUsers?.role ?? null;
+    const isAdmin = role === "admin" || role === "owner";
     users.push({
       userId,
       email,

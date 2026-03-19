@@ -1,6 +1,11 @@
 import { Router } from "express";
 import { createProject } from "../../core/projects/projects.service.js";
 import {
+  listProjectAccess,
+  grantProjectAccess,
+  revokeProjectAccess,
+} from "../../core/projects/project-access.service.js";
+import {
   getProjectDetail,
   getProjectPolicies,
   putProjectPolicies,
@@ -22,10 +27,28 @@ import {
 import { handleAsync } from "../asyncHandler.js";
 import { getProjectContext } from "../requestContext.js";
 import { requireAdmin } from "../authMiddleware.js";
+import { requireCanAccessProject } from "../accessMiddleware.js";
 
 export const projectsRoutes = Router();
 
 projectsRoutes.post("/projects", requireAdmin, handleAsync((req) => createProject(req.body)));
+
+projectsRoutes.get("/projects/:projectId/access", requireCanAccessProject("workspaceId", "projectId"), handleAsync(async (req) => {
+  const projectId = req.params.projectId ?? "";
+  return listProjectAccess(projectId);
+}));
+projectsRoutes.post("/projects/:projectId/access", requireCanAccessProject("workspaceId", "projectId"), handleAsync(async (req) => {
+  const projectId = req.params.projectId ?? "";
+  const body = req.body as { workspaceId?: string; role?: "owner" | "collaborator" | "viewer" };
+  const workspaceId = body.workspaceId ?? "";
+  const role = body.role ?? "viewer";
+  return grantProjectAccess(projectId, workspaceId, role);
+}));
+projectsRoutes.delete("/projects/:projectId/access/:workspaceId", requireCanAccessProject("workspaceId", "projectId"), handleAsync(async (req) => {
+  const projectId = req.params.projectId ?? "";
+  const workspaceId = req.params.workspaceId ?? "";
+  return revokeProjectAccess(projectId, workspaceId);
+}));
 
 projectsRoutes.get("/projects/:projectId", handleAsync(async (req) => {
   const { projectId, workspaceId, isAdmin } = getProjectContext(req);

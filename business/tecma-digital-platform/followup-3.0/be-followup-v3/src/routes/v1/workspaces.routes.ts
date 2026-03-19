@@ -17,6 +17,8 @@ import {
   addWorkspaceUser,
   updateWorkspaceUser,
   removeWorkspaceUser,
+  type WorkspaceUserRole,
+  type AccessScope,
 } from "../../core/workspaces/workspace-users.service.js";
 import {
   listWorkspaceUserProjects,
@@ -29,7 +31,9 @@ import {
   assignEntity,
   unassignEntity,
 } from "../../core/workspaces/entity-assignments.service.js";
+import { getWorkspaceBranding, putWorkspaceBranding } from "../../core/workspaces/workspace-branding.service.js";
 import { requireAdmin } from "../authMiddleware.js";
+import { requireCanAccessWorkspace } from "../accessMiddleware.js";
 import { handleAsync } from "../asyncHandler.js";
 
 export const workspacesRoutes = Router();
@@ -45,12 +49,16 @@ workspacesRoutes.get("/workspaces", handleAsync(async (req) => {
 }));
 workspacesRoutes.get("/workspaces/:id/users", handleAsync(async (req) => listWorkspaceUsers(req.params.id)));
 workspacesRoutes.post("/workspaces/:id/users", requireAdmin, handleAsync(async (req) => {
-  const body = req.body as { userId?: string; role?: "vendor" | "vendor_manager" | "admin" };
-  return addWorkspaceUser(req.params.id, { userId: body.userId ?? "", role: body.role ?? "vendor" });
+  const body = req.body as { userId?: string; role?: WorkspaceUserRole; access_scope?: AccessScope };
+  return addWorkspaceUser(req.params.id, {
+    userId: body.userId ?? "",
+    role: body.role ?? "collaborator",
+    access_scope: body.access_scope,
+  });
 }));
 workspacesRoutes.patch("/workspaces/:id/users/:userId", requireAdmin, handleAsync(async (req) => {
   const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
-  return updateWorkspaceUser(req.params.id, userId, req.body as { role?: "vendor" | "vendor_manager" | "admin" });
+  return updateWorkspaceUser(req.params.id, userId, req.body as { role?: WorkspaceUserRole; access_scope?: AccessScope });
 }));
 workspacesRoutes.delete("/workspaces/:id/users/:userId", requireAdmin, handleAsync(async (req) => {
   const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
@@ -73,6 +81,10 @@ workspacesRoutes.delete("/workspaces/:id/users/:userId/projects/:projectId", req
 }));
 workspacesRoutes.get("/workspaces/:id/projects", handleAsync((req) =>
   listWorkspaceProjects(req.params.id).then((rows) => ({ data: rows }))
+));
+workspacesRoutes.get("/workspaces/:id/branding", requireCanAccessWorkspace("id"), handleAsync((req) => getWorkspaceBranding(req.params.id)));
+workspacesRoutes.patch("/workspaces/:id/branding", requireCanAccessWorkspace("id"), handleAsync((req) =>
+  putWorkspaceBranding(req.params.id, req.body).then((row) => ({ data: row }))
 ));
 workspacesRoutes.get("/workspaces/:workspaceId/price-availability", handleAsync(async (req) => {
   const workspaceId = req.params.workspaceId;

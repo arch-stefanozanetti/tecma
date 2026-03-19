@@ -33,6 +33,7 @@ import type {
   NotificationRow,
   PaginatedResponse,
   ProjectAccessResponse,
+  ProjectAccessRow,
   RequestRow,
   RequestTransitionRow,
   RequestActionRow,
@@ -49,7 +50,10 @@ import type {
   WorkspaceProjectRow,
   WorkspaceRow,
   WorkspaceUserRow,
+  AssetRow,
+  ClientDocumentRow,
   WorkspaceUserRole,
+  AccessScope,
   UserWithVisibilityRow,
   CustomerNeedRow,
   OpportunityRow,
@@ -421,11 +425,12 @@ export const followupApi = {
   /** Invito MDOO: crea utente invited + email set-password; richiede permesso users.invite. */
   inviteUser: (body: {
     email: string;
-    role: string;
     projectId: string;
     projectName?: string;
     /** Base FE per link invito; default = origine browser */
     appPublicUrl?: string;
+    /** Label ruolo per l'email (es. "Vendor", "Admin"); default "Membro" */
+    roleLabel?: string;
   }) =>
     postJson<{ userId: string }>("/users", {
       ...body,
@@ -439,6 +444,98 @@ export const followupApi = {
   deleteWorkspace: (id: string) => deleteJson<{ deleted: boolean }>(`/workspaces/${id}`),
   listWorkspaceProjects: (workspaceId: string) =>
     getJson<{ data: WorkspaceProjectRow[] }>(`/workspaces/${workspaceId}/projects`),
+  getAssetUploadUrl: (
+    workspaceId: string,
+    body: { type: "image" | "document" | "planimetry" | "branding"; name: string; mimeType: string; fileSize: number; projectId?: string; apartmentId?: string }
+  ) =>
+    postJson<{ uploadUrl: string; key: string; expiresAt: string }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/assets/upload-url`,
+      body
+    ),
+  uploadFileToPresignedUrl: async (uploadUrl: string, file: File): Promise<void> => {
+    const res = await fetch(uploadUrl, {
+      method: "PUT",
+      body: file,
+      headers: { "Content-Type": file.type || "application/octet-stream" },
+    });
+    if (!res.ok) throw new Error(`Upload fallito: ${res.status}`);
+  },
+  createAsset: (
+    workspaceId: string,
+    body: { key: string; type: "image" | "document" | "planimetry" | "branding"; name: string; mimeType: string; fileSize: number; projectId?: string; apartmentId?: string }
+  ) =>
+    postJson<{ data: AssetRow }>(`/workspaces/${encodeURIComponent(workspaceId)}/assets`, body),
+  listAssets: (
+    workspaceId: string,
+    params?: { projectId?: string; apartmentId?: string; type?: "image" | "document" | "planimetry" | "branding" }
+  ) => {
+    const q = new URLSearchParams();
+    if (params?.projectId) q.set("projectId", params.projectId);
+    if (params?.apartmentId) q.set("apartmentId", params.apartmentId);
+    if (params?.type) q.set("type", params.type);
+    const query = q.toString();
+    return getJson<{ data: AssetRow[] }>(`/workspaces/${encodeURIComponent(workspaceId)}/assets${query ? `?${query}` : ""}`);
+  },
+  getAssetDownloadUrl: (workspaceId: string, assetId: string) =>
+    getJson<{ downloadUrl: string; expiresAt: string }>(`/workspaces/${encodeURIComponent(workspaceId)}/assets/${encodeURIComponent(assetId)}/download-url`),
+  deleteAsset: (workspaceId: string, assetId: string) =>
+    deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/assets/${encodeURIComponent(assetId)}`),
+  getWorkspaceBranding: (workspaceId: string) =>
+    getJson<{
+      workspaceId: string;
+      logoAssetId?: string;
+      emailHeaderAssetId?: string;
+      logoDownloadUrl?: string;
+      emailHeaderDownloadUrl?: string;
+      updatedAt: string;
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/branding`),
+  putWorkspaceBranding: (workspaceId: string, body: { logoAssetId?: string; emailHeaderAssetId?: string }) =>
+    patchJson<{ data: { logoDownloadUrl?: string; emailHeaderDownloadUrl?: string; updatedAt: string } }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/branding`,
+      body
+    ),
+  getClientDocumentUploadUrl: (
+    workspaceId: string,
+    clientId: string,
+    body: { name: string; mimeType: string; fileSize: number; type: "proposta" | "contratto" | "altro"; projectId?: string }
+  ) =>
+    postJson<{ uploadUrl: string; key: string; expiresAt: string }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/clients/${encodeURIComponent(clientId)}/documents/upload-url`,
+      body
+    ),
+  createClientDocument: (
+    workspaceId: string,
+    clientId: string,
+    body: {
+      key: string;
+      name: string;
+      mimeType: string;
+      fileSize: number;
+      type: "proposta" | "contratto" | "altro";
+      visibility: "internal" | "client";
+      projectId?: string;
+    }
+  ) =>
+    postJson<{ data: ClientDocumentRow }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/clients/${encodeURIComponent(clientId)}/documents`,
+      body
+    ),
+  listClientDocuments: (workspaceId: string, clientId: string) =>
+    getJson<{ data: ClientDocumentRow[] }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/clients/${encodeURIComponent(clientId)}/documents`
+    ),
+  getClientDocumentDownloadUrl: (workspaceId: string, clientId: string, docId: string) =>
+    getJson<{ downloadUrl: string; expiresAt: string }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/clients/${encodeURIComponent(clientId)}/documents/${encodeURIComponent(docId)}/download-url`
+    ),
+  getClientDocumentShareLink: (workspaceId: string, clientId: string, docId: string) =>
+    getJson<{ downloadUrl: string; expiresAt: string }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/clients/${encodeURIComponent(clientId)}/documents/${encodeURIComponent(docId)}/share-link`
+    ),
+  deleteClientDocument: (workspaceId: string, clientId: string, docId: string) =>
+    deleteJson<{ deleted: boolean }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/clients/${encodeURIComponent(clientId)}/documents/${encodeURIComponent(docId)}`
+    ),
   associateProjectToWorkspace: (payload: { workspaceId: string; projectId: string }) =>
     postJson<{ workspaceId: string; projectId: string }>("/workspaces/projects/associate", payload),
   dissociateProjectFromWorkspace: (workspaceId: string, projectId: string) =>
@@ -447,9 +544,9 @@ export const followupApi = {
     getJson<{ data: AdditionalInfoRow[] }>(`/workspaces/${workspaceId}/additional-infos`),
   listWorkspaceUsers: (workspaceId: string) =>
     getJson<{ data: WorkspaceUserRow[] }>(`/workspaces/${workspaceId}/users`),
-  addWorkspaceUser: (workspaceId: string, payload: { userId: string; role: WorkspaceUserRole }) =>
+  addWorkspaceUser: (workspaceId: string, payload: { userId: string; role: WorkspaceUserRole; access_scope?: AccessScope }) =>
     postJson<{ workspaceUser: WorkspaceUserRow }>(`/workspaces/${workspaceId}/users`, payload),
-  updateWorkspaceUser: (workspaceId: string, userId: string, payload: { role?: WorkspaceUserRole }) =>
+  updateWorkspaceUser: (workspaceId: string, userId: string, payload: { role?: WorkspaceUserRole; access_scope?: AccessScope }) =>
     patchJson<{ workspaceUser: WorkspaceUserRow }>(`/workspaces/${workspaceId}/users/${encodeURIComponent(userId)}`, payload),
   removeWorkspaceUser: (workspaceId: string, userId: string) =>
     deleteJson<{ deleted: boolean }>(`/workspaces/${workspaceId}/users/${encodeURIComponent(userId)}`),
@@ -463,6 +560,21 @@ export const followupApi = {
   removeWorkspaceUserProject: (workspaceId: string, userId: string, projectId: string) =>
     deleteJson<{ deleted: boolean }>(
       `/workspaces/${workspaceId}/users/${encodeURIComponent(userId)}/projects/${encodeURIComponent(projectId)}`
+    ),
+  listProjectAccess: (projectId: string, workspaceId: string) =>
+    getJson<{ data: ProjectAccessRow[] }>(`/projects/${encodeURIComponent(projectId)}/access?workspaceId=${encodeURIComponent(workspaceId)}`),
+  grantProjectAccess: (
+    projectId: string,
+    payload: { workspaceId: string; role: "owner" | "collaborator" | "viewer" },
+    currentWorkspaceId?: string
+  ) =>
+    postJson<ProjectAccessRow>(
+      `/projects/${encodeURIComponent(projectId)}/access${currentWorkspaceId ? `?workspaceId=${encodeURIComponent(currentWorkspaceId)}` : ""}`,
+      payload
+    ),
+  revokeProjectAccess: (projectId: string, workspaceId: string, currentWorkspaceId?: string) =>
+    deleteJson<{ deleted: boolean }>(
+      `/projects/${encodeURIComponent(projectId)}/access/${encodeURIComponent(workspaceId)}${currentWorkspaceId ? `?workspaceId=${encodeURIComponent(currentWorkspaceId)}` : ""}`
     ),
   listEntityAssignments: (workspaceId: string, entityType: "client" | "apartment", entityId: string) =>
     getJson<{

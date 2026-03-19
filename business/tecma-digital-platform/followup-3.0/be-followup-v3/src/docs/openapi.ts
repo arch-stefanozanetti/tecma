@@ -20,6 +20,7 @@ export const openApiV1 = {
     { name: "requests", description: "Trattative rent/sell, transizioni, azioni" },
     { name: "calendar", description: "Eventi calendario" },
     { name: "workspaces", description: "Workspace e progetti associati" },
+    { name: "assets", description: "Asset workspace (immagini progetto, planimetrie, upload signed URL)" },
     { name: "projects", description: "Configurazione progetti (policies, email, PDF)" },
     { name: "audit", description: "Log audit e eventi per entità" },
     { name: "reports", description: "Report pipeline, clienti, appartamenti" },
@@ -977,6 +978,128 @@ export const openApiV1 = {
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
         responses: { "200": { description: "Lista progetti del workspace" } }
+      }
+    },
+    "/workspaces/{workspaceId}/assets/upload-url": {
+      post: {
+        tags: ["assets"],
+        operationId: "getAssetUploadUrl",
+        summary: "Ottieni URL presigned per upload diretto su storage",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "workspaceId", in: "path", required: true, schema: { type: "string" }, description: "ID workspace" }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["type", "name", "mimeType", "fileSize"],
+                properties: {
+                  type: { type: "string", enum: ["image", "document", "planimetry", "branding"], description: "Tipo asset" },
+                  name: { type: "string", description: "Nome file originale" },
+                  mimeType: { type: "string", description: "MIME type" },
+                  fileSize: { type: "integer", minimum: 0, description: "Dimensione in bytes" },
+                  projectId: { type: "string", description: "ID progetto (opzionale)" },
+                  apartmentId: { type: "string", description: "ID appartamento (opzionale)" }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          "200": { description: "uploadUrl, key, expiresAt (PUT file su uploadUrl poi POST /workspaces/:id/assets con key)" },
+          "400": { description: "Validazione o file troppo grande" },
+          "401": { description: "Non autenticato" },
+          "403": { description: "Accesso workspace non consentito" }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/assets": {
+      post: {
+        tags: ["assets"],
+        operationId: "createAsset",
+        summary: "Conferma upload e salva metadata asset in Mongo",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "workspaceId", in: "path", required: true, schema: { type: "string" }, description: "ID workspace" }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["key", "type", "name", "mimeType", "fileSize"],
+                properties: {
+                  key: { type: "string", description: "Key S3 restituita da upload-url" },
+                  type: { type: "string", enum: ["image", "document", "planimetry", "branding"] },
+                  name: { type: "string" },
+                  mimeType: { type: "string" },
+                  fileSize: { type: "integer", minimum: 0 },
+                  projectId: { type: "string" },
+                  apartmentId: { type: "string" }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          "200": { description: "data: asset creato" },
+          "400": { description: "Validazione" },
+          "401": { description: "Non autenticato" },
+          "403": { description: "Accesso workspace non consentito" }
+        }
+      },
+      get: {
+        tags: ["assets"],
+        operationId: "listAssets",
+        summary: "Lista asset del workspace (filtri: projectId, apartmentId, type)",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "workspaceId", in: "path", required: true, schema: { type: "string" }, description: "ID workspace" },
+          { name: "projectId", in: "query", schema: { type: "string" }, description: "Filtra per progetto" },
+          { name: "apartmentId", in: "query", schema: { type: "string" }, description: "Filtra per appartamento" },
+          { name: "type", in: "query", schema: { type: "string", enum: ["image", "document", "planimetry", "branding"] }, description: "Filtra per tipo" }
+        ],
+        responses: {
+          "200": { description: "data: array di asset" },
+          "401": { description: "Non autenticato" },
+          "403": { description: "Accesso workspace non consentito" }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/assets/{assetId}/download-url": {
+      get: {
+        tags: ["assets"],
+        operationId: "getAssetDownloadUrl",
+        summary: "URL presigned per download (scadenza 1h)",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "workspaceId", in: "path", required: true, schema: { type: "string" } },
+          { name: "assetId", in: "path", required: true, schema: { type: "string" } }
+        ],
+        responses: {
+          "200": { description: "downloadUrl, expiresAt" },
+          "401": { description: "Non autenticato" },
+          "403": { description: "Accesso non consentito" },
+          "404": { description: "Asset non trovato" }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/assets/{assetId}": {
+      delete: {
+        tags: ["assets"],
+        operationId: "deleteAsset",
+        summary: "Elimina asset (Mongo + storage)",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "workspaceId", in: "path", required: true, schema: { type: "string" } },
+          { name: "assetId", in: "path", required: true, schema: { type: "string" } }
+        ],
+        responses: {
+          "200": { description: "deleted: true" },
+          "401": { description: "Non autenticato" },
+          "403": { description: "Accesso non consentito" },
+          "404": { description: "Asset non trovato" }
+        }
       }
     },
     "/clients/{id}": {

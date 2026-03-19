@@ -272,10 +272,10 @@ describe("integration: auth HTTP routes", () => {
     resetEmailMockOutbox();
     await inviteUser({
       email: "double-token@test.local",
-      role: "vendor",
       projectId: "proj-auth-1",
       projectName: "P",
-      appPublicBaseUrl: "http://localhost:5177"
+      appPublicBaseUrl: "http://localhost:5177",
+      roleLabel: "Vendor"
     });
     const html = getEmailMockOutbox()[0].html;
     const m = html.match(/token=([a-f0-9]+)/i);

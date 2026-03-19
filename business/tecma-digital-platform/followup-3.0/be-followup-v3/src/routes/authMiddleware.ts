@@ -24,7 +24,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 }
 
 /**
- * Middleware that requires req.user.isAdmin === true.
+ * Middleware that requires req.user.isAdmin === true (legacy: permission-based admin).
  * Must be used after requireAuth.
  */
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
@@ -36,6 +36,24 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
     req.user.isAdmin === true || (Array.isArray(req.user.permissions) && req.user.permissions.includes("*"));
   if (!isPrivileged) {
     sendError(res, new HttpError("Admin role required", 403));
+    return;
+  }
+  next();
+}
+
+/**
+ * Middleware that requires TECMA global admin (system_role === "tecma_admin").
+ * Use for operations that only TECMA can perform (e.g. create workspace, list all workspaces).
+ * Must be used after requireAuth.
+ */
+export function requireTecmaAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (!req.user) {
+    sendError(res, new HttpError("Unauthorized", 401));
+    return;
+  }
+  const isTecma = req.user.system_role === "tecma_admin" || req.user.isTecmaAdmin === true;
+  if (!isTecma) {
+    sendError(res, new HttpError("TECMA admin required", 403));
     return;
   }
   next();

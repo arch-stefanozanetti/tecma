@@ -96,9 +96,9 @@ describe("UsersPage — invito utente", () => {
       expect(followupApi.inviteUser).toHaveBeenCalledWith(
         expect.objectContaining({
           email: "brandnew@invite.test",
-          role: "vendor",
           projectId: "proj-x",
           projectName: "Progetto X",
+          roleLabel: "Vendor",
         })
       );
     });

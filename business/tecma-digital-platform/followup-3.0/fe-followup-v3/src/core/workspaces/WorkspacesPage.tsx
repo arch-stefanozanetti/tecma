@@ -4,7 +4,7 @@
  */
 import { useEffect, useState } from "react";
 import { followupApi } from "../../api/followupApi";
-import type { WorkspaceRow, WorkspaceProjectRow, ProjectAccessProject, WorkspaceUserRow, WorkspaceUserRole } from "../../types/domain";
+import type { WorkspaceRow, WorkspaceProjectRow, ProjectAccessProject, WorkspaceUserRow, WorkspaceUserRole, AccessScope } from "../../types/domain";
 import { useWorkspace } from "../../auth/projectScope";
 import { useToast } from "../../contexts/ToastContext";
 import { Button } from "../../components/ui/button";
@@ -28,7 +28,8 @@ import {
 } from "../../components/ui/select";
 import { cn } from "../../lib/utils";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, Trash2, Link2, Unlink, ChevronDown, Settings, Users, UserPlus } from "lucide-react";
+import { Plus, Pencil, Trash2, Link2, Unlink, ChevronDown, Settings, Users, UserPlus, ImagePlus, Loader2 } from "lucide-react";
+import { FileUpload } from "../../components/ui/file-upload";
 
 /* ─── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -123,7 +124,7 @@ const emptyProjectForm = (): ProjectForm => ({
 export const WorkspacesPage = () => {
   const navigate = useNavigate();
   const { email } = useWorkspace();
-  const { toastError } = useToast();
+  const { toastError, toastSuccess } = useToast();
 
   const [workspaces, setWorkspaces] = useState<WorkspaceRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,6 +138,17 @@ export const WorkspacesPage = () => {
   const [wsDrawerOpen, setWsDrawerOpen] = useState(false);
   const [wsDrawerMode, setWsDrawerMode] = useState<"create" | "edit">("create");
   const [wsFormName, setWsFormName] = useState("");
+  const [workspaceBranding, setWorkspaceBranding] = useState<{
+    logoDownloadUrl?: string;
+    emailHeaderDownloadUrl?: string;
+    logoAssetId?: string;
+    emailHeaderAssetId?: string;
+    updatedAt: string;
+  } | null>(null);
+  const [brandingLoading, setBrandingLoading] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [emailHeaderUploading, setEmailHeaderUploading] = useState(false);
+  const [secBranding, setSecBranding] = useState(true);
 
   /* drawer progetto */
   const [projDrawerOpen, setProjDrawerOpen] = useState(false);
@@ -157,7 +169,8 @@ export const WorkspacesPage = () => {
   const [workspaceUsers, setWorkspaceUsers] = useState<WorkspaceUserRow[]>([]);
   const [userDrawerOpen, setUserDrawerOpen] = useState(false);
   const [userFormEmail, setUserFormEmail] = useState("");
-  const [userFormRole, setUserFormRole] = useState<WorkspaceUserRole>("vendor");
+  const [userFormRole, setUserFormRole] = useState<WorkspaceUserRole>("collaborator");
+  const [userFormAccessScope, setUserFormAccessScope] = useState<AccessScope>("all");
   const [userFormProjectIds, setUserFormProjectIds] = useState<string[]>([]);
 
   useEffect(() => {
@@ -241,6 +254,106 @@ export const WorkspacesPage = () => {
       toastError(e instanceof Error ? e.message : "Errore salvataggio workspace");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const loadWorkspaceBranding = async (workspaceId: string) => {
+    setBrandingLoading(true);
+    try {
+      const b = await followupApi.getWorkspaceBranding(workspaceId);
+      setWorkspaceBranding(b);
+    } catch {
+      setWorkspaceBranding(null);
+    } finally {
+      setBrandingLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (wsDrawerOpen && wsDrawerMode === "edit" && selectedWs?._id) {
+      void loadWorkspaceBranding(selectedWs._id);
+    } else {
+      setWorkspaceBranding(null);
+    }
+  }, [wsDrawerOpen, wsDrawerMode, selectedWs?._id]);
+
+  const handleUploadLogo = async (files: FileList | null) => {
+    if (!files?.length || !selectedWs?._id) return;
+    setLogoUploading(true);
+    try {
+      const file = files[0];
+      const { uploadUrl, key } = await followupApi.getAssetUploadUrl(selectedWs._id, {
+        type: "branding",
+        name: file.name,
+        mimeType: file.type || "image/png",
+        fileSize: file.size,
+      });
+      await followupApi.uploadFileToPresignedUrl(uploadUrl, file);
+      const created = await followupApi.createAsset(selectedWs._id, {
+        key,
+        type: "branding",
+        name: file.name,
+        mimeType: file.type || "image/png",
+        fileSize: file.size,
+      });
+      await followupApi.putWorkspaceBranding(selectedWs._id, { logoAssetId: created.data._id });
+      toastSuccess("Logo aggiornato");
+      void loadWorkspaceBranding(selectedWs._id);
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : "Errore upload logo");
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const handleUploadEmailHeader = async (files: FileList | null) => {
+    if (!files?.length || !selectedWs?._id) return;
+    setEmailHeaderUploading(true);
+    try {
+      const file = files[0];
+      const { uploadUrl, key } = await followupApi.getAssetUploadUrl(selectedWs._id, {
+        type: "branding",
+        name: file.name,
+        mimeType: file.type || "image/png",
+        fileSize: file.size,
+      });
+      await followupApi.uploadFileToPresignedUrl(uploadUrl, file);
+      const created = await followupApi.createAsset(selectedWs._id, {
+        key,
+        type: "branding",
+        name: file.name,
+        mimeType: file.type || "image/png",
+        fileSize: file.size,
+      });
+      await followupApi.putWorkspaceBranding(selectedWs._id, { emailHeaderAssetId: created.data._id });
+      toastSuccess("Email header aggiornato");
+      void loadWorkspaceBranding(selectedWs._id);
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : "Errore upload email header");
+    } finally {
+      setEmailHeaderUploading(false);
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    if (!selectedWs?._id) return;
+    try {
+      await followupApi.putWorkspaceBranding(selectedWs._id, { logoAssetId: "" });
+      toastSuccess("Logo rimosso");
+      void loadWorkspaceBranding(selectedWs._id);
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : "Errore rimozione logo");
+    }
+  };
+
+  const handleRemoveEmailHeader = async () => {
+    if (!selectedWs?._id) return;
+    try {
+      await followupApi.putWorkspaceBranding(selectedWs._id, { emailHeaderAssetId: "" });
+      toastSuccess("Email header rimosso");
+      void loadWorkspaceBranding(selectedWs._id);
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : "Errore rimozione email header");
     }
   };
 
@@ -336,7 +449,8 @@ export const WorkspacesPage = () => {
 
   const openAddUser = () => {
     setUserFormEmail("");
-    setUserFormRole("vendor");
+    setUserFormRole("collaborator");
+    setUserFormAccessScope("all");
     setUserFormProjectIds([]);
     setUserDrawerOpen(true);
   };
@@ -350,7 +464,11 @@ export const WorkspacesPage = () => {
     }
     setSaving(true);
     try {
-      await followupApi.addWorkspaceUser(selectedWs._id, { userId: email, role: userFormRole });
+      await followupApi.addWorkspaceUser(selectedWs._id, {
+        userId: email,
+        role: userFormRole,
+        access_scope: userFormAccessScope,
+      });
       if (userFormProjectIds.length > 0) {
         for (const projectId of userFormProjectIds) {
           await followupApi.addWorkspaceUserProject(selectedWs._id, email, projectId);
@@ -514,10 +632,18 @@ export const WorkspacesPage = () => {
                                   disabled={saving}
                                   className="h-7 rounded border border-border bg-background px-2 text-xs"
                                 >
+                                  <option value="owner">Owner</option>
+                                  <option value="admin">Admin</option>
+                                  <option value="collaborator">Collaborator</option>
+                                  <option value="viewer">Viewer</option>
                                   <option value="vendor">Vendor</option>
                                   <option value="vendor_manager">Vendor Manager</option>
-                                  <option value="admin">Admin</option>
                                 </select>
+                                {wu.access_scope != null && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {wu.access_scope === "assigned" ? "Solo assegnati" : "Tutto"}
+                                  </span>
+                                )}
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -672,6 +798,89 @@ export const WorkspacesPage = () => {
                 autoFocus
               />
             </Field>
+
+            {wsDrawerMode === "edit" && selectedWs && (
+              <div className="space-y-3 pt-2 border-t border-border">
+                <SectionTitle label="Branding (logo e email)" open={secBranding} onToggle={() => setSecBranding(!secBranding)} />
+                {secBranding && (
+                  <div className="space-y-4">
+                    {brandingLoading ? (
+                      <p className="text-sm text-muted-foreground flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Caricamento…
+                      </p>
+                    ) : (
+                      <>
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground">Logo workspace</p>
+                          {workspaceBranding?.logoDownloadUrl ? (
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={workspaceBranding.logoDownloadUrl}
+                                alt="Logo"
+                                className="h-12 object-contain border border-border rounded"
+                              />
+                              <div className="flex flex-wrap gap-2">
+                                <FileUpload
+                                  title={logoUploading ? "Caricamento…" : "Sostituisci"}
+                                  onFilesSelected={handleUploadLogo}
+                                  accept="image/jpeg,image/png,image/webp,image/gif"
+                                  disabled={logoUploading}
+                                />
+                                <Button variant="ghost" size="sm" onClick={handleRemoveLogo} disabled={logoUploading}>
+                                  Rimuovi
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <FileUpload
+                              title={logoUploading ? "Caricamento…" : "Carica logo"}
+                              subtitle="Per email e comunicazioni"
+                              onFilesSelected={handleUploadLogo}
+                              accept="image/jpeg,image/png,image/webp,image/gif"
+                              disabled={logoUploading}
+                            />
+                          )}
+                          {logoUploading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground">Header email</p>
+                          {workspaceBranding?.emailHeaderDownloadUrl ? (
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={workspaceBranding.emailHeaderDownloadUrl}
+                                alt="Header email"
+                                className="max-h-14 object-contain border border-border rounded"
+                              />
+                              <div className="flex flex-wrap gap-2">
+                                <FileUpload
+                                  title={emailHeaderUploading ? "Caricamento…" : "Sostituisci"}
+                                  onFilesSelected={handleUploadEmailHeader}
+                                  accept="image/jpeg,image/png,image/webp,image/gif"
+                                  disabled={emailHeaderUploading}
+                                />
+                                <Button variant="ghost" size="sm" onClick={handleRemoveEmailHeader} disabled={emailHeaderUploading}>
+                                  Rimuovi
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <FileUpload
+                              title={emailHeaderUploading ? "Caricamento…" : "Carica header email"}
+                              subtitle="Immagine in testa alle email"
+                              onFilesSelected={handleUploadEmailHeader}
+                              accept="image/jpeg,image/png,image/webp,image/gif"
+                              disabled={emailHeaderUploading}
+                            />
+                          )}
+                          {emailHeaderUploading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </DrawerBody>
           <DrawerFooter>
             <Button onClick={handleSaveWs} disabled={!wsFormName.trim() || saving} className="w-full">
@@ -879,7 +1088,7 @@ export const WorkspacesPage = () => {
           <DrawerHeader actions={<DrawerCloseButton />}>
             <DrawerTitle>Aggiungi utente</DrawerTitle>
             <DrawerSubtitle>
-              Aggiungi un utente al workspace con un ruolo (vendor, vendor_manager, admin).
+              Aggiungi un utente al workspace con ruolo e tipo di accesso (Tutto / Solo assegnati).
             </DrawerSubtitle>
           </DrawerHeader>
           <DrawerBody className="space-y-5">
@@ -902,11 +1111,40 @@ export const WorkspacesPage = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="owner">Owner</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="collaborator">Collaborator</SelectItem>
+                  <SelectItem value="viewer">Viewer</SelectItem>
                   <SelectItem value="vendor">Vendor</SelectItem>
                   <SelectItem value="vendor_manager">Vendor Manager</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
               </Select>
+            </Field>
+            <Field label="Accesso" hint="Tutto = vede tutto il workspace; Solo assegnati = solo elementi assegnati.">
+              <div className="flex gap-4 items-center">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="radio"
+                    name="access_scope"
+                    checked={userFormAccessScope === "all"}
+                    onChange={() => setUserFormAccessScope("all")}
+                    disabled={saving}
+                    className="rounded-full border-border accent-primary"
+                  />
+                  Tutto
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="radio"
+                    name="access_scope"
+                    checked={userFormAccessScope === "assigned"}
+                    onChange={() => setUserFormAccessScope("assigned")}
+                    disabled={saving}
+                    className="rounded-full border-border accent-primary"
+                  />
+                  Solo assegnati
+                </label>
+              </div>
             </Field>
             {selectedWs && projects.length > 0 && (
               <div className="space-y-2">

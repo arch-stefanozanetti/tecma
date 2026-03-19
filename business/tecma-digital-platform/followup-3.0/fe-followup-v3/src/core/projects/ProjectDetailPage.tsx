@@ -25,7 +25,14 @@ import {
   ToggleLeft,
   Save,
   Palette,
+  Users,
+  UserPlus,
+  LayoutDashboard,
+  SlidersHorizontal,
 } from "lucide-react";
+import { ProjectOverviewTab } from "./ProjectOverviewTab";
+import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import type { ProjectAccessRow } from "../../types/domain";
 import {
   Select,
   SelectContent,
@@ -126,6 +133,12 @@ export const ProjectDetailPage = () => {
   const [secEmail, setSecEmail] = useState(false);
   const [secTechnica, setSecTechnica] = useState(false);
   const [secPdf, setSecPdf] = useState(false);
+  const [activeTab, setActiveTab] = useState<"overview" | "impostazioni">("overview");
+  const [secAccess, setSecAccess] = useState(true);
+  const [projectAccessList, setProjectAccessList] = useState<ProjectAccessRow[]>([]);
+  const [partnerWorkspaceId, setPartnerWorkspaceId] = useState("");
+  const [partnerRole, setPartnerRole] = useState<"collaborator" | "viewer">("viewer");
+  const [savingAccess, setSavingAccess] = useState(false);
 
   const wsId = workspaceId || "";
   const pid = projectId || "";
@@ -135,13 +148,14 @@ export const ProjectDetailPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const [proj, pol, branding, cfg, etList, pdfList] = await Promise.all([
+      const [proj, pol, branding, cfg, etList, pdfList, accessRes] = await Promise.all([
         followupApi.getProjectDetail(pid, wsId),
         followupApi.getProjectPolicies(pid, wsId).catch(() => null),
         followupApi.getProjectBranding(pid, wsId).catch(() => null),
         followupApi.getProjectEmailConfig(pid, wsId).catch(() => null),
         followupApi.listProjectEmailTemplates(pid, wsId).catch(() => []),
         followupApi.listProjectPdfTemplates(pid, wsId).catch(() => []),
+        followupApi.listProjectAccess(pid, wsId).catch(() => ({ data: [] })),
       ]);
       setProject(proj);
       setIdentityDraft({
@@ -183,6 +197,7 @@ export const ProjectDetailPage = () => {
       });
       setEmailTemplates(Array.isArray(etList) ? etList : []);
       setPdfTemplates(Array.isArray(pdfList) ? pdfList : []);
+      setProjectAccessList(accessRes?.data ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Errore caricamento");
     } finally {
@@ -282,6 +297,33 @@ export const ProjectDetailPage = () => {
 
   const goBack = () => navigate(wsId ? `/?section=projects` : "/?section=projects");
 
+  const handleGrantProjectAccess = async () => {
+    if (!pid || !partnerWorkspaceId.trim()) return;
+    setSavingAccess(true);
+    try {
+      await followupApi.grantProjectAccess(pid, { workspaceId: partnerWorkspaceId.trim(), role: partnerRole }, wsId);
+      setPartnerWorkspaceId("");
+      void loadAll();
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : "Errore invito partner");
+    } finally {
+      setSavingAccess(false);
+    }
+  };
+
+  const handleRevokeProjectAccess = async (workspaceIdToRevoke: string) => {
+    if (!pid || !window.confirm("Rimuovere l'accesso di questo workspace al progetto?")) return;
+    setSavingAccess(true);
+    try {
+      await followupApi.revokeProjectAccess(pid, workspaceIdToRevoke, wsId);
+      void loadAll();
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : "Errore rimozione accesso");
+    } finally {
+      setSavingAccess(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-full bg-app px-5 py-10 lg:px-20">
@@ -329,7 +371,30 @@ export const ProjectDetailPage = () => {
           </div>
         </div>
 
-        <div className="mt-6 max-w-2xl space-y-0">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "overview" | "impostazioni")} className="mt-6">
+          <TabsList className="mb-4">
+            <TabsTrigger value="overview" className="gap-2">
+              <LayoutDashboard className="h-4 w-4" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="impostazioni" className="gap-2">
+              <SlidersHorizontal className="h-4 w-4" />
+              Impostazioni
+            </TabsTrigger>
+          </TabsList>
+
+          {activeTab === "overview" && (
+            <ProjectOverviewTab
+              projectId={pid}
+              workspaceId={wsId}
+              projectName={project.displayName || project.name}
+              projectMode={project.mode}
+              onRefresh={loadAll}
+            />
+          )}
+
+          {activeTab === "impostazioni" && (
+        <div className="max-w-2xl space-y-0">
 
           {/* ── Identità ─── */}
           <section>
@@ -380,6 +445,73 @@ export const ProjectDetailPage = () => {
                   <Save className="h-3.5 w-3.5" />
                   {savingIdentity ? "Salvataggio…" : "Salva identità"}
                 </Button>
+              </div>
+            )}
+          </section>
+
+          {/* ── Chi ha accesso ─── */}
+          <section>
+            <SectionTitle
+              label="Chi ha accesso"
+              icon={<Users className="h-4 w-4 text-muted-foreground" />}
+              open={secAccess}
+              onToggle={() => setSecAccess(!secAccess)}
+            />
+            {secAccess && (
+              <div className="mt-4 space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Workspace e ruoli con accesso al progetto. Owner = workspace proprietario.
+                </p>
+                {projectAccessList.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nessun accesso oltre al proprietario.</p>
+                ) : (
+                  <ul className="rounded-md border border-border divide-y divide-border">
+                    {projectAccessList.map((pa) => (
+                      <li key={pa._id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                        <span className="font-mono text-muted-foreground truncate flex-1">{pa.workspaceId}</span>
+                        <span className="capitalize shrink-0">{pa.role}</span>
+                        {pa.role !== "owner" ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 shrink-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleRevokeProjectAccess(pa.workspaceId)}
+                            disabled={savingAccess}
+                          >
+                            Rimuovi
+                          </Button>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="flex flex-wrap items-end gap-2 pt-2 border-t border-border">
+                  <span className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                    <UserPlus className="h-3.5 w-3.5" />
+                    Invita partner (workspace)
+                  </span>
+                  <Input
+                    placeholder="ID workspace partner"
+                    value={partnerWorkspaceId}
+                    onChange={(e) => setPartnerWorkspaceId(e.target.value)}
+                    className="h-9 max-w-[200px] font-mono text-sm"
+                  />
+                  <select
+                    value={partnerRole}
+                    onChange={(e) => setPartnerRole(e.target.value as "collaborator" | "viewer")}
+                    className="h-9 rounded border border-border bg-background px-2 text-sm"
+                  >
+                    <option value="viewer">Viewer</option>
+                    <option value="collaborator">Collaborator</option>
+                  </select>
+                  <Button
+                    size="sm"
+                    onClick={handleGrantProjectAccess}
+                    disabled={savingAccess || !partnerWorkspaceId.trim()}
+                  >
+                    {savingAccess ? "Invito…" : "Aggiungi"}
+                  </Button>
+                </div>
               </div>
             )}
           </section>
@@ -652,6 +784,8 @@ export const ProjectDetailPage = () => {
             </div>
           </section>
         </div>
+          )}
+        </Tabs>
       </div>
     </div>
   );

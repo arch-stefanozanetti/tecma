@@ -86,11 +86,12 @@ const MOCK_INVITE_OK = () => process.env.INVITE_ALLOW_MOCK_EMAIL === "true";
 
 export async function inviteUser(params: {
   email: string;
-  role: string;
   projectId: string;
   projectName: string;
   /** URL base del FE per il link nell'email (es. da Origin) */
   appPublicBaseUrl: string;
+  /** Label ruolo per l'email (es. "Vendor", "Admin"); default "Membro" */
+  roleLabel?: string;
 }): Promise<{ userId: string }> {
   const email = normalizeEmail(params.email);
   if (await emailExistsInAnyUserCollection(email)) {
@@ -104,22 +105,21 @@ export async function inviteUser(params: {
       503
     );
   }
+  const roleLabel = params.roleLabel ?? "Membro";
   const _id = new ObjectId();
   await usersColl().insertOne({
     _id,
     email,
-    role: params.role,
     status: "invited",
     project_ids: [params.projectId],
     email_verified: false
   });
   const rawToken = await createInviteToken({
     email,
-    role: params.role,
+    role: roleLabel,
     projectId: params.projectId,
     userId: _id.toHexString()
   });
-  const roleLabel = params.role;
   try {
     await sendInviteEmail({
       to: email,

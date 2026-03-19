@@ -4,7 +4,10 @@ import { HttpError } from "../../types/http.js";
 const COLLECTION_WORKSPACE_PROJECTS = "tz_workspace_projects";
 const LEGACY_WORKSPACES = ["dev-1", "demo", "prod"];
 
-/** Verifica che il progetto sia associato al workspace. Se isAdmin o workspace legacy, bypass. */
+/**
+ * Verifica che il progetto sia associato al workspace. Se isAdmin o workspace legacy, bypass.
+ * Per nuovo codice preferire il middleware requireCanAccessProject (canAccess centralizzato).
+ */
 export const ensureProjectInWorkspace = async (
   projectId: string,
   workspaceId: string,

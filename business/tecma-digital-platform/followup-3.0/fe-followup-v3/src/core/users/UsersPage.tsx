@@ -19,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
-import { RadioGroup, Radio } from "../../components/ui/radio-group";
 
 interface WorkspaceProjectOption {
   projectId: string;
@@ -60,7 +59,6 @@ export const UsersPage = () => {
   const [addUserError, setAddUserError] = useState<string | null>(null);
   /** invite = nuovo utente con email set-password; existing = solo membership workspace */
   const [addUserMode, setAddUserMode] = useState<"invite" | "existing">("invite");
-  const [inviteGlobalRole, setInviteGlobalRole] = useState<"vendor" | "agent" | "admin">("vendor");
   const [workspaceProjectsForInvite, setWorkspaceProjectsForInvite] = useState<
     Array<{ projectId: string; displayName?: string; name?: string }>
   >([]);
@@ -91,7 +89,6 @@ export const UsersPage = () => {
       setAddUserWorkspaceId("");
       setAddUserRole("vendor");
       setAddUserMode("invite");
-      setInviteGlobalRole("vendor");
       setWorkspaceProjectsForInvite([]);
       setInviteProjectId("");
       followupApi.listWorkspaces().then((list) => setWorkspaces(Array.isArray(list) ? list : [])).catch(() => setWorkspaces([]));
@@ -280,7 +277,6 @@ export const UsersPage = () => {
             setAddUserWorkspaceId("");
             setAddUserRole("vendor");
             setAddUserMode("invite");
-            setInviteGlobalRole("vendor");
             setWorkspaceProjectsForInvite([]);
             setInviteProjectId("");
             followupApi.listWorkspaces().then((list) => setWorkspaces(Array.isArray(list) ? list : [])).catch(() => setWorkspaces([]));
@@ -300,61 +296,37 @@ export const UsersPage = () => {
       ) : users.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nessun utente trovato.</p>
       ) : (
-        <div className="rounded-lg border border-border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 border-b border-border">
-              <tr>
-                <th className="text-left font-semibold p-3">Email</th>
-                <th className="text-left font-semibold p-3">Ruolo globale</th>
-                <th className="text-left font-semibold p-3">Workspace e ruoli</th>
-                <th className="text-left font-semibold p-3">Progetti (legacy)</th>
-                <th className="text-left font-semibold p-3 w-24">Azioni</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => (
-                <tr key={u.email} className="border-b border-border last:border-0 hover:bg-muted/20">
-                  <td className="p-3 font-medium text-foreground">{u.email}</td>
-                  <td className="p-3">
-                    {u.isAdmin ? (
-                      <Badge variant="default">Admin</Badge>
-                    ) : u.role ? (
-                      <span className="text-muted-foreground">{u.role}</span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td className="p-3">
-                    {u.workspaces.length === 0 ? (
-                      <span className="text-muted-foreground">Nessuno</span>
-                    ) : (
-                      <ul className="flex flex-wrap gap-1">
-                        {u.workspaces.map((w) => (
-                          <li key={w.workspaceId}>
-                            <Badge variant="outline" className="font-normal">
-                              {w.workspaceName} ({w.role})
-                            </Badge>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </td>
-                  <td className="p-3">
-                    {u.projectIds.length === 0 ? (
-                      <span className="text-muted-foreground">—</span>
-                    ) : (
-                      <span className="text-muted-foreground">{u.projectIds.length} progetto/i</span>
-                    )}
-                  </td>
-                  <td className="p-3">
-                    <Button variant="outline" size="sm" onClick={() => openUserDetail(u)}>
-                      Gestisci
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {users.map((u) => (
+            <button
+              key={u.email}
+              type="button"
+              onClick={() => openUserDetail(u)}
+              className="glass-panel rounded-ui flex flex-col items-start gap-2 p-4 text-left transition-colors hover:bg-muted/30 focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <div className="flex w-full items-center gap-2">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium text-foreground">
+                  {(u.email[0] ?? "?").toUpperCase()}
+                </div>
+                <span className="truncate font-medium text-foreground">{u.email}</span>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {u.workspaces.length === 0 ? (
+                  <span className="text-xs text-muted-foreground">Nessun workspace</span>
+                ) : (
+                  u.workspaces.map((w) => (
+                    <Badge
+                      key={w.workspaceId}
+                      variant={w.role === "admin" || w.role === "owner" ? "default" : "outline"}
+                      className="font-normal"
+                    >
+                      {w.workspaceName} ({w.role})
+                    </Badge>
+                  ))
+                )}
+              </div>
+            </button>
+          ))}
         </div>
       )}
 
@@ -364,18 +336,39 @@ export const UsersPage = () => {
             <SheetTitle>Aggiungi utente a workspace</SheetTitle>
           </SheetHeader>
           <div className="mt-4 space-y-4">
-            <RadioGroup
-              name="addUserMode"
-              value={addUserMode}
-              onChange={(v) => {
-                setAddUserMode(v as "invite" | "existing");
-                setAddUserError(null);
-              }}
-              className="space-y-2"
-            >
-              <Radio value="invite" label="Invita via email (nuovo utente)" />
-              <Radio value="existing" label="Già registrato (solo accesso al workspace)" />
-            </RadioGroup>
+            <div>
+              <p className="text-sm font-medium text-foreground mb-2">Tipo</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddUserMode("invite");
+                    setAddUserError(null);
+                  }}
+                  className={`rounded-ui border px-3 py-2.5 text-left text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring ${
+                    addUserMode === "invite"
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  Invita via email (nuovo utente)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddUserMode("existing");
+                    setAddUserError(null);
+                  }}
+                  className={`rounded-ui border px-3 py-2.5 text-left text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-ring ${
+                    addUserMode === "existing"
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  Già registrato (solo accesso al workspace)
+                </button>
+              </div>
+            </div>
             {addUserMode === "invite" && (
               <p className="text-xs text-muted-foreground rounded-md bg-muted/50 p-2">
                 L&apos;utente riceve un&apos;email con link per impostare la password. Serve almeno un progetto associato al
@@ -420,24 +413,6 @@ export const UsersPage = () => {
                     </SelectContent>
                   </Select>
                 )}
-              </div>
-            )}
-            {addUserMode === "invite" && (
-              <div>
-                <label className="text-sm font-medium text-foreground block mb-1">Ruolo globale (account)</label>
-                <Select
-                  value={inviteGlobalRole}
-                  onValueChange={(v) => setInviteGlobalRole(v as "vendor" | "agent" | "admin")}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="vendor">Vendor</SelectItem>
-                    <SelectItem value="agent">Agent</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             )}
             <div>
@@ -493,9 +468,9 @@ export const UsersPage = () => {
                       const projectName = proj?.displayName ?? proj?.name ?? inviteProjectId;
                       await followupApi.inviteUser({
                         email,
-                        role: inviteGlobalRole,
                         projectId: inviteProjectId,
-                        projectName
+                        projectName,
+                        roleLabel: addUserRole === "vendor_manager" ? "Vendor manager" : addUserRole === "admin" ? "Admin" : "Vendor"
                       });
                       try {
                         await followupApi.addWorkspaceUser(addUserWorkspaceId, { userId: email, role: addUserRole });
@@ -532,12 +507,29 @@ export const UsersPage = () => {
       <Sheet open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
         <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Dettaglio utente: {selectedUser?.email ?? ""}</SheetTitle>
+            <SheetTitle>Dettaglio e permessi</SheetTitle>
           </SheetHeader>
           {selectedUser && (
             <div className="mt-4 space-y-6">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground mb-2">Ruolo per workspace</h3>
+              <div className="rounded-ui border border-border bg-muted/30 px-3 py-2">
+                <p className="font-medium text-foreground">{selectedUser.email}</p>
+                <p className="text-xs text-muted-foreground">
+                  {selectedUser.workspaces.length} workspace · ruolo max:{" "}
+                  {selectedUser.workspaces.reduce(
+                    (best, w) =>
+                      ["admin", "owner"].includes(w.role) ? "admin" : ["vendor_manager", "collaborator"].includes(w.role) ? (best === "admin" ? best : "vendor_manager") : best === "admin" || best === "vendor_manager" ? best : "vendor",
+                    "vendor"
+                  )}
+                </p>
+              </div>
+
+              <div className="glass-panel rounded-ui space-y-3 p-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Ruolo per workspace</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Il ruolo determina i permessi dell&apos;utente in quel workspace.
+                  </p>
+                </div>
                 {selectedUser.workspaces.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Nessun workspace.</p>
                 ) : (
@@ -576,8 +568,9 @@ export const UsersPage = () => {
                 )}
               </div>
 
-              <div>
-                <p className="text-xs text-muted-foreground mb-3">
+              <div className="glass-panel rounded-ui space-y-3 p-4">
+                <h3 className="text-sm font-semibold text-foreground">Progetti visibili</h3>
+                <p className="text-xs text-muted-foreground">
                   Se nessun progetto è associato per un workspace, l’utente vede tutti i progetti del workspace.
                 </p>
                 {detailLoading ? (

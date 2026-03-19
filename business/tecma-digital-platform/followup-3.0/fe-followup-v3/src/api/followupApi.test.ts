@@ -108,17 +108,17 @@ describe("followupApi", () => {
   it("inviteUser posta su /users con appPublicUrl esplicito e body completo", async () => {
     await followupApi.inviteUser({
       email: "inv@tecma.test",
-      role: "vendor",
       projectId: "proj-99",
       projectName: "Nome progetto",
       appPublicUrl: "https://followup.custom.example/",
+      roleLabel: "Vendor",
     });
     expect(http.postJson).toHaveBeenCalledWith("/users", {
       email: "inv@tecma.test",
-      role: "vendor",
       projectId: "proj-99",
       projectName: "Nome progetto",
       appPublicUrl: "https://followup.custom.example/",
+      roleLabel: "Vendor",
     });
   });
 
@@ -130,7 +130,6 @@ describe("followupApi", () => {
     });
     await followupApi.inviteUser({
       email: "auto@url.test",
-      role: "agent",
       projectId: "p",
       projectName: "P",
     });
@@ -138,7 +137,6 @@ describe("followupApi", () => {
       "/users",
       expect.objectContaining({
         email: "auto@url.test",
-        role: "agent",
         projectId: "p",
         projectName: "P",
         appPublicUrl: "https://fe-origin.test",

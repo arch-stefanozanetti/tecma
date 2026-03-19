@@ -14,6 +14,7 @@ const COLLECTION_WORKSPACE_PROJECTS = "tz_workspace_projects";
 export interface WorkspaceRow {
   _id: string;
   name: string;
+  owner_user_id?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -34,10 +35,12 @@ export interface WorkspaceProjectEnrichedRow extends WorkspaceProjectRow {
 
 const WorkspaceCreateSchema = z.object({
   name: z.string().min(1).max(200),
+  owner_user_id: z.string().optional(),
 });
 
 const WorkspaceUpdateSchema = z.object({
   name: z.string().min(1).max(200).optional(),
+  owner_user_id: z.string().optional().nullable(),
 });
 
 const AssociateProjectSchema = z.object({
@@ -82,9 +85,10 @@ export const listWorkspaces = async (): Promise<WorkspaceRow[]> => {
   const coll = db.collection(COLLECTION_WORKSPACES);
   await ensureDefaultWorkspaces();
   const docs = await coll.find({}).sort({ updatedAt: -1 }).toArray();
-  return docs.map((d) => ({
+  return docs.map((d: Record<string, unknown>) => ({
     _id: String(d._id ?? ""),
     name: typeof d.name === "string" ? d.name : "",
+    owner_user_id: d.owner_user_id != null ? String(d.owner_user_id) : undefined,
     createdAt: toIsoDate(d.createdAt),
     updatedAt: toIsoDate(d.updatedAt),
   }));
@@ -96,17 +100,22 @@ export const createWorkspace = async (rawInput: unknown): Promise<{ workspace: W
   const db = getDb();
   const coll = db.collection(COLLECTION_WORKSPACES);
   const now = new Date().toISOString();
-  const doc = {
+  const doc: Record<string, unknown> = {
     name: input.name.trim(),
     createdAt: now,
     updatedAt: now,
   };
+  if (input.owner_user_id && ObjectId.isValid(input.owner_user_id)) {
+    doc.owner_user_id = new ObjectId(input.owner_user_id);
+  }
   const result = await coll.insertOne(doc);
   const _id = result.insertedId.toHexString();
+  const ws = await coll.findOne({ _id: result.insertedId });
   return {
     workspace: {
       _id,
-      name: doc.name,
+      name: (ws?.name as string) ?? doc.name as string,
+      owner_user_id: ws?.owner_user_id != null ? String(ws.owner_user_id) : undefined,
       createdAt: now,
       updatedAt: now,
     },
@@ -128,6 +137,7 @@ export const getWorkspaceById = async (rawId: unknown): Promise<{ workspace: Wor
     workspace: {
       _id: String(doc._id),
       name: typeof doc.name === "string" ? doc.name : "",
+      owner_user_id: doc.owner_user_id != null ? String(doc.owner_user_id) : undefined,
       createdAt: toIsoDate(doc.createdAt),
       updatedAt: toIsoDate(doc.updatedAt),
     },
@@ -148,6 +158,9 @@ export const updateWorkspace = async (
   const coll = db.collection(COLLECTION_WORKSPACES);
   const update: Record<string, unknown> = { updatedAt: new Date().toISOString() };
   if (input.name !== undefined) update.name = input.name.trim();
+  if (input.owner_user_id !== undefined) {
+    update.owner_user_id = input.owner_user_id && ObjectId.isValid(input.owner_user_id) ? new ObjectId(input.owner_user_id) : null;
+  }
   const result = await coll.findOneAndUpdate(
     { _id: new ObjectId(id) },
     { $set: update },
@@ -156,11 +169,12 @@ export const updateWorkspace = async (
   if (!result) {
     throw new HttpError("Workspace not found", 404);
   }
-  const doc = result as { _id: ObjectId; name?: string; createdAt?: unknown; updatedAt?: unknown };
+  const doc = result as { _id: ObjectId; name?: string; owner_user_id?: ObjectId | null; createdAt?: unknown; updatedAt?: unknown };
   return {
     workspace: {
       _id: doc._id.toHexString(),
       name: typeof doc.name === "string" ? doc.name : "",
+      owner_user_id: doc.owner_user_id != null ? String(doc.owner_user_id) : undefined,
       createdAt: toIsoDate(doc.createdAt),
       updatedAt: toIsoDate(doc.updatedAt),
     },

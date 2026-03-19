@@ -17,14 +17,22 @@ export interface RoleDefinitionDoc {
 
 const coll = () => getDb().collection<RoleDefinitionDoc>(COLLECTION);
 
+/** Mappa ruoli legacy a ruoli spec per risoluzione permessi (documenti non ancora migrati). */
+function roleKeyToSpec(key: string): string {
+  if (key === "vendor" || key === "agent") return "collaborator";
+  if (key === "vendor_manager") return "admin";
+  return key;
+}
+
 /**
- * Permessi per chiave ruolo: DB prima, poi builtin.
+ * Permessi per chiave ruolo: DB prima, poi builtin. Ruoli legacy (vendor, vendor_manager, agent) mappati a spec.
  */
 export async function getPermissionsForRole(roleKey: string): Promise<string[] | typeof PERMISSIONS.ALL> {
-  const key = (roleKey || "").toLowerCase().trim();
-  if (!key) {
+  const raw = (roleKey || "").toLowerCase().trim();
+  if (!raw) {
     return BUILTIN_ROLE_PERMISSIONS.user as string[];
   }
+  const key = roleKeyToSpec(raw);
   const doc = await coll().findOne({ roleKey: key });
   if (doc?.permissions) {
     if (doc.permissions === PERMISSIONS.ALL || (Array.isArray(doc.permissions) && doc.permissions.includes(PERMISSIONS.ALL))) {

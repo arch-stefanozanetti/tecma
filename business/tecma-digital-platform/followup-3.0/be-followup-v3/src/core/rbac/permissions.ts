@@ -17,11 +17,12 @@ export const PERMISSIONS = {
 
 export type PermissionId = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
-/** Fallback se `tz_roleDefinitions` non ha il ruolo */
+/** Fallback se `tz_roleDefinitions` non ha il ruolo. Solo ruoli spec: owner, admin, collaborator, viewer (+ user). */
 export const BUILTIN_ROLE_PERMISSIONS: Record<string, string[] | typeof PERMISSIONS.ALL> = {
   admin: PERMISSIONS.ALL,
-  vendor: [PERMISSIONS.APARTMENTS_READ, PERMISSIONS.DEALS_CLOSE],
-  agent: [PERMISSIONS.APARTMENTS_READ],
+  owner: PERMISSIONS.ALL,
+  collaborator: [PERMISSIONS.APARTMENTS_READ, PERMISSIONS.DEALS_CREATE, PERMISSIONS.DEALS_CLOSE],
+  viewer: [PERMISSIONS.APARTMENTS_READ],
   /** Utente senza ruolo noto: solo lettura base */
   user: [PERMISSIONS.APARTMENTS_READ]
 };
