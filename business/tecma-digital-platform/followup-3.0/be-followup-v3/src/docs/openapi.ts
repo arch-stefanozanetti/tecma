@@ -25,6 +25,7 @@ export const openApiV1 = {
     { name: "reports", description: "Report pipeline, clienti, appartamenti" },
     { name: "platform", description: "Platform API riusabili per consumer esterni via API key" },
     { name: "realtime", description: "Realtime stream (SSE) con envelope versionato" },
+    { name: "portal", description: "Customer portal via magic link" },
     { name: "Riusabili", description: "API per uso esterno (listings, integrazioni)" },
     { name: "hc", description: "Home Config (appartamenti HC)" },
     { name: "associations", description: "Associazioni appartamento-cliente" },
@@ -1212,6 +1213,69 @@ export const openApiV1 = {
           { name: "accessToken", in: "query", required: false, schema: { type: "string", description: "Alternativa a Authorization header per EventSource browser" } }
         ],
         responses: { "200": { description: "text/event-stream con eventi domain-event/heartbeat/hello" }, "401": { description: "Missing/invalid token" }, "400": { description: "workspaceId mancante" } }
+      }
+    },
+    "/portal/magic-links": {
+      post: {
+        tags: ["portal"],
+        summary: "Genera magic link customer portal (uso interno, JWT richiesto)",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["workspaceId", "clientId", "projectIds"],
+                properties: {
+                  workspaceId: { type: "string" },
+                  clientId: { type: "string" },
+                  projectIds: { type: "array", items: { type: "string" } },
+                  expiresInHours: { type: "integer", minimum: 1, maximum: 168, default: 48 }
+                }
+              }
+            }
+          }
+        },
+        responses: { "200": { description: "token + expiresAt" }, "401": { description: "Unauthorized" } }
+      }
+    },
+    "/portal/auth/exchange": {
+      post: {
+        tags: ["portal"],
+        summary: "Exchange magic link token -> portal access token",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["token"],
+                properties: { token: { type: "string" } }
+              }
+            }
+          }
+        },
+        responses: { "200": { description: "accessToken + expiresAt" }, "401": { description: "Invalid/expired token" } }
+      }
+    },
+    "/portal/overview": {
+      post: {
+        tags: ["portal"],
+        summary: "Overview cliente (stato pratiche + documenti) da portal access token",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["accessToken"],
+                properties: { accessToken: { type: "string" } }
+              }
+            }
+          }
+        },
+        responses: { "200": { description: "Dati overview portale cliente" }, "401": { description: "Invalid/expired portal session" } }
       }
     },
     "/projects/{projectId}": {

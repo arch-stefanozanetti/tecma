@@ -1,10 +1,14 @@
 import type { NextFunction, Request, Response } from "express";
 import { ENV } from "../config/env.js";
+import { getDb } from "../config/db.js";
+import { logger } from "../observability/logger.js";
 
 interface RawPlatformAccessConfig {
   workspaceId: string;
   projectIds?: string[];
   label?: string;
+  scopes?: string[];
+  quotaPerDay?: number;
 }
 
 export interface PlatformAccessContext {
@@ -12,6 +16,8 @@ export interface PlatformAccessContext {
   workspaceId: string;
   projectIds: string[];
   label: string;
+  scopes: string[];
+  quotaPerDay: number | null;
 }
 
 let parsedKeysCache: Map<string, PlatformAccessContext> | null = null;
@@ -51,6 +57,14 @@ const parseApiKeys = (): Map<string, PlatformAccessContext> => {
       workspaceId,
       projectIds,
       label: typeof config.label === "string" && config.label.trim().length > 0 ? config.label.trim() : "platform-consumer",
+      scopes:
+        Array.isArray(config.scopes) && config.scopes.length > 0
+          ? config.scopes.filter((scope): scope is string => typeof scope === "string" && scope.trim().length > 0)
+          : ["platform.capabilities.read", "platform.listings.read", "platform.reports.read"],
+      quotaPerDay:
+        typeof config.quotaPerDay === "number" && Number.isFinite(config.quotaPerDay) && config.quotaPerDay > 0
+          ? Math.floor(config.quotaPerDay)
+          : null,
     });
   }
   parsedKeysCache = map;
@@ -83,3 +97,71 @@ export const platformApiKeyMiddleware = (req: Request, res: Response, next: Next
   next();
 };
 
+export const requirePlatformScope = (scope: string) => (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void => {
+  const access = req.platformAccess;
+  if (!access) {
+    res.status(401).json({ error: "Missing platform access context" });
+    return;
+  }
+  if (access.scopes.includes("*") || access.scopes.includes(scope)) {
+    next();
+    return;
+  }
+  res.status(403).json({ error: `Missing required scope: ${scope}` });
+};
+
+const usageDateKey = (): string => new Date().toISOString().slice(0, 10);
+
+export const enforcePlatformQuota = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  const access = req.platformAccess;
+  if (!access) {
+    res.status(401).json({ error: "Missing platform access context" });
+    return;
+  }
+  if (access.quotaPerDay == null) {
+    next();
+    return;
+  }
+  try {
+    const db = getDb();
+    const date = usageDateKey();
+    const coll = db.collection("tz_platform_api_usage");
+    const now = new Date().toISOString();
+    const result = await coll.findOneAndUpdate(
+      { apiKey: access.apiKey, date },
+      {
+        $inc: { count: 1 },
+        $setOnInsert: {
+          apiKey: access.apiKey,
+          label: access.label,
+          workspaceId: access.workspaceId,
+          date,
+          createdAt: now,
+        },
+        $set: { updatedAt: now },
+      },
+      { upsert: true, returnDocument: "after" },
+    );
+    const count = Number((result as { count?: unknown } | null)?.count ?? 0);
+    if (count > access.quotaPerDay) {
+      res.status(429).json({
+        error: "Daily quota exceeded for this API key",
+        quotaPerDay: access.quotaPerDay,
+        date,
+      });
+      return;
+    }
+    next();
+  } catch (err) {
+    logger.error({ err }, "[platform] quota check failed");
+    res.status(503).json({ error: "Platform quota service unavailable" });
+  }
+};

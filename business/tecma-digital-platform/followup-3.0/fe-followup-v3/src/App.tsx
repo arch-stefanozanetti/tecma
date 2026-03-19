@@ -36,6 +36,7 @@ import { PriceAvailabilityPage } from "./core/prices/PriceAvailabilityPage";
 import { ReleasesPage } from "./core/releases/ReleasesPage";
 import { IntegrationsPage } from "./core/integrations/IntegrationsPage";
 import { ProductDiscoveryPage } from "./core/product-discovery/ProductDiscoveryPage";
+import { CustomerPortalPage } from "./core/customer-portal/CustomerPortalPage";
 import { ProjectsPage } from "./core/projects/ProjectsPage";
 import { InboxPage } from "./core/shared/InboxPage";
 import { Customer360Page } from "./core/customer360/Customer360Page";
@@ -459,6 +460,9 @@ export const App = () => {
 
   if (pathname.startsWith("/set-password")) {
     return <SetPasswordFromInvitePage />;
+  }
+  if (pathname.startsWith("/portal")) {
+    return <CustomerPortalPage />;
   }
   if (pathname.startsWith("/reset-password")) {
     return <ResetPasswordPage />;

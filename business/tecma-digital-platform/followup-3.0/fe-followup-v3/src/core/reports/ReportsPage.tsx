@@ -78,6 +78,15 @@ export const ReportsPage = () => {
     URL.revokeObjectURL(url);
   };
 
+  const isKpiSummary = reportType === "kpi_summary";
+  const kpiCards = isKpiSummary
+    ? data.map((row) => ({
+        metric: String(row.metric ?? ""),
+        value: Number(row.value ?? 0),
+        unit: String(row.unit ?? "count"),
+      }))
+    : [];
+
   return (
     <div className="min-h-full bg-app font-body text-foreground">
       <div className="px-5 pb-10 pt-8 lg:px-20">
@@ -113,6 +122,19 @@ export const ReportsPage = () => {
         </div>
 
         <div className="mt-6 overflow-x-auto rounded-lg border border-border">
+          {isKpiSummary && kpiCards.length > 0 && (
+            <div className="grid gap-3 border-b border-border bg-muted/20 p-4 md:grid-cols-2 xl:grid-cols-5">
+              {kpiCards.map((kpi) => (
+                <div key={kpi.metric} className="rounded-lg border border-border bg-card p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">{kpi.metric.replaceAll("_", " ")}</p>
+                  <p className="mt-1 text-xl font-semibold">
+                    {kpi.value}
+                    {kpi.unit === "percent" ? "%" : ""}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
           {loading ? (
             <div className="px-4 py-12 text-center text-sm text-muted-foreground">Caricamento…</div>
           ) : data.length === 0 ? (

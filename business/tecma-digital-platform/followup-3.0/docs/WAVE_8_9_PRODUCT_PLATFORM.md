@@ -41,6 +41,8 @@ Questa wave implementa la base operativa per passare dal solo hardening a cresci
   - API key obbligatoria (`x-api-key`, fallback `Authorization: Bearer <api-key>`)
   - Rate limit dedicato per API key
   - Scope tenant-aware (`workspaceId`/`projectIds`) derivato da configurazione API key
+  - Scope per endpoint (`platform.capabilities.read`, `platform.listings.read`, `platform.reports.read`)
+  - Quota giornaliera opzionale per key (`quotaPerDay`) con enforcement runtime
 
 ### Config env
 
@@ -65,3 +67,14 @@ Questa wave implementa la base operativa per passare dal solo hardening a cresci
   - `queryListings(...)`
   - `getKpiSummary(...)`
 
+## 5) Wave 10 Kickstart - Customer Portal MVP
+
+- Nuovi endpoint:
+  - `POST /v1/portal/magic-links` (interno, JWT richiesto)
+  - `POST /v1/portal/auth/exchange` (pubblico)
+  - `POST /v1/portal/overview` (pubblico)
+- FE:
+  - nuova route pubblica `/portal?token=...`
+  - pagina `CustomerPortalPage` con:
+    - stato pratiche (deals)
+    - elenco documenti (quote + documenti manuali)

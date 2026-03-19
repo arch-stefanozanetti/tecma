@@ -640,6 +640,16 @@ export const followupApi = {
   updateCommunicationRule: (id: string, body: Record<string, unknown>) =>
     patchJson<{ rule: Record<string, unknown> }>(`/communication-rules/${encodeURIComponent(id)}`, body),
   deleteCommunicationRule: (id: string) => deleteJson<{ deleted: boolean }>(`/communication-rules/${encodeURIComponent(id)}`),
+  createPortalMagicLink: (payload: { workspaceId: string; clientId: string; projectIds: string[]; expiresInHours?: number }) =>
+    postJson<{ token: string; expiresAt: string }>("/portal/magic-links", payload),
+  portalExchangeMagicLink: (token: string) =>
+    postJson<{ accessToken: string; expiresAt: string }>("/portal/auth/exchange", { token }),
+  portalGetOverview: (accessToken: string) =>
+    postJson<{
+      client: { id: string; fullName: string; email?: string; phone?: string };
+      deals: Array<{ id: string; type: string; status: string; updatedAt: string; quoteNumber?: string; quoteTotalPrice?: number }>;
+      documents: Array<{ id: string; title: string; type: "quote" | "document"; createdAt: string; url?: string }>;
+    }>("/portal/overview", { accessToken }),
   /** Log comunicazioni inviate (Notification Center). */
   listCommunicationDeliveries: (workspaceId: string, limit?: number) =>
     getJson<{ data: Array<{ _id: string; channel: string; templateId: string; recipientMasked: string; status: string; sentAt: string }> }>(

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { queryApartments } from "../../core/apartments/apartments.service.js";
 import { runKpiSummaryReport } from "../../core/reports/reports.service.js";
 import { HttpError } from "../../types/http.js";
-import { platformApiKeyMiddleware } from "../platformApiKeyMiddleware.js";
+import { enforcePlatformQuota, platformApiKeyMiddleware, requirePlatformScope } from "../platformApiKeyMiddleware.js";
 import { platformApiKeyRateLimiter } from "../rateLimitMiddleware.js";
 import { handleAsync } from "../asyncHandler.js";
 
@@ -25,19 +25,24 @@ export const platformRoutes = Router();
 
 platformRoutes.use(platformApiKeyRateLimiter);
 platformRoutes.use(platformApiKeyMiddleware);
+platformRoutes.use((req, res, next) => {
+  void enforcePlatformQuota(req, res, next);
+});
 
-platformRoutes.get("/capabilities", (req, res) => {
+platformRoutes.get("/capabilities", requirePlatformScope("platform.capabilities.read"), (req, res) => {
   const access = req.platformAccess!;
   res.json({
     ok: true,
     consumer: access.label,
     workspaceId: access.workspaceId,
     projectIds: access.projectIds,
+    scopes: access.scopes,
+    quotaPerDay: access.quotaPerDay,
     endpoints: ["POST /platform/listings/query", "POST /platform/reports/kpi-summary", "GET /platform/capabilities"],
   });
 });
 
-platformRoutes.post("/listings/query", handleAsync(async (req) => {
+platformRoutes.post("/listings/query", requirePlatformScope("platform.listings.read"), handleAsync(async (req) => {
   const access = req.platformAccess!;
   const parsed = ListingsQuerySchema.parse(req.body);
   const requestedProjectIds = parsed.projectIds ?? access.projectIds;
@@ -64,7 +69,7 @@ platformRoutes.post("/listings/query", handleAsync(async (req) => {
   return queryApartments(body);
 }));
 
-platformRoutes.post("/reports/kpi-summary", handleAsync(async (req) => {
+platformRoutes.post("/reports/kpi-summary", requirePlatformScope("platform.reports.read"), handleAsync(async (req) => {
   const access = req.platformAccess!;
   const parsed = DateRangeSchema.parse(req.body ?? {});
   return runKpiSummaryReport({

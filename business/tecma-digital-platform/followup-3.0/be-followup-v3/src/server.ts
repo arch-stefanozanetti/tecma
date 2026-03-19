@@ -6,11 +6,13 @@ import { ensureCoreIndexes } from "./config/ensureIndexes.js";
 import { v1Router } from "./routes/v1.js";
 import { platformRoutes } from "./routes/v1/platform.routes.js";
 import { realtimeRoutes } from "./routes/v1/realtime.routes.js";
+import { customerPortalPublicRoutes, customerPortalRoutes } from "./routes/v1/customer-portal.routes.js";
 import { runDueScheduled } from "./core/communications/scheduled-communications.service.js";
 import { ensureDefaultRoleDefinitions } from "./core/rbac/roleDefinitions.service.js";
 import { logger } from "./observability/logger.js";
 import { initOtel, shutdownOtel } from "./observability/otel.js";
 import { requestContextMiddleware } from "./routes/requestContextMiddleware.js";
+import { requireAuth } from "./routes/authMiddleware.js";
 
 const SCHEDULED_COMMS_INTERVAL_MS = 2 * 60 * 1000;
 
@@ -73,6 +75,8 @@ const bootstrap = async () => {
   );
   app.use(express.json({ limit: "2mb" }));
 
+  app.use("/v1", customerPortalPublicRoutes);
+  app.use("/v1", requireAuth, customerPortalRoutes);
   app.use("/v1/platform", platformRoutes);
   app.use("/v1", realtimeRoutes);
   app.use("/v1", v1Router);
