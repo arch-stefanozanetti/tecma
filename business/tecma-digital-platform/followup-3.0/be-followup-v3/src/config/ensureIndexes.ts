@@ -77,10 +77,33 @@ export async function ensureCoreIndexes(db: Db = getDb()): Promise<void> {
       });
     } catch (err: unknown) {
       const code = err && typeof err === "object" && "code" in err ? (err as { code?: number }).code : undefined;
+      /** IndexOptionsConflict: stesso key pattern con nome legacy (es. workspaceId_1_userId_1) */
       if (code === 85) {
         logger.warn(
           { collection: index.collection, indexName, keys: index.keys },
           "[db] ensureCoreIndexes: index already exists with different name, skip"
+        );
+        continue;
+      }
+      /**
+       * CannotCreateIndex: es. partialFilterExpression non supportata su versioni Mongo vecchie,
+       * o specifica indice rifiutata dal server. Meglio avviare il servizio che restare down in dev/staging.
+       */
+      if (code === 67) {
+        logger.warn(
+          { err, collection: index.collection, indexName, keys: index.keys },
+          "[db] ensureCoreIndexes: index spec rejected by server, skip"
+        );
+        continue;
+      }
+      /**
+       * DuplicateKey durante build indice: dati legacy (es. più documenti con campo null su indice unique).
+       * Non blocchiamo il boot; va corretto a mano sul DB (dedup / partial index).
+       */
+      if (code === 11000) {
+        logger.warn(
+          { err, collection: index.collection, indexName, keys: index.keys },
+          "[db] ensureCoreIndexes: duplicate key prevents index, skip (fix data or index offline)"
         );
         continue;
       }

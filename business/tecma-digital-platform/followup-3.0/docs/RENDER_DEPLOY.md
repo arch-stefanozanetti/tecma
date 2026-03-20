@@ -97,6 +97,9 @@ Opzionale: [Deploy Hook](https://render.com/docs/deploy-hooks) Render + `curl` d
 
 ## 7. Troubleshooting
 
+- **“Il deploy fallisce sempre” — prima cosa:** in [Render Dashboard](https://dashboard.render.com) apri il servizio (`followup-3-be` / `followup-3-fe`) → **Events**: l’ultimo deploy deve essere **Live**. Se **Build failed**, apri i **Build logs** (non solo Runtime): di solito è `tsc` / `pnpm build` / path script. La CI GitHub sullo stesso commit deve essere verde (stessi script `scripts/render-build-*.sh`).
+- **BE: log pieni di `IndexOptionsConflict` / `DuplicateKey` / `CannotCreateIndex`:** il DB (es. Atlas condiviso) può avere **indici col vecchio nome auto-generato** o **dati duplicati** (es. più `null` su campo unique). Da versione recente, `ensureCoreIndexes` **registra warning e continua** per codici Mongo 85 / 67 / 11000 così il servizio resta **Live**; in parallelo conviene ripulire indici/dati (Atlas → Indexes / Query) o usare un `MONGO_DB_NAME` dedicato a staging.
+- **FE: warning `Failed to replace env in config: ${NPM_TECMA_TOKEN}`:** in build, se `.npmrc` referenzia il token ma la variabile non è settata su Render, pnpm avvisa; con `@tecma/design-system-tokens` via `file:../../design-system` l’install resta ok. Se in futuro aggiungi pacchetti **private** dal registry GitLab, imposta `NPM_TECMA_TOKEN` tra le **Environment** del servizio statico.
 - **FE bianco su refresh su route profonde:** verifica che le rewrite SPA in `render.yaml` (`/*` → `/index.html`) siano applicate.
 - **401 / rete dal FE:** controlla `VITE_API_BASE_URL` (URL del BE, HTTPS).
 - **BE cold start (free):** primo request dopo idle può essere lento.
