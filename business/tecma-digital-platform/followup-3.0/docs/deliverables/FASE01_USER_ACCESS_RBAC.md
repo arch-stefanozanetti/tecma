@@ -21,6 +21,7 @@ Spec completa in [PIANO_GLOBALE_FOLLOWUP_3.md](../PIANO_GLOBALE_FOLLOWUP_3.md) �
 | 2026-03-20 | Audit `auditRecord` su membership workspace (create/update/remove) e su **aggiunta/rimozione** progetto utente (`workspace.user_project.added` / `workspace.user_project.removed`). |
 | 2026-03-20 | Estensione piano: **OpenAPI** per `GET /workspace-roles`, `GET /rbac/permission-catalog`, `GET /rbac/roles/{roleKey}/effective-permissions` (tag `rbac`). Audit su **assign/unassign** entità (`workspace.entity.assigned` / `workspace.entity.unassigned`) in `tz_audit_log`. |
 | 2026-03-20 | Audit su **platform API keys** (create/rotate/revoke), **PUT AI config** workspace (`workspace.ai_config.updated`, senza segreti in chiaro nel payload), **webhook outbound** (create/update/delete `workspace.webhook_config.*`). |
+| 2026-03-20 | Audit **link progetto↔workspace** (`workspace.project.linked` / `workspace.project.unlinked`), **additional infos** CRUD (`workspace.additional_info.*`); `getAdditionalInfoById` per delete; OpenAPI: associate/dissociate progetto, **GET/PUT ai-config**, **additional-infos**. |
 
 ## Sintesi milestone
 
