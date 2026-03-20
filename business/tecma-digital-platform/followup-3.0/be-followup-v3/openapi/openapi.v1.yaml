@@ -29,6 +29,10 @@
       "description": "Utenti e inviti (RBAC)"
     },
     {
+      "name": "rbac",
+      "description": "Ruoli workspace, catalogo permessi e anteprima permessi effettivi (UI amministrazione)"
+    },
+    {
       "name": "session",
       "description": "Progetti per email, preferenze utente"
     },
@@ -565,6 +569,151 @@
           "401": {
             "description": "Missing or invalid token"
           }
+        }
+      }
+    },
+    "/workspace-roles": {
+      "get": {
+        "tags": ["rbac"],
+        "operationId": "listWorkspaceRoles",
+        "summary": "Elenco ruoli membership workspace con label",
+        "description": "Fonte tz_roleDefinitions / fallback; autenticazione JWT richiesta.",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Lista ruoli in data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "description": "Ruoli ordinati (owner, admin, collaborator, viewer)",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "roleKey": {
+                            "type": "string",
+                            "description": "Chiave ruolo normalizzata",
+                            "example": "collaborator"
+                          },
+                          "label": {
+                            "type": "string",
+                            "description": "Etichetta per select UI",
+                            "example": "Collaborator"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Non autenticato" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
+    "/rbac/permission-catalog": {
+      "get": {
+        "tags": ["rbac", "users"],
+        "operationId": "getRbacPermissionCatalog",
+        "summary": "Catalogo permessi (moduli e azioni) per matrice override",
+        "description": "Richiede permesso users.read.",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Gruppi modulo × permessi in data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "description": "Struttura allineata a buildPermissionCatalog()",
+                      "properties": {
+                        "groups": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "module": { "type": "string", "description": "Id modulo" },
+                              "label": { "type": "string", "description": "Etichetta modulo" },
+                              "permissions": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": { "type": "string", "description": "Id permesso es. clients.read" },
+                                    "label": { "type": "string" },
+                                    "action": { "type": "string" }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso users.read richiesto" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
+    "/rbac/roles/{roleKey}/effective-permissions": {
+      "get": {
+        "tags": ["rbac", "users"],
+        "operationId": "getRbacRoleEffectivePermissions",
+        "summary": "Permessi effettivi per ruolo workspace (DB + builtin)",
+        "description": "Anteprima per wizard utenti; richiede users.read. Se il ruolo ha accesso completo, permissions contiene \"*\".",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "roleKey",
+            "in": "path",
+            "required": true,
+            "description": "Chiave ruolo workspace",
+            "schema": { "type": "string" },
+            "example": "collaborator"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "roleKey e elenco permessi risolti",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "roleKey": { "type": "string", "description": "Ruolo richiesto" },
+                        "permissions": {
+                          "type": "array",
+                          "description": "Permessi effettivi o [\"*\"] se tutti",
+                          "items": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "roleKey mancante o non valido" },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso users.read richiesto" },
+          "500": { "description": "Errore server" }
         }
       }
     },

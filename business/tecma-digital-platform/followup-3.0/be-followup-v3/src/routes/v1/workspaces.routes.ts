@@ -250,23 +250,49 @@ workspacesRoutes.get(
 workspacesRoutes.post(
   "/workspaces/:workspaceId/entities/:entityType/:entityId/assignments",
   requireAdmin,
-  handleAsync((req) => {
+  handleAsync(async (req) => {
+    const workspaceId = req.params.workspaceId;
     const entityType = typeof req.params.entityType === "string" ? req.params.entityType : "";
     const entityId = typeof req.params.entityId === "string" ? decodeURIComponent(req.params.entityId) : "";
     const body = req.body as { userId?: string };
     const userId = typeof body.userId === "string" ? body.userId : "";
-    return assignEntity(req.params.workspaceId, entityType, entityId, userId);
+    const result = await assignEntity(workspaceId, entityType, entityId, userId);
+    safeAsync(
+      auditRecord({
+        action: "workspace.entity.assigned",
+        workspaceId,
+        entityType: "entity_assignment",
+        entityId: `${entityType}:${entityId}:${userId}`,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+        payload: { resourceEntityType: entityType, resourceEntityId: entityId, targetUserId: userId },
+      }),
+      { operation: "audit.workspace.entity.assigned", workspaceId, userId: req.user?.sub }
+    );
+    return result;
   })
 );
 
 workspacesRoutes.delete(
   "/workspaces/:workspaceId/entities/:entityType/:entityId/assignments/:userId",
   requireAdmin,
-  handleAsync((req) => {
+  handleAsync(async (req) => {
+    const workspaceId = req.params.workspaceId;
     const entityType = typeof req.params.entityType === "string" ? req.params.entityType : "";
     const entityId = typeof req.params.entityId === "string" ? decodeURIComponent(req.params.entityId) : "";
     const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
-    return unassignEntity(req.params.workspaceId, entityType, entityId, userId);
+    const result = await unassignEntity(workspaceId, entityType, entityId, userId);
+    safeAsync(
+      auditRecord({
+        action: "workspace.entity.unassigned",
+        workspaceId,
+        entityType: "entity_assignment",
+        entityId: `${entityType}:${entityId}:${userId}`,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+        payload: { resourceEntityType: entityType, resourceEntityId: entityId, targetUserId: userId },
+      }),
+      { operation: "audit.workspace.entity.unassigned", workspaceId, userId: req.user?.sub }
+    );
+    return result;
   })
 );
 
