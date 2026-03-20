@@ -15,10 +15,13 @@ export interface NormalizedPrice {
   display: string;
 }
 
-export const normalizePrice = (raw: RawPrice): NormalizedPrice => {
-  const currency = raw.currency ?? "EUR";
-  const amountCents = Math.round(raw.amount * 100);
-  const cadence = raw.mode === "SELL" ? "ONCE" : raw.cadence ?? "MONTH";
+export const normalizePrice = (raw: RawPrice | null | undefined): NormalizedPrice => {
+  const mode: ListingMode = raw?.mode === "RENT" ? "RENT" : "SELL";
+  const amount = typeof raw?.amount === "number" && Number.isFinite(raw.amount) ? raw.amount : 0;
+  const currency =
+    typeof raw?.currency === "string" && raw.currency.trim() ? raw.currency.trim() : "EUR";
+  const amountCents = Math.round(amount * 100);
+  const cadence = mode === "SELL" ? "ONCE" : raw?.cadence === "YEAR" ? "YEAR" : "MONTH";
 
   const formatter = new Intl.NumberFormat("it-IT", {
     style: "currency",
@@ -27,11 +30,11 @@ export const normalizePrice = (raw: RawPrice): NormalizedPrice => {
     maximumFractionDigits: 0
   });
 
-  const base = formatter.format(raw.amount);
+  const base = formatter.format(amount);
   const suffix = cadence === "ONCE" ? "" : cadence === "MONTH" ? "/mese" : "/anno";
 
   return {
-    mode: raw.mode,
+    mode,
     amountCents,
     currency,
     cadence,

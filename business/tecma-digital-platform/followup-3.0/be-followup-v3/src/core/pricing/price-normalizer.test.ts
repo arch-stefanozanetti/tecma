@@ -56,4 +56,18 @@ describe("normalizePrice", () => {
     const result = normalizePrice({ mode: "RENT", amount: 99.994, currency: "EUR" });
     expect(result.amountCents).toBe(9999);
   });
+
+  it("documenti legacy senza rawPrice non lancia e usa default SELL 0 EUR", () => {
+    const result = normalizePrice(undefined);
+    expect(result.mode).toBe("SELL");
+    expect(result.amountCents).toBe(0);
+    expect(result.currency).toBe("EUR");
+    expect(result.cadence).toBe("ONCE");
+  });
+
+  it("amount non numerico finito usa 0", () => {
+    const result = normalizePrice({ mode: "SELL", amount: NaN });
+    expect(result.amountCents).toBe(0);
+    expect(result.mode).toBe("SELL");
+  });
 });

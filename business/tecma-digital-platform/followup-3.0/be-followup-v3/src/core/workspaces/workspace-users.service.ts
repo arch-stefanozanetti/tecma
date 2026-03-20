@@ -4,8 +4,9 @@
  * access_scope: "all" | "assigned" (in UI: toggle Tutto / Solo assegnati).
  * userId = email (string) per Fase 1; in futuro ObjectId hex da tz_users.
  */
-import { ObjectId } from "mongodb";
+import { MongoServerError, ObjectId } from "mongodb";
 import { getDb } from "../../config/db.js";
+import { logger } from "../../observability/logger.js";
 import { HttpError } from "../../types/http.js";
 import type { MembershipRole, AccessScope } from "../../types/models.js";
 
@@ -15,7 +16,15 @@ let indexEnsured = false;
 async function ensureUniqueIndex(): Promise<void> {
   if (indexEnsured) return;
   const db = getDb();
-  await db.collection(COLLECTION).createIndex({ workspaceId: 1, userId: 1 }, { unique: true });
+  try {
+    await db.collection(COLLECTION).createIndex({ workspaceId: 1, userId: 1 }, { unique: true });
+  } catch (err) {
+    if (err instanceof MongoServerError && (err.code === 85 || err.code === 86)) {
+      logger.warn({ err, code: err.code }, "[workspace-users] createIndex conflict, continuing");
+    } else {
+      throw err;
+    }
+  }
   indexEnsured = true;
 }
 

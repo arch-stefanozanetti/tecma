@@ -3,10 +3,26 @@
  * Usare dopo requireAuth. Non duplicare logica nei controller.
  */
 import type { Request, Response, NextFunction } from "express";
+import {
+  MongoNetworkError,
+  MongoNetworkTimeoutError,
+  MongoNotConnectedError,
+  MongoServerSelectionError,
+} from "mongodb";
 import { canAccess, type AccessUser } from "../core/access/canAccess.js";
 import { logger } from "../observability/logger.js";
 import { HttpError } from "../types/http.js";
 import { sendError } from "./asyncHandler.js";
+
+/** Errori driver Mongo tipicamente transitori (rete / selezione server): meglio 503 che 500 generico. */
+function isTransientMongoDriverError(err: unknown): boolean {
+  return (
+    err instanceof MongoServerSelectionError ||
+    err instanceof MongoNetworkError ||
+    err instanceof MongoNetworkTimeoutError ||
+    err instanceof MongoNotConnectedError
+  );
+}
 
 function toAccessUser(req: Request): AccessUser | null {
   const u = req.user;
@@ -67,7 +83,16 @@ export function requireCanAccessWorkspace(paramKey = "workspaceId") {
       }
       next();
     } catch (err) {
-      sendError(res, err instanceof HttpError ? err : new HttpError("Access check failed", 500));
+      if (err instanceof HttpError) {
+        sendError(res, err);
+        return;
+      }
+      logger.error({ err, workspaceId, userSub: user.sub }, "[access] workspace access check failed");
+      if (isTransientMongoDriverError(err)) {
+        sendError(res, new HttpError("Servizio temporaneamente non disponibile", 503, "SERVICE_UNAVAILABLE"));
+        return;
+      }
+      sendError(res, new HttpError("Access check failed", 500));
     }
   };
 }
@@ -98,7 +123,19 @@ export function requireCanAccessProject(paramWorkspaceKey = "workspaceId", param
       }
       next();
     } catch (err) {
-      sendError(res, err instanceof HttpError ? err : new HttpError("Access check failed", 500));
+      if (err instanceof HttpError) {
+        sendError(res, err);
+        return;
+      }
+      logger.error(
+        { err, projectId, workspaceId: workspaceId ?? null, userSub: user.sub },
+        "[access] project access check failed"
+      );
+      if (isTransientMongoDriverError(err)) {
+        sendError(res, new HttpError("Servizio temporaneamente non disponibile", 503, "SERVICE_UNAVAILABLE"));
+        return;
+      }
+      sendError(res, new HttpError("Access check failed", 500));
     }
   };
 }
