@@ -77,6 +77,16 @@ const mapDoc = (d: Record<string, unknown>): AdditionalInfoRow => ({
   updatedAt: toIsoDate(d.updatedAt),
 });
 
+/** Singolo record per id Mongo (per audit prima di delete). */
+export const getAdditionalInfoById = async (rawId: unknown): Promise<AdditionalInfoRow | null> => {
+  const id = typeof rawId === "string" ? rawId : String(rawId);
+  if (!ObjectId.isValid(id)) return null;
+  const db = getDb();
+  const doc = await db.collection(COLLECTION).findOne({ _id: new ObjectId(id) });
+  if (!doc) return null;
+  return mapDoc(doc as unknown as Record<string, unknown>);
+};
+
 /** Lista additional infos per workspace. */
 export const listByWorkspace = async (rawWorkspaceId: unknown): Promise<AdditionalInfoRow[]> => {
   const workspaceId = typeof rawWorkspaceId === "string" ? rawWorkspaceId : String(rawWorkspaceId);

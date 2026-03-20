@@ -2936,6 +2936,242 @@
         }
       }
     },
+    "/workspaces/projects/associate": {
+      "post": {
+        "tags": ["workspaces"],
+        "operationId": "associateProjectToWorkspace",
+        "summary": "Associa progetto a workspace (admin)",
+        "description": "Crea legame in tz_workspace_user_projects; idempotente se già presente.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["workspaceId", "projectId"],
+                "properties": {
+                  "workspaceId": {
+                    "type": "string",
+                    "description": "ID workspace (Mongo ObjectId)",
+                    "example": "673abc12def4567890123456"
+                  },
+                  "projectId": {
+                    "type": "string",
+                    "description": "ID progetto",
+                    "example": "proj_demo_01"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "workspaceId e projectId confermati" },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Solo amministratori" },
+          "404": { "description": "Workspace non trovato" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/projects/{projectId}": {
+      "delete": {
+        "tags": ["workspaces"],
+        "operationId": "dissociateProjectFromWorkspace",
+        "summary": "Rimuovi associazione progetto-workspace (admin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": { "type": "string" },
+            "example": "673abc12def4567890123456"
+          },
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "ID progetto",
+            "schema": { "type": "string" },
+            "example": "proj_demo_01"
+          }
+        ],
+        "responses": {
+          "200": { "description": "Associazione rimossa" },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Solo amministratori" },
+          "404": { "description": "Associazione non trovata" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
+    "/workspaces/{id}/ai-config": {
+      "get": {
+        "tags": ["workspaces", "ai"],
+        "operationId": "getWorkspaceAiConfig",
+        "summary": "Stato configurazione AI workspace (chiave solo masked)",
+        "description": "Richiede settings.read. Non espone mai l'API key in chiaro.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": { "type": "string" },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "200": { "description": "configured, provider, apiKeyMasked se presente" },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso negato" },
+          "500": { "description": "Errore server" }
+        }
+      },
+      "put": {
+        "tags": ["workspaces", "ai"],
+        "operationId": "putWorkspaceAiConfig",
+        "summary": "Salva o rimuove config AI workspace (admin)",
+        "description": "Solo admin. apiKey vuota rimuove la configurazione. Evento audit senza segreto in chiaro.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": { "type": "string" },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["provider", "apiKey"],
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": ["claude", "openai", "gemini"],
+                    "description": "Provider LLM"
+                  },
+                  "apiKey": {
+                    "type": "string",
+                    "description": "Chiave API; stringa vuota per eliminare la config"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Risposta pubblica (masked)" },
+          "400": { "description": "Body non valido" },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Solo amministratori" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
+    "/additional-infos": {
+      "post": {
+        "tags": ["workspaces"],
+        "operationId": "createAdditionalInfo",
+        "summary": "Crea campo additional info per workspace (admin)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["workspaceId", "name", "type", "label"],
+                "description": "Campi custom ereditati dai progetti del workspace",
+                "properties": {
+                  "workspaceId": { "type": "string", "description": "ID workspace" },
+                  "name": { "type": "string", "description": "Nome tecnico (slug)" },
+                  "type": { "type": "string", "enum": ["text", "radio", "slider", "number", "checkbox"] },
+                  "label": { "type": "string", "description": "Etichetta UI" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "additionalInfo creato" },
+          "400": { "description": "Validazione fallita o nome duplicato" },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Solo amministratori" },
+          "404": { "description": "Workspace non trovato" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
+    "/additional-infos/{id}": {
+      "patch": {
+        "tags": ["workspaces"],
+        "operationId": "updateAdditionalInfo",
+        "summary": "Aggiorna additional info (admin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID documento additional info",
+            "schema": { "type": "string" },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Campi opzionali da aggiornare"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "additionalInfo aggiornato" },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Solo amministratori" },
+          "404": { "description": "Non trovato" },
+          "500": { "description": "Errore server" }
+        }
+      },
+      "delete": {
+        "tags": ["workspaces"],
+        "operationId": "deleteAdditionalInfo",
+        "summary": "Elimina additional info (admin)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID documento additional info",
+            "schema": { "type": "string" },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "200": { "description": "Eliminato" },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Solo amministratori" },
+          "404": { "description": "Non trovato" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
     "/clients/{id}": {
       "get": {
         "tags": [

@@ -29,6 +29,7 @@ import {
 } from "../../core/workspaces/entity-assignments.service.js";
 import {
   listByWorkspace as listAdditionalInfos,
+  getAdditionalInfoById,
   createAdditionalInfo,
   updateAdditionalInfo,
   deleteAdditionalInfo,
@@ -319,14 +320,41 @@ workspacesRoutes.delete(
 workspacesRoutes.post(
   "/workspaces/projects/associate",
   requireAdmin,
-  handleAsync((req) => associateProjectToWorkspace(req.body))
+  handleAsync(async (req) => {
+    const result = await associateProjectToWorkspace(req.body);
+    safeAsync(
+      auditRecord({
+        action: "workspace.project.linked",
+        workspaceId: result.workspaceId,
+        entityType: "workspace_project_link",
+        entityId: `${result.workspaceId}:${result.projectId}`,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+        payload: { projectId: result.projectId },
+      }),
+      { operation: "audit.workspace.project.linked", workspaceId: result.workspaceId, userId: req.user?.sub }
+    );
+    return result;
+  })
 );
 
 workspacesRoutes.delete(
   "/workspaces/:workspaceId/projects/:projectId",
   requireAdmin,
   handleAsync(async (req) => {
-    await dissociateProjectFromWorkspace(req.params.workspaceId, req.params.projectId);
+    const workspaceId = req.params.workspaceId;
+    const projectId = req.params.projectId;
+    await dissociateProjectFromWorkspace(workspaceId, projectId);
+    safeAsync(
+      auditRecord({
+        action: "workspace.project.unlinked",
+        workspaceId,
+        entityType: "workspace_project_link",
+        entityId: `${workspaceId}:${projectId}`,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+        payload: { projectId },
+      }),
+      { operation: "audit.workspace.project.unlinked", workspaceId, userId: req.user?.sub }
+    );
     return { deleted: true };
   })
 );
@@ -450,6 +478,63 @@ workspacesRoutes.put(
   })
 );
 
-workspacesRoutes.post("/additional-infos", requireAdmin, handleAsync((req) => createAdditionalInfo(req.body)));
-workspacesRoutes.patch("/additional-infos/:id", requireAdmin, handleAsync((req) => updateAdditionalInfo(req.params.id, req.body)));
-workspacesRoutes.delete("/additional-infos/:id", requireAdmin, handleAsync((req) => deleteAdditionalInfo(req.params.id)));
+workspacesRoutes.post(
+  "/additional-infos",
+  requireAdmin,
+  handleAsync(async (req) => {
+    const { additionalInfo } = await createAdditionalInfo(req.body);
+    safeAsync(
+      auditRecord({
+        action: "workspace.additional_info.created",
+        workspaceId: additionalInfo.workspaceId,
+        entityType: "additional_info",
+        entityId: additionalInfo._id,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+        payload: { name: additionalInfo.name, type: additionalInfo.type, label: additionalInfo.label },
+      }),
+      { operation: "audit.workspace.additional_info.created", workspaceId: additionalInfo.workspaceId, userId: req.user?.sub }
+    );
+    return { additionalInfo };
+  })
+);
+workspacesRoutes.patch(
+  "/additional-infos/:id",
+  requireAdmin,
+  handleAsync(async (req) => {
+    const { additionalInfo } = await updateAdditionalInfo(req.params.id, req.body);
+    safeAsync(
+      auditRecord({
+        action: "workspace.additional_info.updated",
+        workspaceId: additionalInfo.workspaceId,
+        entityType: "additional_info",
+        entityId: additionalInfo._id,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+        payload: { name: additionalInfo.name, type: additionalInfo.type, label: additionalInfo.label, active: additionalInfo.active },
+      }),
+      { operation: "audit.workspace.additional_info.updated", workspaceId: additionalInfo.workspaceId, userId: req.user?.sub }
+    );
+    return { additionalInfo };
+  })
+);
+workspacesRoutes.delete(
+  "/additional-infos/:id",
+  requireAdmin,
+  handleAsync(async (req) => {
+    const id = req.params.id;
+    const existing = await getAdditionalInfoById(id);
+    if (!existing) throw new HttpError("Not found", 404);
+    await deleteAdditionalInfo(id);
+    safeAsync(
+      auditRecord({
+        action: "workspace.additional_info.deleted",
+        workspaceId: existing.workspaceId,
+        entityType: "additional_info",
+        entityId: id,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+        payload: { name: existing.name, label: existing.label },
+      }),
+      { operation: "audit.workspace.additional_info.deleted", workspaceId: existing.workspaceId, userId: req.user?.sub }
+    );
+    return { deleted: true };
+  })
+);
