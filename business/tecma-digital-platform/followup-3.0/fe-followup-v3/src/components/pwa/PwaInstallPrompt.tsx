@@ -13,15 +13,10 @@ function isStandalone(): boolean {
   );
 }
 
-function isIosSafari(): boolean {
+function isIosDevice(): boolean {
   if (typeof window === "undefined") return false;
   const ua = window.navigator.userAgent;
-  const isIOS = /iPad|iPhone|iPod/.test(ua) || (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
-  const isWebKit = /WebKit/i.test(ua);
-  const isCriOS = /CriOS/i.test(ua);
-  const isFxiOS = /FxiOS/i.test(ua);
-  const isEdgiOS = /EdgiOS/i.test(ua);
-  return isIOS && isWebKit && !isCriOS && !isFxiOS && !isEdgiOS;
+  return /iPad|iPhone|iPod/.test(ua) || (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
 }
 
 function getDismissedAt(): number | null {
@@ -53,7 +48,7 @@ const AUTO_PROMPT_DELAY_MS = 1500;
 export const PwaInstallPrompt = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
-  const showIosInstructions = isIosSafari() && !isStandalone();
+  const showIosInstructions = isIosDevice() && !isStandalone();
 
   useEffect(() => {
     if (isStandalone()) return;
@@ -141,7 +136,7 @@ export const PwaInstallPrompt = () => {
             <Download className="h-4 w-4 text-muted-foreground" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-foreground">Installa Followup su iPhone</p>
+            <p className="text-sm font-semibold text-foreground">Installa Followup su iOS</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
               Safari non mostra un popup automatico: tocca
               {" "}
