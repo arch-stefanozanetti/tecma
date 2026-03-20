@@ -306,13 +306,70 @@ workspacesRoutes.get(
   })
 );
 
-workspacesRoutes.post("/workspaces", requireAdmin, handleAsync((req) => createWorkspace(req.body)));
-workspacesRoutes.patch("/workspaces/:id", requireAdmin, handleAsync((req) => updateWorkspace(req.params.id, req.body)));
+workspacesRoutes.post(
+  "/workspaces",
+  requireAdmin,
+  handleAsync(async (req) => {
+    const result = await createWorkspace(req.body);
+    const wid = result.workspace._id;
+    safeAsync(
+      auditRecord({
+        action: "workspace.created",
+        workspaceId: wid,
+        entityType: "workspace",
+        entityId: wid,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+        payload: { name: result.workspace.name, owner_user_id: result.workspace.owner_user_id },
+      }),
+      { operation: "audit.workspace.created", workspaceId: wid, userId: req.user?.sub }
+    );
+    return result;
+  })
+);
+workspacesRoutes.patch(
+  "/workspaces/:id",
+  requireAdmin,
+  handleAsync(async (req) => {
+    const id = req.params.id;
+    const beforeSnap = await getWorkspaceById(id).catch(() => null);
+    const result = await updateWorkspace(id, req.body);
+    safeAsync(
+      auditRecord({
+        action: "workspace.updated",
+        workspaceId: id,
+        entityType: "workspace",
+        entityId: id,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+        payload: {
+          before: beforeSnap
+            ? { name: beforeSnap.workspace.name, owner_user_id: beforeSnap.workspace.owner_user_id }
+            : undefined,
+          after: { name: result.workspace.name, owner_user_id: result.workspace.owner_user_id },
+        },
+      }),
+      { operation: "audit.workspace.updated", workspaceId: id, userId: req.user?.sub }
+    );
+    return result;
+  })
+);
 workspacesRoutes.delete(
   "/workspaces/:id",
   requireAdmin,
   handleAsync(async (req) => {
-    await deleteWorkspace(req.params.id);
+    const id = req.params.id;
+    const beforeSnap = await getWorkspaceById(id);
+    await deleteWorkspace(id);
+    safeAsync(
+      auditRecord({
+        action: "workspace.deleted",
+        workspaceId: id,
+        entityType: "workspace",
+        entityId: id,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+        payload: { name: beforeSnap.workspace.name },
+      }),
+      { operation: "audit.workspace.deleted", workspaceId: id, userId: req.user?.sub }
+    );
     return { deleted: true };
   })
 );
