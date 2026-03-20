@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Download, X } from "lucide-react";
+import { Download, Plus, Share, X } from "lucide-react";
 import { Button } from "../ui/button";
 
 const PWA_INSTALL_DISMISSED_KEY = "pwa-install-dismissed";
@@ -11,6 +11,17 @@ function isStandalone(): boolean {
     window.matchMedia("(display-mode: standalone)").matches ||
     (window.navigator as Navigator & { standalone?: boolean }).standalone === true
   );
+}
+
+function isIosSafari(): boolean {
+  if (typeof window === "undefined") return false;
+  const ua = window.navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
+  const isWebKit = /WebKit/i.test(ua);
+  const isCriOS = /CriOS/i.test(ua);
+  const isFxiOS = /FxiOS/i.test(ua);
+  const isEdgiOS = /EdgiOS/i.test(ua);
+  return isIOS && isWebKit && !isCriOS && !isFxiOS && !isEdgiOS;
 }
 
 function getDismissedAt(): number | null {
@@ -42,6 +53,7 @@ const AUTO_PROMPT_DELAY_MS = 1500;
 export const PwaInstallPrompt = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
+  const showIosInstructions = isIosSafari() && !isStandalone();
 
   useEffect(() => {
     if (isStandalone()) return;
@@ -103,6 +115,50 @@ export const PwaInstallPrompt = () => {
               >
                 Installa
               </Button>
+              <Button size="sm" variant="ghost" onClick={handleDismiss}>
+                Dopo
+              </Button>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            onClick={handleDismiss}
+            aria-label="Chiudi prompt installazione"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (showIosInstructions && !dismissed) {
+    return (
+      <div className="fixed bottom-4 left-1/2 z-40 w-[calc(100%-1.5rem)] max-w-lg -translate-x-1/2 rounded-ui border border-border bg-card p-3 shadow-dropdown lg:bottom-6">
+        <div className="flex items-start gap-3">
+          <div className="rounded-chrome bg-muted p-2">
+            <Download className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">Installa Followup su iPhone</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Safari non mostra un popup automatico: tocca
+              {" "}
+              <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                <Share className="h-3.5 w-3.5" />
+                Condividi
+              </span>
+              {" "}
+              e poi
+              {" "}
+              <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                <Plus className="h-3.5 w-3.5" />
+                Aggiungi a schermata Home
+              </span>
+              .
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <Button size="sm" variant="ghost" onClick={handleDismiss}>
                 Dopo
               </Button>
