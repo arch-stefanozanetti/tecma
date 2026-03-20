@@ -345,17 +345,68 @@ workspacesRoutes.get(
 workspacesRoutes.post(
   "/workspaces/:id/platform-api-keys",
   requireAdmin,
-  handleAsync((req) => createPlatformApiKey(req.params.id, req.body))
+  handleAsync(async (req) => {
+    const workspaceId = req.params.id;
+    const result = await createPlatformApiKey(workspaceId, req.body);
+    safeAsync(
+      auditRecord({
+        action: "workspace.platform_api_key.created",
+        workspaceId,
+        entityType: "platform_api_key",
+        entityId: result.key._id,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+        payload: {
+          label: result.key.label,
+          projectIdsCount: result.key.projectIds.length,
+          scopesCount: result.key.scopes.length,
+          apiKeyMasked: result.apiKeyMasked,
+        },
+      }),
+      { operation: "audit.workspace.platform_api_key.created", workspaceId, userId: req.user?.sub }
+    );
+    return result;
+  })
 );
 workspacesRoutes.post(
   "/workspaces/:id/platform-api-keys/:keyId/rotate",
   requireAdmin,
-  handleAsync((req) => rotatePlatformApiKey(req.params.id, req.params.keyId))
+  handleAsync(async (req) => {
+    const workspaceId = req.params.id;
+    const keyId = req.params.keyId;
+    const result = await rotatePlatformApiKey(workspaceId, keyId);
+    safeAsync(
+      auditRecord({
+        action: "workspace.platform_api_key.rotated",
+        workspaceId,
+        entityType: "platform_api_key",
+        entityId: keyId,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+        payload: { label: result.key.label, apiKeyMasked: result.apiKeyMasked },
+      }),
+      { operation: "audit.workspace.platform_api_key.rotated", workspaceId, userId: req.user?.sub }
+    );
+    return result;
+  })
 );
 workspacesRoutes.delete(
   "/workspaces/:id/platform-api-keys/:keyId",
   requireAdmin,
-  handleAsync((req) => revokePlatformApiKey(req.params.id, req.params.keyId))
+  handleAsync(async (req) => {
+    const workspaceId = req.params.id;
+    const keyId = req.params.keyId;
+    const result = await revokePlatformApiKey(workspaceId, keyId);
+    safeAsync(
+      auditRecord({
+        action: "workspace.platform_api_key.revoked",
+        workspaceId,
+        entityType: "platform_api_key",
+        entityId: keyId,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+      }),
+      { operation: "audit.workspace.platform_api_key.revoked", workspaceId, userId: req.user?.sub }
+    );
+    return result;
+  })
 );
 workspacesRoutes.get(
   "/workspaces/:id/platform-api-keys/usage",
@@ -375,7 +426,28 @@ workspacesRoutes.get(
 workspacesRoutes.put(
   "/workspaces/:id/ai-config",
   requireAdmin,
-  handleAsync((req) => putWorkspaceAiConfig(req.params.id, req.body))
+  handleAsync(async (req) => {
+    const workspaceId = req.params.id;
+    const body = req.body as { provider?: string; apiKey?: string };
+    const result = await putWorkspaceAiConfig(workspaceId, req.body);
+    safeAsync(
+      auditRecord({
+        action: "workspace.ai_config.updated",
+        workspaceId,
+        entityType: "workspace_ai_config",
+        entityId: workspaceId,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+        payload: {
+          configured: result.configured,
+          provider: result.provider,
+          apiKeyMasked: result.apiKeyMasked,
+          hadApiKeyInRequest: typeof body.apiKey === "string" && body.apiKey.trim().length > 0,
+        },
+      }),
+      { operation: "audit.workspace.ai_config.updated", workspaceId, userId: req.user?.sub }
+    );
+    return result;
+  })
 );
 
 workspacesRoutes.post("/additional-infos", requireAdmin, handleAsync((req) => createAdditionalInfo(req.body)));
