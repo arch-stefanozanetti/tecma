@@ -2,6 +2,8 @@ import { Router } from "express";
 import { z } from "zod";
 import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
+import { requirePermission } from "../permissionMiddleware.js";
+import { PERMISSIONS } from "../../core/rbac/permissions.js";
 import {
   listByWorkspace as listAutomationRules,
   create as createAutomationRule,
@@ -12,30 +14,30 @@ import {
 
 export const automationRulesRoutes = Router();
 
-automationRulesRoutes.get("/workspaces/:workspaceId/automation-rules", handleAsync(async (req) => {
+automationRulesRoutes.get("/workspaces/:workspaceId/automation-rules", requirePermission(PERMISSIONS.INTEGRATIONS_READ), handleAsync(async (req) => {
   const rules = await listAutomationRules(req.params.workspaceId);
   return { data: rules };
 }));
 
-automationRulesRoutes.post("/workspaces/:workspaceId/automation-rules", handleAsync(async (req) => {
+automationRulesRoutes.post("/workspaces/:workspaceId/automation-rules", requirePermission(PERMISSIONS.INTEGRATIONS_CREATE), handleAsync(async (req) => {
   const body = z.record(z.unknown()).parse(req.body);
   const rule = await createAutomationRule({ ...body, workspaceId: req.params.workspaceId });
   return { rule };
 }));
 
-automationRulesRoutes.get("/automation-rules/:id", handleAsync(async (req) => {
+automationRulesRoutes.get("/automation-rules/:id", requirePermission(PERMISSIONS.INTEGRATIONS_READ), handleAsync(async (req) => {
   const rule = await getAutomationRuleById(req.params.id);
   if (!rule) throw new HttpError("Rule not found", 404);
   return { rule };
 }));
 
-automationRulesRoutes.patch("/automation-rules/:id", handleAsync(async (req) => {
+automationRulesRoutes.patch("/automation-rules/:id", requirePermission(PERMISSIONS.INTEGRATIONS_UPDATE), handleAsync(async (req) => {
   const rule = await updateAutomationRule(req.params.id, req.body);
   if (!rule) throw new HttpError("Rule not found", 404);
   return { rule };
 }));
 
-automationRulesRoutes.delete("/automation-rules/:id", handleAsync(async (req) => {
+automationRulesRoutes.delete("/automation-rules/:id", requirePermission(PERMISSIONS.INTEGRATIONS_DELETE), handleAsync(async (req) => {
   const ok = await removeAutomationRule(req.params.id);
   if (!ok) throw new HttpError("Rule not found", 404);
   return { deleted: true };

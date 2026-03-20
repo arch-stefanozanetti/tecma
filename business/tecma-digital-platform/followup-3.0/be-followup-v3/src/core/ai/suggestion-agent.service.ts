@@ -88,7 +88,9 @@ export async function executeSuggestionWithAgent(
   const ctx: AgentToolContext = {
     workspaceId,
     projectIds: projectIds.length > 0 ? projectIds : accessCtx.projectIds,
-    actorEmail: body.actorEmail
+    actorEmail: body.actorEmail,
+    actorIsAdmin: accessCtx.actorIsAdmin,
+    actorIsTecmaAdmin: accessCtx.actorIsTecmaAdmin,
   };
 
   const suggestionPayload = JSON.stringify(

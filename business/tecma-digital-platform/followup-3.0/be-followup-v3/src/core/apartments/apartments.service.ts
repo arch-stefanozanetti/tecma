@@ -1,10 +1,16 @@
-import { ObjectId } from "mongodb";
+import { ObjectId, type Document } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
 import { ListQuerySchema, type ListQueryInput, buildPagination } from "../shared/list-query.js";
 import { normalizePrice, type RawPrice } from "../pricing/price-normalizer.js";
 import { HttpError, PaginatedResponse } from "../../types/http.js";
 import { emitDomainEvent } from "../events/event-log.service.js";
+import { listEntityAssignments } from "../workspaces/entity-assignments.service.js";
+import {
+  shouldApplyEntityAssignmentListFilter,
+  viewerAssignmentUserId,
+  type EntityAssignmentListViewer,
+} from "../workspaces/entity-assignment-query.util.js";
 
 const ObjectIdLikeSchema = z.string().min(1);
 
@@ -117,9 +123,12 @@ const sortable: Record<string, 1> = {
 
 const TZ_APARTMENTS_COLLECTION = "tz_apartments";
 
-const queryPrimaryApartments = async (input: ListQueryInput): Promise<PaginatedResponse<ApartmentListRow>> => {
+const queryPrimaryApartments = async (
+  input: ListQueryInput,
+  viewer?: EntityAssignmentListViewer
+): Promise<PaginatedResponse<ApartmentListRow>> => {
   const db = getDb();
-  const collection = db.collection<ApartmentRow>(TZ_APARTMENTS_COLLECTION);
+  const collection = db.collection<RawApartment>(TZ_APARTMENTS_COLLECTION);
 
   const match = buildMatch(input);
   const { page, perPage } = input;
@@ -128,6 +137,66 @@ const queryPrimaryApartments = async (input: ListQueryInput): Promise<PaginatedR
   const sortField = input.sort?.field && sortable[input.sort.field] ? input.sort.field : "updatedAt";
   const sortDirection = input.sort?.direction ?? -1;
 
+  if (shouldApplyEntityAssignmentListFilter(viewer)) {
+    const wid = input.workspaceId;
+    const viewerId = viewerAssignmentUserId(viewer!);
+    const lookupAndVisibility: Document[] = [
+      {
+        $lookup: {
+          from: "tz_entity_assignments",
+          let: { aid: { $toString: "$_id" } },
+          pipeline: [
+            {
+              $match: {
+                workspaceId: wid,
+                entityType: "apartment",
+                $expr: { $eq: ["$entityId", "$$aid"] },
+              },
+            },
+          ],
+          as: "__ea",
+        },
+      },
+      {
+        $match: {
+          $or: [{ __ea: { $size: 0 } }, { "__ea.0.userId": viewerId }],
+        },
+      },
+    ];
+    const basePipeline: Document[] = [{ $match: match }, ...lookupAndVisibility];
+
+    const [rawData, countArr] = await Promise.all([
+      collection
+        .aggregate([
+          ...basePipeline,
+          { $sort: { [sortField]: sortDirection } },
+          { $skip: skip },
+          { $limit: limit },
+          { $project: { __ea: 0 } },
+        ])
+        .toArray(),
+      collection.aggregate([...basePipeline, { $count: "total" }]).toArray(),
+    ]);
+    const total = typeof countArr[0]?.total === "number" ? countArr[0].total : 0;
+    const data: ApartmentListRow[] = (rawData as RawApartment[]).map((row) => {
+      const { rawPrice, _id, ...rest } = row;
+      return {
+        ...rest,
+        _id: _id instanceof ObjectId ? _id.toHexString() : String(_id),
+        normalizedPrice: normalizePrice(rawPrice),
+      };
+    });
+    return {
+      data,
+      pagination: {
+        page,
+        perPage,
+        total,
+        totalPages: Math.ceil(total / perPage),
+      },
+    };
+  }
+
   const [rawData, total] = await Promise.all([
     collection
       .find(match)
@@ -135,13 +204,17 @@ const queryPrimaryApartments = async (input: ListQueryInput): Promise<PaginatedR
       .skip(skip)
       .limit(limit)
       .toArray(),
-    collection.countDocuments(match)
+    collection.countDocuments(match),
   ]);
 
-  const data: ApartmentListRow[] = rawData.map(({ rawPrice, ...rest }) => ({
-    ...rest,
-    normalizedPrice: normalizePrice(rawPrice)
-  }));
+  const data: ApartmentListRow[] = rawData.map((row) => {
+    const { rawPrice, _id, ...rest } = row;
+    return {
+      ...rest,
+      _id: _id instanceof ObjectId ? _id.toHexString() : String(_id),
+      normalizedPrice: normalizePrice(rawPrice),
+    };
+  });
 
   return {
     data,
@@ -149,22 +222,34 @@ const queryPrimaryApartments = async (input: ListQueryInput): Promise<PaginatedR
       page,
       perPage,
       total,
-      totalPages: Math.ceil(total / perPage)
-    }
+      totalPages: Math.ceil(total / perPage),
+    },
   };
 };
 
-export const queryApartments = async (rawInput: unknown): Promise<PaginatedResponse<ApartmentListRow>> => {
+export const queryApartments = async (
+  rawInput: unknown,
+  viewer?: EntityAssignmentListViewer
+): Promise<PaginatedResponse<ApartmentListRow>> => {
   const input = ListQuerySchema.parse(rawInput);
-  return queryPrimaryApartments(input);
+  return queryPrimaryApartments(input, viewer);
 };
 
-export const getApartmentById = async (rawApartmentId: unknown): Promise<{ apartment: ReturnType<typeof mapApartment> }> => {
+export const getApartmentById = async (
+  rawApartmentId: unknown,
+  viewer?: EntityAssignmentListViewer
+): Promise<{ apartment: ReturnType<typeof mapApartment> }> => {
   const apartmentId = toObjectId(z.string().parse(rawApartmentId));
   const db = getDb();
   const tzDoc = await db.collection<RawApartment>(TZ_APARTMENTS_COLLECTION).findOne({ _id: apartmentId });
   if (tzDoc) {
     const apartment = mapApartment(tzDoc);
+    if (shouldApplyEntityAssignmentListFilter(viewer) && apartment.workspaceId) {
+      const { data } = await listEntityAssignments(apartment.workspaceId, "apartment", apartment._id);
+      if (data.length > 0 && data[0].userId !== viewerAssignmentUserId(viewer!)) {
+        throw new HttpError("Apartment not found", 404);
+      }
+    }
     return { apartment };
   }
   throw new HttpError("Apartment not found", 404);

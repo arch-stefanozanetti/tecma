@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { handleAsync } from "../asyncHandler.js";
 import { requireCanAccessWorkspace } from "../accessMiddleware.js";
+import { requirePermission } from "../permissionMiddleware.js";
+import { PERMISSIONS } from "../../core/rbac/permissions.js";
 import {
   getUploadUrl,
   createAsset,
@@ -15,6 +17,7 @@ const withWorkspaceAccess = requireCanAccessWorkspace("workspaceId");
 
 assetsRoutes.post(
   "/workspaces/:workspaceId/assets/upload-url",
+  requirePermission(PERMISSIONS.APARTMENTS_UPDATE),
   withWorkspaceAccess,
   handleAsync(async (req) => {
     const workspaceId = req.params.workspaceId ?? "";
@@ -25,6 +28,7 @@ assetsRoutes.post(
 
 assetsRoutes.post(
   "/workspaces/:workspaceId/assets",
+  requirePermission(PERMISSIONS.APARTMENTS_UPDATE),
   withWorkspaceAccess,
   handleAsync(async (req) => {
     const workspaceId = req.params.workspaceId ?? "";
@@ -36,6 +40,7 @@ assetsRoutes.post(
 
 assetsRoutes.get(
   "/workspaces/:workspaceId/assets",
+  requirePermission(PERMISSIONS.APARTMENTS_READ),
   withWorkspaceAccess,
   handleAsync(async (req) => {
     const workspaceId = req.params.workspaceId ?? "";
@@ -49,6 +54,7 @@ assetsRoutes.get(
 
 assetsRoutes.get(
   "/workspaces/:workspaceId/assets/:assetId/download-url",
+  requirePermission(PERMISSIONS.APARTMENTS_READ),
   withWorkspaceAccess,
   handleAsync(async (req) => {
     const workspaceId = req.params.workspaceId ?? "";
@@ -59,6 +65,7 @@ assetsRoutes.get(
 
 assetsRoutes.delete(
   "/workspaces/:workspaceId/assets/:assetId",
+  requirePermission(PERMISSIONS.APARTMENTS_UPDATE),
   withWorkspaceAccess,
   handleAsync(async (req) => {
     const workspaceId = req.params.workspaceId ?? "";

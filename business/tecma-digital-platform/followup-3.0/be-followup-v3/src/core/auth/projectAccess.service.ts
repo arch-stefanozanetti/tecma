@@ -1,9 +1,12 @@
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
+import { listWorkspaceUserProjects } from "../workspaces/workspace-user-projects.service.js";
 
 const InputSchema = z.object({
-  email: z.string().email()
+  email: z.string().email(),
+  /** Se valorizzato, i progetti restituiti sono intersecati con quelli associati al workspace (tz_workspace_projects). */
+  workspaceId: z.string().min(1).optional(),
 });
 
 type ProjectDoc = {
@@ -30,6 +33,19 @@ const normalizeId = (id: string | ObjectId): string => {
 /** Solo collection presenti in test-zanetti. */
 const USERS_COLLECTION = "tz_users";
 const PROJECTS_COLLECTION = "tz_projects";
+const WORKSPACE_PROJECTS_COLLECTION = "tz_workspace_projects";
+
+const loadWorkspaceProjectIds = async (workspaceId: string): Promise<string[]> => {
+  const wid = workspaceId.trim();
+  if (!wid) return [];
+  const db = getDb();
+  const docs = await db
+    .collection(WORKSPACE_PROJECTS_COLLECTION)
+    .find({ workspaceId: wid })
+    .project({ projectId: 1 })
+    .toArray();
+  return docs.map((d) => String((d as { projectId?: unknown }).projectId ?? "")).filter(Boolean);
+};
 
 const buildProjectOutput = (project: ProjectDoc) => {
   const rawId = project._id || "";
@@ -59,7 +75,8 @@ const fetchTzProjects = async (filterIds?: string[]): Promise<ProjectDoc[]> => {
 };
 
 export const getProjectAccessByEmail = async (rawInput: unknown) => {
-  const { email } = InputSchema.parse(rawInput);
+  const { email, workspaceId: rawWorkspaceId } = InputSchema.parse(rawInput);
+  const workspaceId = rawWorkspaceId?.trim() || undefined;
   const db = getDb();
 
   const usersCollection = db.collection<UserDoc>(USERS_COLLECTION);
@@ -127,7 +144,23 @@ export const getProjectAccessByEmail = async (rawInput: unknown) => {
     }
   }
 
-  const normalizedProjects = merged.map(buildProjectOutput).sort((a, b) => a.displayName.localeCompare(b.displayName));
+  let normalizedProjects = merged.map(buildProjectOutput).sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+  if (workspaceId) {
+    const inWorkspace = await loadWorkspaceProjectIds(workspaceId);
+    if (inWorkspace.length > 0) {
+      const wsSet = new Set(inWorkspace);
+      normalizedProjects = normalizedProjects.filter((p) => wsSet.has(p.id));
+    }
+    if (!isAdmin && inWorkspace.length > 0) {
+      const emailKey = email.trim().toLowerCase();
+      const { data: userProjectIds } = await listWorkspaceUserProjects(workspaceId, emailKey);
+      if (userProjectIds.length > 0) {
+        const allowed = new Set(userProjectIds);
+        normalizedProjects = normalizedProjects.filter((p) => allowed.has(p.id));
+      }
+    }
+  }
 
   return {
     found: true,

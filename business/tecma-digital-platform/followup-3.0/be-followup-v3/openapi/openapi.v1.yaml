@@ -117,6 +117,14 @@
       "description": "Complete flow preview/execute"
     },
     {
+      "name": "webhooks",
+      "description": "Configurazione webhook outbound per workspace"
+    },
+    {
+      "name": "assets",
+      "description": "File asset workspace (immagini, documenti, planimetrie, branding)"
+    },
+    {
       "name": "hc-master",
       "description": "Entità master HC"
     },
@@ -969,7 +977,7 @@
                   },
                   "workspaceId": {
                     "type": "string",
-                    "description": "Se presente, filtra progetti del workspace"
+                    "description": "Opzionale. Se il workspace ha righe in tz_workspace_projects, la risposta è intersecata con quell’elenco; se l’elenco è vuoto non si applica filtro workspace. Per utenti non admin, se esistono righe in tz_workspace_user_projects si restringe ulteriormente a quei projectId."
                   }
                 }
               }
@@ -2170,6 +2178,404 @@
         }
       }
     },
+    "/workspaces/{workspaceId}/webhook-configs": {
+      "get": {
+        "tags": [
+          "webhooks",
+          "workspaces"
+        ],
+        "summary": "Lista configurazioni webhook del workspace",
+        "operationId": "listWorkspaceWebhookConfigs",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Identificativo workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "ws_demo_001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Elenco configurazioni webhook",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Payload con array in `data`"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "webhooks",
+          "workspaces"
+        ],
+        "summary": "Crea configurazione webhook",
+        "operationId": "createWorkspaceWebhookConfig",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Identificativo workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "ws_demo_001"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Campi creazione webhook (URL, eventi, segreti)"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Config creata"
+          },
+          "400": {
+            "description": "Input non valido"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      }
+    },
+    "/webhook-configs/{id}": {
+      "patch": {
+        "tags": [
+          "webhooks"
+        ],
+        "summary": "Aggiorna configurazione webhook",
+        "operationId": "patchWebhookConfig",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID configurazione webhook",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Campi da aggiornare"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Config aggiornata"
+          },
+          "404": {
+            "description": "Non trovata"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "webhooks"
+        ],
+        "summary": "Elimina configurazione webhook",
+        "operationId": "deleteWebhookConfig",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID configurazione webhook",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Eliminata"
+          },
+          "404": {
+            "description": "Non trovata"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/assets/upload-url": {
+      "post": {
+        "tags": ["assets", "workspaces"],
+        "summary": "URL presigned upload asset",
+        "operationId": "postWorkspaceAssetUploadUrl",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "description": "Metadati file e tipo asset" } } } },
+        "responses": {
+          "200": { "description": "URL e campi presigned" },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso negato" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/assets": {
+      "get": {
+        "tags": ["assets", "workspaces"],
+        "summary": "Lista asset workspace",
+        "operationId": "listWorkspaceAssets",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" },
+          { "name": "projectId", "in": "query", "required": false, "description": "Filtro progetto", "schema": { "type": "string" } },
+          { "name": "apartmentId", "in": "query", "required": false, "description": "Filtro appartamento", "schema": { "type": "string" } },
+          { "name": "type", "in": "query", "required": false, "description": "Tipo asset", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Lista in data" },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso negato" },
+          "500": { "description": "Errore server" }
+        }
+      },
+      "post": {
+        "tags": ["assets", "workspaces"],
+        "summary": "Registra asset dopo upload",
+        "operationId": "createWorkspaceAsset",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "description": "Metadati asset creato" } } } },
+        "responses": {
+          "200": { "description": "Asset creato in data" },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso negato" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/assets/{assetId}/download-url": {
+      "get": {
+        "tags": ["assets", "workspaces"],
+        "summary": "URL download presigned asset",
+        "operationId": "getWorkspaceAssetDownloadUrl",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" },
+          { "name": "assetId", "in": "path", "required": true, "description": "ID asset", "schema": { "type": "string" }, "example": "673abc12def4567890123456" }
+        ],
+        "responses": {
+          "200": { "description": "URL download" },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso negato" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/assets/{assetId}": {
+      "delete": {
+        "tags": ["assets", "workspaces"],
+        "summary": "Elimina asset",
+        "operationId": "deleteWorkspaceAsset",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" },
+          { "name": "assetId", "in": "path", "required": true, "description": "ID asset", "schema": { "type": "string" }, "example": "673abc12def4567890123456" }
+        ],
+        "responses": {
+          "200": { "description": "Eliminato" },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso negato" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/clients/{clientId}/documents/upload-url": {
+      "post": {
+        "tags": ["clients", "workspaces"],
+        "summary": "URL presigned upload documento cliente",
+        "operationId": "postClientDocumentUploadUrl",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" },
+          { "name": "clientId", "in": "path", "required": true, "description": "ID cliente", "schema": { "type": "string" }, "example": "673abc12def4567890123456" }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "description": "Metadati upload" } } } },
+        "responses": {
+          "200": { "description": "URL presigned" },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso negato" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/clients/{clientId}/documents": {
+      "get": {
+        "tags": ["clients", "workspaces"],
+        "summary": "Lista documenti cliente",
+        "operationId": "listClientDocuments",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" },
+          { "name": "clientId", "in": "path", "required": true, "description": "ID cliente", "schema": { "type": "string" }, "example": "673abc12def4567890123456" }
+        ],
+        "responses": {
+          "200": { "description": "Lista in data" },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso negato" },
+          "500": { "description": "Errore server" }
+        }
+      },
+      "post": {
+        "tags": ["clients", "workspaces"],
+        "summary": "Crea record documento cliente",
+        "operationId": "createClientDocument",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" },
+          { "name": "clientId", "in": "path", "required": true, "description": "ID cliente", "schema": { "type": "string" }, "example": "673abc12def4567890123456" }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "description": "Metadati documento" } } } },
+        "responses": {
+          "200": { "description": "Documento in data" },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso negato" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/clients/{clientId}/documents/{docId}/download-url": {
+      "get": {
+        "tags": ["clients", "workspaces"],
+        "summary": "URL download documento",
+        "operationId": "getClientDocumentDownloadUrl",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" },
+          { "name": "clientId", "in": "path", "required": true, "description": "ID cliente", "schema": { "type": "string" }, "example": "673abc12def4567890123456" },
+          { "name": "docId", "in": "path", "required": true, "description": "ID documento", "schema": { "type": "string" }, "example": "673abc12def4567890123457" }
+        ],
+        "responses": {
+          "200": { "description": "URL download" },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso negato" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/clients/{clientId}/documents/{docId}/share-link": {
+      "get": {
+        "tags": ["clients", "workspaces"],
+        "summary": "Link condivisione documento",
+        "operationId": "getClientDocumentShareLink",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" },
+          { "name": "clientId", "in": "path", "required": true, "description": "ID cliente", "schema": { "type": "string" }, "example": "673abc12def4567890123456" },
+          { "name": "docId", "in": "path", "required": true, "description": "ID documento", "schema": { "type": "string" }, "example": "673abc12def4567890123457" }
+        ],
+        "responses": {
+          "200": { "description": "Link o payload share" },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso negato" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/clients/{clientId}/documents/{docId}": {
+      "delete": {
+        "tags": ["clients", "workspaces"],
+        "summary": "Elimina documento cliente",
+        "operationId": "deleteClientDocument",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" },
+          { "name": "clientId", "in": "path", "required": true, "description": "ID cliente", "schema": { "type": "string" }, "example": "673abc12def4567890123456" },
+          { "name": "docId", "in": "path", "required": true, "description": "ID documento", "schema": { "type": "string" }, "example": "673abc12def4567890123457" }
+        ],
+        "responses": {
+          "200": { "description": "Eliminato" },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso negato" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
     "/workspaces/{id}/platform-api-keys": {
       "get": {
         "tags": [
@@ -2981,6 +3387,50 @@
           },
           "403": {
             "description": "No allowed projectIds for key scope"
+          }
+        }
+      }
+    },
+    "/platform/clients/lite/query": {
+      "post": {
+        "tags": [
+          "platform",
+          "Riusabili"
+        ],
+        "summary": "Query clienti lite (stesso servizio di POST /clients/lite/query) con scope API key",
+        "description": "Richiede scope `platform.clients.read`. `workspaceId` è quello associato alla chiave; `projectIds` opzionali nel body sono intersecati con i project consentiti dalla chiave.",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "projectIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Progetti da interrogare; se omesso si usano i projectIds della chiave"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Elenco clienti lite nel perimetro workspace/progetti"
+          },
+          "401": {
+            "description": "Missing/invalid API key"
+          },
+          "403": {
+            "description": "Scope mancante o nessun projectId consentito"
           }
         }
       }

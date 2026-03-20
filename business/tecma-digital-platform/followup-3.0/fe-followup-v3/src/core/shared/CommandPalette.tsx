@@ -3,7 +3,7 @@ import { Input } from "../../components/ui/input";
 import { cn } from "../../lib/utils";
 import { followupApi } from "../../api/followupApi";
 import { isSectionEnabledByFeature, isPriceAvailabilityRelevant } from "../features";
-import type { Section } from "../config/routes";
+import { sectionMeetsPermissionRequirements, type Section } from "../config/routes";
 import type {
   ProjectAccessProject,
   ClientRow,
@@ -67,6 +67,7 @@ interface CommandPaletteProps {
   isAdmin?: boolean;
   projects?: ProjectAccessProject[];
   selectedProjectIds?: string[];
+  hasPermission?: (permission: string) => boolean;
 }
 
 export const CommandPalette = ({
@@ -80,6 +81,7 @@ export const CommandPalette = ({
   isAdmin = false,
   projects = [],
   selectedProjectIds = [],
+  hasPermission,
 }: CommandPaletteProps) => {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -114,9 +116,10 @@ export const CommandPalette = ({
       if (item.id === "priceAvailability" && projects.length > 0 && selectedProjectIds.length > 0) {
         if (!isPriceAvailabilityRelevant(projects, selectedProjectIds)) return false;
       }
+      if (hasPermission && !sectionMeetsPermissionRequirements(item.id, hasPermission)) return false;
       return true;
     });
-  }, [enabledFeatures, isAdmin, projects, selectedProjectIds]);
+  }, [enabledFeatures, isAdmin, projects, selectedProjectIds, hasPermission]);
 
   const filteredSectionCommands = useMemo(() => {
     const needle = query.trim().toLowerCase();

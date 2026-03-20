@@ -106,7 +106,7 @@ Da implementare con flusso Figma MCP (get_design_context + get_screenshot) in `f
 
 - Ogni componente si implementa seguendo le regole in `.cursor/rules/figma-design-system.mdc` (get_design_context, get_screenshot, traduzione nelle convenzioni del progetto).
 - Per ogni pagina Figma il **node-id** (o l’URL con node-id) va fornito **al momento** in cui si inizia l’implementazione; non è necessario elencare tutti i link in anticipo.
-- Le wave DS 2–4 sono **sub-wave** rispetto alla Wave 2 del piano di evoluzione ([archive/FOLLOWUP_3_EVOLUTION_PLAN.md](archive/FOLLOWUP_3_EVOLUTION_PLAN.md)); non modificano la numerazione Wave 1–7.
+- Le wave DS 2–4 sono **sub-wave** rispetto alla **Wave 2** del [FOLLOWUP_3_MASTER.md](FOLLOWUP_3_MASTER.md) (design system); non modificano la numerazione Wave 1–7.
 
 ---
 

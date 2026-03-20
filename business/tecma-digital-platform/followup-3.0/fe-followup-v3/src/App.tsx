@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Routes, Route, useLocation, useSearchParams, useNavigate, Navigate } from "react-router-dom";
-import { clearProjectScope, loadProjectScope, updateSelectedProjectIds, updateWorkspaceId } from "./auth/projectScope";
+import { clearProjectScope, loadProjectScope, saveProjectScope, updateSelectedProjectIds, updateWorkspaceId } from "./auth/projectScope";
 import { followupApi } from "./api/followupApi";
+import { getRefreshToken, setTokens } from "./api/http";
+import { isBssAuth } from "./api/authApi";
 import { PageTemplate } from "./core/shared/PageTemplate";
 import { PageSimple } from "./core/shared/PageSimple";
 import { CalendarPage } from "./core/calendar/CalendarPage";
@@ -39,7 +41,14 @@ import { ProjectsPage } from "./core/projects/ProjectsPage";
 import { InboxPage } from "./core/shared/InboxPage";
 import { Customer360Page } from "./core/customer360/Customer360Page";
 import { isSectionEnabledByFeature, isPriceAvailabilityRelevant } from "./core/features";
-import { SECTIONS, SECTION_TO_PATH, PATH_TO_SECTION, type Section } from "./core/config/routes";
+import {
+  SECTIONS,
+  SECTION_TO_PATH,
+  PATH_TO_SECTION,
+  sectionMeetsPermissionRequirements,
+  sectionRequiredPermissionHint,
+  type Section,
+} from "./core/config/routes";
 import { CommandPalette } from "./core/shared/CommandPalette";
 import type { ProjectAccessProject } from "./types/domain";
 import { PwaInstallPrompt } from "./components/pwa/PwaInstallPrompt";
@@ -53,6 +62,28 @@ const ApartmentDetailPage = lazy(() =>
   import("./core/apartments/ApartmentDetailPage").then((module) => ({ default: module.ApartmentDetailPage }))
 );
 
+function PermissionGated({
+  permission,
+  hasPermission,
+  children,
+}: {
+  permission: string | readonly string[];
+  hasPermission: (perm: string) => boolean;
+  children: ReactNode;
+}): ReactNode {
+  const list = typeof permission === "string" ? [permission] : [...permission];
+  const ok = list.every((p) => hasPermission(p));
+  if (ok) return <>{children}</>;
+  const hint = list.join(" + ");
+  return (
+    <PageSimple title="Accesso negato" description="Non hai i permessi per questa risorsa.">
+      <p className="text-sm text-muted-foreground">
+        Servono: <span className="font-mono text-xs">{hint}</span>. Effettua logout/login se i ruoli sono stati aggiornati.
+      </p>
+    </PageSimple>
+  );
+}
+
 const renderSection = (
   section: Section,
   workspaceId: string,
@@ -62,12 +93,30 @@ const renderSection = (
   enabledFeatures?: string[],
   location?: { state?: unknown },
   isAdmin?: boolean,
-  navigate?: (path: string) => void
+  navigate?: (path: string) => void,
+  hasPermission?: (perm: string) => boolean
 ): ReactNode => {
   if (!isSectionEnabledByFeature(section, enabledFeatures)) {
     return (
       <PageSimple title="Funzionalità non disponibile" description="Questa funzionalità non è abilitata per il workspace corrente.">
         <p className="text-sm text-muted-foreground">Contatta l’amministratore per abilitarla.</p>
+      </PageSimple>
+    );
+  }
+  if (hasPermission && !sectionMeetsPermissionRequirements(section, hasPermission)) {
+    const hint = sectionRequiredPermissionHint(section);
+    return (
+      <PageSimple title="Accesso negato" description="Non hai i permessi per questa sezione.">
+        <p className="text-sm text-muted-foreground">
+          {hint ? (
+            <>
+              Permessi richiesti: <span className="font-mono text-xs">{hint}</span>.
+            </>
+          ) : (
+            "Contatta un amministratore."
+          )}{" "}
+          Se i ruoli sono cambiati, effettua logout e login (o attendi il refresh automatico del token).
+        </p>
       </PageSimple>
     );
   }
@@ -299,6 +348,39 @@ export const App = () => {
   const pathname = location.pathname;
   const projectScope = useMemo(() => loadProjectScope(), [accessVersion]);
 
+  /** Allinea permessi in localStorage con JWT aggiornato (dopo deploy RBAC / refresh ruoli). */
+  useEffect(() => {
+    if (!projectScope?.selectedProjectIds?.length || !projectScope.email) return;
+    if (isBssAuth()) return;
+    const SYNC_KEY = "followup3.permLastSync";
+    const INTERVAL_MS = 4 * 60 * 60 * 1000;
+    const last = Number(sessionStorage.getItem(SYNC_KEY) || 0);
+    if (Date.now() - last < INTERVAL_MS) return;
+    const rt = getRefreshToken();
+    if (!rt) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await followupApi.refresh(rt);
+        setTokens(r.accessToken, r.refreshToken ?? rt);
+        const u = await followupApi.me();
+        if (cancelled) return;
+        const cur = loadProjectScope();
+        if (cur?.email) {
+          saveProjectScope({ ...cur, permissions: u.permissions ?? [] });
+          setAccessVersion((v) => v + 1);
+        }
+        sessionStorage.setItem(SYNC_KEY, String(Date.now()));
+      } catch {
+        /* non bloccare: token scaduto o rete */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectScope?.selectedProjectIds?.length, projectScope?.email]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -486,6 +568,12 @@ export const App = () => {
           setAccessVersion((v) => v + 1);
         },
         navigate,
+        hasPermission: (perm: string) => {
+          if (projectScope.isAdmin) return true;
+          const g = projectScope.permissions ?? [];
+          if (g.includes("*")) return true;
+          return g.includes(perm);
+        },
       };
 
       // Wrapper con key per forzare unmount/remount al cambio sezione (evita "more hooks" su stesso componente).
@@ -502,7 +590,8 @@ export const App = () => {
         workspaceFeatures,
         location,
         projectScope.isAdmin ?? false,
-        navigate
+        navigate,
+        templateProps.hasPermission
       );
 
       appContent = (
@@ -521,15 +610,23 @@ export const App = () => {
             isAdmin={projectScope.isAdmin ?? false}
             projects={filteredProjects}
             selectedProjectIds={filteredSelected}
+            hasPermission={(perm: string) => {
+              if (projectScope.isAdmin) return true;
+              const g = projectScope.permissions ?? [];
+              if (g.includes("*")) return true;
+              return g.includes(perm);
+            }}
           />
           <Routes>
             <Route
               path="/clients/:clientId"
               element={
                 <PageTemplate {...templateProps}>
-                  <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Caricamento dettaglio cliente...</div>}>
-                    <ClientDetailPage />
-                  </Suspense>
+                  <PermissionGated permission="clients.read" hasPermission={templateProps.hasPermission ?? (() => false)}>
+                    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Caricamento dettaglio cliente...</div>}>
+                      <ClientDetailPage />
+                    </Suspense>
+                  </PermissionGated>
                 </PageTemplate>
               }
             />
@@ -537,9 +634,11 @@ export const App = () => {
               path="/apartments/:apartmentId"
               element={
                 <PageTemplate {...templateProps}>
-                  <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Caricamento dettaglio appartamento...</div>}>
-                    <ApartmentDetailPage />
-                  </Suspense>
+                  <PermissionGated permission="apartments.read" hasPermission={templateProps.hasPermission ?? (() => false)}>
+                    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Caricamento dettaglio appartamento...</div>}>
+                      <ApartmentDetailPage />
+                    </Suspense>
+                  </PermissionGated>
                 </PageTemplate>
               }
             />

@@ -29,7 +29,7 @@ import type {
 import { EVENT_LABELS } from "./integrationsCatalog";
 import type { AutomationEventType } from "../../types/domain";
 
-export function RegoleTab({ workspaceId }: { workspaceId: string }) {
+export function RegoleTab({ workspaceId, readOnly = false }: { workspaceId: string; readOnly?: boolean }) {
   const { toastError } = useToast();
   const [rules, setRules] = useState<AutomationRuleRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -131,7 +131,7 @@ export function RegoleTab({ workspaceId }: { workspaceId: string }) {
           (es. trattativa passa a stato X, nuovo cliente) viene creata una notifica in-app. Non sono le stesse &quot;regole di comunicazione&quot;
           (email/WhatsApp) della tab Comunicazioni — quelle usano template e il motore comunicazioni.
         </p>
-        <Button size="sm" className="min-h-11 gap-2" onClick={openCreate}>
+        <Button size="sm" className="min-h-11 gap-2" onClick={openCreate} disabled={readOnly}>
           <Plus className="h-4 w-4" />
           Nuova regola
         </Button>
@@ -153,10 +153,10 @@ export function RegoleTab({ workspaceId }: { workspaceId: string }) {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="min-h-11" onClick={() => openEdit(r)}>
+                <Button variant="outline" size="sm" className="min-h-11" onClick={() => openEdit(r)} disabled={readOnly}>
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
-                <Button variant="outline" size="sm" className="min-h-11 text-destructive" onClick={() => handleDelete(r._id)}>
+                <Button variant="outline" size="sm" className="min-h-11 text-destructive" onClick={() => handleDelete(r._id)} disabled={readOnly}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -233,7 +233,7 @@ export function RegoleTab({ workspaceId }: { workspaceId: string }) {
             </div>
           </DrawerBody>
           <DrawerFooter>
-            <Button className="min-h-11" onClick={handleSubmit} disabled={saving}>{saving ? "Salvataggio..." : "Salva"}</Button>
+            <Button className="min-h-11" onClick={handleSubmit} disabled={saving || readOnly}>{saving ? "Salvataggio..." : "Salva"}</Button>
           </DrawerFooter>
         </DrawerContent>
       </Drawer>

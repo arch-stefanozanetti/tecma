@@ -35,6 +35,15 @@ interface ApartmentsListSectionProps {
   onToggleOtherOptions: () => void;
   onOpenImportExcel: () => void;
   otherOptionsRef: MutableRefObject<HTMLDivElement | null>;
+  /** Gate JWT: apartments.create */
+  createApartmentDisabled?: boolean;
+  createApartmentTitle?: string;
+  /** Gate JWT: apartments.update (import) */
+  importExcelDisabled?: boolean;
+  importExcelTitle?: string;
+  /** Gate JWT: apartments.export */
+  exportExcelDisabled?: boolean;
+  exportExcelTitle?: string;
 }
 
 export const ApartmentsListSection = ({
@@ -64,6 +73,12 @@ export const ApartmentsListSection = ({
   onToggleOtherOptions,
   onOpenImportExcel,
   otherOptionsRef,
+  createApartmentDisabled = false,
+  createApartmentTitle,
+  importExcelDisabled = false,
+  importExcelTitle,
+  exportExcelDisabled = false,
+  exportExcelTitle,
 }: ApartmentsListSectionProps) => {
   const isMobile = useIsMobile();
   return (
@@ -77,7 +92,14 @@ export const ApartmentsListSection = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button className="min-h-11 rounded-lg px-4 text-sm font-medium" onClick={() => onOpenApartment("create")}>Crea appartamento</Button>
+          <Button
+            className="min-h-11 rounded-lg px-4 text-sm font-medium"
+            onClick={() => onOpenApartment("create")}
+            disabled={createApartmentDisabled}
+            title={createApartmentTitle}
+          >
+            Crea appartamento
+          </Button>
           <Button variant="outline" className="min-h-11 rounded-lg border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-muted">
             Verifica dati
           </Button>
@@ -94,14 +116,16 @@ export const ApartmentsListSection = ({
             {otherOptionsOpen && (
               <div className="absolute right-0 top-11 z-50 w-52 overflow-hidden rounded-ui border border-border bg-background shadow-dropdown">
                 {[
-                  { icon: Upload, label: "Importa Excel" },
-                  { icon: Download, label: "Esporta Excel" },
+                  { icon: Upload, label: "Importa Excel", disabled: importExcelDisabled, title: importExcelTitle },
+                  { icon: Download, label: "Esporta Excel", disabled: exportExcelDisabled, title: exportExcelTitle },
                   { icon: ArrowLeftRight, label: "Vai alla vecchia interfaccia" },
-                ].map(({ icon: Icon, label }) => (
+                ].map(({ icon: Icon, label, disabled, title }) => (
                   <button
                     key={label}
                     type="button"
-                    className="flex min-h-11 w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted"
+                    disabled={disabled}
+                    title={title}
+                    className="flex min-h-11 w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
                     onClick={() => {
                       if (label === "Importa Excel") onOpenImportExcel();
                     }}

@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { handleAsync } from "../asyncHandler.js";
 import { requireCanAccessWorkspace } from "../accessMiddleware.js";
+import { requirePermission } from "../permissionMiddleware.js";
+import { PERMISSIONS } from "../../core/rbac/permissions.js";
 import {
   getClientDocumentUploadUrl,
   createClientDocument,
@@ -15,6 +17,7 @@ const withWorkspaceAccess = requireCanAccessWorkspace("workspaceId");
 
 clientDocumentsRoutes.post(
   "/workspaces/:workspaceId/clients/:clientId/documents/upload-url",
+  requirePermission(PERMISSIONS.CLIENTS_UPDATE),
   withWorkspaceAccess,
   handleAsync(async (req) => {
     const workspaceId = req.params.workspaceId ?? "";
@@ -26,6 +29,7 @@ clientDocumentsRoutes.post(
 
 clientDocumentsRoutes.post(
   "/workspaces/:workspaceId/clients/:clientId/documents",
+  requirePermission(PERMISSIONS.CLIENTS_UPDATE),
   withWorkspaceAccess,
   handleAsync(async (req) => {
     const workspaceId = req.params.workspaceId ?? "";
@@ -38,6 +42,7 @@ clientDocumentsRoutes.post(
 
 clientDocumentsRoutes.get(
   "/workspaces/:workspaceId/clients/:clientId/documents",
+  requirePermission(PERMISSIONS.CLIENTS_READ),
   withWorkspaceAccess,
   handleAsync(async (req) => {
     const workspaceId = req.params.workspaceId ?? "";
@@ -49,6 +54,7 @@ clientDocumentsRoutes.get(
 
 clientDocumentsRoutes.get(
   "/workspaces/:workspaceId/clients/:clientId/documents/:docId/download-url",
+  requirePermission(PERMISSIONS.CLIENTS_READ),
   withWorkspaceAccess,
   handleAsync(async (req) => {
     const workspaceId = req.params.workspaceId ?? "";
@@ -60,6 +66,7 @@ clientDocumentsRoutes.get(
 
 clientDocumentsRoutes.get(
   "/workspaces/:workspaceId/clients/:clientId/documents/:docId/share-link",
+  requirePermission(PERMISSIONS.CLIENTS_READ),
   withWorkspaceAccess,
   handleAsync(async (req) => {
     const workspaceId = req.params.workspaceId ?? "";
@@ -71,6 +78,7 @@ clientDocumentsRoutes.get(
 
 clientDocumentsRoutes.delete(
   "/workspaces/:workspaceId/clients/:clientId/documents/:docId",
+  requirePermission(PERMISSIONS.CLIENTS_UPDATE),
   withWorkspaceAccess,
   handleAsync(async (req) => {
     const workspaceId = req.params.workspaceId ?? "";

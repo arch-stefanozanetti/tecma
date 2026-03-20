@@ -63,7 +63,12 @@ const parseApiKeys = (): Map<string, PlatformAccessContext> => {
       scopes:
         Array.isArray(config.scopes) && config.scopes.length > 0
           ? config.scopes.filter((scope): scope is string => typeof scope === "string" && scope.trim().length > 0)
-          : ["platform.capabilities.read", "platform.listings.read", "platform.reports.read"],
+          : [
+              "platform.capabilities.read",
+              "platform.listings.read",
+              "platform.reports.read",
+              "platform.clients.read",
+            ],
       quotaPerDay:
         typeof config.quotaPerDay === "number" && Number.isFinite(config.quotaPerDay) && config.quotaPerDay > 0
           ? Math.floor(config.quotaPerDay)

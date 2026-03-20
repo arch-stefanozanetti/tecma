@@ -34,7 +34,8 @@ const REPORT_LABELS: Record<ReportType, string> = {
 };
 
 export const ReportsPage = () => {
-  const { workspaceId, selectedProjectIds } = useWorkspace();
+  const { workspaceId, selectedProjectIds, hasPermission } = useWorkspace();
+  const canExportReports = hasPermission("reports.export");
   const [reportType, setReportType] = useState<ReportType>("pipeline");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -118,7 +119,14 @@ export const ReportsPage = () => {
             <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36" />
           </div>
           <Button variant="outline" className="min-h-11" onClick={() => void load()}>Aggiorna</Button>
-          <Button className="min-h-11" onClick={handleExportCsv} disabled={data.length === 0}>Export CSV</Button>
+          <Button
+            className="min-h-11"
+            onClick={handleExportCsv}
+            disabled={data.length === 0 || !canExportReports}
+            title={!canExportReports ? "Non hai il permesso di esportare i report" : undefined}
+          >
+            Export CSV
+          </Button>
         </div>
 
         <p className="mt-6 text-xs text-muted-foreground md:hidden">Scorri orizzontalmente per vedere tutte le colonne.</p>

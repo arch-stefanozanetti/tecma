@@ -36,6 +36,15 @@ interface ClientsListSectionProps {
   onPrevPage: () => void;
   onNextPage: () => void;
   onLastPage: () => void;
+  /** Gate JWT: clients.create */
+  addClientDisabled?: boolean;
+  addClientTitle?: string;
+  /** Gate JWT: clients.update (import bulk) */
+  importExcelDisabled?: boolean;
+  importExcelTitle?: string;
+  /** Gate JWT: clients.read */
+  exportExcelDisabled?: boolean;
+  exportExcelTitle?: string;
 }
 
 export const ClientsListSection = ({
@@ -65,6 +74,12 @@ export const ClientsListSection = ({
   onPrevPage,
   onNextPage,
   onLastPage,
+  addClientDisabled = false,
+  addClientTitle,
+  importExcelDisabled = false,
+  importExcelTitle,
+  exportExcelDisabled = false,
+  exportExcelTitle,
 }: ClientsListSectionProps) => {
   const isMobile = useIsMobile();
   return (
@@ -76,7 +91,12 @@ export const ClientsListSection = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button className="min-h-11 rounded-lg" onClick={onOpenCreateClient}>
+          <Button
+            className="min-h-11 rounded-lg"
+            onClick={onOpenCreateClient}
+            disabled={addClientDisabled}
+            title={addClientTitle}
+          >
             Aggiungi cliente
           </Button>
 
@@ -88,11 +108,17 @@ export const ClientsListSection = ({
             {otherOptionsOpen && (
               <div className="absolute right-0 top-11 z-50 w-52 overflow-hidden rounded-ui border border-border bg-background shadow-dropdown">
                 {[
-                  { icon: Upload, label: "Importa Excel" },
-                  { icon: Download, label: "Esporta Excel" },
+                  { icon: Upload, label: "Importa Excel", disabled: importExcelDisabled, title: importExcelTitle },
+                  { icon: Download, label: "Esporta Excel", disabled: exportExcelDisabled, title: exportExcelTitle },
                   { icon: ArrowLeftRight, label: "Vai alla vecchia interfaccia" },
-                ].map(({ icon: Icon, label }) => (
-                  <button key={label} type="button" className="flex min-h-11 w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted">
+                ].map(({ icon: Icon, label, disabled, title }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    disabled={disabled}
+                    title={title}
+                    className="flex min-h-11 w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
+                  >
                     <Icon className="h-4 w-4 text-muted-foreground" />
                     {label}
                   </button>

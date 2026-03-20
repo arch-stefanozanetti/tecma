@@ -6,6 +6,7 @@ import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
 import { HttpError } from "../../types/http.js";
+import type { WhatsAppTemplatePayload } from "../messaging/messaging.types.js";
 
 const COLLECTION = "tz_communication_templates";
 
@@ -22,6 +23,10 @@ export interface CommunicationTemplateRow {
   bodyText: string;
   bodyHtml?: string;
   variables: string[];
+  /** Nome template approvato in Meta (WhatsApp Cloud API), solo per channel whatsapp con provider Meta. */
+  metaTemplateName?: string;
+  /** Codice lingua Meta, es. it, en_US. */
+  metaTemplateLanguage?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -35,6 +40,8 @@ const CreateSchema = z.object({
   bodyText: z.string().min(1),
   bodyHtml: z.string().optional(),
   variables: z.array(z.string().max(64)).default([]),
+  metaTemplateName: z.string().max(512).optional(),
+  metaTemplateLanguage: z.string().max(32).optional(),
 });
 
 const UpdateSchema = z.object({
@@ -44,6 +51,8 @@ const UpdateSchema = z.object({
   bodyText: z.string().min(1).optional(),
   bodyHtml: z.string().optional(),
   variables: z.array(z.string().max(64)).optional(),
+  metaTemplateName: z.string().max(512).nullable().optional(),
+  metaTemplateLanguage: z.string().max(32).nullable().optional(),
 });
 
 const toIso = (v: unknown): string => {
@@ -66,6 +75,8 @@ function docToRow(doc: Record<string, unknown>): CommunicationTemplateRow {
     bodyText: String(doc.bodyText ?? ""),
     bodyHtml: doc.bodyHtml != null ? String(doc.bodyHtml) : undefined,
     variables: Array.isArray(doc.variables) ? doc.variables.map(String) : [],
+    metaTemplateName: doc.metaTemplateName != null ? String(doc.metaTemplateName) : undefined,
+    metaTemplateLanguage: doc.metaTemplateLanguage != null ? String(doc.metaTemplateLanguage) : undefined,
     createdAt: toIso(doc.createdAt),
     updatedAt: toIso(doc.updatedAt),
   };
@@ -107,6 +118,8 @@ export const create = async (input: z.infer<typeof CreateSchema>): Promise<Commu
     bodyText: parsed.bodyText.trim(),
     ...(parsed.bodyHtml && { bodyHtml: parsed.bodyHtml.trim() }),
     variables: parsed.variables ?? [],
+    ...(parsed.metaTemplateName?.trim() && { metaTemplateName: parsed.metaTemplateName.trim() }),
+    ...(parsed.metaTemplateLanguage?.trim() && { metaTemplateLanguage: parsed.metaTemplateLanguage.trim() }),
     createdAt: now,
     updatedAt: now,
   };
@@ -129,6 +142,12 @@ export const update = async (
   if (parsed.bodyHtml !== undefined) updateFields.bodyHtml = parsed.bodyHtml?.trim() ?? null;
   if (parsed.variables !== undefined) updateFields.variables = parsed.variables;
   if (parsed.projectId !== undefined) updateFields.projectId = parsed.projectId || null;
+  if (parsed.metaTemplateName !== undefined) {
+    updateFields.metaTemplateName = parsed.metaTemplateName?.trim() || null;
+  }
+  if (parsed.metaTemplateLanguage !== undefined) {
+    updateFields.metaTemplateLanguage = parsed.metaTemplateLanguage?.trim() || null;
+  }
   const result = await db.collection(COLLECTION).findOneAndUpdate(
     { _id: new ObjectId(id) },
     { $set: updateFields },
@@ -164,4 +183,18 @@ export function resolveTemplate(
     bodyText: substitute(template.bodyText, context),
     ...(template.bodyHtml != null && { bodyHtml: substitute(template.bodyHtml, context) }),
   };
+}
+
+/**
+ * Costruisce il payload template Meta: ordine parametri = ordine di `template.variables` (chiavi contesto).
+ */
+export function buildMetaWhatsAppTemplatePayload(
+  template: CommunicationTemplateRow,
+  context: Record<string, string | undefined>
+): WhatsAppTemplatePayload | null {
+  const name = template.metaTemplateName?.trim();
+  const languageCode = template.metaTemplateLanguage?.trim();
+  if (!name || !languageCode) return null;
+  const bodyParameterValues = template.variables.map((key) => context[key] ?? "");
+  return { name, languageCode, bodyParameterValues };
 }

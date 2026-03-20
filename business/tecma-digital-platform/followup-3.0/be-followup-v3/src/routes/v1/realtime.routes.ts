@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { HttpError } from "../../types/http.js";
+import { hasAnyPermission, PERMISSIONS } from "../../core/rbac/permissions.js";
 import { canAccess } from "../../core/access/canAccess.js";
 import { subscribeRealtimeEvents } from "../../core/realtime/realtime-bus.service.js";
 import { sendError } from "../asyncHandler.js";
@@ -22,6 +23,21 @@ realtimeRoutes.get("/realtime/stream", async (req: Request, res: Response) => {
       req.user = verifyAccessToken(token);
     } catch {
       throw new HttpError("Invalid access token", 401);
+    }
+
+    const granted = req.user?.permissions ?? [];
+    const isPrivileged =
+      req.user?.isAdmin === true ||
+      (Array.isArray(granted) && granted.includes(PERMISSIONS.ALL));
+    if (
+      !isPrivileged &&
+      !hasAnyPermission(granted, [
+        PERMISSIONS.CLIENTS_READ,
+        PERMISSIONS.APARTMENTS_READ,
+        PERMISSIONS.REQUESTS_READ,
+      ])
+    ) {
+      throw new HttpError("Permesso negato", 403);
     }
 
     const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";

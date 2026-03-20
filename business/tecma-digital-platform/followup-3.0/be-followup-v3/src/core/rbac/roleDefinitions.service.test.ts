@@ -37,6 +37,7 @@ import {
   ensureDefaultRoleDefinitions,
   getPermissionsForRole,
   listRoleDefinitions,
+  reconcileWorkspaceRoleDefinitionsWithBuiltin,
   resolveEffectivePermissions,
   upsertRoleDefinition,
 } from "./roleDefinitions.service.js";
@@ -46,9 +47,12 @@ describe("roleDefinitions.service", () => {
     vi.clearAllMocks();
   });
 
-  it("getPermissionsForRole uses DB value and wildcard", async () => {
-    mocks.findOneMock.mockResolvedValueOnce({ roleKey: "agent", permissions: ["users.read"] });
-    await expect(getPermissionsForRole("Agent")).resolves.toEqual(["users.read"]);
+  it("getPermissionsForRole merges DB with builtin floor for spec roles", async () => {
+    mocks.findOneMock.mockResolvedValueOnce({ roleKey: "collaborator", permissions: ["users.read"] });
+    const merged = await getPermissionsForRole("Agent");
+    expect(merged).toContain("users.read");
+    expect(merged).toContain(PERMISSIONS.APARTMENTS_READ);
+    expect(merged).toContain(PERMISSIONS.CLIENTS_READ);
 
     mocks.findOneMock.mockResolvedValueOnce({ roleKey: "admin", permissions: [PERMISSIONS.ALL] });
     await expect(getPermissionsForRole("admin")).resolves.toBe(PERMISSIONS.ALL);
@@ -77,6 +81,12 @@ describe("roleDefinitions.service", () => {
     await expect(resolveEffectivePermissions("agent", ["users.invite"])).resolves.toEqual(
       expect.arrayContaining(["users.read", "users.invite"])
     );
+  });
+
+  it("reconcileWorkspaceRoleDefinitionsWithBuiltin upserts four membership roles", async () => {
+    mocks.findOneMock.mockResolvedValue(null);
+    await reconcileWorkspaceRoleDefinitionsWithBuiltin();
+    expect(mocks.updateOneMock).toHaveBeenCalledTimes(4);
   });
 
   it("ensureDefaultRoleDefinitions seeds only when empty", async () => {

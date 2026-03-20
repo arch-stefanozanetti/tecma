@@ -229,6 +229,11 @@ describe("followupApi", () => {
     expect(http.postJson).toHaveBeenCalledWith("/session/projects-by-email", { email: "u@test.com" });
   });
 
+  it("getProjectsByEmail con workspaceId include workspaceId nel body", async () => {
+    await followupApi.getProjectsByEmail("u@test.com", "ws-1");
+    expect(http.postJson).toHaveBeenCalledWith("/session/projects-by-email", { email: "u@test.com", workspaceId: "ws-1" });
+  });
+
   it("getUserPreferences chiama getJson", async () => {
     await followupApi.getUserPreferences("u@test.com");
     expect(http.getJson).toHaveBeenCalledWith(expect.stringContaining("session/preferences"));

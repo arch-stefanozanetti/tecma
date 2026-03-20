@@ -34,6 +34,198 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.13.16",
+    date: "2026-03-20",
+    title: "BE: enforcement RBAC su route CRM + allineamento ruoli",
+    releaseType: "patch",
+    changes: [
+      {
+        type: "improvement",
+        text: "Solo backend (0.13.16): requirePermission su clients/requests/calendar/apartments; builtin collaborator/viewer estesi; merge DB+builtin in getPermissionsForRole; script migrate:role-definitions:reconcile.",
+      },
+    ],
+  },
+  {
+    version: "0.13.15",
+    date: "2026-03-20",
+    title: "Utenti: matrice override permessi (catalogo API)",
+    releaseType: "patch",
+    changes: [
+      {
+        type: "feature",
+        text: "Pagina Utenti: sezione override con checkbox da getPermissionCatalog; salvataggio PATCH /users/:id; wizard “Aggiungi utente” con override opzionale dopo creazione/membership.",
+      },
+      {
+        type: "improvement",
+        text: "BE: lista GET /users include permissions_override; PATCH users-admin valida id permesso (allineato a users.routes).",
+      },
+    ],
+  },
+  {
+    version: "0.13.14",
+    date: "2026-03-19",
+    title: "Meta WhatsApp: prova admin con template hello_world precompilato",
+    releaseType: "patch",
+    changes: [
+      {
+        type: "improvement",
+        text: "Drawer Meta (solo admin): nome template e lingua predefiniti hello_world / en_US; testo guida e placeholder aggiornati.",
+      },
+    ],
+  },
+  {
+    version: "0.13.13",
+    date: "2026-03-19",
+    title: "UX: chiarezza Twilio vs Meta WhatsApp (Connettori e Comunicazioni)",
+    releaseType: "patch",
+    changes: [
+      {
+        type: "improvement",
+        text: "Connettori: callout su provider WhatsApp e priorità Meta; sezione WhatsApp con le due card; CTA «Configura Meta API» sulla card Meta; altri connettori in blocco separato.",
+      },
+      {
+        type: "improvement",
+        text: "Comunicazioni senza provider: «Apri setup Twilio» / «Apri setup Meta» con deep link e link «Vedi tutti i connettori»; test IntegrationsPage aggiornato.",
+      },
+    ],
+  },
+  {
+    version: "0.13.12",
+    date: "2026-03-20",
+    title: "RBAC: catalogo permessi API + mount workspace-roles",
+    releaseType: "patch",
+    changes: [
+      {
+        type: "feature",
+        text: "BE: GET /rbac/permission-catalog (users.read) con gruppi modulo×azione e label IT; buildPermissionCatalog() in core/rbac; test Vitest. FE: followupApi.getPermissionCatalog().",
+      },
+      {
+        type: "fix",
+        text: "BE: GET /workspace-roles montato su v1 (prima il router esisteva ma non era registrato).",
+      },
+    ],
+  },
+  {
+    version: "0.13.11",
+    date: "2026-03-19",
+    title: "WhatsApp Meta Cloud API: UI Connettori, Comunicazioni e deep link",
+    releaseType: "patch",
+    changes: [
+      {
+        type: "feature",
+        text: "FE: drawer Meta WhatsApp (Phone Number ID, token, prova template admin), stato da API e badge connettore; query ?connector=meta_whatsapp per aprire il drawer; tab Comunicazioni con stato Twilio/Meta, provider attivo (priorità Meta), campi nome/lingua template Meta e ordine variabili da {{placeholder}}.",
+      },
+      {
+        type: "improvement",
+        text: "followupApi: tipi template con metaTemplateName/metaTemplateLanguage; mock test IntegrationsPage aggiornato.",
+      },
+    ],
+  },
+  {
+    version: "0.13.10",
+    date: "2026-03-20",
+    title: "Fase 0.1: registry permessi granulare + override con membership workspace",
+    releaseType: "patch",
+    changes: [
+      {
+        type: "feature",
+        text: "BE: estesi PERMISSIONS (clients, apartments, requests, calendar, reports, integrations, settings) per matrice modulo×azione; permissions_override su utente applicato al JWT anche con ruoli workspace.",
+      },
+    ],
+  },
+  {
+    version: "0.13.9",
+    date: "2026-03-20",
+    title: "Platform API: POST /platform/clients/lite/query + scope platform.clients.read",
+    releaseType: "patch",
+    changes: [
+      {
+        type: "feature",
+        text: "Endpoint platform per query clienti lite (stesso servizio dei clienti JWT), OpenAPI e test; default scope chiavi piattaforma esteso.",
+      },
+      {
+        type: "improvement",
+        text: "Documentazione deliverable Fase 1–8 e 0.1–0.2 in docs/deliverables/ collegata al PIANO_GLOBALE.",
+      },
+    ],
+  },
+  {
+    version: "0.13.8",
+    date: "2026-03-20",
+    title: "Sessione: getProjectAccessByEmail con workspaceId e filtro tz_workspace_user_projects",
+    releaseType: "patch",
+    changes: [
+      {
+        type: "improvement",
+        text: "POST /session/projects-by-email accetta workspaceId opzionale; intersezione con progetti del workspace e, per non-admin, con tz_workspace_user_projects se presente.",
+      },
+      {
+        type: "improvement",
+        text: "ProjectAccessPage ricarica i progetti quando cambia il workspace Mongo; followupApi.getProjectsByEmail(email, workspaceId?).",
+      },
+    ],
+  },
+  {
+    version: "0.13.7",
+    date: "2026-03-19",
+    title: "Integrazioni: tab Comunicazioni semplificata e WhatsApp solo in Connettori",
+    releaseType: "patch",
+    changes: [
+      {
+        type: "improvement",
+        text: "Tab Comunicazioni: banner stato WhatsApp in cima, CTA verso Connettori/Twilio; sezioni Messaggi / Quando inviare; SMTP e dettagli tecnici in blocco collassabile per admin; rimossi riferimenti API dagli empty state; etichette eventi regole in italiano.",
+      },
+      {
+        type: "improvement",
+        text: "Connettori: card e drawer WhatsApp (Twilio) con copy allineata; titolo drawer «Collega WhatsApp (Twilio)».",
+      },
+    ],
+  },
+  {
+    version: "0.13.6",
+    date: "2026-03-20",
+    title: "BE: segregazione liste clienti/appartamenti per assegnazioni",
+    releaseType: "patch",
+    changes: [
+      {
+        type: "improvement",
+        text: "Backend: per utenti non admin le query e i dettaglio cliente/appartamento rispettano tz_entity_assignments (nessuna assegnazione o assegnato al viewer); allineati anche i tool AI e fix canAccess Tecma su execute suggestion.",
+      },
+    ],
+  },
+  {
+    version: "0.13.5",
+    date: "2026-03-19",
+    title: "Integrazioni: loghi Simple Icons e connettori mock in arrivo",
+    releaseType: "patch",
+    changes: [
+      {
+        type: "improvement",
+        text: "Loghi connettori da pacchetto `simple-icons` (path e colori ufficiali del progetto); Outlook e DocuSign restano eccezioni documentate (marchi non nel set / assenti).",
+      },
+      {
+        type: "fix",
+        text: "Gmail, Mailchimp, Webflow e Slack in stato In arrivo: nessun flusso di configurazione reale, solo placeholder in UI.",
+      },
+    ],
+  },
+  {
+    version: "0.13.4",
+    date: "2026-03-20",
+    title: "Integrazioni: connettore Twilio in Connettori e loghi brand",
+    releaseType: "patch",
+    changes: [
+      {
+        type: "feature",
+        text: "Card Twilio nel tab Connettori con drawer (credenziali WhatsApp, salvataggio, prova admin); deep link /integrations?tab=connettori&connector=twilio.",
+      },
+      {
+        type: "improvement",
+        text: "Loghi brand sulle card connettori (Twilio, Gmail, Outlook, n8n, ecc.); tab Comunicazioni rimanda a Connettori per la config Twilio.",
+      },
+    ],
+  },
+  {
     version: "0.13.3",
     date: "2026-03-19",
     title: "Clienti: nome e cognome separati (API, DB e form)",

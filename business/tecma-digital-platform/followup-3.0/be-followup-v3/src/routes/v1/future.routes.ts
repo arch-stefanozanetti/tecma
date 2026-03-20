@@ -1,3 +1,8 @@
+/**
+ * Estratto legacy — **non montato** su `v1Router` (vedi `routes/v1.ts`).
+ * Le API equivalenti con RBAC sono su `hc.routes.ts` e servizi core aggiornati.
+ * Non aggiungere nuove dipendenze qui; preferire estensioni sui router montati.
+ */
 import { Router } from "express";
 import { z } from "zod";
 import {

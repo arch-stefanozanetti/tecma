@@ -16,6 +16,8 @@ const ProjectScopeSchema = z.object({
   apiEnvironment: z.enum(["dev-1", "demo", "prod"]).optional(),
   projects: z.array(ProjectAccessProjectSchema),
   selectedProjectIds: z.array(z.string()),
+  /** Snapshot permessi JWT (allineare con refresh/login). */
+  permissions: z.array(z.string()).optional(),
 });
 
 /** Override per workspace/progetti filtrati (da App/PageTemplate). Usato da ClientsPage, ApartmentsPage, ecc. */
@@ -40,6 +42,8 @@ export interface ProjectScopeState {
   apiEnvironment?: "dev-1" | "demo" | "prod";
   projects: ProjectAccessProject[];
   selectedProjectIds: string[];
+  /** Permessi effettivi (da JWT /me); usati per nav e CTA. */
+  permissions?: string[];
 }
 
 const STORAGE_KEY = "followup3.projectScope";
@@ -76,6 +80,7 @@ export const loadProjectScope = (): ProjectScopeState | null => {
     const data = parsed.data;
     return {
       ...data,
+      permissions: data.permissions ?? [],
       projects: data.projects.map((p: { id: string; name: string; displayName?: string }) => ({
         id: p.id,
         name: p.name,
@@ -92,6 +97,7 @@ export const clearProjectScope = (): void => {
     if (typeof window !== "undefined") {
       window.localStorage?.removeItem(STORAGE_KEY);
       window.sessionStorage?.removeItem(STORAGE_KEY);
+      window.sessionStorage?.removeItem("followup3.permLastSync");
     }
   } catch {
     // ignore
@@ -113,11 +119,20 @@ export const updateWorkspaceId = (workspaceId: string): void => {
 export const useWorkspace = () => {
   const override = useWorkspaceOverride();
   const scope = loadProjectScope();
+  const isAdmin = scope?.isAdmin ?? false;
+  const permissions = scope?.permissions ?? [];
+  const hasPermission = (perm: string): boolean => {
+    if (isAdmin) return true;
+    if (permissions.includes("*")) return true;
+    return permissions.includes(perm);
+  };
   return {
     workspaceId: override?.workspaceId ?? scope?.workspaceId ?? "",
     selectedProjectIds: override?.selectedProjectIds ?? scope?.selectedProjectIds ?? [],
     projects: override?.projects ?? scope?.projects ?? [],
     email: scope?.email ?? "",
-    isAdmin: scope?.isAdmin ?? false,
+    isAdmin,
+    permissions,
+    hasPermission,
   };
 };

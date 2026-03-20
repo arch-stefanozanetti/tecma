@@ -28,7 +28,21 @@ export type ConnectorGroup =
   | "Productivity/Collab";
 
 /** Tab da aprire per completare la configurazione (es. webhook, api). */
-export type ConnectorRelatedTab = "webhook" | "api";
+export type ConnectorRelatedTab = "webhook" | "api" | "comunicazioni";
+
+/** Chiave per loghi brand in ConnectorBrandLogo (SVG). */
+export type ConnectorBrandId =
+  | "gmail"
+  | "outlook"
+  | "twilio"
+  | "meta"
+  | "mailchimp"
+  | "n8n"
+  | "salesforce"
+  | "webflow"
+  | "looker_studio"
+  | "docusign"
+  | "slack";
 
 export interface ConnectorCatalogItem {
   id: string;
@@ -38,6 +52,8 @@ export interface ConnectorCatalogItem {
   description: string;
   capabilities: string[];
   prerequisites: string[];
+  /** Logo brand (decorativo; il titolo della card è il nome accessibile). */
+  brandId?: ConnectorBrandId;
   /** Breve guida "Come attivare" per connettori già utilizzabili (n8n, Looker, Outlook). */
   setupSummary?: string;
   /** Tab da aprire con "Vai a ..." per configurare (Webhook per n8n, API per Looker). */
@@ -49,7 +65,8 @@ export const CONNECTOR_CATALOG: ConnectorCatalogItem[] = [
     id: "connector_gmail",
     name: "Gmail",
     group: "Communication",
-    status: "beta",
+    status: "coming_soon",
+    brandId: "gmail",
     description: "Ingestion email bidirezionale con timeline cliente e contatori mail ricevute.",
     capabilities: ["Mail ingestion", "Thread matching", "Timeline events"],
     prerequisites: ["Google OAuth app"],
@@ -59,6 +76,7 @@ export const CONNECTOR_CATALOG: ConnectorCatalogItem[] = [
     name: "Outlook",
     group: "Communication",
     status: "beta",
+    brandId: "outlook",
     description: "Sincronizzazione casella Outlook e automazioni follow-up su activity.",
     capabilities: ["Mail sync", "Calendar sync hooks", "Timeline events"],
     prerequisites: ["Azure app registration"],
@@ -66,10 +84,39 @@ export const CONNECTOR_CATALOG: ConnectorCatalogItem[] = [
     relatedTab: "webhook",
   },
   {
+    id: "connector_twilio",
+    name: "WhatsApp (Twilio)",
+    group: "Communication",
+    status: "available",
+    brandId: "twilio",
+    description:
+      "Collegamento una tantum: con Twilio attivo, messaggi e regole del tab Comunicazioni possono essere recapitati su WhatsApp (per workspace).",
+    capabilities: ["Invio WhatsApp", "SMS (policy Twilio)", "Messaggio di prova (admin)"],
+    prerequisites: ["Account Twilio", "Numero WhatsApp approvato o sandbox"],
+    setupSummary:
+      "Apri Configura e inserisci Account SID, Auth Token e numero mittente WhatsApp. Poi definisci messaggi e regole nel tab Comunicazioni.",
+    relatedTab: "comunicazioni",
+  },
+  {
+    id: "connector_meta_whatsapp",
+    name: "WhatsApp (Meta Cloud API)",
+    group: "Communication",
+    status: "available",
+    brandId: "meta",
+    description:
+      "Invio WhatsApp tramite template approvati su Meta (WhatsApp Cloud API). Se configurato, ha priorità su Twilio per il medesimo workspace.",
+    capabilities: ["Invio solo template approvati", "Parametri da variabili CRM", "Prova invio (admin)"],
+    prerequisites: ["App Meta", "Phone Number ID", "Token di accesso", "Template approvati in Meta"],
+    setupSummary:
+      "Inserisci Phone Number ID e access token (Graph API). Nei messaggi WhatsApp del tab Comunicazioni indica nome template Meta, lingua e variabili nello stesso ordine dei placeholder {{1}}, {{2}}, …",
+    relatedTab: "comunicazioni",
+  },
+  {
     id: "connector_mailchimp",
     name: "Mailchimp",
     group: "Marketing",
-    status: "available",
+    status: "coming_soon",
+    brandId: "mailchimp",
     description: "Segmenti marketing da profili CRM e trigger campagne da eventi trattativa.",
     capabilities: ["Segment sync", "Campaign trigger", "Bounce feedback"],
     prerequisites: ["Mailchimp API key"],
@@ -79,6 +126,7 @@ export const CONNECTOR_CATALOG: ConnectorCatalogItem[] = [
     name: "n8n",
     group: "Workflow Automation",
     status: "available",
+    brandId: "n8n",
     description: "Event bus out/in per orchestrare workflow custom senza sviluppo backend dedicato.",
     capabilities: ["Webhook out", "Webhook in", "Retry hooks"],
     prerequisites: ["n8n endpoint", "Signing secret"],
@@ -90,6 +138,7 @@ export const CONNECTOR_CATALOG: ConnectorCatalogItem[] = [
     name: "Salesforce",
     group: "CRM/Lead Sources",
     status: "coming_soon",
+    brandId: "salesforce",
     description: "Sincronizzazione lead/deal multi-tenant con mapping campo configurabile.",
     capabilities: ["Lead sync", "Deal sync", "Custom field mapping"],
     prerequisites: ["Salesforce connected app"],
@@ -98,7 +147,8 @@ export const CONNECTOR_CATALOG: ConnectorCatalogItem[] = [
     id: "connector_webflow",
     name: "Webflow",
     group: "Website/CMS",
-    status: "available",
+    status: "coming_soon",
+    brandId: "webflow",
     description: "Pubblicazione listing apartment-first su siti Webflow con sync near real-time.",
     capabilities: ["Listing publish", "Media sync", "Status update"],
     prerequisites: ["Webflow API token", "Collection mapping"],
@@ -108,6 +158,7 @@ export const CONNECTOR_CATALOG: ConnectorCatalogItem[] = [
     name: "Looker Studio",
     group: "Data/BI",
     status: "available",
+    brandId: "looker_studio",
     description: "Esportazione dataset per dashboard BI condivise e auditing operativo.",
     capabilities: ["Dataset export", "Scheduled push", "Schema mapping"],
     prerequisites: ["Destination connector"],
@@ -119,6 +170,7 @@ export const CONNECTOR_CATALOG: ConnectorCatalogItem[] = [
     name: "DocuSign",
     group: "Docs/Signature",
     status: "coming_soon",
+    brandId: "docusign",
     description: "Pipeline documentale per proposta/contratto con eventi firma in timeline.",
     capabilities: ["Envelope create", "Signature status", "Audit trail"],
     prerequisites: ["DocuSign account"],
@@ -127,7 +179,8 @@ export const CONNECTOR_CATALOG: ConnectorCatalogItem[] = [
     id: "connector_slack",
     name: "Slack",
     group: "Productivity/Collab",
-    status: "available",
+    status: "coming_soon",
+    brandId: "slack",
     description: "Notifiche operative vendor_manager/admin su eventi critici.",
     capabilities: ["Channel alerts", "Action digests", "Mention policies"],
     prerequisites: ["Slack app token"],

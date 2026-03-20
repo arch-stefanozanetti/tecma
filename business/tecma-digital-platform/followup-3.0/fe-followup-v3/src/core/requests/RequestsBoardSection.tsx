@@ -34,6 +34,12 @@ interface RequestsBoardSectionProps {
   onPrevPage: () => void;
   onNextPage: () => void;
   onLastPage: () => void;
+  /** Gate JWT: requests.create */
+  newRequestDisabled?: boolean;
+  newRequestTitle?: string;
+  /** Gate JWT: requests.update (cambio stato in tabella) */
+  statusSelectDisabled?: boolean;
+  statusSelectTitle?: string;
 }
 
 export const RequestsBoardSection = ({
@@ -63,6 +69,10 @@ export const RequestsBoardSection = ({
   onPrevPage,
   onNextPage,
   onLastPage,
+  newRequestDisabled = false,
+  newRequestTitle,
+  statusSelectDisabled = false,
+  statusSelectTitle,
 }: RequestsBoardSectionProps) => {
   return (
     <>
@@ -71,7 +81,12 @@ export const RequestsBoardSection = ({
           <h1 className="text-2xl font-semibold text-foreground">Trattative</h1>
           <p className="mt-1 text-sm text-muted-foreground">Richieste e trattative (affitto e vendita). Clicca su una riga o su una card per i dettagli.</p>
         </div>
-        <Button className="min-h-11 rounded-lg" onClick={onOpenNewRequest}>
+        <Button
+          className="min-h-11 rounded-lg"
+          onClick={onOpenNewRequest}
+          disabled={newRequestDisabled}
+          title={newRequestTitle}
+        >
           <Plus className="h-4 w-4" />
           Nuova trattativa
         </Button>
@@ -145,8 +160,17 @@ export const RequestsBoardSection = ({
                         <td className="px-4 py-4">{TYPE_LABEL[req.type]}</td>
                         <td className="px-4 py-4 text-muted-foreground">{req.clientRole ? CLIENT_ROLE_LABEL[req.clientRole] : "—"}</td>
                         <td className="px-4 py-4">
-                          <Select value={req.status} onValueChange={(v) => onStatusChange(req._id, v as RequestStatus)} disabled={statusChangingId === req._id}>
-                            <SelectTrigger className="min-h-11 w-[140px] rounded-lg border-border text-sm"><SelectValue /></SelectTrigger>
+                          <Select
+                            value={req.status}
+                            onValueChange={(v) => onStatusChange(req._id, v as RequestStatus)}
+                            disabled={statusChangingId === req._id || statusSelectDisabled}
+                          >
+                            <SelectTrigger
+                              className="min-h-11 w-[140px] rounded-lg border-border text-sm"
+                              title={statusSelectDisabled ? statusSelectTitle : undefined}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
                             <SelectContent>
                               <SelectItem value={req.status}>{STATUS_LABEL[req.status]}</SelectItem>
                               {(ALLOWED_NEXT_STATUSES[req.status] ?? []).map((s) => (

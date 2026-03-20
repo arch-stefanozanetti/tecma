@@ -41,12 +41,17 @@ import { ClientsListSection } from "./ClientsListSection";
 
 const CLIENTS_PER_PAGE = 50;
 
+const permTitle = (id: string) => `Permesso richiesto: ${id}`;
+
 type ClientFormMode = "create" | "edit";
 
 export const ClientsPage = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const { workspaceId, selectedProjectIds, projects } = useWorkspace();
+  const { workspaceId, selectedProjectIds, projects, hasPermission } = useWorkspace();
+  const canClientsRead = hasPermission("clients.read");
+  const canClientsCreate = hasPermission("clients.create");
+  const canClientsUpdate = hasPermission("clients.update");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedClient, setSelectedClient] = useState<ClientRow | null>(null);
@@ -123,12 +128,14 @@ export const ClientsPage = () => {
   }, [clientFormOpen, clientFormMode, editingClient, selectedProjectIds, additionalInfos]);
 
   const handleOpenCreateClient = () => {
+    if (!canClientsCreate) return;
     setClientFormMode("create");
     setEditingClient(null);
     setClientFormOpen(true);
   };
 
   const handleOpenEditClient = (client: ClientRow) => {
+    if (!canClientsUpdate) return;
     setEditingClient(client);
     setClientFormMode("edit");
     setSelectedClient(null);
@@ -137,6 +144,8 @@ export const ClientsPage = () => {
 
   const handleClientFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (clientFormMode === "create" && !canClientsCreate) return;
+    if (clientFormMode === "edit" && !canClientsUpdate) return;
     setFormSubmitError(null);
     setFormSaving(true);
     try {
@@ -275,6 +284,12 @@ export const ClientsPage = () => {
       <div className="px-5 pb-10 pt-8 lg:px-20">
         <ClientsListSection
           onOpenCreateClient={handleOpenCreateClient}
+          addClientDisabled={!canClientsCreate}
+          addClientTitle={!canClientsCreate ? permTitle("clients.create") : undefined}
+          importExcelDisabled={!canClientsUpdate}
+          importExcelTitle={!canClientsUpdate ? permTitle("clients.update") : undefined}
+          exportExcelDisabled={!canClientsRead}
+          exportExcelTitle={!canClientsRead ? permTitle("clients.read") : undefined}
           otherOptionsOpen={otherOptionsOpen}
           onToggleOtherOptions={() => setOtherOptionsOpen((v) => !v)}
           otherOptionsRef={otherOptionsRef}
@@ -364,6 +379,8 @@ export const ClientsPage = () => {
                   variant="default"
                   size="sm"
                   className="w-full rounded-lg gap-2"
+                  disabled={!canClientsRead}
+                  title={!canClientsRead ? permTitle("clients.read") : undefined}
                   onClick={() => navigate(`/clients/${selectedClient._id}`)}
                 >
                   <ExternalLink className="h-4 w-4" />
@@ -373,6 +390,8 @@ export const ClientsPage = () => {
                   variant="outline"
                   size="sm"
                   className="w-full rounded-lg"
+                  disabled={!canClientsUpdate}
+                  title={!canClientsUpdate ? permTitle("clients.update") : undefined}
                   onClick={() => handleOpenEditClient(selectedClient)}
                 >
                   Modifica
@@ -540,7 +559,22 @@ export const ClientsPage = () => {
                 <Button type="button" variant="outline" onClick={() => setClientFormOpen(false)} className="min-h-11">
                   Annulla
                 </Button>
-                <Button type="submit" disabled={formSaving} className="min-h-11">
+                <Button
+                  type="submit"
+                  disabled={
+                    formSaving
+                    || (clientFormMode === "create" && !canClientsCreate)
+                    || (clientFormMode === "edit" && !canClientsUpdate)
+                  }
+                  title={
+                    clientFormMode === "create" && !canClientsCreate
+                      ? permTitle("clients.create")
+                      : clientFormMode === "edit" && !canClientsUpdate
+                        ? permTitle("clients.update")
+                        : undefined
+                  }
+                  className="min-h-11"
+                >
                   {formSaving ? "Salvataggio..." : clientFormMode === "edit" ? "Salva" : "Crea"}
                 </Button>
               </div>

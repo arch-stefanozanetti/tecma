@@ -2,6 +2,12 @@ import { describe, it, expect, vi } from "vitest";
 import express from "express";
 import request from "supertest";
 import { signAccessToken, type AccessTokenPayload } from "../core/auth/token.service.js";
+import { BUILTIN_ROLE_PERMISSIONS, PERMISSIONS } from "../core/rbac/permissions.js";
+
+function defaultTestJwtPermissions(): string[] {
+  const c = BUILTIN_ROLE_PERMISSIONS.collaborator;
+  return Array.isArray(c) ? [...c] : [PERMISSIONS.ALL];
+}
 
 function makeToken(overrides: Partial<AccessTokenPayload> = {}): string {
   return signAccessToken({
@@ -9,7 +15,7 @@ function makeToken(overrides: Partial<AccessTokenPayload> = {}): string {
     email: "u@test.it",
     role: "user",
     isAdmin: false,
-    permissions: ["apartments.read"],
+    permissions: defaultTestJwtPermissions(),
     projectId: null,
     ...overrides
   });
@@ -102,6 +108,23 @@ vi.mock("../core/requests/requests.service.js", () => ({
       }
     };
   })
+}));
+
+vi.mock("../core/assets/assets.service.js", () => ({
+  getUploadUrl: vi.fn(),
+  createAsset: vi.fn(),
+  listAssets: vi.fn().mockResolvedValue([]),
+  getDownloadUrl: vi.fn(),
+  deleteAsset: vi.fn(),
+}));
+
+vi.mock("../core/clients/client-documents.service.js", () => ({
+  getClientDocumentUploadUrl: vi.fn(),
+  createClientDocument: vi.fn(),
+  listClientDocuments: vi.fn().mockResolvedValue([]),
+  getClientDocumentDownloadUrl: vi.fn(),
+  getClientDocumentShareLink: vi.fn(),
+  deleteClientDocument: vi.fn(),
 }));
 
 import { v1Router } from "./v1.js";
@@ -370,6 +393,38 @@ describe("v1 routes", () => {
         .set("Authorization", `Bearer ${token}`);
       expect(res.status).toBe(404);
       expect(res.body.error).toBeDefined();
+    });
+  });
+
+  describe("workspace assets and client documents (mounted on v1)", () => {
+    it("GET /v1/workspaces/:id/assets returns 401 without token", async () => {
+      const res = await request(app).get("/v1/workspaces/ws1/assets");
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBeDefined();
+    });
+
+    it("GET /v1/workspaces/:id/assets returns 200 with data when JWT present", async () => {
+      const token = makeToken();
+      const res = await request(app)
+        .get("/v1/workspaces/ws1/assets")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data).toEqual([]);
+    });
+
+    it("GET /v1/workspaces/:id/clients/:cid/documents returns 401 without token", async () => {
+      const res = await request(app).get("/v1/workspaces/ws1/clients/c1/documents");
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBeDefined();
+    });
+
+    it("GET /v1/workspaces/:id/clients/:cid/documents returns 200 with data when JWT present", async () => {
+      const token = makeToken();
+      const res = await request(app)
+        .get("/v1/workspaces/ws1/clients/c1/documents")
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data).toEqual([]);
     });
   });
 });

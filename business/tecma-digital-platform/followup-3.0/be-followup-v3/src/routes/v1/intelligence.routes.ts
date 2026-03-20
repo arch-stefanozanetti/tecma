@@ -10,11 +10,14 @@ import { queryAuditLog } from "../../core/audit/audit-log.service.js";
 import { generateAiSuggestions, queryPendingAiSuggestions, decideAiSuggestion } from "../../core/ai/orchestrator.service.js";
 import { createAiActionDraft, queryAiActionDrafts, decideAiActionDraft } from "../../core/ai/action-engine.service.js";
 import { executeSuggestionWithAgent } from "../../core/ai/suggestion-agent.service.js";
+import { requirePermission } from "../permissionMiddleware.js";
+import { PERMISSIONS } from "../../core/rbac/permissions.js";
 
 export const intelligenceRoutes = Router();
 
 intelligenceRoutes.get(
   "/inspect/model-sample",
+  requirePermission(PERMISSIONS.SETTINGS_READ),
   handleAsync((req) => {
     const projectId = typeof req.query.projectId === "string" ? req.query.projectId : "";
     const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : undefined;
@@ -23,10 +26,11 @@ intelligenceRoutes.get(
   })
 );
 
-intelligenceRoutes.post("/reports/:reportType", handleAsync((req) => runReport(req.params.reportType, req.body)));
+intelligenceRoutes.post("/reports/:reportType", requirePermission(PERMISSIONS.REPORTS_READ), handleAsync((req) => runReport(req.params.reportType, req.body)));
 
 intelligenceRoutes.post(
   "/audit/query",
+  requirePermission(PERMISSIONS.SETTINGS_READ),
   handleAsync((req) => {
     const body = req.body as Record<string, unknown>;
     const workspaceId = typeof body.workspaceId === "string" ? body.workspaceId : "";
@@ -48,6 +52,7 @@ intelligenceRoutes.post(
 
 intelligenceRoutes.get(
   "/audit/entity/:entityType/:entityId",
+  requirePermission(PERMISSIONS.SETTINGS_READ),
   handleAsync((req) => {
     const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";
     if (!workspaceId) throw new HttpError("workspaceId query required", 400);
@@ -65,6 +70,7 @@ intelligenceRoutes.get(
 
 intelligenceRoutes.get(
   "/ai/suggestions",
+  requirePermission(PERMISSIONS.REQUESTS_READ),
   handleAsync(async (req) => {
     const user = req.user;
     if (!user?.email) throw new HttpError("Unauthorized", 401);
@@ -95,9 +101,10 @@ intelligenceRoutes.get(
   })
 );
 
-intelligenceRoutes.post("/ai/suggestions", handleAsync((req) => generateAiSuggestions(req.body)));
+intelligenceRoutes.post("/ai/suggestions", requirePermission(PERMISSIONS.REQUESTS_UPDATE), handleAsync((req) => generateAiSuggestions(req.body)));
 intelligenceRoutes.post(
   "/ai/suggestions/:suggestionId/execute",
+  requirePermission(PERMISSIONS.REQUESTS_UPDATE),
   handleAsync(async (req) => {
     const user = req.user;
     if (!user?.email) throw new HttpError("Unauthorized", 401);
@@ -112,7 +119,7 @@ intelligenceRoutes.post(
         sub: user.sub ?? "",
         email: user.email,
         system_role: user.system_role,
-        isTecmaAdmin: user.isAdmin
+        isTecmaAdmin: user.isTecmaAdmin === true
       },
       { type: "workspace", workspaceId }
     );
@@ -121,14 +128,17 @@ intelligenceRoutes.post(
     return executeSuggestionWithAgent(suggestionId, req.body, {
       workspaceId,
       projectIds,
-      actorEmail: user.email
+      actorEmail: user.email,
+      actorIsAdmin: user.isAdmin,
+      actorIsTecmaAdmin: user.isTecmaAdmin === true
     });
   })
 );
-intelligenceRoutes.post("/ai/approvals", handleAsync((req) => decideAiSuggestion(req.body)));
-intelligenceRoutes.post("/ai/actions/drafts", handleAsync((req) => createAiActionDraft(req.body)));
-intelligenceRoutes.post("/ai/actions/drafts/query", handleAsync((req) => queryAiActionDrafts(req.body)));
+intelligenceRoutes.post("/ai/approvals", requirePermission(PERMISSIONS.REQUESTS_UPDATE), handleAsync((req) => decideAiSuggestion(req.body)));
+intelligenceRoutes.post("/ai/actions/drafts", requirePermission(PERMISSIONS.REQUESTS_UPDATE), handleAsync((req) => createAiActionDraft(req.body)));
+intelligenceRoutes.post("/ai/actions/drafts/query", requirePermission(PERMISSIONS.REQUESTS_READ), handleAsync((req) => queryAiActionDrafts(req.body)));
 intelligenceRoutes.post(
   "/ai/actions/drafts/:id/decision",
+  requirePermission(PERMISSIONS.REQUESTS_UPDATE),
   handleAsync((req) => decideAiActionDraft(req.params.id, req.body))
 );

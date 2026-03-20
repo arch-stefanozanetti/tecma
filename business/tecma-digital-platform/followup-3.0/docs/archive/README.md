@@ -1,9 +1,7 @@
-# Archivio documentazione Followup 3.0
+# Archivio
 
-Questa cartella contiene **piani e note non più usati come backlog attivo**. Il piano operativo unico resta **[PLAN_UNIFICATO_FOLLOWUP_3.md](../PLAN_UNIFICATO_FOLLOWUP_3.md)**.
+I **piani** multipli precedenti sono stati **rimossi** e accorpati in un solo documento:
 
-| Contenuto | File |
-|-----------|------|
-| Piani legacy (sostituiti dall’unificato) | `FOLLOWUP_3_MEGA_CRM_MASTERPLAN.md`, `FOLLOWUP_3_EVOLUTION_PLAN.md`, `FOLLOWUP_FUTURE_AI_NATIVE_PLAN.md` |
-| Dettaglio workspace / coverage (incorporati nel unificato) | `PLAN-user-workspace-projects-and-view-segregation.md`, `PLAN_100_PERCENT_FULL_APP.md` |
-| Note di design storiche | [plans-2025-2026/](plans-2025-2026/) (email flows, Render/pnpm, product discovery, gateway AWS) |
+- **[PIANO_GLOBALE_FOLLOWUP_3.md](../PIANO_GLOBALE_FOLLOWUP_3.md)**
+
+Questa cartella può contenere altre note storiche non-piano. Per design/runbook operativi usare i file dedicati in `docs/` (es. `RENDER_DEPLOY.md`, `SECURITY_RUNBOOK.md`).

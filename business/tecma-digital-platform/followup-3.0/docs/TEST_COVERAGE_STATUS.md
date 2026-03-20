@@ -2,7 +2,7 @@
 
 Ultimo aggiornamento: in base a `npm run test -- --coverage` (BE) e `npm run test:coverage` (FE).
 
-**Obiettivo strategico**: tutta l’app (FE, BE, integrazioni, E2E) testata al 100%, così che aggiungendo una feature non si rompa nulla. Vedi **[Piano 100% – tutta l’app](archive/PLAN_100_PERCENT_FULL_APP.md)** per roadmap e deliverable.
+**Obiettivo strategico**: tutta l’app (FE, BE, integrazioni, E2E) testata al 100%, così che aggiungendo una feature non si rompa nulla. Roadmap qualità: [PIANO_GLOBALE_FOLLOWUP_3.md](PIANO_GLOBALE_FOLLOWUP_3.md) §14 e [ACCEPTANCE_GATES.md](ACCEPTANCE_GATES.md).
 
 ---
 
@@ -11,7 +11,7 @@ Ultimo aggiornamento: in base a `npm run test -- --coverage` (BE) e `npm run tes
 | Area | Statements | Branch | Funcs | Lines | Note |
 |------|------------|--------|-------|-------|------|
 | **BE** (unit+api+integration) | **39.24%** | 36.36% | 20.63% | 39.24% | `npm run test:coverage` in be-followup-v3 |
-| **FE** (tutto il src in report) | **69.84%** | 70.58% | 40.26% | **69.84%** | Include: **tutto** `src/**`; obiettivo 90%→100% (vedi [archive/PLAN_100_PERCENT_FULL_APP.md](archive/PLAN_100_PERCENT_FULL_APP.md)) |
+| **FE** (tutto il src in report) | **69.84%** | 70.58% | 40.26% | **69.84%** | Include: **tutto** `src/**`; obiettivo 90%→100% (vedi [PIANO_GLOBALE_FOLLOWUP_3.md](PIANO_GLOBALE_FOLLOWUP_3.md) §14) |
 | **Complessivo (media Stmts)** | **~54.5%** | — | — | — | (FE + BE) / 2 su statement; target 100% |
 
 *Ultimo run: FE `npm run test:coverage -- --run`, BE `npm run test:coverage`. FE: 75 file test, 382 test.*

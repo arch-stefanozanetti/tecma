@@ -1,6 +1,6 @@
 {
   "name": "be-followup-v3",
-  "version": "0.13.3",
+  "version": "0.13.16",
   "private": true,
   "type": "module",
   "scripts": {
@@ -32,6 +32,7 @@
     "clone-adminusers-to-tz-users": "tsx src/utils/cloneAdminUsersToTzUsers.ts",
     "migrate:request-workflow": "tsx src/utils/migrateRequestWorkflowIds.ts",
     "migrate:apartments-to-inventory-pricing": "tsx src/utils/migrate-apartments-to-inventory-pricing.ts",
+    "migrate:role-definitions:reconcile": "tsx src/utils/reconcileRoleDefinitionsWithBuiltin.ts",
     "check:no-legacy-runtime": "bash scripts/check-no-legacy-runtime.sh",
     "check:route-guards": "node scripts/check-route-guards.mjs",
     "script:tecma-admin-testzanetti": "MONGO_DB_NAME=test-zanetti tsx scripts/set-tecma-admin-by-domain.ts",
@@ -39,6 +40,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1011.0",
+    "@aws-sdk/client-sns": "^3.1013.0",
     "@aws-sdk/s3-request-presigner": "^3.1012.0",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/auto-instrumentations-node": "^0.71.0",
@@ -52,9 +54,9 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
+    "express-rate-limit": "^8.3.0",
     "helmet": "^8.0.0",
     "ioredis": "^5.4.1",
-    "express-rate-limit": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "jwks-rsa": "^3.2.2",
     "mongodb": "^6.16.0",

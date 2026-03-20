@@ -73,12 +73,16 @@ const EventDrawer = ({
   onClose,
   onEdit,
   onDelete,
+  canEditEvent,
+  canDeleteEvent,
 }: {
   event: CalendarEvent | null;
   open: boolean;
   onClose: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  canEditEvent: boolean;
+  canDeleteEvent: boolean;
 }) => {
   const [deleting, setDeleting] = useState(false);
   const { toastError } = useToast();
@@ -135,12 +139,12 @@ const EventDrawer = ({
           </div>
         </SidePanelBody>
         <SidePanelFooter>
-          {onEdit && (
+          {onEdit && canEditEvent && (
             <Button variant="outline" size="sm" className="flex-1" onClick={() => { onClose(); onEdit(); }}>
               Modifica
             </Button>
           )}
-          {canDelete && onDelete && (
+          {canDelete && onDelete && canDeleteEvent && (
             <Button variant="outline" size="sm" className="flex-1 text-destructive hover:bg-destructive/10" onClick={handleDelete} disabled={deleting}>
               {deleting ? "Eliminazione..." : "Elimina"}
             </Button>
@@ -351,7 +355,10 @@ export const CalendarPage = (_props: CalendarPageProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const { workspaceId, selectedProjectIds, projects } = useWorkspace();
+  const { workspaceId, selectedProjectIds, projects, hasPermission } = useWorkspace();
+  const canCreateCalendar = hasPermission("calendar.create");
+  const canUpdateCalendar = hasPermission("calendar.update");
+  const canDeleteCalendar = hasPermission("calendar.delete");
   const [view, setView] = useState<ViewType>(() => (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches ? "day" : "week"));
   const [currentDate, setCurrentDate] = useState(moment());
   useEffect(() => {
@@ -403,9 +410,6 @@ export const CalendarPage = (_props: CalendarPageProps) => {
     setError(null);
     const dateFrom = queryDateRange.from.toISOString();
     const dateTo = queryDateRange.to.toISOString();
-    // #region agent log
-    fetch("http://127.0.0.1:7857/ingest/45821bd5-f1c6-412c-97d1-2d1ee6a22e0e", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "94c3ac" }, body: JSON.stringify({ sessionId: "94c3ac", location: "CalendarPage.tsx:effect", message: "calendar query start", data: { workspaceId, selectedProjectIds, dateFrom, dateTo, view }, hypothesisId: "H1_H2", timestamp: Date.now() }) }).catch(() => {});
-    // #endregion
     followupApi
       .queryCalendar({
         workspaceId,
@@ -418,9 +422,6 @@ export const CalendarPage = (_props: CalendarPageProps) => {
       })
       .then((res) => {
         const data = res?.data ?? [];
-        // #region agent log
-        fetch("http://127.0.0.1:7857/ingest/45821bd5-f1c6-412c-97d1-2d1ee6a22e0e", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "94c3ac" }, body: JSON.stringify({ sessionId: "94c3ac", location: "CalendarPage.tsx:queryThen", message: "calendar query result", data: { dataLength: data.length, firstId: data[0]?._id, firstProjectId: data[0]?.projectId, firstStartsAt: data[0]?.startsAt }, hypothesisId: "H1_H2_H4", timestamp: Date.now() }) }).catch(() => {});
-        // #endregion
         if (!ignore) setEvents(data);
       })
       .catch((e) => { if (!ignore) setError(e instanceof Error ? e.message : "Errore caricamento eventi"); })
@@ -457,9 +458,6 @@ export const CalendarPage = (_props: CalendarPageProps) => {
   };
 
   const handleEventFormSaved = (createdEvent?: CalendarEvent) => {
-    // #region agent log
-    if (createdEvent) fetch("http://127.0.0.1:7857/ingest/45821bd5-f1c6-412c-97d1-2d1ee6a22e0e", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "94c3ac" }, body: JSON.stringify({ sessionId: "94c3ac", location: "CalendarPage.tsx:handleEventFormSaved", message: "optimistic add", data: { createdId: createdEvent._id, projectId: createdEvent.projectId, startsAt: createdEvent.startsAt, selectedProjectIds }, hypothesisId: "H1_H3", timestamp: Date.now() }) }).catch(() => {});
-    // #endregion
     if (createdEvent) {
       setEvents((prev) => {
         const exists = prev.some((e) => e._id === createdEvent._id);
@@ -499,7 +497,13 @@ export const CalendarPage = (_props: CalendarPageProps) => {
       <div className="flex items-center justify-between gap-4 border-b border-border bg-white px-6 py-3">
         <h1 className="text-base font-semibold text-foreground">Calendario</h1>
         <div className="flex items-center gap-2">
-          <Button size="sm" className="min-h-11 min-w-[44px] gap-1.5" onClick={handleOpenNewEvent}>
+          <Button
+            size="sm"
+            className="min-h-11 min-w-[44px] gap-1.5"
+            onClick={handleOpenNewEvent}
+            disabled={!canCreateCalendar}
+            title={!canCreateCalendar ? "Non hai il permesso di creare eventi" : undefined}
+          >
             <Plus className="h-3.5 w-3.5" />
             Nuovo evento
           </Button>
@@ -677,6 +681,8 @@ export const CalendarPage = (_props: CalendarPageProps) => {
         onClose={() => setDialogOpen(false)}
         onEdit={handleOpenEditEvent}
         onDelete={handleEventFormSaved}
+        canEditEvent={canUpdateCalendar}
+        canDeleteEvent={canDeleteCalendar}
       />
       <CalendarEventFormDrawer
         mode={eventFormMode}

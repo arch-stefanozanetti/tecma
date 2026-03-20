@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { followupApi } from "../../api/followupApi";
 import { getAccessToken } from "../../api/http";
 import { me as authMe } from "../../api/authApi";
@@ -23,6 +23,16 @@ const LEGACY_WORKSPACE_LABELS: Record<LegacyWorkspaceId, string> = {
   prod: "Production",
 };
 
+const isLegacyWorkspaceId = (id: string): id is LegacyWorkspaceId =>
+  id === "dev-1" || id === "demo" || id === "prod";
+
+/** Workspace Mongo → passato a getProjectAccessByEmail; legacy → nessun filtro lato API. */
+const resolveWorkspaceForSessionApi = (id: string): string | undefined => {
+  const t = id.trim();
+  if (!t || isLegacyWorkspaceId(t)) return undefined;
+  return t;
+};
+
 type AuthStatus = "pending" | "ok" | "fail";
 
 type ProjectTypeFilter = "all" | "rent" | "sell";
@@ -33,9 +43,9 @@ function projectMode(project: ProjectAccessProject): "rent" | "sell" {
 }
 
 export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
-  const loadProjectsByEmailApi = useCallback(async (inputEmail: string) => {
+  const loadProjectsByEmailApi = useCallback(async (inputEmail: string, inputWorkspaceId?: string) => {
     const normalizedEmail = inputEmail.trim().toLowerCase();
-    const result = await followupApi.getProjectsByEmail(normalizedEmail);
+    const result = await followupApi.getProjectsByEmail(normalizedEmail, inputWorkspaceId);
     if (!result.found) throw new Error(`Utente ${normalizedEmail} non trovato su Mongo.`);
     if (result.projects.length === 0) throw new Error(`Nessun progetto associato a ${normalizedEmail}.`);
     return result;
@@ -47,7 +57,6 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
   const [authStatus, setAuthStatus] = useState<AuthStatus>("pending");
   const [meEmail, setMeEmail] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
-  const didAutoLoadRef = useRef(false);
   const [workspaces, setWorkspaces] = useState<WorkspaceRow[]>([]);
   const [workspaceId, setWorkspaceId] = useState<string>("");
   const [workspaceProjectIds, setWorkspaceProjectIds] = useState<string[]>([]);
@@ -124,9 +133,9 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
 
   const loadProjectsByEmail = useCallback(
     (inputEmail: string) => {
-      void runLoadProjects(inputEmail);
+      void runLoadProjects(inputEmail.trim().toLowerCase(), resolveWorkspaceForSessionApi(workspaceId));
     },
-    [runLoadProjects]
+    [runLoadProjects, workspaceId]
   );
 
   const runAuthMe = useCallback(() => {
@@ -152,10 +161,9 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
   }, [runAuthMe]);
 
   useEffect(() => {
-    if (didAutoLoadRef.current || !meEmail) return;
-    didAutoLoadRef.current = true;
-    loadProjectsByEmail(meEmail);
-  }, [meEmail, loadProjectsByEmail]);
+    if (!meEmail) return;
+    void runLoadProjects(meEmail.trim().toLowerCase(), resolveWorkspaceForSessionApi(workspaceId));
+  }, [meEmail, workspaceId, runLoadProjects]);
 
   const toggleProject = (project: ProjectAccessProject) => {
     setSelected((prev) => (prev.includes(project.id) ? prev.filter((id) => id !== project.id) : [...prev, project.id]));
@@ -184,7 +192,7 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
       list = list.filter((p) => projectMode(p) === typeFilter);
     }
     return list;
-  }, [access, filter, typeFilter, workspaceProjectIds]);
+  }, [access, filter, typeFilter, workspaceProjectIds, workspaceId]);
 
   const allVisibleSelected =
     visibleProjects.length > 0 && visibleProjects.every((project) => selected.includes(project.id));
@@ -201,7 +209,7 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
     setSelected(merged);
   };
 
-  const confirmSelection = () => {
+  const confirmSelection = async () => {
     if (!access || !access.found) return;
     const chosenEnv = typeof window !== "undefined" ? sessionStorage.getItem("followup3.chosenWorkspaceId") : null;
     const apiEnv: "dev-1" | "demo" | "prod" =
@@ -211,6 +219,13 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
           ? (workspaceId as "dev-1" | "demo" | "prod")
           : "demo";
     if (typeof window !== "undefined") sessionStorage.removeItem("followup3.chosenWorkspaceId");
+    let permissions: string[] = [];
+    try {
+      const u = await authMe();
+      permissions = u.permissions ?? [];
+    } catch {
+      permissions = [];
+    }
     const scope = {
       email: access.email,
       role: access.role,
@@ -218,7 +233,8 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
       workspaceId,
       apiEnvironment: apiEnv,
       projects: access.projects,
-      selectedProjectIds: selected
+      selectedProjectIds: selected,
+      permissions
     };
     saveProjectScope(scope);
     void followupApi

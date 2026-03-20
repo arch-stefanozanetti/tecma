@@ -6,6 +6,7 @@ import { getDb } from "../../config/db.js";
 import { HttpError } from "../../types/http.js";
 import { queryClients } from "../clients/clients.service.js";
 import { queryApartments } from "../apartments/apartments.service.js";
+import type { EntityAssignmentListViewer } from "../workspaces/entity-assignment-query.util.js";
 import { queryAssociations } from "../future/future.service.js";
 import { createCalendarEvent } from "../calendar/calendar.service.js";
 
@@ -13,7 +14,18 @@ export type AgentToolContext = {
   workspaceId: string;
   projectIds: string[];
   actorEmail: string;
+  /** Allineamento al filtro entity assignments sulle liste CRM */
+  actorIsAdmin?: boolean;
+  actorIsTecmaAdmin?: boolean;
 };
+
+function toolListViewer(ctx: AgentToolContext): EntityAssignmentListViewer {
+  return {
+    email: ctx.actorEmail,
+    isAdmin: ctx.actorIsAdmin === true,
+    isTecmaAdmin: ctx.actorIsTecmaAdmin === true,
+  };
+}
 
 function assertWorkspace(ctx: AgentToolContext, workspaceId: string): void {
   if (workspaceId !== ctx.workspaceId) {
@@ -85,30 +97,36 @@ export async function executeAgentTool(
       assertWorkspace(ctx, p.workspaceId);
       const projectIds = filterProjectIds(ctx, p.projectIds);
       if (projectIds.length === 0) throw new HttpError("Invalid projectIds for workspace", 400);
-      return queryClients({
-        workspaceId: p.workspaceId,
-        projectIds,
-        page: 1,
-        perPage: 50,
-        searchText: p.searchText,
-        sort: { field: "updatedAt", direction: -1 },
-        filters: {}
-      });
+      return queryClients(
+        {
+          workspaceId: p.workspaceId,
+          projectIds,
+          page: 1,
+          perPage: 50,
+          searchText: p.searchText,
+          sort: { field: "updatedAt", direction: -1 },
+          filters: {},
+        },
+        toolListViewer(ctx)
+      );
     }
     case "search_apartments": {
       const p = SearchSchema.parse(args);
       assertWorkspace(ctx, p.workspaceId);
       const projectIds = filterProjectIds(ctx, p.projectIds);
       if (projectIds.length === 0) throw new HttpError("Invalid projectIds for workspace", 400);
-      return queryApartments({
-        workspaceId: p.workspaceId,
-        projectIds,
-        page: 1,
-        perPage: 50,
-        searchText: p.searchText,
-        sort: { field: "updatedAt", direction: -1 },
-        filters: {}
-      });
+      return queryApartments(
+        {
+          workspaceId: p.workspaceId,
+          projectIds,
+          page: 1,
+          perPage: 50,
+          searchText: p.searchText,
+          sort: { field: "updatedAt", direction: -1 },
+          filters: {},
+        },
+        toolListViewer(ctx)
+      );
     }
     case "list_associations": {
       const p = ListAssocSchema.parse(args);
@@ -131,24 +149,30 @@ export async function executeAgentTool(
       const projectIds = filterProjectIds(ctx, p.projectIds);
       if (projectIds.length === 0) throw new HttpError("Invalid projectIds for workspace", 400);
       const [clients, apartments, associations] = await Promise.all([
-        queryClients({
-          workspaceId: p.workspaceId,
-          projectIds,
-          page: 1,
-          perPage: 200,
-          searchText: "",
-          sort: { field: "updatedAt", direction: -1 },
-          filters: {}
-        }),
-        queryApartments({
-          workspaceId: p.workspaceId,
-          projectIds,
-          page: 1,
-          perPage: 200,
-          searchText: "",
-          sort: { field: "updatedAt", direction: -1 },
-          filters: {}
-        }),
+        queryClients(
+          {
+            workspaceId: p.workspaceId,
+            projectIds,
+            page: 1,
+            perPage: 200,
+            searchText: "",
+            sort: { field: "updatedAt", direction: -1 },
+            filters: {},
+          },
+          toolListViewer(ctx)
+        ),
+        queryApartments(
+          {
+            workspaceId: p.workspaceId,
+            projectIds,
+            page: 1,
+            perPage: 200,
+            searchText: "",
+            sort: { field: "updatedAt", direction: -1 },
+            filters: {},
+          },
+          toolListViewer(ctx)
+        ),
         queryAssociations({
           workspaceId: p.workspaceId,
           projectIds,

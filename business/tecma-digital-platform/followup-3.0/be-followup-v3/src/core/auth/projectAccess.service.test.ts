@@ -5,6 +5,10 @@ const mocks = vi.hoisted(() => {
   const usersFindOneMock = vi.fn();
   const projectsFindMock = vi.fn();
   const projectsToArrayMock = vi.fn();
+  const workspaceProjectsFindMock = vi.fn();
+  const workspaceProjectsToArrayMock = vi.fn();
+  const workspaceUserProjectsFindMock = vi.fn();
+  const workspaceUserProjectsToArrayMock = vi.fn();
 
   const usersCollection = {
     findOne: usersFindOneMock,
@@ -14,16 +18,39 @@ const mocks = vi.hoisted(() => {
     find: projectsFindMock,
   };
 
+  const workspaceProjectsCollection = {
+    find: workspaceProjectsFindMock,
+  };
+
+  const workspaceUserProjectsCollection = {
+    createIndex: vi.fn().mockResolvedValue("ok"),
+    find: workspaceUserProjectsFindMock,
+  };
+
   projectsFindMock.mockImplementation(() => ({
     project: () => ({ toArray: projectsToArrayMock }),
+  }));
+
+  workspaceProjectsFindMock.mockImplementation(() => ({
+    project: () => ({ toArray: workspaceProjectsToArrayMock }),
+  }));
+
+  workspaceUserProjectsFindMock.mockImplementation(() => ({
+    project: () => ({ toArray: workspaceUserProjectsToArrayMock }),
   }));
 
   return {
     usersFindOneMock,
     projectsFindMock,
     projectsToArrayMock,
+    workspaceProjectsFindMock,
+    workspaceProjectsToArrayMock,
+    workspaceUserProjectsFindMock,
+    workspaceUserProjectsToArrayMock,
     usersCollection,
     projectsCollection,
+    workspaceProjectsCollection,
+    workspaceUserProjectsCollection,
   };
 });
 
@@ -32,6 +59,8 @@ vi.mock("../../config/db.js", () => ({
     collection: (name: string) => {
       if (name === "tz_users") return mocks.usersCollection;
       if (name === "tz_projects") return mocks.projectsCollection;
+      if (name === "tz_workspace_projects") return mocks.workspaceProjectsCollection;
+      if (name === "tz_workspace_user_projects") return mocks.workspaceUserProjectsCollection;
       throw new Error(`Unexpected collection: ${name}`);
     },
   }),
@@ -42,6 +71,8 @@ import { getProjectAccessByEmail } from "./projectAccess.service.js";
 describe("projectAccess.service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.workspaceProjectsToArrayMock.mockResolvedValue([]);
+    mocks.workspaceUserProjectsToArrayMock.mockResolvedValue([]);
   });
 
   it("returns found=false when user is missing", async () => {
@@ -106,5 +137,72 @@ describe("projectAccess.service", () => {
 
   it("validates input email", async () => {
     await expect(getProjectAccessByEmail({ email: "not-an-email" })).rejects.toMatchObject({ name: "ZodError" });
+  });
+
+  it("with workspaceId and no workspace rows does not filter projects", async () => {
+    const p1 = new ObjectId();
+    mocks.usersFindOneMock.mockResolvedValueOnce({
+      email: "agent@example.com",
+      role: "agent",
+      project_ids: [p1.toHexString()],
+    });
+    mocks.projectsToArrayMock.mockResolvedValueOnce([{ _id: p1, name: "One" }]).mockResolvedValueOnce([]);
+    mocks.workspaceProjectsToArrayMock.mockResolvedValueOnce([]);
+
+    const result = await getProjectAccessByEmail({
+      email: "agent@example.com",
+      workspaceId: "507f1f77bcf86cd799439011",
+    });
+
+    expect(result.projects).toHaveLength(1);
+    expect(result.projects[0]?.id).toBe(p1.toHexString());
+  });
+
+  it("with workspaceId intersects to workspace-linked projects", async () => {
+    const p1 = new ObjectId();
+    const p2 = new ObjectId();
+    mocks.usersFindOneMock.mockResolvedValueOnce({
+      email: "agent@example.com",
+      role: "agent",
+      project_ids: [p1.toHexString(), p2.toHexString()],
+    });
+    mocks.projectsToArrayMock
+      .mockResolvedValueOnce([{ _id: p1, name: "One" }, { _id: p2, name: "Two" }])
+      .mockResolvedValueOnce([]);
+    mocks.workspaceProjectsToArrayMock.mockResolvedValueOnce([{ projectId: p1.toHexString() }]);
+
+    const result = await getProjectAccessByEmail({
+      email: "agent@example.com",
+      workspaceId: "507f1f77bcf86cd799439011",
+    });
+
+    expect(result.projects).toHaveLength(1);
+    expect(result.projects[0]?.id).toBe(p1.toHexString());
+  });
+
+  it("non-admin with tz_workspace_user_projects rows sees only allowed projects", async () => {
+    const p1 = new ObjectId();
+    const p2 = new ObjectId();
+    mocks.usersFindOneMock.mockResolvedValueOnce({
+      email: "agent@example.com",
+      role: "agent",
+      project_ids: [p1.toHexString(), p2.toHexString()],
+    });
+    mocks.projectsToArrayMock
+      .mockResolvedValueOnce([{ _id: p1, name: "One" }, { _id: p2, name: "Two" }])
+      .mockResolvedValueOnce([]);
+    mocks.workspaceProjectsToArrayMock.mockResolvedValueOnce([
+      { projectId: p1.toHexString() },
+      { projectId: p2.toHexString() },
+    ]);
+    mocks.workspaceUserProjectsToArrayMock.mockResolvedValueOnce([{ projectId: p1.toHexString() }]);
+
+    const result = await getProjectAccessByEmail({
+      email: "agent@example.com",
+      workspaceId: "507f1f77bcf86cd799439011",
+    });
+
+    expect(result.projects).toHaveLength(1);
+    expect(result.projects[0]?.id).toBe(p1.toHexString());
   });
 });

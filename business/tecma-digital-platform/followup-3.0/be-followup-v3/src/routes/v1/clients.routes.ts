@@ -4,16 +4,30 @@ import { getClientById, queryClients, createClient, updateClient } from "../../c
 import { queryRequests } from "../../core/requests/requests.service.js";
 import { handleAsync } from "../asyncHandler.js";
 import { requireCanAccessWorkspace, requireCanAccessProject } from "../accessMiddleware.js";
+import { requirePermission } from "../permissionMiddleware.js";
+import { PERMISSIONS } from "../../core/rbac/permissions.js";
 import { auditAndDispatchEntityEvent } from "../helpers/auditAndDispatch.js";
 import { parseListQueryFromRequest } from "../helpers/parseListQuery.js";
+import { toEntityAssignmentListViewer } from "../helpers/listQueryViewer.js";
 
 export const clientsRoutes = Router();
 
-clientsRoutes.post("/clients/query", requireCanAccessWorkspace("workspaceId"), handleAsync((req) => queryClients(req.body)));
-clientsRoutes.get("/clients/:id", requireCanAccessWorkspace("workspaceId"), handleAsync((req) => getClientById(req.params.id)));
+clientsRoutes.post(
+  "/clients/query",
+  requirePermission(PERMISSIONS.CLIENTS_READ),
+  requireCanAccessWorkspace("workspaceId"),
+  handleAsync((req) => queryClients(req.body, toEntityAssignmentListViewer(req.user)))
+);
+clientsRoutes.get(
+  "/clients/:id",
+  requirePermission(PERMISSIONS.CLIENTS_READ),
+  requireCanAccessWorkspace("workspaceId"),
+  handleAsync((req) => getClientById(req.params.id, toEntityAssignmentListViewer(req.user)))
+);
 
 clientsRoutes.get(
   "/clients/:id/requests",
+  requirePermission(PERMISSIONS.REQUESTS_READ),
   requireCanAccessWorkspace("workspaceId"),
   handleAsync(async (req) => {
     const { workspaceId, projectIds, page, perPage } = parseListQueryFromRequest(req);
@@ -27,7 +41,11 @@ clientsRoutes.get(
   })
 );
 
-clientsRoutes.post("/clients", requireCanAccessProject("workspaceId", "projectId"), handleAsync(async (req) => {
+clientsRoutes.post(
+  "/clients",
+  requirePermission(PERMISSIONS.CLIENTS_CREATE),
+  requireCanAccessProject("workspaceId", "projectId"),
+  handleAsync(async (req) => {
   const result = await createClient(req.body);
   const workspaceId = req.body.workspaceId as string;
   auditAndDispatchEntityEvent({
@@ -45,9 +63,14 @@ clientsRoutes.post("/clients", requireCanAccessProject("workspaceId", "projectId
     userId: req.user?.sub,
   });
   return result;
-}));
+  })
+);
 
-clientsRoutes.patch("/clients/:id", requireCanAccessProject("workspaceId", "projectId"), handleAsync(async (req) => {
+clientsRoutes.patch(
+  "/clients/:id",
+  requirePermission(PERMISSIONS.CLIENTS_UPDATE),
+  requireCanAccessProject("workspaceId", "projectId"),
+  handleAsync(async (req) => {
   const result = await updateClient(req.params.id, req.body);
   const workspaceId = result.workspaceId ?? "";
   if (workspaceId) {
@@ -63,9 +86,14 @@ clientsRoutes.patch("/clients/:id", requireCanAccessProject("workspaceId", "proj
     });
   }
   return { client: result.client };
-}));
+  })
+);
 
-clientsRoutes.post("/clients/:clientId/actions", requireCanAccessWorkspace("workspaceId"), handleAsync(async (req) => {
+clientsRoutes.post(
+  "/clients/:clientId/actions",
+  requirePermission(PERMISSIONS.CLIENTS_UPDATE),
+  requireCanAccessWorkspace("workspaceId"),
+  handleAsync(async (req) => {
   const clientId = req.params.clientId;
   const body = z.object({ type: z.enum(["mail_received", "mail_sent", "call_completed", "meeting_scheduled"]) }).parse(req.body);
   const clientRes = await getClientById(clientId).catch(() => null);
@@ -90,4 +118,5 @@ clientsRoutes.post("/clients/:clientId/actions", requireCanAccessWorkspace("work
       at: now.toISOString(),
     },
   };
-}));
+  })
+);

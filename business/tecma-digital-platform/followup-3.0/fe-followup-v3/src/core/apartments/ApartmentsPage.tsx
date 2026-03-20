@@ -43,7 +43,11 @@ const APARTMENTS_PER_PAGE = 10;
 export const ApartmentsPage = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const { workspaceId, selectedProjectIds } = useWorkspace();
+  const { workspaceId, selectedProjectIds, hasPermission } = useWorkspace();
+  const canReadApartments = hasPermission("apartments.read");
+  const canCreateApartments = hasPermission("apartments.create");
+  const canUpdateApartments = hasPermission("apartments.update");
+  const canExportApartments = hasPermission("apartments.export");
   const [search, setSearch] = useState("");
   const [modeFilter, setModeFilter] = useState<ModeFilter>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -187,6 +191,12 @@ export const ApartmentsPage = () => {
           isLoading={isLoading}
           apartments={apartments}
           committedSearch={committedSearch}
+          createApartmentDisabled={!canCreateApartments}
+          createApartmentTitle={!canCreateApartments ? "Non hai il permesso di creare appartamenti" : undefined}
+          importExcelDisabled={!canUpdateApartments}
+          importExcelTitle={!canUpdateApartments ? "Non hai il permesso di importare (richiede modifica appartamenti)" : undefined}
+          exportExcelDisabled={!canExportApartments}
+          exportExcelTitle={!canExportApartments ? "Non hai il permesso di esportare" : undefined}
           onOpenApartment={(id) => {
             if (id === "create") {
               navigate("/?section=createApartment");
@@ -287,6 +297,8 @@ export const ApartmentsPage = () => {
                   size="sm"
                   className="w-full min-h-11 rounded-lg gap-2"
                   onClick={() => navigate(`/apartments/${selectedApartment._id}`)}
+                  disabled={!canReadApartments}
+                  title={!canReadApartments ? "Non hai il permesso di aprire la scheda" : undefined}
                 >
                   <ExternalLink className="h-4 w-4" />
                   Apri scheda
@@ -296,6 +308,8 @@ export const ApartmentsPage = () => {
                   size="sm"
                   className="w-full min-h-11 rounded-lg"
                   onClick={() => setEditApartmentOpen(true)}
+                  disabled={!canUpdateApartments}
+                  title={!canUpdateApartments ? "Non hai il permesso di modificare" : undefined}
                 >
                   Modifica
                 </Button>
@@ -379,7 +393,7 @@ export const ApartmentsPage = () => {
               <Button type="button" variant="outline" onClick={() => setEditApartmentOpen(false)} className="min-h-11">
                 Annulla
               </Button>
-              <Button type="submit" disabled={editSaving} className="min-h-11">
+              <Button type="submit" disabled={editSaving || !canUpdateApartments} className="min-h-11">
                 {editSaving ? "Salvataggio..." : "Salva"}
               </Button>
             </DrawerFooter>

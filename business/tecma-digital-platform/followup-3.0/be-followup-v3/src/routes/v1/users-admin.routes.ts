@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
-import { PERMISSIONS } from "../../core/rbac/permissions.js";
+import { ALL_PERMISSION_IDS, PERMISSIONS, hasPermission } from "../../core/rbac/permissions.js";
 import { writeAuditLog } from "../../core/audit/audit.service.js";
 import {
   inviteUser,
@@ -70,6 +70,21 @@ usersAdminRoutes.patch(
         isDisabled: z.boolean().optional(),
       })
       .parse(req.body);
+
+    if (body.permissions_override !== undefined) {
+      const granted = (req.user?.permissions as string[]) ?? [];
+      const isAdmin =
+        req.user?.system_role === "admin" ||
+        req.user?.system_role === "tecma_admin" ||
+        hasPermission(granted, PERMISSIONS.ALL);
+      for (const p of body.permissions_override) {
+        if (p === PERMISSIONS.ALL || p === "*") {
+          if (!isAdmin) throw new HttpError("Solo gli admin possono assegnare il permesso '*'", 403);
+        } else if (!ALL_PERMISSION_IDS.includes(p)) {
+          throw new HttpError(`Permesso non valido: ${p}`, 400);
+        }
+      }
+    }
 
     const after = await updateUserById(id, body);
     const safe = (u: typeof before) => ({

@@ -119,7 +119,7 @@ describe("apartments.service", () => {
     });
 
     expect(result.data).toHaveLength(1);
-    expect(result.data[0]._id).toEqual(aptId);
+    expect(result.data[0]._id).toBe(aptId.toHexString());
     expect(result.data[0].normalizedPrice.amountCents).toBe(20000000);
     expect(result.pagination.total).toBe(1);
     expect(mocks.findMock).toHaveBeenCalledOnce();

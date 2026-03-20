@@ -1,22 +1,32 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ObjectId } from "mongodb";
 
 const mocks = vi.hoisted(() => ({
   resolveEffectivePermissionsMock: vi.fn(),
+  getPermissionsForRoleMock: vi.fn(),
+  listWorkspaceMembershipsForUserMock: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("../rbac/roleDefinitions.service.js", () => ({
   resolveEffectivePermissions: mocks.resolveEffectivePermissionsMock,
+  getPermissionsForRole: mocks.getPermissionsForRoleMock,
 }));
 
 vi.mock("../workspaces/workspace-users.service.js", () => ({
-  listWorkspaceMembershipsForUser: vi.fn().mockResolvedValue([]),
+  listWorkspaceMembershipsForUser: mocks.listWorkspaceMembershipsForUserMock,
 }));
 
 import { PERMISSIONS } from "../rbac/permissions.js";
 import { buildAccessPayloadFromUserDoc, escapeEmailForRegex, toAuthSessionUser } from "./userAccessPayload.js";
 
 describe("userAccessPayload", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.listWorkspaceMembershipsForUserMock.mockResolvedValue([]);
+    mocks.getPermissionsForRoleMock.mockReset();
+    mocks.resolveEffectivePermissionsMock.mockReset();
+  });
+
   it("toAuthSessionUser maps token payload for frontend session shape", () => {
     const result = toAuthSessionUser({
       sub: "u1",
@@ -37,6 +47,43 @@ describe("userAccessPayload", () => {
       system_role: undefined,
       isTecmaAdmin: false,
     });
+  });
+
+  it("workspace memberships merge permissions_override into JWT permissions", async () => {
+    const _id = new ObjectId();
+    mocks.listWorkspaceMembershipsForUserMock.mockResolvedValueOnce([{ role: "viewer", workspaceId: "w1" }]);
+    mocks.getPermissionsForRoleMock.mockResolvedValueOnce([PERMISSIONS.APARTMENTS_READ]);
+
+    const payload = await buildAccessPayloadFromUserDoc(
+      {
+        _id,
+        email: "v@example.com",
+        permissions_override: [PERMISSIONS.CLIENTS_READ],
+      },
+      "x@example.com"
+    );
+
+    expect(payload.permissions.sort()).toEqual([PERMISSIONS.APARTMENTS_READ, PERMISSIONS.CLIENTS_READ].sort());
+    expect(payload.isAdmin).toBe(false);
+    expect(payload.role).toBe("viewer");
+  });
+
+  it("workspace memberships with role ALL stay ALL regardless of override", async () => {
+    const _id = new ObjectId();
+    mocks.listWorkspaceMembershipsForUserMock.mockResolvedValueOnce([{ role: "admin", workspaceId: "w1" }]);
+    mocks.getPermissionsForRoleMock.mockResolvedValueOnce(PERMISSIONS.ALL);
+
+    const payload = await buildAccessPayloadFromUserDoc(
+      {
+        _id,
+        email: "a@example.com",
+        permissions_override: [PERMISSIONS.CLIENTS_READ],
+      },
+      "x@example.com"
+    );
+
+    expect(payload.permissions).toEqual([PERMISSIONS.ALL]);
+    expect(payload.isAdmin).toBe(true);
   });
 
   it("buildAccessPayloadFromUserDoc resolves permissions and derives admin/project/email", async () => {

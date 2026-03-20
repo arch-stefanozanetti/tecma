@@ -1,5 +1,7 @@
+import type { ReactNode } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render } from "../../test-utils";
+import { MemoryRouter } from "react-router-dom";
+import { render, screen, waitFor } from "../../test-utils";
 import { IntegrationsPage } from "./IntegrationsPage";
 
 vi.mock("../../api/followupApi", () => ({
@@ -7,6 +9,11 @@ vi.mock("../../api/followupApi", () => ({
     listWebhookConfigs: vi.fn().mockResolvedValue({ data: [] }),
     getN8nConfig: vi.fn().mockResolvedValue(null),
     getOutlookStatus: vi.fn().mockResolvedValue({ connected: false }),
+    getWhatsAppConfig: vi.fn().mockResolvedValue({ config: null }),
+    getMetaWhatsAppConfig: vi.fn().mockResolvedValue({ config: null }),
+    listCommunicationTemplates: vi.fn().mockResolvedValue({ data: [] }),
+    listCommunicationRules: vi.fn().mockResolvedValue({ data: [] }),
+    listCommunicationDeliveries: vi.fn().mockResolvedValue({ data: [] }),
   },
 }));
 
@@ -27,5 +34,16 @@ describe("IntegrationsPage", () => {
   it("rende la pagina senza crash", () => {
     const { container } = render(<IntegrationsPage workspaceId="w1" />);
     expect(container.firstChild).toBeInTheDocument();
+  });
+
+  it("tab Comunicazioni: CTA setup Twilio e Meta se WhatsApp non configurato", async () => {
+    function RouterComunicazioni({ children }: { children: ReactNode }) {
+      return <MemoryRouter initialEntries={["/integrations?tab=comunicazioni"]}>{children}</MemoryRouter>;
+    }
+    render(<IntegrationsPage workspaceId="w1" />, { wrapper: RouterComunicazioni });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Apri setup Twilio/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Apri setup Meta/i })).toBeInTheDocument();
+    });
   });
 });

@@ -21,7 +21,7 @@ import {
   UserCircle,
   Users,
 } from "lucide-react";
-import { NAV_ITEMS, type Section } from "../config/routes";
+import { NAV_ITEMS, sectionMeetsPermissionRequirements, type Section } from "../config/routes";
 import { cn } from "../../lib/utils";
 import { Checkbox } from "../../components/ui/checkbox";
 import { Sheet, SheetContent, SheetTrigger } from "../../components/ui/sheet";
@@ -51,6 +51,8 @@ interface PageTemplateProps {
   enabledFeatures?: string[];
   /** Per Inbox: navigazione a path (es. /clients/:id). Se assente, Inbox non è mostrato. */
   navigate?: (path: string) => void;
+  /** Gate voci di menu su permesso JWT (es. integrations.read). Admin/`*` ignorati dal chiamante. */
+  hasPermission?: (permission: string) => boolean;
   children: ReactNode;
 }
 
@@ -61,19 +63,27 @@ const mobileQuickNav: Array<{ id: Section; label: string; icon: React.ElementTyp
   { id: "clients", label: "Clienti", icon: Users },
   { id: "apartments", label: "Stato unità", icon: Building2 },
 ];
-const getMainNav = (isAdmin: boolean, enabledFeatures?: string[]) =>
+const getMainNav = (
+  isAdmin: boolean,
+  enabledFeatures?: string[],
+  hasPermission?: (permission: string) => boolean
+) =>
   mainNav.filter(
     (item) =>
-      (!item.adminOnly || isAdmin) && isSectionEnabledByFeature(item.id, enabledFeatures)
+      (!item.adminOnly || isAdmin) &&
+      isSectionEnabledByFeature(item.id, enabledFeatures) &&
+      sectionMeetsPermissionRequirements(item.id, hasPermission)
   );
 const getSecondaryNav = (
   isAdmin: boolean,
   enabledFeatures?: string[],
-  priceAvailabilityContext?: { projects: ProjectAccessProject[]; selectedProjectIds: string[] }
+  priceAvailabilityContext?: { projects: ProjectAccessProject[]; selectedProjectIds: string[] },
+  hasPermission?: (permission: string) => boolean
 ) =>
   NAV_ITEMS.filter((item) => {
     if (!item.compact || (item.adminOnly && !isAdmin)) return false;
     if (!isSectionEnabledByFeature(item.id, enabledFeatures)) return false;
+    if (!sectionMeetsPermissionRequirements(item.id, hasPermission)) return false;
     if (item.id === "priceAvailability" && priceAvailabilityContext) {
       const { projects, selectedProjectIds } = priceAvailabilityContext;
       if (!isPriceAvailabilityRelevant(projects, selectedProjectIds)) return false;
@@ -92,6 +102,7 @@ const SideNav = ({
   onCollapseToggle,
   touchFriendly = false,
   className,
+  hasPermission,
 }: {
   section: Section;
   onSectionChange: (section: Section, state?: object) => void;
@@ -103,12 +114,13 @@ const SideNav = ({
   onCollapseToggle?: () => void;
   touchFriendly?: boolean;
   className?: string;
+  hasPermission?: (permission: string) => boolean;
 }) => {
   const [toolsOpen, setToolsOpen] = useState(false);
   const secondaryNav = getSecondaryNav(isAdmin, enabledFeatures, {
     projects,
     selectedProjectIds,
-  });
+  }, hasPermission);
   const isSecondaryActive = useMemo(
     () => secondaryNav.some((item) => item.id === section),
     [section, secondaryNav]
@@ -157,7 +169,7 @@ const SideNav = ({
         )}
 
         <nav className={cn("space-y-4", collapsed && "space-y-2")}>
-          {getMainNav(isAdmin, enabledFeatures).map((item) => {
+          {getMainNav(isAdmin, enabledFeatures, hasPermission).map((item) => {
             const Icon = item.icon;
             const isActive = section === item.id;
             return (
@@ -503,6 +515,7 @@ export const PageTemplate = ({
   onSelectedProjectIdsChange,
   enabledFeatures,
   navigate,
+  hasPermission,
   children,
 }: PageTemplateProps) => {
   const sidebarStorageKey = `followup.sidebarCollapsed${workspaceId ? `.${workspaceId}` : ""}`;
@@ -555,6 +568,7 @@ export const PageTemplate = ({
       clearTokens();
       if (typeof window !== "undefined") {
         window.sessionStorage.removeItem("followup3.lastEmail");
+        window.sessionStorage.removeItem("followup3.permLastSync");
         clearProjectScope();
         window.location.href = "/login";
       }
@@ -583,6 +597,7 @@ export const PageTemplate = ({
           selectedProjectIds={selectedProjectIds}
           collapsed={sidebarCollapsed}
           onCollapseToggle={() => setSidebarCollapsed((v) => !v)}
+          hasPermission={hasPermission}
         />
       </div>
 
@@ -606,6 +621,7 @@ export const PageTemplate = ({
             selectedProjectIds={selectedProjectIds}
             touchFriendly
             className="h-full"
+            hasPermission={hasPermission}
           />
         </SheetContent>
       </Sheet>

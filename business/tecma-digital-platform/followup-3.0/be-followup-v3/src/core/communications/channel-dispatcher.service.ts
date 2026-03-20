@@ -4,10 +4,13 @@
 import type { DispatchEventPayload } from "../automations/automation-events.service.js";
 import { createNotification } from "../notifications/notifications.service.js";
 import type { NotificationType } from "../notifications/notifications.service.js";
-import { getById as getTemplateById, resolveTemplate } from "./templates.service.js";
+import {
+  getById as getTemplateById,
+  resolveTemplate,
+  buildMetaWhatsAppTemplatePayload,
+} from "./templates.service.js";
 import { buildCommunicationContext } from "./resolve-context.service.js";
 import { sendEmail } from "./email.service.js";
-import { sendWhatsAppMessage } from "./whatsapp.service.js";
 import type { CommunicationRecipientType } from "./communication-rules.service.js";
 import { resolveClientIdFromDispatchPayload } from "./resolve-client-id-from-payload.js";
 import { getClientById } from "../clients/clients.service.js";
@@ -15,6 +18,8 @@ import { getProjectDetail, getProjectBrandingInternal } from "../projects/projec
 import { logDelivery } from "./communication-deliveries.service.js";
 import { logger } from "../../observability/logger.js";
 import { safeAsync } from "../shared/safeAsync.js";
+import { sendWithMessagingGateway } from "../messaging/messaging-gateway.service.js";
+import { resolveWhatsAppRoute } from "../messaging/whatsapp-route-resolver.js";
 
 export interface DispatchJob {
   workspaceId: string;
@@ -122,7 +127,30 @@ export async function dispatchCommunicationJob(job: DispatchJob): Promise<void> 
       );
       return;
     }
-    await sendWhatsAppMessage(job.workspaceId, phone, resolved.bodyText);
+    const waRoute = await resolveWhatsAppRoute(job.workspaceId);
+    const baseReq = {
+      workspaceId: job.workspaceId,
+      projectId: job.projectId,
+      channel: "whatsapp" as const,
+      to: phone,
+      body: resolved.bodyText,
+    };
+    const gatewayReq =
+      waRoute.primary === "meta_whatsapp"
+        ? (() => {
+            const tplPayload = buildMetaWhatsAppTemplatePayload(template, contextStr);
+            if (!tplPayload) {
+              throw new Error(
+                "WhatsApp Meta: il template CRM deve avere metaTemplateName e metaTemplateLanguage allineati al template approvato in Meta."
+              );
+            }
+            return { ...baseReq, whatsappTemplate: tplPayload };
+          })()
+        : baseReq;
+    const result = await sendWithMessagingGateway(gatewayReq);
+    if (!result.ok) {
+      throw new Error(`WhatsApp delivery failed (${result.errorCode ?? "unknown"})`);
+    }
     safeAsync(logDelivery({
       workspaceId: job.workspaceId,
       projectId: job.projectId,
@@ -153,7 +181,38 @@ export async function dispatchCommunicationJob(job: DispatchJob): Promise<void> 
   }
 
   if (job.channel === "sms") {
-    logger.warn("[channel-dispatcher] SMS not implemented yet");
+    const phone = recipient.phone;
+    if (!phone) {
+      logger.warn(
+        { clientId: resolveClientIdFromDispatchPayload(job.payload) },
+        "[channel-dispatcher] missing recipient phone for sms"
+      );
+      return;
+    }
+    const result = await sendWithMessagingGateway({
+      workspaceId: job.workspaceId,
+      projectId: job.projectId,
+      channel: "sms",
+      to: phone,
+      body: resolved.bodyText,
+    });
+    if (!result.ok) {
+      throw new Error(`SMS delivery failed (${result.errorCode ?? "unknown"})`);
+    }
+    safeAsync(logDelivery({
+      workspaceId: job.workspaceId,
+      projectId: job.projectId,
+      channel: "sms",
+      templateId: job.templateId,
+      recipient: phone,
+      status: "sent",
+    }), {
+      operation: "communications.delivery.sms",
+      workspaceId: job.workspaceId,
+      projectId: job.projectId,
+      entityType: job.payload.entityType,
+      entityId: job.payload.entityId,
+    });
     return;
   }
 }

@@ -100,6 +100,54 @@ export const PATH_TO_SECTION: Record<string, Section> = Object.fromEntries(
   (Object.entries(SECTION_TO_PATH) as [Section, string][]).map(([s, p]) => [p, s])
 );
 
+/** Un permesso o tutti quelli elencati (AND) per la sezione. */
+export type SectionPermissionSpec = string | readonly string[];
+
+/**
+ * Permessi JWT per nav, command palette e accesso diretto (path / ?section=).
+ * Sezione assente = nessun gate permesso (solo feature flag / admin dove già previsto).
+ */
+export const SECTION_REQUIRED_PERMISSION: Partial<Record<Section, SectionPermissionSpec>> = {
+  calendar: "calendar.read",
+  clients: "clients.read",
+  apartments: "apartments.read",
+  requests: "requests.read",
+  inbox: "requests.read",
+  customer360: ["clients.read", "requests.read"],
+  priceAvailability: "apartments.read",
+  integrations: "integrations.read",
+  reports: "reports.read",
+  audit: "settings.read",
+  emailFlows: "email_flows.manage",
+  aiApprovals: "requests.read",
+  createApartment: "apartments.create",
+  createApartmentHC: "apartments.create",
+  editApartmentHC: "apartments.update",
+  associateAptClient: ["clients.read", "apartments.read"],
+  completeFlow: "requests.read",
+  catalogHC: "apartments.read",
+  templateConfig: "apartments.read",
+};
+
+/** True se l’utente soddisfa i permessi richiesti per la sezione (admin / `*` gestiti dal callback). */
+export function sectionMeetsPermissionRequirements(
+  section: Section,
+  hasPermission?: (perm: string) => boolean
+): boolean {
+  if (!hasPermission) return true;
+  const spec = SECTION_REQUIRED_PERMISSION[section];
+  if (spec === undefined) return true;
+  const list = typeof spec === "string" ? [spec] : [...spec];
+  return list.every((p) => hasPermission(p));
+}
+
+/** Testo per messaggi “accesso negato” (debug / supporto). */
+export function sectionRequiredPermissionHint(section: Section): string {
+  const spec = SECTION_REQUIRED_PERMISSION[section];
+  if (spec === undefined) return "";
+  return typeof spec === "string" ? spec : spec.join(" + ");
+}
+
 export interface NavItemConfig {
   id: Section;
   label: string;

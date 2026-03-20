@@ -2,6 +2,8 @@ import { Router } from "express";
 import { queryCalendarEvents, createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, getCalendarEventById } from "../../core/calendar/calendar.service.js";
 import { handleAsync } from "../asyncHandler.js";
 import { requireCanAccessWorkspace, requireCanAccessProject } from "../accessMiddleware.js";
+import { requirePermission } from "../permissionMiddleware.js";
+import { PERMISSIONS } from "../../core/rbac/permissions.js";
 import { canAccess } from "../../core/access/canAccess.js";
 import { HttpError } from "../../types/http.js";
 
@@ -13,10 +15,21 @@ function toAccessUser(req: { user?: { sub?: string; email?: string; system_role?
   return { sub: u.sub ?? "", email: u.email ?? "", system_role: u.system_role ?? undefined, isTecmaAdmin: u.isTecmaAdmin };
 }
 
-calendarRoutes.post("/calendar/events/query", requireCanAccessWorkspace("workspaceId"), handleAsync((req) => queryCalendarEvents(req.body)));
-calendarRoutes.post("/calendar/events", requireCanAccessProject("workspaceId", "projectId"), handleAsync((req) => createCalendarEvent(req.body)));
+calendarRoutes.post(
+  "/calendar/events/query",
+  requirePermission(PERMISSIONS.CALENDAR_READ),
+  requireCanAccessWorkspace("workspaceId"),
+  handleAsync((req) => queryCalendarEvents(req.body))
+);
+calendarRoutes.post(
+  "/calendar/events",
+  requirePermission(PERMISSIONS.CALENDAR_CREATE),
+  requireCanAccessProject("workspaceId", "projectId"),
+  handleAsync((req) => createCalendarEvent(req.body))
+);
 calendarRoutes.patch(
   "/calendar/events/:id",
+  requirePermission(PERMISSIONS.CALENDAR_UPDATE),
   handleAsync(async (req) => {
     const event = await getCalendarEventById(req.params.id);
     if (!event) throw new HttpError("Event not found", 404);
@@ -32,6 +45,7 @@ calendarRoutes.patch(
 );
 calendarRoutes.delete(
   "/calendar/events/:id",
+  requirePermission(PERMISSIONS.CALENDAR_DELETE),
   handleAsync(async (req) => {
     const event = await getCalendarEventById(req.params.id);
     if (!event) throw new HttpError("Event not found", 404);

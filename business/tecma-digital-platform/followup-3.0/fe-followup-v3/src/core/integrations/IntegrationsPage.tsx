@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { CheckCircle2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
@@ -18,6 +18,7 @@ import { RegoleTab } from "./RegoleTab";
 import { WebhookTab } from "./WebhookTab";
 import { ApiTab } from "./ApiTab";
 import { followupApi } from "../../api/followupApi";
+import { PageSimple } from "../shared/PageSimple";
 
 interface IntegrationsPageProps {
   workspaceId: string;
@@ -31,7 +32,15 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
   const [webhookConfigs, setWebhookConfigs] = useState<WebhookConfigRow[]>([]);
   const [n8nConfig, setN8nConfig] = useState<N8nConfigSnapshot>(null);
   const [outlookConnected, setOutlookConnected] = useState(false);
-  const { selectedProjectIds: projectIds, isAdmin } = useWorkspace();
+  const [twilioConfigured, setTwilioConfigured] = useState(false);
+  const [metaWhatsAppConfigured, setMetaWhatsAppConfigured] = useState(false);
+  const [autoOpenTwilio, setAutoOpenTwilio] = useState(false);
+  const [autoOpenMetaWhatsapp, setAutoOpenMetaWhatsapp] = useState(false);
+  const twilioQueryConsumedRef = useRef(false);
+  const metaWhatsappQueryConsumedRef = useRef(false);
+  const { selectedProjectIds: projectIds, isAdmin, hasPermission } = useWorkspace();
+  const canReadIntegrations = hasPermission("integrations.read");
+  const canMutateIntegrations = hasPermission("integrations.update");
 
   const loadWebhooks = useCallback(() => {
     if (!workspaceId) return;
@@ -60,6 +69,22 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
       .catch(() => setOutlookConnected(false));
   }, []);
 
+  const loadTwilioStatus = useCallback(() => {
+    if (!workspaceId) return;
+    followupApi
+      .getWhatsAppConfig(workspaceId)
+      .then((r) => setTwilioConfigured(!!r.config))
+      .catch(() => setTwilioConfigured(false));
+  }, [workspaceId]);
+
+  const loadMetaWhatsAppStatus = useCallback(() => {
+    if (!workspaceId) return;
+    followupApi
+      .getMetaWhatsAppConfig(workspaceId)
+      .then((r) => setMetaWhatsAppConfigured(!!r.config))
+      .catch(() => setMetaWhatsAppConfigured(false));
+  }, [workspaceId]);
+
   useEffect(() => {
     loadN8nConfig();
   }, [loadN8nConfig]);
@@ -67,6 +92,14 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
   useEffect(() => {
     loadOutlookStatus();
   }, [loadOutlookStatus]);
+
+  useEffect(() => {
+    loadTwilioStatus();
+  }, [loadTwilioStatus]);
+
+  useEffect(() => {
+    loadMetaWhatsAppStatus();
+  }, [loadMetaWhatsAppStatus]);
 
   useEffect(() => {
     if (searchParams.get("outlook") === "connected") {
@@ -79,6 +112,53 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
       });
     }
   }, [searchParams, loadOutlookStatus, setSearchParams]);
+
+  useEffect(() => {
+    if (activeTab !== "connettori") {
+      twilioQueryConsumedRef.current = false;
+      metaWhatsappQueryConsumedRef.current = false;
+      setAutoOpenTwilio(false);
+      setAutoOpenMetaWhatsapp(false);
+      return;
+    }
+    const connector = searchParams.get("connector");
+    if (connector === "twilio" && !twilioQueryConsumedRef.current) {
+      setAutoOpenTwilio(true);
+    } else {
+      if (connector !== "twilio") {
+        twilioQueryConsumedRef.current = false;
+        setAutoOpenTwilio(false);
+      }
+    }
+    if (connector === "meta_whatsapp" && !metaWhatsappQueryConsumedRef.current) {
+      setAutoOpenMetaWhatsapp(true);
+    } else {
+      if (connector !== "meta_whatsapp") {
+        metaWhatsappQueryConsumedRef.current = false;
+        setAutoOpenMetaWhatsapp(false);
+      }
+    }
+  }, [activeTab, searchParams]);
+
+  const consumeTwilioConnectorQuery = useCallback(() => {
+    twilioQueryConsumedRef.current = true;
+    setAutoOpenTwilio(false);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (next.get("connector") === "twilio") next.delete("connector");
+      return next;
+    });
+  }, [setSearchParams]);
+
+  const consumeMetaWhatsappConnectorQuery = useCallback(() => {
+    metaWhatsappQueryConsumedRef.current = true;
+    setAutoOpenMetaWhatsapp(false);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (next.get("connector") === "meta_whatsapp") next.delete("connector");
+      return next;
+    });
+  }, [setSearchParams]);
 
   useEffect(() => {
     setConnectors((prev) =>
@@ -103,10 +183,16 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
             return c;
           }
         }
+        if (c.id === "connector_twilio") {
+          return { ...c, status: twilioConfigured ? "configured" : "available" };
+        }
+        if (c.id === "connector_meta_whatsapp") {
+          return { ...c, status: metaWhatsAppConfigured ? "configured" : "available" };
+        }
         return c;
       })
     );
-  }, [workspaceId, webhookConfigs, n8nConfig, outlookConnected]);
+  }, [workspaceId, webhookConfigs, n8nConfig, outlookConnected, twilioConfigured, metaWhatsAppConfigured]);
 
   const setTab = (value: TabKey) => {
     setSearchParams((prev) => {
@@ -121,6 +207,21 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
     [connectors]
   );
 
+  if (!canReadIntegrations) {
+    return (
+      <PageSimple
+        title="Accesso negato"
+        description="Non hai il permesso per Integrazioni e automazioni (integrations.read)."
+      >
+        <p className="text-sm text-muted-foreground">
+          Contatta un amministratore o effettua di nuovo login / refresh del token se i ruoli sono stati aggiornati.
+        </p>
+      </PageSimple>
+    );
+  }
+
+  const integrationsReadOnly = !canMutateIntegrations;
+
   return (
     <div className="min-h-full bg-app font-body text-foreground">
       <div className="px-5 pb-10 pt-8 lg:px-20">
@@ -132,6 +233,11 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
             <p className="mt-1 text-sm text-muted-foreground">
               Connettori, regole if/then, webhook e API per estendere il CRM.
             </p>
+            {integrationsReadOnly && (
+              <p className="mt-2 text-sm font-medium text-amber-800 dark:text-amber-200">
+                Sola lettura: non puoi salvare o modificare configurazioni (manca integrations.update).
+              </p>
+            )}
           </div>
           {activeTab === "connettori" && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -177,16 +283,24 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
               loadN8nConfig={loadN8nConfig}
               outlookConnected={outlookConnected}
               loadOutlookStatus={loadOutlookStatus}
+              isAdmin={isAdmin}
+              readOnly={integrationsReadOnly}
+              autoOpenTwilio={autoOpenTwilio}
+              onTwilioAutoOpenConsumed={consumeTwilioConnectorQuery}
+              reloadTwilioStatus={loadTwilioStatus}
+              autoOpenMetaWhatsapp={autoOpenMetaWhatsapp}
+              onMetaAutoOpenConsumed={consumeMetaWhatsappConnectorQuery}
+              reloadMetaWhatsAppStatus={loadMetaWhatsAppStatus}
             />
           </TabsContent>
           <TabsContent value="comunicazioni" className="mt-6" role="tabpanel">
-            <ComunicazioniTab workspaceId={workspaceId} isAdmin={isAdmin} />
+            <ComunicazioniTab workspaceId={workspaceId} isAdmin={isAdmin} readOnly={integrationsReadOnly} />
           </TabsContent>
           <TabsContent value="regole" className="mt-6" role="tabpanel">
-            <RegoleTab workspaceId={workspaceId} />
+            <RegoleTab workspaceId={workspaceId} readOnly={integrationsReadOnly} />
           </TabsContent>
           <TabsContent value="webhook" className="mt-6" role="tabpanel">
-            <WebhookTab workspaceId={workspaceId} />
+            <WebhookTab workspaceId={workspaceId} readOnly={integrationsReadOnly} />
           </TabsContent>
           <TabsContent value="api" className="mt-6" role="tabpanel">
             <ApiTab workspaceId={workspaceId} isAdmin={isAdmin} />

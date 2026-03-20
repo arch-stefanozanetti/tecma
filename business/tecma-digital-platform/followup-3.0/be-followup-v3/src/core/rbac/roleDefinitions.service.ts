@@ -26,6 +26,30 @@ function roleKeyToSpec(key: string): string {
   return key;
 }
 
+/** Piano minimo permessi per ruolo spec (o user). */
+function builtinFloorForSpecKey(specKey: string): string[] | typeof PERMISSIONS.ALL {
+  const built = BUILTIN_ROLE_PERMISSIONS[specKey];
+  if (built === PERMISSIONS.ALL) return PERMISSIONS.ALL;
+  if (Array.isArray(built)) return [...built];
+  return [...(BUILTIN_ROLE_PERMISSIONS.user as string[])];
+}
+
+/**
+ * Unisce permessi da DB con il builtin del ruolo: mai sotto il piano minimo (evita 403 dopo enforcement
+ * se `tz_roleDefinitions` ha elenchi vecchi o parziali). Permessi extra nel DB restano validi.
+ */
+function mergeDbPermissionsWithFloor(specKey: string, dbList: string[]): string[] | typeof PERMISSIONS.ALL {
+  if (dbList.includes(PERMISSIONS.ALL)) return PERMISSIONS.ALL;
+  const floor = builtinFloorForSpecKey(specKey);
+  if (floor === PERMISSIONS.ALL) return PERMISSIONS.ALL;
+  const set = new Set<string>(floor);
+  for (const p of dbList) {
+    if (p === PERMISSIONS.ALL) return PERMISSIONS.ALL;
+    set.add(p);
+  }
+  return [...set];
+}
+
 /**
  * Permessi per chiave ruolo: DB prima, poi builtin. Ruoli legacy (vendor, vendor_manager, agent) mappati a spec.
  */
@@ -40,7 +64,7 @@ export async function getPermissionsForRole(roleKey: string): Promise<string[] |
     if (doc.permissions === PERMISSIONS.ALL || (Array.isArray(doc.permissions) && doc.permissions.includes(PERMISSIONS.ALL))) {
       return PERMISSIONS.ALL;
     }
-    return doc.permissions as string[];
+    return mergeDbPermissionsWithFloor(key, doc.permissions as string[]);
   }
   const built = BUILTIN_ROLE_PERMISSIONS[key];
   if (built) return built;
@@ -112,6 +136,32 @@ export async function ensureDefaultRoleDefinitions(): Promise<void> {
       perms === PERMISSIONS.ALL ? PERMISSIONS.ALL : [...perms],
       label
     );
+  }
+}
+
+/**
+ * Allinea i ruoli workspace in `tz_roleDefinitions` al piano minimo builtin (unione con quanto già in DB).
+ * Eseguire dopo deploy che estende `BUILTIN_ROLE_PERMISSIONS` o prima di enforcement granulare in produzione.
+ */
+export async function reconcileWorkspaceRoleDefinitionsWithBuiltin(): Promise<void> {
+  for (const key of WORKSPACE_MEMBERSHIP_ORDER) {
+    const doc = await coll().findOne({ roleKey: key });
+    const label =
+      doc?.label?.trim() || DEFAULT_MEMBERSHIP_LABELS[key] || defaultLabel(key);
+
+    if (!doc?.permissions) {
+      const floor = builtinFloorForSpecKey(key);
+      await upsertRoleDefinition(key, floor === PERMISSIONS.ALL ? PERMISSIONS.ALL : floor, label);
+      continue;
+    }
+
+    if (doc.permissions === PERMISSIONS.ALL || (Array.isArray(doc.permissions) && doc.permissions.includes(PERMISSIONS.ALL))) {
+      await upsertRoleDefinition(key, PERMISSIONS.ALL, label);
+      continue;
+    }
+
+    const merged = mergeDbPermissionsWithFloor(key, doc.permissions as string[]);
+    await upsertRoleDefinition(key, merged === PERMISSIONS.ALL ? PERMISSIONS.ALL : merged, label);
   }
 }
 

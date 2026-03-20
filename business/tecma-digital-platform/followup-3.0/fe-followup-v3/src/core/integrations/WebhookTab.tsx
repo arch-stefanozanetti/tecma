@@ -18,7 +18,7 @@ import type { WebhookConfigRow } from "../../types/domain";
 import type { AutomationEventType } from "../../types/domain";
 import { EVENT_LABELS } from "./integrationsCatalog";
 
-export function WebhookTab({ workspaceId }: { workspaceId: string }) {
+export function WebhookTab({ workspaceId, readOnly = false }: { workspaceId: string; readOnly?: boolean }) {
   const { toastError } = useToast();
   const [configs, setConfigs] = useState<WebhookConfigRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -120,7 +120,7 @@ export function WebhookTab({ workspaceId }: { workspaceId: string }) {
           Endpoint configurabile per workspace: il backend invierà payload su eventi (nuova trattativa,
           cambio stato). Configura URL, secret e eventi abilitati.
         </p>
-        <Button size="sm" variant="outline" className="min-h-11 gap-2" onClick={openCreate}>
+        <Button size="sm" variant="outline" className="min-h-11 gap-2" onClick={openCreate} disabled={readOnly}>
           <Plus className="h-4 w-4" />
           Aggiungi webhook
         </Button>
@@ -141,10 +141,10 @@ export function WebhookTab({ workspaceId }: { workspaceId: string }) {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="min-h-11" onClick={() => openEdit(c)}>
+                <Button variant="outline" size="sm" className="min-h-11" onClick={() => openEdit(c)} disabled={readOnly}>
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
-                <Button variant="outline" size="sm" className="min-h-11 text-destructive" onClick={() => handleDelete(c._id)}>
+                <Button variant="outline" size="sm" className="min-h-11 text-destructive" onClick={() => handleDelete(c._id)} disabled={readOnly}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -207,7 +207,7 @@ export function WebhookTab({ workspaceId }: { workspaceId: string }) {
             </div>
           </DrawerBody>
           <DrawerFooter>
-            <Button className="min-h-11" onClick={handleSubmit} disabled={saving}>{saving ? "Salvataggio..." : "Salva"}</Button>
+            <Button className="min-h-11" onClick={handleSubmit} disabled={saving || readOnly}>{saving ? "Salvataggio..." : "Salva"}</Button>
           </DrawerFooter>
         </DrawerContent>
       </Drawer>

@@ -49,6 +49,10 @@ import type { MembershipRole } from "../../types/models.js";
 import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
 import { requireAdmin } from "../authMiddleware.js";
+import { requireAnyPermission, requirePermission } from "../permissionMiddleware.js";
+import { PERMISSIONS } from "../../core/rbac/permissions.js";
+import { record as auditRecord } from "../../core/audit/audit-log.service.js";
+import { safeAsync } from "../../core/shared/safeAsync.js";
 
 /** Mappa ruoli API (vendor, vendor_manager, admin) a MembershipRole. */
 function toMembershipRole(r: string | undefined): MembershipRole {
@@ -79,33 +83,69 @@ workspacesRoutes.get("/workspaces/:id/users", handleAsync((req) => listWorkspace
 workspacesRoutes.post(
   "/workspaces/:id/users",
   requireAdmin,
-  handleAsync((req) => {
+  handleAsync(async (req) => {
+    const workspaceId = req.params.id;
     const body = req.body as { userId?: string; role?: string };
-    return addWorkspaceUser(req.params.id, {
-      userId: body.userId ?? "",
-      role: toMembershipRole(body.role ?? "vendor"),
-    });
+    const userId = body.userId ?? "";
+    const role = toMembershipRole(body.role ?? "vendor");
+    const result = await addWorkspaceUser(workspaceId, { userId, role });
+    safeAsync(
+      auditRecord({
+        action: "workspace.membership.created",
+        workspaceId,
+        entityType: "workspace_membership",
+        entityId: userId,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+        payload: { role },
+      }),
+      { operation: "audit.workspace.membership.created", workspaceId, entityId: userId, userId: req.user?.sub }
+    );
+    return result;
   })
 );
 
 workspacesRoutes.patch(
   "/workspaces/:id/users/:userId",
   requireAdmin,
-  handleAsync((req) => {
+  handleAsync(async (req) => {
+    const workspaceId = req.params.id;
     const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
     const body = req.body as { role?: string };
-    return updateWorkspaceUser(req.params.id, userId, {
-      role: body.role !== undefined ? toMembershipRole(body.role) : undefined,
-    });
+    const role = body.role !== undefined ? toMembershipRole(body.role) : undefined;
+    const result = await updateWorkspaceUser(workspaceId, userId, { role });
+    safeAsync(
+      auditRecord({
+        action: "workspace.membership.updated",
+        workspaceId,
+        entityType: "workspace_membership",
+        entityId: userId,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+        payload: role !== undefined ? { role } : {},
+      }),
+      { operation: "audit.workspace.membership.updated", workspaceId, entityId: userId, userId: req.user?.sub }
+    );
+    return result;
   })
 );
 
 workspacesRoutes.delete(
   "/workspaces/:id/users/:userId",
   requireAdmin,
-  handleAsync((req) => {
+  handleAsync(async (req) => {
+    const workspaceId = req.params.id;
     const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
-    return removeWorkspaceUser(req.params.id, userId);
+    const result = await removeWorkspaceUser(workspaceId, userId);
+    safeAsync(
+      auditRecord({
+        action: "workspace.membership.removed",
+        workspaceId,
+        entityType: "workspace_membership",
+        entityId: userId,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+      }),
+      { operation: "audit.workspace.membership.removed", workspaceId, entityId: userId, userId: req.user?.sub }
+    );
+    return result;
   })
 );
 
@@ -120,21 +160,49 @@ workspacesRoutes.get(
 workspacesRoutes.post(
   "/workspaces/:id/users/:userId/projects",
   requireAdmin,
-  handleAsync((req) => {
+  handleAsync(async (req) => {
+    const workspaceId = req.params.id;
     const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
     const body = req.body as { projectId?: string };
     const projectId = typeof body.projectId === "string" ? body.projectId : "";
-    return addWorkspaceUserProject(req.params.id, userId, projectId);
+    const result = await addWorkspaceUserProject(workspaceId, userId, projectId);
+    safeAsync(
+      auditRecord({
+        action: "workspace.user_project.added",
+        workspaceId,
+        projectId,
+        entityType: "workspace_user_project",
+        entityId: `${userId}:${projectId}`,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+        payload: { targetUserId: userId, projectId },
+      }),
+      { operation: "audit.workspace.user_project.added", workspaceId, userId: req.user?.sub }
+    );
+    return result;
   })
 );
 
 workspacesRoutes.delete(
   "/workspaces/:id/users/:userId/projects/:projectId",
   requireAdmin,
-  handleAsync((req) => {
+  handleAsync(async (req) => {
+    const workspaceId = req.params.id;
     const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
     const projectId = typeof req.params.projectId === "string" ? decodeURIComponent(req.params.projectId) : "";
-    return removeWorkspaceUserProject(req.params.id, userId, projectId);
+    const result = await removeWorkspaceUserProject(workspaceId, userId, projectId);
+    safeAsync(
+      auditRecord({
+        action: "workspace.user_project.removed",
+        workspaceId,
+        projectId,
+        entityType: "workspace_user_project",
+        entityId: `${userId}:${projectId}`,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+        payload: { targetUserId: userId, projectId },
+      }),
+      { operation: "audit.workspace.user_project.removed", workspaceId, userId: req.user?.sub }
+    );
+    return result;
   })
 );
 
@@ -145,6 +213,7 @@ workspacesRoutes.get(
 
 workspacesRoutes.get(
   "/workspaces/:workspaceId/price-availability",
+  requirePermission(PERMISSIONS.APARTMENTS_READ),
   handleAsync(async (req) => {
     const workspaceId = req.params.workspaceId;
     const projectIdsRaw = req.query.projectIds;
@@ -166,6 +235,11 @@ workspacesRoutes.get(
 
 workspacesRoutes.get(
   "/workspaces/:workspaceId/entities/:entityType/:entityId/assignments",
+  requireAnyPermission(
+    PERMISSIONS.CLIENTS_READ,
+    PERMISSIONS.APARTMENTS_READ,
+    PERMISSIONS.REQUESTS_READ
+  ),
   handleAsync((req) => {
     const entityType = typeof req.params.entityType === "string" ? req.params.entityType : "";
     const entityId = typeof req.params.entityId === "string" ? decodeURIComponent(req.params.entityId) : "";
@@ -198,6 +272,7 @@ workspacesRoutes.delete(
 
 workspacesRoutes.get(
   "/workspaces/:id/users/:userId/assignments",
+  requirePermission(PERMISSIONS.SETTINGS_READ),
   handleAsync((req) => {
     const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
     return listEntityAssignmentsByUser(req.params.id, userId);
@@ -268,6 +343,7 @@ workspacesRoutes.get(
 
 workspacesRoutes.get(
   "/workspaces/:id/ai-config",
+  requirePermission(PERMISSIONS.SETTINGS_READ),
   handleAsync((req) => getWorkspaceAiConfig(req.params.id))
 );
 workspacesRoutes.put(

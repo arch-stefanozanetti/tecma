@@ -2,6 +2,8 @@ import { Router } from "express";
 import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
 import { requireAdmin } from "../authMiddleware.js";
+import { requirePermission } from "../permissionMiddleware.js";
+import { PERMISSIONS } from "../../core/rbac/permissions.js";
 import { getWorkflowConfig } from "../../core/workflow/workflow.service.js";
 import {
   listWorkflowsByWorkspace,
@@ -36,6 +38,7 @@ export const discoveryWorkflowRoutes = Router();
 
 discoveryWorkflowRoutes.get(
   "/workflow/config",
+  requirePermission(PERMISSIONS.REQUESTS_READ),
   handleAsync((req) => {
     const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";
     const projectId = typeof req.query.projectId === "string" ? req.query.projectId : "";
@@ -53,6 +56,7 @@ discoveryWorkflowRoutes.get(
 
 discoveryWorkflowRoutes.get(
   "/workspaces/:workspaceId/workflows",
+  requirePermission(PERMISSIONS.REQUESTS_READ),
   handleAsync((req) => listWorkflowsByWorkspace(req.params.workspaceId))
 );
 discoveryWorkflowRoutes.post("/workflows", requireAdmin, handleAsync((req) => createWorkflow(req.body)));
@@ -65,6 +69,7 @@ discoveryWorkflowRoutes.post(
 
 discoveryWorkflowRoutes.get(
   "/workflows/:workflowId",
+  requirePermission(PERMISSIONS.REQUESTS_READ),
   handleAsync(async (req) => {
     const detail = await getWorkflowWithStatesAndTransitions(req.params.workflowId);
     if (!detail) throw new HttpError("Workflow not found", 404);

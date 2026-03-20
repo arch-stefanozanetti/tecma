@@ -133,7 +133,7 @@ Non duplicare i concetti: riusare `user.workspaces`, `tz_workspace_user_projects
 
 Per soddisfare la richiesta “i vendor vedono solo appartamenti e clienti a loro associati”:
 
-- Usare **tz_entity_assignments**: (workspaceId, entityType, entityId, userId). Se per un vendor esiste almeno un assignment per (workspaceId, userId), allora le query su apartments e clients devono filtrare: “nessuna assegnazione” **oppure** “assegnato al current user” (come già previsto in PLAN_UNIFICATO e in entity-assignments).
+- Usare **tz_entity_assignments**: (workspaceId, entityType, entityId, userId). Se per un vendor esiste almeno un assignment per (workspaceId, userId), allora le query su apartments e clients devono filtrare: “nessuna assegnazione” **oppure** “assegnato al current user” (come da [PIANO_GLOBALE_FOLLOWUP_3.md](PIANO_GLOBALE_FOLLOWUP_3.md) §3.2).
 - Progetti: **tz_workspace_user_projects**. Se esistono righe per (workspaceId, userId), l’utente vede solo quei projectId; altrimenti tutti i progetti del workspace.
 - Trattative (requests): visibilità “assigned” se la request ha un assigned_vendor_id (o simile) uguale al current user, oppure se l’appartamento/cliente della request è assegnato al current user. Definire una regola chiara (es. request.assignedUserId o derivato da entity_assignments).
 
@@ -187,6 +187,6 @@ Fornire:
 - Ruoli attuali in `user.workspaces`: `vendor` | `vendor_manager` | `admin` (vedi [workspace-users](tecma/business/tecma-digital-platform/followup-3.0/be-followup-v3/src/core/workspaces/workspace-users.service.ts)).
 - Progetti per utente: [workspace-user-projects.service.ts](tecma/business/tecma-digital-platform/followup-3.0/be-followup-v3/src/core/workspaces/workspace-user-projects.service.ts) (`tz_workspace_user_projects`).
 - Assegnazioni entità: [entity-assignments.service.ts](tecma/business/tecma-digital-platform/followup-3.0/be-followup-v3/src/core/workspaces/entity-assignments.service.ts) (`tz_entity_assignments`: client | apartment).
-- Piano prodotto: [PLAN_UNIFICATO_FOLLOWUP_3.md](tecma/business/tecma-digital-platform/followup-3.0/docs/PLAN_UNIFICATO_FOLLOWUP_3.md) (sezione 4 – utenti, progetti, segregazione view).
+- Piano prodotto: [PIANO_GLOBALE_FOLLOWUP_3.md](PIANO_GLOBALE_FOLLOWUP_3.md) (§3 workspace e segregazione).
 
 L’agente deve allineare la matrice e lo schema proposto a queste strutture esistenti e indicare dove estendere (es. Role, Permission, RoleScope, filtro query per assigned, masking).

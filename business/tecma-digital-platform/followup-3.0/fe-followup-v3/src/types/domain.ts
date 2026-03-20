@@ -106,6 +106,8 @@ export interface UserWithVisibilityRow {
   role: string | null;
   isAdmin: boolean;
   projectIds: string[];
+  /** Permessi aggiuntivi (additivi al ruolo workspace), da tz_users */
+  permissions_override?: string[];
   workspaces: UserWorkspaceMembership[];
 }
 

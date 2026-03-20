@@ -47,11 +47,15 @@ import {
 import { RequestsActionDrawer } from "./RequestsActionDrawer";
 import { RequestsBoardSection } from "./RequestsBoardSection";
 
+const permTitle = (id: string) => `Permesso richiesto: ${id}`;
+
 export const RequestsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
-  const { workspaceId, selectedProjectIds } = useWorkspace();
+  const { workspaceId, selectedProjectIds, hasPermission } = useWorkspace();
+  const canRequestsCreate = hasPermission("requests.create");
+  const canRequestsUpdate = hasPermission("requests.update");
   const { toastError } = useToast();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -163,10 +167,14 @@ export const RequestsPage = () => {
       .then((r) => setApartmentsList(r.data ?? []));
   }, [newRequestOpen, workspaceId, selectedProjectIds]);
 
-  const handleOpenNewRequest = () => setNewRequestOpen(true);
+  const handleOpenNewRequest = () => {
+    if (!canRequestsCreate) return;
+    setNewRequestOpen(true);
+  };
 
   const handleNewRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canRequestsCreate) return;
     if (!workspaceId || !formProjectId || !formClientId) {
       setFormError("Seleziona progetto e cliente.");
       return;
@@ -266,6 +274,7 @@ export const RequestsPage = () => {
   const pageEnd = Math.min(total, page * REQUESTS_PER_PAGE);
 
   const handleStatusChange = async (requestId: string, newStatus: RequestStatus) => {
+    if (!canRequestsUpdate) return;
     setStatusChangingId(requestId);
     try {
       await followupApi.requests.updateRequestStatus(requestId, { status: newStatus });
@@ -289,7 +298,7 @@ export const RequestsPage = () => {
   };
 
   const handleRevert = async (transitionId: string) => {
-    if (!selectedRequest) return;
+    if (!canRequestsUpdate || !selectedRequest) return;
     setRevertingTransitionId(transitionId);
     try {
       const { request } = await followupApi.requests.revertRequestStatus(selectedRequest._id, transitionId);
@@ -318,12 +327,14 @@ export const RequestsPage = () => {
   };
 
   const openActionDrawerCreate = () => {
+    if (!canRequestsUpdate) return;
     setEditingAction(null);
     setActionDrawerMode("create");
     setActionDrawerOpen(true);
   };
 
   const openActionDrawerEdit = (action: RequestActionRow) => {
+    if (!canRequestsUpdate) return;
     setEditingAction(action);
     setActionDrawerMode("edit");
     setActionDrawerOpen(true);
@@ -337,6 +348,7 @@ export const RequestsPage = () => {
   };
 
   const handleDeleteAction = async (actionId: string) => {
+    if (!canRequestsUpdate) return;
     if (!window.confirm("Eliminare questa azione?")) return;
     setDeletingActionId(actionId);
     try {
@@ -356,6 +368,10 @@ export const RequestsPage = () => {
           viewMode={viewMode}
           onViewModeChange={setViewMode}
           onOpenNewRequest={handleOpenNewRequest}
+          newRequestDisabled={!canRequestsCreate}
+          newRequestTitle={!canRequestsCreate ? permTitle("requests.create") : undefined}
+          statusSelectDisabled={!canRequestsUpdate}
+          statusSelectTitle={!canRequestsUpdate ? permTitle("requests.update") : undefined}
           search={search}
           onSearchChange={setSearch}
           onSearch={handleSearch}
@@ -530,7 +546,8 @@ export const RequestsPage = () => {
                                   variant="outline"
                                   size="sm"
                                   className="shrink-0 gap-1 h-6 text-xs"
-                                  disabled={revertingTransitionId === t._id}
+                                  disabled={revertingTransitionId === t._id || !canRequestsUpdate}
+                                  title={!canRequestsUpdate ? permTitle("requests.update") : undefined}
                                   onClick={() => handleRevert(t._id)}
                                 >
                                   <RotateCcw className="h-3 w-3" />
@@ -553,7 +570,14 @@ export const RequestsPage = () => {
                 <section>
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Azioni</h3>
-                    <Button variant="outline" size="sm" className="min-h-11 text-xs gap-1" onClick={openActionDrawerCreate}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="min-h-11 text-xs gap-1"
+                      disabled={!canRequestsUpdate}
+                      title={!canRequestsUpdate ? permTitle("requests.update") : undefined}
+                      onClick={openActionDrawerCreate}
+                    >
                       <Plus className="h-3 w-3" />
                       Nuova azione
                     </Button>
@@ -576,6 +600,8 @@ export const RequestsPage = () => {
                                 variant="ghost"
                                 size="icon"
                                 className="h-7 w-7"
+                                disabled={!canRequestsUpdate}
+                                title={!canRequestsUpdate ? permTitle("requests.update") : undefined}
                                 onClick={() => openActionDrawerEdit(a)}
                                 aria-label="Modifica azione"
                               >
@@ -585,7 +611,8 @@ export const RequestsPage = () => {
                                 variant="ghost"
                                 size="icon"
                                 className="h-7 w-7 text-destructive hover:text-destructive"
-                                disabled={deletingActionId === a._id}
+                                disabled={deletingActionId === a._id || !canRequestsUpdate}
+                                title={!canRequestsUpdate ? permTitle("requests.update") : undefined}
                                 onClick={() => handleDeleteAction(a._id)}
                                 aria-label="Elimina azione"
                               >
@@ -634,6 +661,8 @@ export const RequestsPage = () => {
                       variant="default"
                       size="sm"
                       className="w-full min-h-11 gap-2"
+                      disabled={!canRequestsUpdate}
+                      title={!canRequestsUpdate ? permTitle("requests.update") : undefined}
                       onClick={() => {
                         navigate("/?section=associateAptClient", {
                           state: {
@@ -769,7 +798,12 @@ export const RequestsPage = () => {
               <Button type="button" variant="outline" onClick={() => setNewRequestOpen(false)} className="min-h-11">
                 Annulla
               </Button>
-              <Button type="submit" disabled={formSaving} className="min-h-11">
+              <Button
+                type="submit"
+                disabled={formSaving || !canRequestsCreate}
+                title={!canRequestsCreate ? permTitle("requests.create") : undefined}
+                className="min-h-11"
+              >
                 {formSaving ? "Creazione..." : "Crea trattativa"}
               </Button>
             </DrawerFooter>

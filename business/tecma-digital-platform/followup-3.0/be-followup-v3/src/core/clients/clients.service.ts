@@ -1,10 +1,16 @@
-import { ObjectId } from "mongodb";
+import { ObjectId, type Document } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
 import { escapeRegex } from "../../utils/escapeRegex.js";
 import { ListQuerySchema, type ListQueryInput, buildPagination } from "../shared/list-query.js";
 import { HttpError, PaginatedResponse } from "../../types/http.js";
 import { joinClientFullName, namesFromDoc, splitLegacyFullName } from "./client-name.util.js";
+import { listEntityAssignments } from "../workspaces/entity-assignments.service.js";
+import {
+  shouldApplyEntityAssignmentListFilter,
+  viewerAssignmentUserId,
+  type EntityAssignmentListViewer,
+} from "../workspaces/entity-assignment-query.util.js";
 
 /** Coniuge/familiare del cliente (legacy). */
 export interface ClientConiuge {
@@ -138,7 +144,10 @@ const sortable: Record<string, 1> = {
   projectId: 1
 };
 
-const queryPrimaryClients = async (input: ListQueryInput): Promise<PaginatedResponse<ClientRow>> => {
+const queryPrimaryClients = async (
+  input: ListQueryInput,
+  viewer?: EntityAssignmentListViewer
+): Promise<PaginatedResponse<ClientRow>> => {
   const db = getDb();
   const collection = db.collection("tz_clients");
 
@@ -148,52 +157,129 @@ const queryPrimaryClients = async (input: ListQueryInput): Promise<PaginatedResp
   const sortField = input.sort?.field && sortable[input.sort.field] ? input.sort.field : "updatedAt";
   const sortDirection = input.sort?.direction ?? -1;
 
+  const projectFields = {
+    _id: 1,
+    projectId: 1,
+    workspaceId: 1,
+    fullName: 1,
+    firstName: 1,
+    lastName: 1,
+    email: 1,
+    phone: 1,
+    status: 1,
+    source: 1,
+    city: 1,
+    myhomeVersion: 1,
+    createdBy: 1,
+    updatedAt: 1,
+    createdAt: 1,
+  };
+
+  if (shouldApplyEntityAssignmentListFilter(viewer)) {
+    const wid = input.workspaceId;
+    const viewerId = viewerAssignmentUserId(viewer!);
+    const lookupAndVisibility: Document[] = [
+      {
+        $lookup: {
+          from: "tz_entity_assignments",
+          let: { cid: { $toString: "$_id" } },
+          pipeline: [
+            {
+              $match: {
+                workspaceId: wid,
+                entityType: "client",
+                $expr: { $eq: ["$entityId", "$$cid"] },
+              },
+            },
+          ],
+          as: "__ea",
+        },
+      },
+      {
+        $match: {
+          $or: [{ __ea: { $size: 0 } }, { "__ea.0.userId": viewerId }],
+        },
+      },
+    ];
+
+    const basePipeline: Document[] = [{ $match: match }, ...lookupAndVisibility];
+
+    const [rawData, countArr] = await Promise.all([
+      collection
+        .aggregate([
+          ...basePipeline,
+          { $sort: { [sortField]: sortDirection } },
+          { $skip: skip },
+          { $limit: limit },
+          { $project: { __ea: 0 } },
+        ])
+        .toArray(),
+      collection.aggregate([...basePipeline, { $count: "total" }]).toArray(),
+    ]);
+    const total = typeof countArr[0]?.total === "number" ? countArr[0].total : 0;
+
+    const data: ClientRow[] = rawData.map((item) => {
+      const rec = item as Record<string, unknown>;
+      const n = namesFromDoc(rec);
+      return {
+        _id: String(item._id ?? ""),
+        projectId: typeof item.projectId === "string" ? item.projectId : "",
+        firstName: n.firstName,
+        lastName: n.lastName,
+        fullName: n.fullName,
+        email: typeof item.email === "string" ? item.email : undefined,
+        phone: typeof item.phone === "string" ? item.phone : undefined,
+        status: typeof item.status === "string" ? item.status : "lead",
+        createdAt: item.createdAt ? String(item.createdAt) : undefined,
+        updatedAt: String(item.updatedAt || item.createdAt || new Date(0).toISOString()),
+        source: typeof item.source === "string" ? item.source : undefined,
+        city: typeof item.city === "string" ? item.city : undefined,
+        myhomeVersion: typeof item.myhomeVersion === "string" ? item.myhomeVersion : undefined,
+        createdBy: typeof item.createdBy === "string" ? item.createdBy : undefined,
+      };
+    });
+
+    return {
+      data,
+      pagination: {
+        page,
+        perPage,
+        total,
+        totalPages: Math.ceil(total / perPage),
+      },
+    };
+  }
+
   const [rawData, total] = await Promise.all([
     collection
       .find(match)
       .sort({ [sortField]: sortDirection })
       .skip(skip)
       .limit(limit)
-      .project({
-        _id: 1,
-        projectId: 1,
-        workspaceId: 1,
-        fullName: 1,
-        firstName: 1,
-        lastName: 1,
-        email: 1,
-        phone: 1,
-        status: 1,
-        source: 1,
-        city: 1,
-        myhomeVersion: 1,
-        createdBy: 1,
-        updatedAt: 1,
-        createdAt: 1
-      })
+      .project(projectFields)
       .toArray(),
-    collection.countDocuments(match)
+    collection.countDocuments(match),
   ]);
 
   const data: ClientRow[] = rawData.map((item) => {
     const rec = item as Record<string, unknown>;
     const n = namesFromDoc(rec);
     return {
-    _id: String(item._id ?? ""),
-    projectId: typeof item.projectId === "string" ? item.projectId : "",
-    firstName: n.firstName,
-    lastName: n.lastName,
-    fullName: n.fullName,
-    email: typeof item.email === "string" ? item.email : undefined,
-    phone: typeof item.phone === "string" ? item.phone : undefined,
-    status: typeof item.status === "string" ? item.status : "lead",
-    createdAt: item.createdAt ? String(item.createdAt) : undefined,
-    updatedAt: String(item.updatedAt || item.createdAt || new Date(0).toISOString()),
-    source: typeof item.source === "string" ? item.source : undefined,
-    city: typeof item.city === "string" ? item.city : undefined,
-    myhomeVersion: typeof item.myhomeVersion === "string" ? item.myhomeVersion : undefined,
-    createdBy: typeof item.createdBy === "string" ? item.createdBy : undefined
-  };
+      _id: String(item._id ?? ""),
+      projectId: typeof item.projectId === "string" ? item.projectId : "",
+      firstName: n.firstName,
+      lastName: n.lastName,
+      fullName: n.fullName,
+      email: typeof item.email === "string" ? item.email : undefined,
+      phone: typeof item.phone === "string" ? item.phone : undefined,
+      status: typeof item.status === "string" ? item.status : "lead",
+      createdAt: item.createdAt ? String(item.createdAt) : undefined,
+      updatedAt: String(item.updatedAt || item.createdAt || new Date(0).toISOString()),
+      source: typeof item.source === "string" ? item.source : undefined,
+      city: typeof item.city === "string" ? item.city : undefined,
+      myhomeVersion: typeof item.myhomeVersion === "string" ? item.myhomeVersion : undefined,
+      createdBy: typeof item.createdBy === "string" ? item.createdBy : undefined,
+    };
   });
 
   return {
@@ -202,14 +288,17 @@ const queryPrimaryClients = async (input: ListQueryInput): Promise<PaginatedResp
       page,
       perPage,
       total,
-      totalPages: Math.ceil(total / perPage)
-    }
+      totalPages: Math.ceil(total / perPage),
+    },
   };
 };
 
-export const queryClients = async (rawInput: unknown): Promise<PaginatedResponse<ClientRow>> => {
+export const queryClients = async (
+  rawInput: unknown,
+  viewer?: EntityAssignmentListViewer
+): Promise<PaginatedResponse<ClientRow>> => {
   const input = ListQuerySchema.parse(rawInput);
-  return queryPrimaryClients(input);
+  return queryPrimaryClients(input, viewer);
 };
 
 const mapDocToClientRow = (item: Record<string, unknown>): ClientRow => {
@@ -233,7 +322,10 @@ const mapDocToClientRow = (item: Record<string, unknown>): ClientRow => {
 };
 };
 
-export const getClientById = async (rawId: unknown): Promise<{ client: ClientRow }> => {
+export const getClientById = async (
+  rawId: unknown,
+  viewer?: EntityAssignmentListViewer
+): Promise<{ client: ClientRow }> => {
   const id = z.string().min(1).parse(rawId);
   const _id = ObjectId.isValid(id) ? new ObjectId(id) : null;
   if (!_id) {
@@ -245,6 +337,12 @@ export const getClientById = async (rawId: unknown): Promise<{ client: ClientRow
     throw new HttpError("Client not found", 404);
   }
   const client = mapDocToClientRow(doc as Record<string, unknown>);
+  if (shouldApplyEntityAssignmentListFilter(viewer) && client.workspaceId) {
+    const { data } = await listEntityAssignments(client.workspaceId, "client", client._id);
+    if (data.length > 0 && data[0].userId !== viewerAssignmentUserId(viewer!)) {
+      throw new HttpError("Client not found", 404);
+    }
+  }
   return { client };
 };
 

@@ -1,14 +1,15 @@
 # Documentazione Followup 3.0
 
-Indice della documentazione di progetto. **Backlog eseguibile:** [plans/2026-03-19-followup-backlog-attivo.md](plans/2026-03-19-followup-backlog-attivo.md). **Piano operativo (workspace, segregazione, dettaglio):** [PLAN_UNIFICATO_FOLLOWUP_3.md](PLAN_UNIFICATO_FOLLOWUP_3.md). Visione e wave: [FOLLOWUP_3_MASTER.md](FOLLOWUP_3_MASTER.md).
+Indice della documentazione di progetto. **Piano unico (checklist, fasi, backlog):** [PIANO_GLOBALE_FOLLOWUP_3.md](PIANO_GLOBALE_FOLLOWUP_3.md). Visione e wave: [FOLLOWUP_3_MASTER.md](FOLLOWUP_3_MASTER.md).
 
 ---
 
-## Documento maestro (prodotto e piano)
+## Documenti maestro
 
 | File | Contenuto |
 |------|-----------|
-| **[FOLLOWUP_3_MASTER.md](FOLLOWUP_3_MASTER.md)** | **Piano di riferimento unico:** North Star, principi, visione, cosa non fare, riferimento followup-nova, wave 1–7 in ordine vincolante, regole non negoziabili, riferimenti. Aggiornare quando si chiude una wave o si aggiunge un task. |
+| **[PIANO_GLOBALE_FOLLOWUP_3.md](PIANO_GLOBALE_FOLLOWUP_3.md)** | **Unico piano operativo:** checklist, fasi 0–8, workspace/segregazione, Millennium, AI aggregata, entitlement, dati legacy, roadmap implementativa. |
+| **[FOLLOWUP_3_MASTER.md](FOLLOWUP_3_MASTER.md)** | North Star, principi, visione, cosa non fare, riferimento followup-nova, wave 1–7 in ordine vincolante, regole non negoziabili. |
 
 ---
 
@@ -26,11 +27,10 @@ Indice della documentazione di progetto. **Backlog eseguibile:** [plans/2026-03-
 | [fe-followup-v3/ARCHITECTURE.md](../fe-followup-v3/ARCHITECTURE.md) | Architettura frontend: struttura `src/`, come aggiungere una pagina o un endpoint, hook `usePaginatedList` e `useAsync`. |
 | [REFACTORING.md](REFACTORING.md) | Refactoring strutturale (sprint): split project-config BE, route v1, IntegrationsPage (catalog/tab), pagine FE (costanti/hook/componenti), toast per errori API. |
 | [CURSOR_MCP_TWILIO.md](CURSOR_MCP_TWILIO.md) | Twilio reale in Followup vs server MCP `@twilio-alpha/mcp` in Cursor: cosa fa ciascuno, esempio config (senza segreti in repo). |
-| [archive/plans-2025-2026/2025-03-07-unificazione-api-aws-gateway-followup.md](archive/plans-2025-2026/2025-03-07-unificazione-api-aws-gateway-followup.md) | Storico: unificazione API Followup con aws-api-gateway (merge spec, test, Postman, FE). |
-| [plans/](plans/README.md) | Backlog attivo + design/implementazione ancora aperti (AI cockpit aggregato, refactor). Storico in `archive/plans-2025-2026/`. |
+| [plans/README.md](plans/README.md) | Punta al piano globale (cartella `plans/` senza altri file di piano). |
 
 ---
 
 ## Archivio (storico, non backlog)
 
-Vedi **[archive/README.md](archive/README.md)** — mega-piani deprecati, note design (email flows, Render, product discovery), PLAN workspace e PLAN 100% spostati lì. Contenuti rilevanti sono in **PLAN_UNIFICATO** e **FOLLOWUP_3_MASTER**.
+Vedi **[archive/README.md](archive/README.md)** — nota su documenti storici rimossi; il piano attivo è solo **PIANO_GLOBALE_FOLLOWUP_3**.

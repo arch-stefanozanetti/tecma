@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback, type Dispatch, type SetStateAction } from "react";
 import {
   Search,
   RefreshCcw,
@@ -37,6 +37,163 @@ import {
   type ConnectorRelatedTab,
   type N8nConfigSnapshot,
 } from "./integrationsCatalog";
+import { ConnectorBrandLogo } from "./ConnectorBrandLogo";
+import { Alert } from "../../components/ui/alert";
+
+const WHATSAPP_CONNECTOR_IDS = new Set<string>(["connector_twilio", "connector_meta_whatsapp"]);
+const WHATSAPP_CONNECTOR_ORDER = ["connector_twilio", "connector_meta_whatsapp"] as const;
+
+/** Template di esempio spesso pre-approvato su nuovi account Meta / WhatsApp Cloud API (cfr. documentazione Meta). */
+const META_DEFAULT_TEST_TEMPLATE_NAME = "hello_world";
+const META_DEFAULT_TEST_LANGUAGE_CODE = "en_US";
+
+function ConnectorCatalogCard({
+  connector,
+  togglingId,
+  setTogglingId,
+  setupConnectorId,
+  setSetupConnectorId,
+  onOpenTab,
+  toggleConnector,
+  configureLabel,
+  readOnly = false,
+}: {
+  connector: ConnectorCatalogItem;
+  togglingId: string | null;
+  setTogglingId: Dispatch<SetStateAction<string | null>>;
+  setupConnectorId: string | null;
+  setSetupConnectorId: Dispatch<SetStateAction<string | null>>;
+  onOpenTab?: (tab: ConnectorRelatedTab) => void;
+  toggleConnector: (id: string) => void;
+  /** Etichetta del pulsante primario quando il connettore non è ancora configurato (es. Meta API). */
+  configureLabel?: string;
+  readOnly?: boolean;
+}) {
+  const cfg = STATUS_CONFIG[connector.status];
+  const StatusIcon = cfg.icon;
+  const isConfigured = connector.status === "configured";
+  const isComingSoon = connector.status === "coming_soon";
+  const primaryConfigureLabel = configureLabel ?? "Configura";
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col rounded-lg border bg-card p-4 transition-shadow hover:shadow-md",
+        isConfigured ? "border-green-200" : "border-border"
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-1 items-start gap-2">
+          <ConnectorBrandLogo brandId={connector.brandId} className="mt-0.5" />
+          <div className="min-w-0 flex-1">
+            <h3 className="text-sm font-semibold text-foreground">{connector.name}</h3>
+            <p className="text-xs text-muted-foreground">{connector.group}</p>
+          </div>
+        </div>
+        <span
+          className={cn(
+            "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium",
+            cfg.badgeClass
+          )}
+        >
+          <StatusIcon className="h-3 w-3" />
+          {cfg.label}
+        </span>
+      </div>
+
+      <p className="mt-2 flex-1 text-sm text-muted-foreground">{connector.description}</p>
+
+      <div className="mt-3 flex flex-wrap gap-1">
+        {connector.capabilities.map((cap) => (
+          <span
+            key={cap}
+            className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+          >
+            {cap}
+          </span>
+        ))}
+      </div>
+
+      {connector.prerequisites.length > 0 && (
+        <p className="mt-2 text-xs text-muted-foreground">Richiede: {connector.prerequisites.join(", ")}</p>
+      )}
+
+      {(connector.setupSummary ?? connector.relatedTab) && (
+        <div className="mt-3 space-y-1.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="min-h-11 text-xs text-primary hover:text-primary"
+            onClick={() => setSetupConnectorId(setupConnectorId === connector.id ? null : connector.id)}
+          >
+            Come attivare
+          </Button>
+          {setupConnectorId === connector.id && (
+            <div className="rounded-md border border-border bg-muted/50 p-3 text-xs text-muted-foreground">
+              {connector.setupSummary}
+              {connector.relatedTab && onOpenTab && (
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="mt-2 min-h-11 h-auto p-2 text-xs font-medium text-primary"
+                  onClick={() => {
+                    onOpenTab(connector.relatedTab!);
+                    setSetupConnectorId(null);
+                  }}
+                >
+                  Vai al tab{" "}
+                  {connector.relatedTab === "webhook"
+                    ? "Webhook"
+                    : connector.relatedTab === "api"
+                      ? "API"
+                      : "Comunicazioni"}
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="mt-4 flex gap-2">
+        <Button
+          variant={isConfigured ? "outline" : "default"}
+          size="sm"
+          className="min-h-11 flex-1 gap-1.5"
+          disabled={isComingSoon || togglingId === connector.id || readOnly}
+          onClick={() => toggleConnector(connector.id)}
+        >
+          {togglingId === connector.id ? (
+            <>
+              <RefreshCcw className="h-3.5 w-3.5 animate-spin" />
+              {isConfigured ? "Disconnessione..." : "Configurazione..."}
+            </>
+          ) : isConfigured ? (
+            "Disconnetti"
+          ) : isComingSoon ? (
+            "Non disponibile"
+          ) : (
+            primaryConfigureLabel
+          )}
+        </Button>
+        {isConfigured && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="min-h-11 gap-1.5"
+            disabled={togglingId === connector.id || readOnly}
+            onClick={() => {
+              setTogglingId(connector.id);
+              setTimeout(() => setTogglingId(null), 800);
+            }}
+          >
+            <RefreshCcw className="h-3.5 w-3.5" />
+            Health check
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function ConnettoriTab({
   connectors,
@@ -50,6 +207,15 @@ export function ConnettoriTab({
   loadN8nConfig,
   outlookConnected = false,
   loadOutlookStatus,
+  isAdmin = false,
+  /** Nessuna modifica connettori (permesso integrations.update assente). */
+  readOnly = false,
+  autoOpenTwilio = false,
+  onTwilioAutoOpenConsumed,
+  reloadTwilioStatus,
+  autoOpenMetaWhatsapp = false,
+  onMetaAutoOpenConsumed,
+  reloadMetaWhatsAppStatus,
 }: {
   connectors: ConnectorCatalogItem[];
   setConnectors: React.Dispatch<React.SetStateAction<ConnectorCatalogItem[]>>;
@@ -62,13 +228,31 @@ export function ConnettoriTab({
   loadN8nConfig?: () => void;
   outlookConnected?: boolean;
   loadOutlookStatus?: () => void;
+  isAdmin?: boolean;
+  readOnly?: boolean;
+  /** Apri una volta il drawer Twilio (es. da query ?connector=twilio). */
+  autoOpenTwilio?: boolean;
+  onTwilioAutoOpenConsumed?: () => void;
+  /** Aggiorna stato Twilio lato parent (badge configurato). */
+  reloadTwilioStatus?: () => void;
+  autoOpenMetaWhatsapp?: boolean;
+  onMetaAutoOpenConsumed?: () => void;
+  reloadMetaWhatsAppStatus?: () => void;
 }) {
   const { toastError, toastSuccess } = useToast();
+  const ro = readOnly;
   const [search, setSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState<"all" | ConnectorGroup>("all");
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [setupConnectorId, setSetupConnectorId] = useState<string | null>(null);
-  const [connectorConfigDrawer, setConnectorConfigDrawer] = useState<"connector_n8n" | "connector_outlook" | "connector_looker" | null>(null);
+  const [connectorConfigDrawer, setConnectorConfigDrawer] = useState<
+    | "connector_n8n"
+    | "connector_outlook"
+    | "connector_looker"
+    | "connector_twilio"
+    | "connector_meta_whatsapp"
+    | null
+  >(null);
   const [connectorFormUrl, setConnectorFormUrl] = useState("");
   const [connectorFormSecret, setConnectorFormSecret] = useState("");
   const [connectorFormEvents, setConnectorFormEvents] = useState<AutomationEventType[]>(["request.created", "request.status_changed"]);
@@ -84,6 +268,96 @@ export function ConnettoriTab({
   const [outlookConnecting, setOutlookConnecting] = useState(false);
   const [outlookCalendarEvents, setOutlookCalendarEvents] = useState<Array<{ id: string; subject: string; start: string; end: string; isAllDay?: boolean; webLink?: string }>>([]);
   const [outlookCalendarLoading, setOutlookCalendarLoading] = useState(false);
+  const [twilioAccountSid, setTwilioAccountSid] = useState("");
+  const [twilioAuthToken, setTwilioAuthToken] = useState("");
+  const [twilioFromNumber, setTwilioFromNumber] = useState("");
+  const [twilioHasSavedConfig, setTwilioHasSavedConfig] = useState(false);
+  const [twilioSaving, setTwilioSaving] = useState(false);
+  const [twilioTestTo, setTwilioTestTo] = useState("");
+  const [twilioTestBody, setTwilioTestBody] = useState("");
+  const [twilioTestSending, setTwilioTestSending] = useState(false);
+  const [twilioDrawerError, setTwilioDrawerError] = useState<string | null>(null);
+  const twilioAutoOpenDoneRef = useRef(false);
+  const [metaPhoneNumberId, setMetaPhoneNumberId] = useState("");
+  const [metaAccessToken, setMetaAccessToken] = useState("");
+  const [metaHasSavedConfig, setMetaHasSavedConfig] = useState(false);
+  const [metaSaving, setMetaSaving] = useState(false);
+  const [metaDrawerError, setMetaDrawerError] = useState<string | null>(null);
+  const [metaTestTo, setMetaTestTo] = useState("");
+  const [metaTestTemplateName, setMetaTestTemplateName] = useState(META_DEFAULT_TEST_TEMPLATE_NAME);
+  const [metaTestLanguage, setMetaTestLanguage] = useState(META_DEFAULT_TEST_LANGUAGE_CODE);
+  const [metaTestParamsRaw, setMetaTestParamsRaw] = useState("");
+  const [metaTestSending, setMetaTestSending] = useState(false);
+  const metaAutoOpenDoneRef = useRef(false);
+
+  const openMetaDrawer = useCallback(() => {
+    if (!workspaceId) return;
+    setMetaDrawerError(null);
+    followupApi
+      .getMetaWhatsAppConfig(workspaceId)
+      .then((r) => {
+        if (r.config?.config) {
+          const cfg = r.config.config as { phoneNumberId?: string };
+          setMetaPhoneNumberId(cfg.phoneNumberId ?? "");
+          setMetaHasSavedConfig(true);
+        } else {
+          setMetaPhoneNumberId("");
+          setMetaHasSavedConfig(false);
+        }
+        setMetaAccessToken("");
+        setConnectorConfigDrawer("connector_meta_whatsapp");
+      })
+      .catch(() => {
+        setMetaPhoneNumberId("");
+        setMetaAccessToken("");
+        setMetaHasSavedConfig(false);
+        setConnectorConfigDrawer("connector_meta_whatsapp");
+      });
+  }, [workspaceId]);
+
+  useEffect(() => {
+    if (!autoOpenMetaWhatsapp || metaAutoOpenDoneRef.current) return;
+    if (!workspaceId) return;
+    metaAutoOpenDoneRef.current = true;
+    openMetaDrawer();
+    onMetaAutoOpenConsumed?.();
+  }, [autoOpenMetaWhatsapp, workspaceId, onMetaAutoOpenConsumed, openMetaDrawer]);
+
+  const openTwilioDrawer = useCallback(() => {
+    if (!workspaceId) return;
+    setTwilioDrawerError(null);
+    followupApi
+      .getWhatsAppConfig(workspaceId)
+      .then((r) => {
+        if (r.config?.config) {
+          const cfg = r.config.config as { accountSid?: string; fromNumber?: string };
+          setTwilioAccountSid(cfg.accountSid ?? "");
+          setTwilioFromNumber(cfg.fromNumber ?? "");
+          setTwilioHasSavedConfig(true);
+        } else {
+          setTwilioAccountSid("");
+          setTwilioFromNumber("");
+          setTwilioHasSavedConfig(false);
+        }
+        setTwilioAuthToken("");
+        setConnectorConfigDrawer("connector_twilio");
+      })
+      .catch(() => {
+        setTwilioAccountSid("");
+        setTwilioFromNumber("");
+        setTwilioAuthToken("");
+        setTwilioHasSavedConfig(false);
+        setConnectorConfigDrawer("connector_twilio");
+      });
+  }, [workspaceId]);
+
+  useEffect(() => {
+    if (!autoOpenTwilio || twilioAutoOpenDoneRef.current) return;
+    if (!workspaceId) return;
+    twilioAutoOpenDoneRef.current = true;
+    openTwilioDrawer();
+    onTwilioAutoOpenConsumed?.();
+  }, [autoOpenTwilio, workspaceId, onTwilioAutoOpenConsumed, openTwilioDrawer]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -96,7 +370,30 @@ export function ConnettoriTab({
     });
   }, [connectors, search, groupFilter]);
 
-  const openConnectorConfig = (id: "connector_n8n" | "connector_outlook" | "connector_looker") => {
+  const { whatsappFiltered, otherFiltered } = useMemo(() => {
+    const wa: ConnectorCatalogItem[] = [];
+    const other: ConnectorCatalogItem[] = [];
+    for (const c of filtered) {
+      if (WHATSAPP_CONNECTOR_IDS.has(c.id)) wa.push(c);
+      else other.push(c);
+    }
+    wa.sort(
+      (a, b) => WHATSAPP_CONNECTOR_ORDER.indexOf(a.id as (typeof WHATSAPP_CONNECTOR_ORDER)[number]) - WHATSAPP_CONNECTOR_ORDER.indexOf(b.id as (typeof WHATSAPP_CONNECTOR_ORDER)[number])
+    );
+    return { whatsappFiltered: wa, otherFiltered: other };
+  }, [filtered]);
+
+  const openConnectorConfig = (
+    id: "connector_n8n" | "connector_outlook" | "connector_looker" | "connector_twilio" | "connector_meta_whatsapp"
+  ) => {
+    if (id === "connector_twilio") {
+      openTwilioDrawer();
+      return;
+    }
+    if (id === "connector_meta_whatsapp") {
+      openMetaDrawer();
+      return;
+    }
     const connectorId = id === "connector_n8n" ? "n8n" : id === "connector_outlook" ? "outlook" : null;
     if (id === "connector_n8n") {
       setN8nFormBaseUrl(n8nConfig?.baseUrl ?? "");
@@ -120,9 +417,53 @@ export function ConnettoriTab({
   };
 
   const toggleConnector = (id: string) => {
-    if (id === "connector_n8n" || id === "connector_outlook" || id === "connector_looker") {
+    if (
+      id === "connector_n8n" ||
+      id === "connector_outlook" ||
+      id === "connector_looker" ||
+      id === "connector_twilio" ||
+      id === "connector_meta_whatsapp"
+    ) {
       const conn = connectors.find((c) => c.id === id);
       if (conn?.status === "configured") {
+        if (id === "connector_meta_whatsapp") {
+          setTogglingId(id);
+          if (!workspaceId) {
+            setTogglingId(null);
+            return;
+          }
+          followupApi
+            .deleteMetaWhatsAppConfig(workspaceId)
+            .then(() => {
+              setConnectors((prev) => prev.map((c) => (c.id === id ? { ...c, status: "available" } : c)));
+              reloadMetaWhatsAppStatus?.();
+              toastSuccess("Connettore Meta WhatsApp rimosso.");
+            })
+            .catch((err) => {
+              toastError(err?.message ?? "Errore rimozione Meta WhatsApp");
+            })
+            .finally(() => setTogglingId(null));
+          return;
+        }
+        if (id === "connector_twilio") {
+          setTogglingId(id);
+          if (!workspaceId) {
+            setTogglingId(null);
+            return;
+          }
+          followupApi
+            .deleteWhatsAppConfig(workspaceId)
+            .then(() => {
+              setConnectors((prev) => prev.map((c) => (c.id === id ? { ...c, status: "available" } : c)));
+              reloadTwilioStatus?.();
+              toastSuccess("Connettore Twilio disconnesso.");
+            })
+            .catch((err) => {
+              toastError(err?.message ?? "Errore disconnessione Twilio");
+            })
+            .finally(() => setTogglingId(null));
+          return;
+        }
         if (id === "connector_looker") {
           try {
             if (workspaceId) window.localStorage?.removeItem(`${LOOKER_CONNECTOR_STORAGE_KEY}.${workspaceId}`);
@@ -162,7 +503,9 @@ export function ConnettoriTab({
             .finally(() => setTogglingId(null));
         }
       } else {
-        openConnectorConfig(id);
+        openConnectorConfig(
+          id as "connector_n8n" | "connector_outlook" | "connector_looker" | "connector_twilio" | "connector_meta_whatsapp"
+        );
       }
       return;
     }
@@ -316,6 +659,149 @@ export function ConnettoriTab({
       .finally(() => setOutlookCalendarLoading(false));
   };
 
+  const saveTwilioConfig = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_twilio") return;
+    if (!twilioAccountSid.trim() || !twilioAuthToken.trim() || !twilioFromNumber.trim()) {
+      toastError("Compila Account SID, Auth Token e numero mittente WhatsApp.");
+      return;
+    }
+    setTwilioSaving(true);
+    setTwilioDrawerError(null);
+    followupApi
+      .saveWhatsAppConfig(workspaceId, {
+        accountSid: twilioAccountSid.trim(),
+        authToken: twilioAuthToken.trim(),
+        fromNumber: twilioFromNumber.trim(),
+      })
+      .then(() => {
+        setTwilioHasSavedConfig(true);
+        setTwilioAuthToken("");
+        setConnectors((prev) => prev.map((c) => (c.id === "connector_twilio" ? { ...c, status: "configured" } : c)));
+        reloadTwilioStatus?.();
+        toastSuccess("Configurazione Twilio salvata.");
+        setConnectorConfigDrawer(null);
+      })
+      .catch((err) => setTwilioDrawerError(err?.message ?? "Salvataggio fallito"))
+      .finally(() => setTwilioSaving(false));
+  };
+
+  const removeTwilioConfig = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_twilio") return;
+    if (!window.confirm("Rimuovere la configurazione Twilio per questo workspace?")) return;
+    setTwilioSaving(true);
+    setTwilioDrawerError(null);
+    followupApi
+      .deleteWhatsAppConfig(workspaceId)
+      .then(() => {
+        setTwilioHasSavedConfig(false);
+        setTwilioAccountSid("");
+        setTwilioFromNumber("");
+        setTwilioAuthToken("");
+        setConnectors((prev) => prev.map((c) => (c.id === "connector_twilio" ? { ...c, status: "available" } : c)));
+        reloadTwilioStatus?.();
+        toastSuccess("Configurazione Twilio rimossa.");
+        setConnectorConfigDrawer(null);
+      })
+      .catch((err) => setTwilioDrawerError(err?.message ?? "Rimozione fallita"))
+      .finally(() => setTwilioSaving(false));
+  };
+
+  const testTwilioWhatsApp = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_twilio") return;
+    if (!twilioTestTo.trim()) {
+      toastError("Inserisci il numero di destinazione (E.164).");
+      return;
+    }
+    setTwilioTestSending(true);
+    setTwilioDrawerError(null);
+    followupApi
+      .testWhatsAppMessage(workspaceId, {
+        to: twilioTestTo.trim(),
+        body: twilioTestBody.trim() || undefined,
+      })
+      .then(() => {
+        toastSuccess("Messaggio di prova inviato.");
+        setTwilioTestBody("");
+      })
+      .catch((err) => setTwilioDrawerError(err?.message ?? "Invio fallito"))
+      .finally(() => setTwilioTestSending(false));
+  };
+
+  const saveMetaWhatsAppConfig = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_meta_whatsapp") return;
+    if (!metaPhoneNumberId.trim() || !metaAccessToken.trim()) {
+      toastError("Compila Phone Number ID e Access Token.");
+      return;
+    }
+    setMetaSaving(true);
+    setMetaDrawerError(null);
+    followupApi
+      .saveMetaWhatsAppConfig(workspaceId, {
+        phoneNumberId: metaPhoneNumberId.trim(),
+        accessToken: metaAccessToken.trim(),
+      })
+      .then(() => {
+        setMetaHasSavedConfig(true);
+        setMetaAccessToken("");
+        setConnectors((prev) => prev.map((c) => (c.id === "connector_meta_whatsapp" ? { ...c, status: "configured" } : c)));
+        reloadMetaWhatsAppStatus?.();
+        toastSuccess("Configurazione Meta WhatsApp salvata.");
+        setConnectorConfigDrawer(null);
+      })
+      .catch((err) => setMetaDrawerError(err?.message ?? "Salvataggio fallito"))
+      .finally(() => setMetaSaving(false));
+  };
+
+  const removeMetaWhatsAppConfig = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_meta_whatsapp") return;
+    if (!window.confirm("Rimuovere la configurazione Meta WhatsApp per questo workspace?")) return;
+    setMetaSaving(true);
+    setMetaDrawerError(null);
+    followupApi
+      .deleteMetaWhatsAppConfig(workspaceId)
+      .then(() => {
+        setMetaHasSavedConfig(false);
+        setMetaPhoneNumberId("");
+        setMetaAccessToken("");
+        setConnectors((prev) => prev.map((c) => (c.id === "connector_meta_whatsapp" ? { ...c, status: "available" } : c)));
+        reloadMetaWhatsAppStatus?.();
+        toastSuccess("Configurazione Meta WhatsApp rimossa.");
+        setConnectorConfigDrawer(null);
+      })
+      .catch((err) => setMetaDrawerError(err?.message ?? "Rimozione fallita"))
+      .finally(() => setMetaSaving(false));
+  };
+
+  const testMetaWhatsApp = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_meta_whatsapp") return;
+    if (!metaTestTo.trim()) {
+      toastError("Inserisci il numero di destinazione (E.164).");
+      return;
+    }
+    if (!metaTestTemplateName.trim() || !metaTestLanguage.trim()) {
+      toastError("Nome template e lingua sono obbligatori per la prova Meta.");
+      return;
+    }
+    const bodyParameters = metaTestParamsRaw
+      .split(/[,\n]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    setMetaTestSending(true);
+    setMetaDrawerError(null);
+    followupApi
+      .testMetaWhatsAppMessage(workspaceId, {
+        to: metaTestTo.trim(),
+        templateName: metaTestTemplateName.trim(),
+        languageCode: metaTestLanguage.trim(),
+        bodyParameters: bodyParameters.length ? bodyParameters : undefined,
+      })
+      .then(() => {
+        toastSuccess("Messaggio template di prova inviato (Meta).");
+      })
+      .catch((err) => setMetaDrawerError(err?.message ?? "Invio fallito"))
+      .finally(() => setMetaTestSending(false));
+  };
+
   const testN8nTrigger = () => {
     if (!workspaceId || connectorConfigDrawer !== "connector_n8n") return;
     const wfId = n8nFormWorkflowId.trim() || undefined;
@@ -363,130 +849,63 @@ export function ConnettoriTab({
         <span className="text-sm text-muted-foreground">{filtered.length} connettori</span>
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {filtered.map((connector) => {
-          const cfg = STATUS_CONFIG[connector.status];
-          const StatusIcon = cfg.icon;
-          const isConfigured = connector.status === "configured";
-          const isComingSoon = connector.status === "coming_soon";
-
-          return (
-            <div
-              key={connector.id}
-              className={cn(
-                "flex flex-col rounded-lg border bg-card p-4 transition-shadow hover:shadow-md",
-                isConfigured ? "border-green-200" : "border-border"
-              )}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-sm font-semibold text-foreground">{connector.name}</h3>
-                  <p className="text-xs text-muted-foreground">{connector.group}</p>
-                </div>
-                <span
-                  className={cn(
-                    "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium",
-                    cfg.badgeClass
-                  )}
-                >
-                  <StatusIcon className="h-3 w-3" />
-                  {cfg.label}
-                </span>
-              </div>
-
-              <p className="mt-2 flex-1 text-sm text-muted-foreground">
-                {connector.description}
-              </p>
-
-              <div className="mt-3 flex flex-wrap gap-1">
-                {connector.capabilities.map((cap) => (
-                  <span
-                    key={cap}
-                    className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
-                  >
-                    {cap}
-                  </span>
-                ))}
-              </div>
-
-              {connector.prerequisites.length > 0 && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Richiede: {connector.prerequisites.join(", ")}
-                </p>
-              )}
-
-              {(connector.setupSummary ?? connector.relatedTab) && (
-                <div className="mt-3 space-y-1.5">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="min-h-11 text-xs text-primary hover:text-primary"
-                    onClick={() => setSetupConnectorId(setupConnectorId === connector.id ? null : connector.id)}
-                  >
-                    Come attivare
-                  </Button>
-                  {setupConnectorId === connector.id && (
-                    <div className="rounded-md border border-border bg-muted/50 p-3 text-xs text-muted-foreground">
-                      {connector.setupSummary}
-                      {connector.relatedTab && onOpenTab && (
-                        <Button
-                          variant="link"
-                          size="sm"
-                          className="mt-2 min-h-11 h-auto p-2 text-xs font-medium text-primary"
-                          onClick={() => {
-                            onOpenTab(connector.relatedTab!);
-                            setSetupConnectorId(null);
-                          }}
-                        >
-                          Vai al tab {connector.relatedTab === "webhook" ? "Webhook" : "API"}
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="mt-4 flex gap-2">
-                <Button
-                  variant={isConfigured ? "outline" : "default"}
-                  size="sm"
-                  className="min-h-11 flex-1 gap-1.5"
-                  disabled={isComingSoon || togglingId === connector.id}
-                  onClick={() => toggleConnector(connector.id)}
-                >
-                  {togglingId === connector.id ? (
-                    <>
-                      <RefreshCcw className="h-3.5 w-3.5 animate-spin" />
-                      {isConfigured ? "Disconnessione..." : "Configurazione..."}
-                    </>
-                  ) : isConfigured ? (
-                    "Disconnetti"
-                  ) : isComingSoon ? (
-                    "Non disponibile"
-                  ) : (
-                    "Configura"
-                  )}
-                </Button>
-                {isConfigured && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="min-h-11 gap-1.5"
-                    disabled={togglingId === connector.id}
-                    onClick={() => {
-                      setTogglingId(connector.id);
-                      setTimeout(() => setTogglingId(null), 800);
-                    }}
-                  >
-                    <RefreshCcw className="h-3.5 w-3.5" />
-                    Health check
-                  </Button>
-                )}
-              </div>
+      {whatsappFiltered.length > 0 && (
+        <>
+          <Alert variant="info" className="mt-6 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-100" title="WhatsApp: due provider, uno basta">
+            <span className="block leading-relaxed">
+              Puoi collegare <strong className="font-medium text-foreground">Twilio</strong> oppure{" "}
+              <strong className="font-medium text-foreground">Meta Cloud API</strong> (template approvati).{" "}
+              <strong className="font-medium text-foreground">Non servono entrambi</strong> per iniziare a inviare. Se configuri i due sullo stesso workspace, il
+              backend usa <strong className="font-medium text-foreground">Meta in priorità</strong> per le consegne Whats automatiche.
+            </span>
+          </Alert>
+          <div className="mt-6">
+            <h2 className="text-base font-semibold text-foreground">WhatsApp</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Scegli il provider adatto al tuo account. Nome template e lingua per Meta si impostano nel tab Comunicazioni.
+            </p>
+            <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {whatsappFiltered.map((connector) => (
+                <ConnectorCatalogCard
+                  key={connector.id}
+                  connector={connector}
+                  togglingId={togglingId}
+                  setTogglingId={setTogglingId}
+                  setupConnectorId={setupConnectorId}
+                  setSetupConnectorId={setSetupConnectorId}
+                  onOpenTab={onOpenTab}
+                  toggleConnector={toggleConnector}
+                  configureLabel={connector.id === "connector_meta_whatsapp" ? "Configura Meta API" : undefined}
+                  readOnly={ro}
+                />
+              ))}
             </div>
-          );
-        })}
-      </div>
+          </div>
+        </>
+      )}
+
+      {otherFiltered.length > 0 && (
+        <div className={whatsappFiltered.length > 0 ? "mt-10" : "mt-6"}>
+          {whatsappFiltered.length > 0 && (
+            <h2 className="mb-3 text-base font-semibold text-foreground">Altri connettori</h2>
+          )}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {otherFiltered.map((connector) => (
+              <ConnectorCatalogCard
+                key={connector.id}
+                connector={connector}
+                togglingId={togglingId}
+                setTogglingId={setTogglingId}
+                setupConnectorId={setupConnectorId}
+                setSetupConnectorId={setSetupConnectorId}
+                onOpenTab={onOpenTab}
+                toggleConnector={toggleConnector}
+                readOnly={ro}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {filtered.length === 0 && (
         <div className="mt-12 text-center text-muted-foreground">
@@ -502,6 +921,8 @@ export function ConnettoriTab({
               {connectorConfigDrawer === "connector_n8n" && "Configura n8n"}
               {connectorConfigDrawer === "connector_outlook" && "Configura Outlook"}
               {connectorConfigDrawer === "connector_looker" && "Configura Looker Studio"}
+              {connectorConfigDrawer === "connector_twilio" && "Collega WhatsApp (Twilio)"}
+              {connectorConfigDrawer === "connector_meta_whatsapp" && "Collega WhatsApp (Meta Cloud API)"}
             </DrawerTitle>
           </DrawerHeader>
           <DrawerBody className="space-y-4">
@@ -514,7 +935,7 @@ export function ConnettoriTab({
                   <p className="text-sm text-amber-600">Seleziona almeno un progetto nel selettore progetti (sidebar) per poter testare.</p>
                 )}
                 {lookerTestError && <p className="text-sm text-destructive">{lookerTestError}</p>}
-                <Button className="min-h-11" onClick={testLookerConnection} disabled={lookerTesting || projectIds.length === 0}>
+                <Button className="min-h-11" onClick={testLookerConnection} disabled={lookerTesting || projectIds.length === 0 || ro}>
                   {lookerTesting ? "Test in corso..." : "Test connessione"}
                 </Button>
               </>
@@ -584,7 +1005,7 @@ export function ConnettoriTab({
                   ) : (
                     <>
                       <p className="text-sm text-muted-foreground">Connetti il tuo account Microsoft per leggere il calendario Outlook.</p>
-                      <Button className="min-h-11" onClick={connectOutlook} disabled={outlookConnecting}>
+                      <Button className="min-h-11" onClick={connectOutlook} disabled={outlookConnecting || ro}>
                         {outlookConnecting ? "Reindirizzamento..." : "Connetti Outlook"}
                       </Button>
                     </>
@@ -638,22 +1059,201 @@ export function ConnettoriTab({
                 </div>
               </>
             )}
+            {connectorConfigDrawer === "connector_twilio" && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Inserisci le credenziali del tuo account Twilio per abilitare gli invii WhatsApp definiti nel tab{" "}
+                  <span className="font-medium text-foreground">Comunicazioni</span>. Il backend aggiunge il prefisso{" "}
+                  <code className="rounded bg-muted px-1 text-xs">whatsapp:</code> dove serve.
+                </p>
+                {twilioDrawerError && <p className="text-sm text-destructive">{twilioDrawerError}</p>}
+                <div>
+                  <label htmlFor="twilio-account-sid" className="text-sm font-medium text-foreground">Account SID</label>
+                  <Input
+                    id="twilio-account-sid"
+                    value={twilioAccountSid}
+                    onChange={(e) => setTwilioAccountSid(e.target.value)}
+                    placeholder="AC…"
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="twilio-auth-token" className="text-sm font-medium text-foreground">Auth Token</label>
+                  <Input
+                    id="twilio-auth-token"
+                    type="password"
+                    value={twilioAuthToken}
+                    onChange={(e) => setTwilioAuthToken(e.target.value)}
+                    placeholder={twilioHasSavedConfig ? "•••• (inserisci nuovo token per aggiornare)" : "Token"}
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="twilio-from" className="text-sm font-medium text-foreground">Numero mittente WhatsApp</label>
+                  <Input
+                    id="twilio-from"
+                    value={twilioFromNumber}
+                    onChange={(e) => setTwilioFromNumber(e.target.value)}
+                    placeholder="+14155238886 o +39…"
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+                {isAdmin && (
+                  <div className="space-y-2 border-t border-border pt-4">
+                    <p className="text-sm font-medium text-foreground">Messaggio di prova (solo admin)</p>
+                    <Input
+                      placeholder="Destinatario E.164, es. +393331112233"
+                      value={twilioTestTo}
+                      onChange={(e) => setTwilioTestTo(e.target.value)}
+                    />
+                    <Input
+                      placeholder="Testo (opzionale)"
+                      value={twilioTestBody}
+                      onChange={(e) => setTwilioTestBody(e.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-11"
+                      onClick={testTwilioWhatsApp}
+                      disabled={twilioTestSending || !twilioHasSavedConfig}
+                    >
+                      {twilioTestSending ? "Invio…" : "Invia prova WhatsApp"}
+                    </Button>
+                    {!twilioHasSavedConfig && (
+                      <p className="text-xs text-muted-foreground">Salva la configurazione prima di inviare una prova.</p>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+            {connectorConfigDrawer === "connector_meta_whatsapp" && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Credenziali dalla{" "}
+                  <span className="font-medium text-foreground">Meta for Developers</span> (WhatsApp Cloud API). Gli invii usano solo{" "}
+                  <span className="font-medium text-foreground">template approvati</span>; configura nome e lingua del template anche nei messaggi del tab{" "}
+                  <span className="font-medium text-foreground">Comunicazioni</span>.
+                </p>
+                {metaDrawerError && <p className="text-sm text-destructive">{metaDrawerError}</p>}
+                <div>
+                  <label htmlFor="meta-phone-number-id" className="text-sm font-medium text-foreground">
+                    Phone Number ID
+                  </label>
+                  <Input
+                    id="meta-phone-number-id"
+                    value={metaPhoneNumberId}
+                    onChange={(e) => setMetaPhoneNumberId(e.target.value)}
+                    placeholder="ID del numero WhatsApp Business"
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="meta-access-token" className="text-sm font-medium text-foreground">
+                    Access token
+                  </label>
+                  <Input
+                    id="meta-access-token"
+                    type="password"
+                    value={metaAccessToken}
+                    onChange={(e) => setMetaAccessToken(e.target.value)}
+                    placeholder={
+                      metaHasSavedConfig
+                        ? "•••• (inserisci nuovo token per aggiornare)"
+                        : "Token permanente o di sistema utente con whatsapp_business_messaging"
+                    }
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+                {isAdmin && (
+                  <div className="space-y-2 border-t border-border pt-4">
+                    <p className="text-sm font-medium text-foreground">Messaggio di prova con template (solo admin)</p>
+                    <p className="text-xs text-muted-foreground">
+                      Nome e lingua sono precompilati con il template di esempio Meta <strong className="font-medium text-foreground">hello_world</strong> /{" "}
+                      <strong className="font-medium text-foreground">en_US</strong>, di solito già disponibile su account nuovi. Inserisci solo il numero di
+                      prova; se usi un altro template approvato, modifica nome, lingua e parametri.
+                    </p>
+                    <Input
+                      placeholder="Destinatario E.164 (obbligatorio), es. +393331112233"
+                      value={metaTestTo}
+                      onChange={(e) => setMetaTestTo(e.target.value)}
+                    />
+                    <Input
+                      placeholder="Nome template su Meta (es. hello_world)"
+                      value={metaTestTemplateName}
+                      onChange={(e) => setMetaTestTemplateName(e.target.value)}
+                    />
+                    <Input
+                      placeholder="Codice lingua Meta, es. en_US o it"
+                      value={metaTestLanguage}
+                      onChange={(e) => setMetaTestLanguage(e.target.value)}
+                    />
+                    <Input
+                      placeholder="Parametri corpo (opzionale), virgola o a capo — hello_world di solito non ne ha"
+                      value={metaTestParamsRaw}
+                      onChange={(e) => setMetaTestParamsRaw(e.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-11"
+                      onClick={testMetaWhatsApp}
+                      disabled={metaTestSending || !metaHasSavedConfig}
+                    >
+                      {metaTestSending ? "Invio…" : "Invia prova (template Meta)"}
+                    </Button>
+                    {!metaHasSavedConfig && (
+                      <p className="text-xs text-muted-foreground">Salva la configurazione prima di inviare una prova.</p>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
           </DrawerBody>
           {connectorConfigDrawer === "connector_n8n" && (
             <DrawerFooter className="flex flex-wrap gap-2">
-              <Button className="min-h-11" onClick={saveN8nConfig} disabled={connectorSaving}>
+              <Button className="min-h-11" onClick={saveN8nConfig} disabled={connectorSaving || ro}>
                 {connectorSaving ? "Salvataggio..." : "Salva"}
               </Button>
-              <Button variant="outline" className="min-h-11" onClick={testN8nTrigger} disabled={n8nTestTriggering || connectorSaving}>
+              <Button variant="outline" className="min-h-11" onClick={testN8nTrigger} disabled={n8nTestTriggering || connectorSaving || ro}>
                 {n8nTestTriggering ? "Test in corso..." : "Test trigger"}
               </Button>
             </DrawerFooter>
           )}
           {connectorConfigDrawer === "connector_outlook" && (
             <DrawerFooter>
-              <Button className="min-h-11" onClick={saveConnectorWebhook} disabled={connectorSaving}>
+              <Button className="min-h-11" onClick={saveConnectorWebhook} disabled={connectorSaving || ro}>
                 {connectorSaving ? "Salvataggio..." : "Salva"}
               </Button>
+            </DrawerFooter>
+          )}
+          {connectorConfigDrawer === "connector_twilio" && (
+            <DrawerFooter className="flex flex-wrap gap-2">
+              <Button className="min-h-11" onClick={saveTwilioConfig} disabled={twilioSaving || ro}>
+                {twilioSaving ? "Salvataggio…" : "Salva"}
+              </Button>
+              {twilioHasSavedConfig && (
+                <Button variant="outline" className="min-h-11" onClick={removeTwilioConfig} disabled={twilioSaving || ro}>
+                  Rimuovi config
+                </Button>
+              )}
+            </DrawerFooter>
+          )}
+          {connectorConfigDrawer === "connector_meta_whatsapp" && (
+            <DrawerFooter className="flex flex-wrap gap-2">
+              <Button className="min-h-11" onClick={saveMetaWhatsAppConfig} disabled={metaSaving || ro}>
+                {metaSaving ? "Salvataggio…" : "Salva"}
+              </Button>
+              {metaHasSavedConfig && (
+                <Button variant="outline" className="min-h-11" onClick={removeMetaWhatsAppConfig} disabled={metaSaving || ro}>
+                  Rimuovi config
+                </Button>
+              )}
             </DrawerFooter>
           )}
         </DrawerContent>

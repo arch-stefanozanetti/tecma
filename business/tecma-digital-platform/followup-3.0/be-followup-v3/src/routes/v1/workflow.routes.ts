@@ -1,3 +1,7 @@
+/**
+ * Router legacy — **non montato** su `v1Router`. Usare `discovery-workflow.routes.ts`
+ * (workflow config, liste, product-discovery) che include `requirePermission` dove serve.
+ */
 import { Router } from "express";
 import { HttpError } from "../../types/http.js";
 import { getWorkflowConfig } from "../../core/workflow/workflow.service.js";

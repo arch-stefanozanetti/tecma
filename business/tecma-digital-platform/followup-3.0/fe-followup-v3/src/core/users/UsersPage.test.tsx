@@ -34,6 +34,11 @@ vi.mock("../../api/followupApi", () => ({
     inviteUser: vi.fn(),
     addWorkspaceUser: vi.fn(),
     updateWorkspaceUser: vi.fn(),
+    getPermissionCatalog: vi.fn().mockResolvedValue({ data: { groups: [] } }),
+    getRoleEffectivePermissions: vi.fn().mockResolvedValue({
+      data: { roleKey: "collaborator", permissions: ["clients.read"] },
+    }),
+    patchAdminUser: vi.fn(),
     getWorkspaceRoles: vi.fn().mockResolvedValue([
       { roleKey: "owner", label: "Owner" },
       { roleKey: "admin", label: "Admin" },
@@ -65,6 +70,7 @@ describe("UsersPage — invito utente", () => {
           role: "collaborator",
           workspaces: [],
           projectIds: [],
+          permissions_override: [],
         },
       ],
     });
@@ -78,7 +84,7 @@ describe("UsersPage — invito utente", () => {
     vi.mocked(followupApi.addWorkspaceUser).mockResolvedValue({ workspaceUser: {} } as never);
   });
 
-  it("invita via email: chiama inviteUser e addWorkspaceUser", async () => {
+  it("invita via email: wizard 4 passi, inviteUser, addWorkspaceUser e addWorkspaceUserProject", async () => {
     renderUsers();
     expect(await screen.findByText("already@registered.local")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /aggiungi utente/i }));
@@ -91,10 +97,17 @@ describe("UsersPage — invito utente", () => {
     await vi.waitFor(() => {
       expect(followupApi.listWorkspaceProjects).toHaveBeenCalledWith("ws1");
     });
-    /* Un solo progetto: il select progetto è già valorizzato da useEffect */
+
+    await userEvent.click(screen.getByRole("button", { name: /^avanti$/i }));
+
+    await vi.waitFor(() => {
+      expect(screen.getByRole("heading", { name: /^progetti$/i })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: /^avanti$/i }));
 
     const emailInput = screen.getByPlaceholderText(/mario\.rossi/i);
     await userEvent.type(emailInput, "brandnew@invite.test");
+    await userEvent.click(screen.getByRole("button", { name: /^avanti$/i }));
 
     await userEvent.click(screen.getByRole("button", { name: /invita e aggiungi al workspace/i }));
 
@@ -112,6 +125,7 @@ describe("UsersPage — invito utente", () => {
       userId: "brandnew@invite.test",
       role: "collaborator",
     });
+    expect(followupApi.addWorkspaceUserProject).toHaveBeenCalledWith("ws1", "brandnew@invite.test", "proj-x");
   });
 
   it("mostra errore se inviteUser fallisce (es. 502)", async () => {
@@ -123,7 +137,13 @@ describe("UsersPage — invito utente", () => {
     await userEvent.click(combos[0]);
     await userEvent.click(await screen.findByRole("option", { name: /workspace test/i }));
     await vi.waitFor(() => expect(followupApi.listWorkspaceProjects).toHaveBeenCalledWith("ws1"));
+    await userEvent.click(screen.getByRole("button", { name: /^avanti$/i }));
+    await vi.waitFor(() =>
+      expect(screen.getByRole("heading", { name: /^progetti$/i })).toBeInTheDocument()
+    );
+    await userEvent.click(screen.getByRole("button", { name: /^avanti$/i }));
     await userEvent.type(screen.getByPlaceholderText(/mario\.rossi/i), "fail@invite.test");
+    await userEvent.click(screen.getByRole("button", { name: /^avanti$/i }));
     await userEvent.click(screen.getByRole("button", { name: /invita e aggiungi al workspace/i }));
     expect(await screen.findByText(/502 bad gateway/i)).toBeInTheDocument();
   });

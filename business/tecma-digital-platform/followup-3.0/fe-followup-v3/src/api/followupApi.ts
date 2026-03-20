@@ -328,6 +328,20 @@ export const followupApi = {
     }>("/audit/query", query),
   // Workspaces (tz_workspaces)
   listUsersWithVisibility: () => getJson<{ users: UserWithVisibilityRow[] }>("/users"),
+  /** Aggiorna utente admin (Mongo id). Es. permissions_override. Richiede users.update. */
+  patchAdminUser: (
+    userId: string,
+    body: Partial<{
+      role: string;
+      status: "invited" | "active" | "disabled";
+      permissions_override: string[];
+      isDisabled: boolean;
+    }>
+  ) =>
+    patchJson<{ ok: boolean; user: { permissions_override?: string[] } | null }>(
+      `/users/${encodeURIComponent(userId)}`,
+      body
+    ),
   listEmailFlows: () =>
     getJson<
       Array<{
@@ -437,6 +451,22 @@ export const followupApi = {
       return [];
     }
   },
+  /** Catalogo permessi per UI override (richiede users.read). */
+  getPermissionCatalog: () =>
+    getJson<{
+      data: {
+        groups: Array<{
+          module: string;
+          label: string;
+          permissions: Array<{ id: string; label: string; action: string }>;
+        }>;
+      };
+    }>("/rbac/permission-catalog"),
+  /** Permessi effettivi del ruolo workspace (DB + builtin) — anteprima / preset override in wizard utenti. */
+  getRoleEffectivePermissions: (roleKey: string) =>
+    getJson<{ data: { roleKey: string; permissions: string[] } }>(
+      `/rbac/roles/${encodeURIComponent(roleKey)}/effective-permissions`
+    ),
   getWorkspaceById: (id: string) => getJson<{ workspace: WorkspaceRow }>(`/workspaces/${id}`),
   createWorkspace: (payload: { name: string }) => postJson<{ workspace: WorkspaceRow }>("/workspaces", payload),
   updateWorkspace: (id: string, payload: { name?: string }) =>
@@ -661,7 +691,11 @@ export const followupApi = {
   createRequest: (payload: RequestCreateInput) => postJson<{ request: RequestRow }>("/requests", payload),
   updateRequestStatus: (requestId: string, payload: { status: string; reason?: string; quoteId?: string }) =>
     patchJson<{ request: RequestRow }>(`/requests/${requestId}/status`, payload),
-  getProjectsByEmail: (email: string) => postJson<ProjectAccessResponse>("/session/projects-by-email", { email }),
+  getProjectsByEmail: (email: string, workspaceId?: string) =>
+    postJson<ProjectAccessResponse>("/session/projects-by-email", {
+      email,
+      ...(workspaceId ? { workspaceId } : {}),
+    }),
   getUserPreferences: (email: string) =>
     getJson<UserPreferences>(`/session/preferences?email=${encodeURIComponent(email)}`),
   saveUserPreferences: (email: string, workspaceId: string, selectedProjectIds: string[]) =>
@@ -766,11 +800,38 @@ export const followupApi = {
     if (params?.projectId) q.set("projectId", params.projectId);
     if (params?.channel) q.set("channel", params.channel);
     const query = q.toString();
-    return getJson<{ data: Array<{ _id: string; workspaceId: string; projectId?: string; channel: string; name: string; subject?: string; bodyText: string; bodyHtml?: string; variables: string[]; createdAt: string; updatedAt: string }> }>(
-      `/workspaces/${encodeURIComponent(workspaceId)}/communication-templates${query ? `?${query}` : ""}`
-    );
+    return getJson<{
+      data: Array<{
+        _id: string;
+        workspaceId: string;
+        projectId?: string;
+        channel: string;
+        name: string;
+        subject?: string;
+        bodyText: string;
+        bodyHtml?: string;
+        variables: string[];
+        metaTemplateName?: string;
+        metaTemplateLanguage?: string;
+        createdAt: string;
+        updatedAt: string;
+      }>;
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/communication-templates${query ? `?${query}` : ""}`);
   },
-  createCommunicationTemplate: (workspaceId: string, body: { projectId?: string; channel: string; name: string; subject?: string; bodyText: string; bodyHtml?: string; variables?: string[] }) =>
+  createCommunicationTemplate: (
+    workspaceId: string,
+    body: {
+      projectId?: string;
+      channel: string;
+      name: string;
+      subject?: string;
+      bodyText: string;
+      bodyHtml?: string;
+      variables?: string[];
+      metaTemplateName?: string;
+      metaTemplateLanguage?: string;
+    }
+  ) =>
     postJson<{ template: Record<string, unknown> }>(`/workspaces/${encodeURIComponent(workspaceId)}/communication-templates`, body),
   getCommunicationTemplate: (id: string) => getJson<{ template: Record<string, unknown> }>(`/communication-templates/${encodeURIComponent(id)}`),
   updateCommunicationTemplate: (id: string, body: Record<string, unknown>) =>
@@ -877,6 +938,31 @@ export const followupApi = {
   /** Solo admin: invio prova Twilio WhatsApp (verifica config workspace). */
   testWhatsAppMessage: (workspaceId: string, body: { to: string; body?: string }) =>
     postJson<{ ok: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/whatsapp/test`, body),
+  getMetaWhatsAppConfig: (workspaceId: string) =>
+    getJson<{
+      config: {
+        _id: string;
+        workspaceId: string;
+        connectorId: string;
+        config: { phoneNumberId: string; accessTokenMasked?: string };
+        updatedAt: string;
+      } | null;
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/meta-whatsapp/config`),
+  saveMetaWhatsAppConfig: (workspaceId: string, body: { phoneNumberId: string; accessToken: string }) =>
+    postJson<{ config: Record<string, unknown> }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/connectors/meta-whatsapp/config`,
+      body
+    ),
+  deleteMetaWhatsAppConfig: (workspaceId: string) =>
+    deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/meta-whatsapp/config`),
+  testMetaWhatsAppMessage: (
+    workspaceId: string,
+    body: { to: string; templateName: string; languageCode: string; bodyParameters?: string[] }
+  ) =>
+    postJson<{ ok: boolean; externalId?: string }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/connectors/meta-whatsapp/test`,
+      body
+    ),
   /** Test API listati pubblici (nessuna auth richiesta lato backend). Per connettore Looker Studio. */
   testPublicListings: (workspaceId: string, projectIds: string[]) =>
     postJson<PaginatedResponse<ApartmentRow>>("/public/listings", {

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { queryApartments } from "../../core/apartments/apartments.service.js";
+import { queryClientsLite } from "../../core/future/future.service.js";
 import { runKpiSummaryReport } from "../../core/reports/reports.service.js";
 import { HttpError } from "../../types/http.js";
 import { enforcePlatformQuota, platformApiKeyMiddleware, requirePlatformScope } from "../platformApiKeyMiddleware.js";
@@ -38,7 +39,12 @@ platformRoutes.get("/capabilities", requirePlatformScope("platform.capabilities.
     projectIds: access.projectIds,
     scopes: access.scopes,
     quotaPerDay: access.quotaPerDay,
-    endpoints: ["POST /platform/listings/query", "POST /platform/reports/kpi-summary", "GET /platform/capabilities"],
+    endpoints: [
+      "GET /platform/capabilities",
+      "POST /platform/listings/query",
+      "POST /platform/clients/lite/query",
+      "POST /platform/reports/kpi-summary",
+    ],
   });
 });
 
@@ -67,6 +73,25 @@ platformRoutes.post("/listings/query", requirePlatformScope("platform.listings.r
         : undefined,
   };
   return queryApartments(body);
+}));
+
+const ClientsLitePlatformSchema = z.object({
+  projectIds: z.array(z.string().min(1)).optional(),
+});
+
+platformRoutes.post("/clients/lite/query", requirePlatformScope("platform.clients.read"), handleAsync(async (req) => {
+  const access = req.platformAccess!;
+  const parsed = ClientsLitePlatformSchema.parse(req.body ?? {});
+  const requestedProjectIds = parsed.projectIds ?? access.projectIds;
+  const allowedProjectIds =
+    access.projectIds.length === 0
+      ? requestedProjectIds
+      : requestedProjectIds.filter((id) => access.projectIds.includes(id));
+  if (allowedProjectIds.length === 0) {
+    throw new HttpError("No allowed projectIds for this API key", 403);
+  }
+  const data = await queryClientsLite(access.workspaceId, allowedProjectIds);
+  return { data };
 }));
 
 platformRoutes.post("/reports/kpi-summary", requirePlatformScope("platform.reports.read"), handleAsync(async (req) => {

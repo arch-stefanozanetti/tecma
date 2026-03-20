@@ -23,6 +23,8 @@ export interface UserWithVisibilityRow {
   isAdmin: boolean;
   /** Id progetti da tz_users.project_ids (legacy) */
   projectIds: string[];
+  /** Permessi aggiuntivi (additivi rispetto al ruolo workspace), da tz_users */
+  permissions_override: string[];
   /** Membership per workspace (da tz_user_workspaces) */
   workspaces: UserWorkspaceMembership[];
 }
@@ -50,7 +52,7 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
   const wsColl = db.collection(COLLECTION_WORKSPACES);
 
   const [userDocs, membershipDocs, workspaceDocs] = await Promise.all([
-    usersColl.find({}).project({ email: 1, role: 1, project_ids: 1, _id: 1 }).toArray(),
+    usersColl.find({}).project({ email: 1, role: 1, project_ids: 1, _id: 1, permissions_override: 1 }).toArray(),
     uwColl.find({}).toArray(),
     wsColl.find({}).project({ _id: 1, name: 1 }).toArray(),
   ]);
@@ -61,13 +63,17 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
     if (id) workspaceNames.set(id, typeof w.name === "string" ? w.name : id);
   }
 
-  const userByEmail = new Map<string, { role: string; projectIds: string[]; userId: string | null }>();
+  const userByEmail = new Map<
+    string,
+    { role: string; projectIds: string[]; userId: string | null; permissions_override: string[] }
+  >();
   const emailsFromUsers = new Set<string>();
   for (const u of userDocs as {
     _id?: { toHexString?: () => string };
     email?: unknown;
     role?: unknown;
     project_ids?: unknown[];
+    permissions_override?: unknown[];
   }[]) {
     const email = normalizeEmail(u.email);
     if (!email) continue;
@@ -76,8 +82,11 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
     const projectIds = Array.isArray(u.project_ids)
       ? (u.project_ids as unknown[]).map((id) => String(id)).filter(Boolean)
       : [];
+    const permissions_override = Array.isArray(u.permissions_override)
+      ? (u.permissions_override as unknown[]).map((x) => String(x)).filter(Boolean)
+      : [];
     const userId = u._id && typeof u._id.toHexString === "function" ? u._id.toHexString() : null;
-    userByEmail.set(email, { role, projectIds, userId });
+    userByEmail.set(email, { role, projectIds, userId, permissions_override });
   }
 
   const membershipsByUser = new Map<string, { workspaceId: string; role: string }[]>();
@@ -120,6 +129,7 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
     const fromTzUsers = userByEmail.get(email);
     const projectIds = fromTzUsers?.projectIds ?? [];
     const userId = fromTzUsers?.userId ?? null;
+    const permissions_override = fromTzUsers?.permissions_override ?? [];
     const memberships = (membershipsByUser.get(email) ?? []).map((m) => ({
       workspaceId: m.workspaceId,
       workspaceName: workspaceNames.get(m.workspaceId) ?? m.workspaceId,
@@ -134,6 +144,7 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
       role,
       isAdmin,
       projectIds,
+      permissions_override,
       workspaces: memberships,
     });
   }

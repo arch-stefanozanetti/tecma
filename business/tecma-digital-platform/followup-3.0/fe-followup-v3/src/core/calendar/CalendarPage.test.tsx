@@ -19,6 +19,7 @@ vi.mock("../../auth/projectScope", () => ({
     workspaceId: "ws-1",
     selectedProjectIds: ["proj-1"],
     projects: [],
+    hasPermission: () => true,
   }),
 }));
 

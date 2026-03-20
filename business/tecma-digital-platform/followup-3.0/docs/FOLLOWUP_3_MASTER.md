@@ -1,9 +1,8 @@
 # Followup 3.0 — Documento maestro (prodotto e wave)
 
-**Ultimo aggiornamento:** 2026-03-19  
-**Backlog eseguibile unico:** [docs/plans/2026-03-19-followup-backlog-attivo.md](plans/2026-03-19-followup-backlog-attivo.md).  
-**Piano operativo completo (utenti workspace, progetti, segregazione view, test 100%, prossimi passi):** [PLAN_UNIFICATO_FOLLOWUP_3.md](PLAN_UNIFICATO_FOLLOWUP_3.md).  
-**Uso di questo file:** visione, principi e wave; per dettagli implementativi e priorità usare il piano unificato e il backlog attivo.
+**Ultimo aggiornamento:** 2026-03-20  
+**Piano globale unico (backlog, fasi, checklist):** [PIANO_GLOBALE_FOLLOWUP_3.md](PIANO_GLOBALE_FOLLOWUP_3.md).  
+**Uso di questo file:** visione, principi e wave; per priorità e implementazione aggiornare solo il piano globale.
 
 ---
 
@@ -19,7 +18,7 @@
 1. **Rispettare l’ordine delle wave:** non implementare task di una wave successiva prima di aver chiuso i task della wave corrente (salvo eccezioni esplicite concordate).
 2. **UX e semplicità prima delle feature:** meglio poche funzioni chiare e usabili che molte confuse; ogni nuova schermata deve ridurre frizione, non aggiungerla.
 3. **Legacy e dati:** nessuna modifica distruttiva alle collection esistenti; solo lettura o estensioni additive (prefisso `tz_` o collection dedicate).
-4. **Piani di riferimento:** questo documento (wave e principi) e [backlog attivo](plans/2026-03-19-followup-backlog-attivo.md) (priorità eseguibili); aggiornare entrambi quando una wave viene chiusa o si aggiunge un task concordato.
+4. **Piano di riferimento:** questo documento (wave e principi) e [PIANO_GLOBALE_FOLLOWUP_3.md](PIANO_GLOBALE_FOLLOWUP_3.md) (checklist e fasi); aggiornare il piano globale quando una wave viene chiusa o si aggiunge un task concordato.
 
 ---
 
@@ -123,7 +122,7 @@ Dettagli: [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), [DESIGN_SYSTEM_COMPONENTS_WAVES.
 
 **Deliverable Wave 3:** Esperienza quotidiana del CRM concentrata su poche azioni chiare; semplicità e pochi click prioritari rispetto al numero di funzionalità.
 
-**Verifica 2026-03-19:** in codebase risultano coperti crea/modifica cliente (drawer), “Nuovo evento” / modifica in calendario, cockpit con suggerimenti AI (con fallback). Eventuali ritocchi UX restano nel [backlog attivo](plans/2026-03-19-followup-backlog-attivo.md), non come gate Wave 3.
+**Verifica 2026-03-19:** in codebase risultano coperti crea/modifica cliente (drawer), “Nuovo evento” / modifica in calendario, cockpit con suggerimenti AI (con fallback). Eventuali ritocchi UX restano nel [piano globale](PIANO_GLOBALE_FOLLOWUP_3.md), non come gate Wave 3.
 
 ---
 
@@ -227,4 +226,4 @@ Dettagli: [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), [DESIGN_SYSTEM_COMPONENTS_WAVES.
 - **Auth e identità:** codice `be-followup-v3/src/core/auth/`; report stato API BSS: [AUTH_AND_TECMA_BSS_API_REPORT.md](AUTH_AND_TECMA_BSS_API_REPORT.md).
 - **Design system:** [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), [DESIGN_SYSTEM_COMPONENTS_WAVES.md](DESIGN_SYSTEM_COMPONENTS_WAVES.md); skill create-design-system-rules; Figma MCP.
 - **Architettura frontend (come aggiungere feature):** [fe-followup-v3/ARCHITECTURE.md](../fe-followup-v3/ARCHITECTURE.md).
-- **Piano unificazione API con aws-api-gateway:** [archive/plans-2025-2026/2025-03-07-unificazione-api-aws-gateway-followup.md](archive/plans-2025-2026/2025-03-07-unificazione-api-aws-gateway-followup.md).
+- **API / aws-api-gateway:** [PIANO_GLOBALE_FOLLOWUP_3.md](PIANO_GLOBALE_FOLLOWUP_3.md) §14.1 e [AUTH_AND_TECMA_BSS_API_REPORT.md](AUTH_AND_TECMA_BSS_API_REPORT.md).

@@ -2,6 +2,8 @@ import { Router } from "express";
 import { z } from "zod";
 import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
+import { requirePermission } from "../permissionMiddleware.js";
+import { PERMISSIONS } from "../../core/rbac/permissions.js";
 import {
   queryNotifications,
   markRead as markNotificationRead,
@@ -11,7 +13,7 @@ import {
 
 export const notificationsRoutes = Router();
 
-notificationsRoutes.get("/notifications", handleAsync(async (req) => {
+notificationsRoutes.get("/notifications", requirePermission(PERMISSIONS.REQUESTS_READ), handleAsync(async (req) => {
   const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";
   if (!workspaceId) throw new HttpError("workspaceId query required", 400);
   const read = req.query.read === "true" ? true : req.query.read === "false" ? false : undefined;
@@ -30,13 +32,13 @@ notificationsRoutes.get("/notifications", handleAsync(async (req) => {
   });
 }));
 
-notificationsRoutes.patch("/notifications/:id", handleAsync(async (req) => {
+notificationsRoutes.patch("/notifications/:id", requirePermission(PERMISSIONS.REQUESTS_UPDATE), handleAsync(async (req) => {
   const notification = await markNotificationRead(req.params.id);
   if (!notification) throw new HttpError("Notification not found", 404);
   return { notification };
 }));
 
-notificationsRoutes.post("/notifications/read-all", handleAsync(async (req) => {
+notificationsRoutes.post("/notifications/read-all", requirePermission(PERMISSIONS.REQUESTS_UPDATE), handleAsync(async (req) => {
   const body = z.object({ workspaceId: z.string().min(1) }).parse(req.body);
   const count = await markAllNotificationsRead(body.workspaceId);
   return { count };

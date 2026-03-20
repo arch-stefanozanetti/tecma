@@ -9,6 +9,8 @@ import { queryRequests } from "../../core/requests/requests.service.js";
 import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
 import { requireCanAccessWorkspace, requireCanAccessProject } from "../accessMiddleware.js";
+import { requirePermission } from "../permissionMiddleware.js";
+import { PERMISSIONS } from "../../core/rbac/permissions.js";
 import { auditAndDispatchEntityEvent } from "../helpers/auditAndDispatch.js";
 import { requireAdmin } from "../authMiddleware.js";
 import { getCurrentPriceForUnit } from "../../core/unit-pricing/unit-pricing.service.js";
@@ -23,11 +25,21 @@ import {
   executeImport,
   type OnDuplicate,
 } from "../../core/units-import/units-import.service.js";
+import { toEntityAssignmentListViewer } from "../helpers/listQueryViewer.js";
 export const apartmentsRoutes = Router();
 
-apartmentsRoutes.post("/apartments/query", requireCanAccessWorkspace("workspaceId"), handleAsync((req) => queryApartments(req.body)));
+apartmentsRoutes.post(
+  "/apartments/query",
+  requirePermission(PERMISSIONS.APARTMENTS_READ),
+  requireCanAccessWorkspace("workspaceId"),
+  handleAsync((req) => queryApartments(req.body, toEntityAssignmentListViewer(req.user)))
+);
 
-apartmentsRoutes.post("/apartments", requireCanAccessProject("workspaceId", "projectId"), handleAsync(async (req) => {
+apartmentsRoutes.post(
+  "/apartments",
+  requirePermission(PERMISSIONS.APARTMENTS_CREATE),
+  requireCanAccessProject("workspaceId", "projectId"),
+  handleAsync(async (req) => {
   const result = await createApartment(req.body);
   if (result?.apartmentId && req.body.workspaceId) {
     auditAndDispatchEntityEvent({
@@ -42,9 +54,14 @@ apartmentsRoutes.post("/apartments", requireCanAccessProject("workspaceId", "pro
     });
   }
   return result;
-}));
+  })
+);
 
-apartmentsRoutes.patch("/apartments/:id", requireCanAccessProject("workspaceId", "projectId"), handleAsync(async (req) => {
+apartmentsRoutes.patch(
+  "/apartments/:id",
+  requirePermission(PERMISSIONS.APARTMENTS_UPDATE),
+  requireCanAccessProject("workspaceId", "projectId"),
+  handleAsync(async (req) => {
   const result = await updateApartment({ ...req.body, apartmentId: req.params.id });
   if (req.body.workspaceId) {
     auditAndDispatchEntityEvent({
@@ -59,11 +76,21 @@ apartmentsRoutes.patch("/apartments/:id", requireCanAccessProject("workspaceId",
     });
   }
   return result;
-}));
+  })
+);
 
-apartmentsRoutes.get("/apartments/:id", requireCanAccessWorkspace("workspaceId"), handleAsync((req) => getApartmentById(req.params.id)));
+apartmentsRoutes.get(
+  "/apartments/:id",
+  requirePermission(PERMISSIONS.APARTMENTS_READ),
+  requireCanAccessWorkspace("workspaceId"),
+  handleAsync((req) => getApartmentById(req.params.id, toEntityAssignmentListViewer(req.user)))
+);
 
-apartmentsRoutes.get("/apartments/:id/prices", requireCanAccessWorkspace("workspaceId"), handleAsync(async (req) => {
+apartmentsRoutes.get(
+  "/apartments/:id/prices",
+  requirePermission(PERMISSIONS.APARTMENTS_READ),
+  requireCanAccessWorkspace("workspaceId"),
+  handleAsync(async (req) => {
   const unitId = req.params.id;
   const [current, salePrices, monthlyRents] = await Promise.all([
     getCurrentPriceForUnit(unitId),
@@ -71,9 +98,14 @@ apartmentsRoutes.get("/apartments/:id/prices", requireCanAccessWorkspace("worksp
     listMonthlyRentsByUnitId(unitId),
   ]);
   return { current, salePrices, monthlyRents };
-}));
+  })
+);
 
-apartmentsRoutes.get("/apartments/:id/inventory", requireCanAccessWorkspace("workspaceId"), handleAsync(async (req) => {
+apartmentsRoutes.get(
+  "/apartments/:id/inventory",
+  requirePermission(PERMISSIONS.APARTMENTS_READ),
+  requireCanAccessWorkspace("workspaceId"),
+  handleAsync(async (req) => {
   const unitId = req.params.id;
   const [inventory, lock] = await Promise.all([
     getInventoryByUnitId(unitId),
@@ -85,17 +117,27 @@ apartmentsRoutes.get("/apartments/:id/inventory", requireCanAccessWorkspace("wor
     lock: lock ? { requestId: lock.requestId, type: lock.type } : null,
     effectiveStatus,
   };
-}));
+  })
+);
 
-apartmentsRoutes.patch("/apartments/:id/inventory", requireCanAccessWorkspace("workspaceId"), handleAsync(async (req) => {
+apartmentsRoutes.patch(
+  "/apartments/:id/inventory",
+  requirePermission(PERMISSIONS.APARTMENTS_UPDATE),
+  requireCanAccessWorkspace("workspaceId"),
+  handleAsync(async (req) => {
   const unitId = req.params.id;
   const body = req.body as { workspaceId?: string; inventoryStatus?: "available" | "locked" | "reserved" | "sold" };
   if (!body.workspaceId) throw new HttpError("workspaceId required", 400);
   const status = body.inventoryStatus ?? "available";
   return setInventoryStatus(unitId, body.workspaceId, status);
-}));
+  })
+);
 
-apartmentsRoutes.post("/apartments/:id/prices/sale", requireCanAccessWorkspace("workspaceId"), handleAsync(async (req) => {
+apartmentsRoutes.post(
+  "/apartments/:id/prices/sale",
+  requirePermission(PERMISSIONS.APARTMENTS_UPDATE),
+  requireCanAccessWorkspace("workspaceId"),
+  handleAsync(async (req) => {
   const unitId = req.params.id;
   const body = req.body as { workspaceId: string; price: number; currency?: string; validFrom?: string; validTo?: string };
   if (!body.workspaceId) throw new HttpError("workspaceId required", 400);
@@ -107,9 +149,14 @@ apartmentsRoutes.post("/apartments/:id/prices/sale", requireCanAccessWorkspace("
     validFrom: body.validFrom,
     validTo: body.validTo,
   });
-}));
+  })
+);
 
-apartmentsRoutes.post("/apartments/:id/prices/monthly-rent", requireCanAccessWorkspace("workspaceId"), handleAsync(async (req) => {
+apartmentsRoutes.post(
+  "/apartments/:id/prices/monthly-rent",
+  requirePermission(PERMISSIONS.APARTMENTS_UPDATE),
+  requireCanAccessWorkspace("workspaceId"),
+  handleAsync(async (req) => {
   const unitId = req.params.id;
   const body = req.body as { workspaceId: string; pricePerMonth: number; deposit?: number; currency?: string; validFrom?: string; validTo?: string };
   if (!body.workspaceId) throw new HttpError("workspaceId required", 400);
@@ -122,16 +169,26 @@ apartmentsRoutes.post("/apartments/:id/prices/monthly-rent", requireCanAccessWor
     validFrom: body.validFrom,
     validTo: body.validTo,
   });
-}));
+  })
+);
 
-apartmentsRoutes.patch("/apartments/:id/prices/sale/:priceId", requireCanAccessWorkspace("workspaceId"), handleAsync(async (req) => {
+apartmentsRoutes.patch(
+  "/apartments/:id/prices/sale/:priceId",
+  requirePermission(PERMISSIONS.APARTMENTS_UPDATE),
+  requireCanAccessWorkspace("workspaceId"),
+  handleAsync(async (req) => {
   const unitId = req.params.id;
   const priceId = req.params.priceId;
   const body = req.body as { validTo?: string; price?: number };
   return updateSalePrice(unitId, priceId, { validTo: body.validTo, price: body.price });
-}));
+  })
+);
 
-apartmentsRoutes.patch("/apartments/:id/prices/monthly-rent/:rentId", requireCanAccessWorkspace("workspaceId"), handleAsync(async (req) => {
+apartmentsRoutes.patch(
+  "/apartments/:id/prices/monthly-rent/:rentId",
+  requirePermission(PERMISSIONS.APARTMENTS_UPDATE),
+  requireCanAccessWorkspace("workspaceId"),
+  handleAsync(async (req) => {
   const unitId = req.params.id;
   const rentId = req.params.rentId;
   const body = req.body as { validTo?: string; pricePerMonth?: number; deposit?: number };
@@ -140,17 +197,27 @@ apartmentsRoutes.patch("/apartments/:id/prices/monthly-rent/:rentId", requireCan
     pricePerMonth: body.pricePerMonth,
     deposit: body.deposit,
   });
-}));
+  })
+);
 
-apartmentsRoutes.get("/apartments/:id/prices/calendar", requireCanAccessWorkspace("workspaceId"), handleAsync(async (req) => {
+apartmentsRoutes.get(
+  "/apartments/:id/prices/calendar",
+  requirePermission(PERMISSIONS.APARTMENTS_READ),
+  requireCanAccessWorkspace("workspaceId"),
+  handleAsync(async (req) => {
   const unitId = req.params.id;
   const from = (req.query.from as string) ?? "";
   const to = (req.query.to as string) ?? "";
   if (!from || !to) throw new HttpError("query from and to (YYYY-MM-DD) required", 400);
   return listPriceCalendarByUnitAndRange(unitId, from, to);
-}));
+  })
+);
 
-apartmentsRoutes.put("/apartments/:id/prices/calendar", requireCanAccessWorkspace("workspaceId"), handleAsync(async (req) => {
+apartmentsRoutes.put(
+  "/apartments/:id/prices/calendar",
+  requirePermission(PERMISSIONS.APARTMENTS_UPDATE),
+  requireCanAccessWorkspace("workspaceId"),
+  handleAsync(async (req) => {
   const unitId = req.params.id;
   const body = req.body as { date: string; price: number; minStay?: number; availability?: "available" | "blocked" | "reserved" };
   if (!body.date || typeof body.price !== "number") throw new HttpError("date and price required", 400);
@@ -162,7 +229,8 @@ apartmentsRoutes.put("/apartments/:id/prices/calendar", requireCanAccessWorkspac
     availability: body.availability,
   });
   return { ok: true };
-}));
+  })
+);
 
 apartmentsRoutes.post("/workspaces/:workspaceId/projects/:projectId/units/import/preview", requireCanAccessProject("workspaceId", "projectId"), requireAdmin, handleAsync(async (req) => {
   const workspaceId = req.params.workspaceId;
@@ -186,6 +254,7 @@ apartmentsRoutes.post("/workspaces/:workspaceId/projects/:projectId/units/import
 
 apartmentsRoutes.get(
   "/apartments/:id/requests",
+  requirePermission(PERMISSIONS.REQUESTS_READ),
   requireCanAccessWorkspace("workspaceId"),
   handleAsync(async (req) => {
     const apartmentId = req.params.id;
