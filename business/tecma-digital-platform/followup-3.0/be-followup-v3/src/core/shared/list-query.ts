@@ -1,11 +1,16 @@
 import { z } from "zod";
+import { MAX_LIST_SEARCH_TEXT_LENGTH } from "./searchTextRegex.js";
 
 export const ListQuerySchema = z.object({
   workspaceId: z.string().min(1),
   projectIds: z.array(z.string().min(1)).min(1),
   page: z.number().int().min(1).default(1),
   perPage: z.number().int().min(1).max(200).default(25),
-  searchText: z.string().optional(),
+  searchText: z.preprocess((v: unknown) => {
+    if (v === undefined || v === null || v === "") return undefined;
+    const s = String(v).trim().slice(0, MAX_LIST_SEARCH_TEXT_LENGTH);
+    return s === "" ? undefined : s;
+  }, z.string().optional()),
   sort: z
     .object({
       field: z.string(),

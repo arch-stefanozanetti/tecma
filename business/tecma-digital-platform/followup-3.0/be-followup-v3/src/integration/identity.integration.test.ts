@@ -3,13 +3,16 @@
  * Nessun import statico di moduli che leggono ENV prima del beforeAll.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { Server } from "node:http";
 import express from "express";
-import request from "supertest";
 import bcrypt from "bcryptjs";
+import { closeStable, listenStable, stableRequest } from "../test/stableHttpServer.js";
 import { MongoMemoryServer } from "mongodb-memory-server";
 
 describe("integration: identity (MDOO)", () => {
   let mongod: MongoMemoryServer;
+  let server: Server;
+  let origin: string;
 
   beforeAll(async () => {
     mongod = await MongoMemoryServer.create();
@@ -37,13 +40,23 @@ describe("integration: identity (MDOO)", () => {
       isDisabled: false,
       status: "active"
     });
+    const { v1Router } = await import("../routes/v1.js");
+    const httpApp = express();
+    httpApp.use(express.json());
+    httpApp.use("/v1", v1Router);
+    const x = await listenStable(httpApp);
+    server = x.server;
+    origin = x.origin;
   }, 45_000);
 
   afterAll(async () => {
+    await closeStable(server);
     const { disconnectDb } = await import("../config/db.js");
     await disconnectDb();
     await mongod?.stop();
   });
+
+  const st = () => stableRequest(origin);
 
   it("invited user without password cannot login", async () => {
     const { loginWithCredentials } = await import("../core/auth/auth.service.js");
@@ -82,16 +95,14 @@ describe("integration: identity (MDOO)", () => {
     expect(activated.accessToken).toBeTruthy();
     expect(activated.user).toMatchObject({ email: "invited-flow@test.local" });
     const login = await loginWithCredentials({ email: "invited-flow@test.local", password: "NewUserPass99" });
-    expect(login.user.permissions).toBeDefined();
-    expect(Array.isArray(login.user.permissions)).toBe(true);
+    expect(login.mfaRequired).toBe(false);
+    expect(login.user).toBeDefined();
+    expect(login.user!.permissions).toBeDefined();
+    expect(Array.isArray(login.user!.permissions)).toBe(true);
   });
 
   it("GET /v1/users returns 403 without users.read", async () => {
     const { signAccessToken } = await import("../core/auth/token.service.js");
-    const { v1Router } = await import("../routes/v1.js");
-    const app = express();
-    app.use(express.json());
-    app.use("/v1", v1Router);
     const collaboratorToken = signAccessToken({
       sub: "collab-1",
       email: "collab@test.local",
@@ -100,16 +111,12 @@ describe("integration: identity (MDOO)", () => {
       permissions: ["apartments.read", "deals.create", "deals.close"],
       projectId: null
     });
-    const res = await request(app).get("/v1/users").set("Authorization", `Bearer ${collaboratorToken}`);
+    const res = await st().get("/v1/users").set("Authorization", `Bearer ${collaboratorToken}`);
     expect(res.status).toBe(403);
   });
 
   it("GET /v1/users returns 200 for admin JWT", async () => {
     const { signAccessToken } = await import("../core/auth/token.service.js");
-    const { v1Router } = await import("../routes/v1.js");
-    const app = express();
-    app.use(express.json());
-    app.use("/v1", v1Router);
     const adminToken = signAccessToken({
       sub: "adm",
       email: "admin-identity@test.local",
@@ -118,9 +125,16 @@ describe("integration: identity (MDOO)", () => {
       permissions: ["*"],
       projectId: null
     });
-    const res = await request(app).get("/v1/users").set("Authorization", `Bearer ${adminToken}`);
+    const res = await st().get("/v1/users").set("Authorization", `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
     expect(res.body.users).toBeDefined();
     expect(Array.isArray(res.body.users)).toBe(true);
+  });
+
+  it("completeLoginWithMfa rifiuta token MFA non valido", async () => {
+    const { completeLoginWithMfa } = await import("../core/auth/auth.service.js");
+    await expect(completeLoginWithMfa({ mfaToken: "not-a-jwt", code: "123456" })).rejects.toMatchObject({
+      statusCode: 401
+    });
   });
 });

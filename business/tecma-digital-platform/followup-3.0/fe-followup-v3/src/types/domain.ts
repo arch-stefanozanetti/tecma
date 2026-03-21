@@ -618,7 +618,14 @@ export interface WorkspaceAiConfig {
   apiKeyMasked?: string;
 }
 
-export type WorkspaceEntitlementFeature = "publicApi" | "twilio" | "mailchimp" | "activecampaign";
+export type WorkspaceEntitlementFeature =
+  | "publicApi"
+  | "twilio"
+  | "mailchimp"
+  | "activecampaign"
+  | "aiApprovals"
+  | "reports"
+  | "integrations";
 
 export type WorkspaceEntitlementStatus = "inactive" | "pending_approval" | "active" | "suspended";
 
@@ -627,6 +634,8 @@ export interface WorkspaceEntitlementEffectiveRow {
   entitled: boolean;
   recordedStatus: WorkspaceEntitlementStatus | null;
   implicit: boolean;
+  /** Note su DB; null se capability implicita senza riga. */
+  recordedNotes: string | null;
 }
 
 export interface WorkspaceEntitlementRow {

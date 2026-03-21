@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * CI check: routes in clients/requests/apartments must use requireCanAccessWorkspace
- * or requireCanAccessProject. See docs/ROUTE_ACCESS_ALLOWLIST.md.
+ * CI check: route in clients/requests/apartments/webhook-configs/assets/client-documents/workspaces
+ * devono dichiarare guard di accesso. Vedi docs/ROUTE_ACCESS_ALLOWLIST.md.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -10,17 +10,25 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const routesDir = path.resolve(__dirname, "../src/routes/v1");
 
-const ROUTE_FILES = [
-  "clients.routes.ts",
-  "requests.routes.ts",
-  "apartments.routes.ts",
+const DEFAULT_GUARD =
+  /requireCanAccess(Workspace|Project)|requireAccessToWebhookConfigById\(\)|\bwithWorkspaceAccess\b|\bwithProjectAccess\b/;
+
+/** Workspaces: admin/permessi espliciti, requireCanAccessWorkspace, o lista con filtro in handler. */
+const WORKSPACE_GUARD =
+  /requireCanAccessWorkspace|requireCanAccessProject|requireAdmin|requireTecmaAdmin|requirePermission|requireAnyPermission|requirePermissionOrTecmaAdmin|workspace-list-self-filtered/;
+
+/** file → nome router exportato nel sorgente */
+const ROUTE_ROUTERS = [
+  { file: "clients.routes.ts", router: "clientsRoutes", guardPattern: DEFAULT_GUARD },
+  { file: "requests.routes.ts", router: "requestsRoutes", guardPattern: DEFAULT_GUARD },
+  { file: "apartments.routes.ts", router: "apartmentsRoutes", guardPattern: DEFAULT_GUARD },
+  { file: "webhook-configs.routes.ts", router: "webhookConfigsRoutes", guardPattern: DEFAULT_GUARD },
+  { file: "assets.routes.ts", router: "assetsRoutes", guardPattern: DEFAULT_GUARD },
+  { file: "client-documents.routes.ts", router: "clientDocumentsRoutes", guardPattern: DEFAULT_GUARD },
+  { file: "workspaces.routes.ts", router: "workspacesRoutes", guardPattern: WORKSPACE_GUARD },
 ];
 
-const ROUTER_NAMES = ["clientsRoutes", "requestsRoutes", "apartmentsRoutes"];
-const METHODS = ["get", "post", "patch", "put", "delete"];
-const GUARD_PATTERN = /requireCanAccess(Workspace|Project)/;
-
-function checkFile(filePath, routerName) {
+function checkFile(filePath, routerName, guardPattern) {
   const content = fs.readFileSync(filePath, "utf8");
   const lines = content.split("\n");
   const errors = [];
@@ -40,7 +48,7 @@ function checkFile(filePath, routerName) {
         i++;
         continue;
       }
-      if (!GUARD_PATTERN.test(block)) {
+      if (!guardPattern.test(block)) {
         errors.push({ line: i + 1, method, path: line.match(/"([^"]+)"/)?.[1] ?? "?", preview: line.trim().slice(0, 80) });
       }
       i = j + 1;
@@ -52,17 +60,16 @@ function checkFile(filePath, routerName) {
 }
 
 let failed = false;
-for (const file of ROUTE_FILES) {
+for (const { file, router, guardPattern } of ROUTE_ROUTERS) {
   const filePath = path.join(routesDir, file);
   if (!fs.existsSync(filePath)) {
     console.error(`[route-guards] File not found: ${filePath}`);
     process.exit(2);
   }
-  const routerName = file.replace(".routes.ts", "Routes");
-  const errors = checkFile(filePath, routerName);
+  const errors = checkFile(filePath, router, guardPattern);
   if (errors.length) {
     failed = true;
-    console.error(`[route-guards] ${file}: ${errors.length} route(s) missing requireCanAccessWorkspace/Project:`);
+    console.error(`[route-guards] ${file}: ${errors.length} route(s) missing access guard:`);
     for (const e of errors) {
       console.error(`  L${e.line}: ${e.method} ${e.path} — ${e.preview}`);
     }
@@ -70,7 +77,7 @@ for (const file of ROUTE_FILES) {
 }
 
 if (failed) {
-  console.error("\n[route-guards] Add requireCanAccessWorkspace or requireCanAccessProject to every route. See docs/ROUTE_ACCESS_ALLOWLIST.md");
+  console.error("\n[route-guards] Add access guards per docs/ROUTE_ACCESS_ALLOWLIST.md");
   process.exit(1);
 }
 console.log("[route-guards] OK: all protected routes have access guards");

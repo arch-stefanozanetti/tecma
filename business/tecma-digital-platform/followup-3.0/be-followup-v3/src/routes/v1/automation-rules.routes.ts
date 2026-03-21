@@ -4,6 +4,9 @@ import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
 import { requirePermission } from "../permissionMiddleware.js";
 import { PERMISSIONS } from "../../core/rbac/permissions.js";
+import { requireWorkspaceEntitled } from "../workspaceEntitlementMiddleware.js";
+
+const entitledIntegrationsWs = requireWorkspaceEntitled("integrations", (req) => req.params.workspaceId);
 import {
   listByWorkspace as listAutomationRules,
   create as createAutomationRule,
@@ -14,12 +17,12 @@ import {
 
 export const automationRulesRoutes = Router();
 
-automationRulesRoutes.get("/workspaces/:workspaceId/automation-rules", requirePermission(PERMISSIONS.INTEGRATIONS_READ), handleAsync(async (req) => {
+automationRulesRoutes.get("/workspaces/:workspaceId/automation-rules", requirePermission(PERMISSIONS.INTEGRATIONS_READ), entitledIntegrationsWs, handleAsync(async (req) => {
   const rules = await listAutomationRules(req.params.workspaceId);
   return { data: rules };
 }));
 
-automationRulesRoutes.post("/workspaces/:workspaceId/automation-rules", requirePermission(PERMISSIONS.INTEGRATIONS_CREATE), handleAsync(async (req) => {
+automationRulesRoutes.post("/workspaces/:workspaceId/automation-rules", requirePermission(PERMISSIONS.INTEGRATIONS_CREATE), entitledIntegrationsWs, handleAsync(async (req) => {
   const body = z.record(z.unknown()).parse(req.body);
   const rule = await createAutomationRule({ ...body, workspaceId: req.params.workspaceId });
   return { rule };

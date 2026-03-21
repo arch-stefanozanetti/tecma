@@ -17,6 +17,10 @@
 - `scripts/check-no-secrets.sh` is mandatory and blocking in CI.
 - PRs fail on potential hardcoded secrets.
 - No bypass except repository admin emergency hotfix with post-incident review.
+- **Audit dipendenze (policy Followup 3.0):**
+  - **BE** (`ci-be.yml`): bloccante `npm audit --omit=dev --audit-level=high` (solo dipendenze di runtime). Step aggiuntivo **informativo** `npm audit --audit-level=high` sull’intero albero (include devDependencies, es. Stryker): `continue-on-error: true` così la PR resta verde ma il log mostra advisory su toolchain.
+  - **FE** (`ci-fe.yml`): bloccante `pnpm audit --prod --audit-level=high`. Step informativo sull’albero completo con `continue-on-error: true`.
+  - DevDependencies con advisory noti vanno **tracciati** (issue o risk acceptance) e riesaminati a release / trimestralmente.
 
 ## 4) Deployment checklist
 - Confirm required env vars are set server-side (not in repo).
@@ -41,7 +45,8 @@
 
 ## 7) Dependency risk e vulnerability
 
-- Eseguire regolarmente `npm audit` (BE) e `pnpm audit` (FE). Vulnerabilità **high** devono essere mitigate o coperte da risk acceptance documentata.
-- **xlsx (BE):** vulnerabilità note; fix non sempre disponibile. Risk acceptance: uso limitato a import/export gestiti lato backend; nessun input non fidato diretto. Owner: team backend. Review: semestrale. Documentare in un foglio di risk acceptance interno (data, firmatario, scadenza review).
-- **serialize-javascript (FE, transitiva):** monitorare aggiornamenti della catena. In caso di high non risolvibile, valutare override o risk acceptance con stesso schema (owner, scadenza).
-- Prima di dichiarare “enterprise-ready”: audit senza high non mitigati oppure risk acceptance formale per ogni eccezione.
+- **Runtime vs dev:** la barra “verde” in CI è sull’**installazione di produzione** (BE: `npm audit --omit=dev`; FE: `pnpm audit --prod`), severità **high+**. Le devDependencies restano visibili nello step audit “informativo” e vanno gestite come sopra §3.
+- Eseguire regolarmente anche in locale `npm audit` / `pnpm audit` prima di release importanti.
+- **Import Excel unità (BE):** parsing con `read-excel-file` (sostituisce il pacchetto `xlsx` deprecato dal punto di vista advisory).
+- **serialize-javascript (FE, transitiva):** monitorare aggiornamenti della catena. In caso di high non risolvibile nel solo albero `--prod`, valutare override o risk acceptance (owner, scadenza review).
+- Prima di dichiarare “enterprise-ready”: nessun **high+** non mitigato sulle dipendenze **effettivamente ship** (runtime); per dev/tooling, risk acceptance esplicita se persistente.

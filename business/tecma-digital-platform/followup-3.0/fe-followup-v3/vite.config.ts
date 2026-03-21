@@ -9,10 +9,18 @@ const appVersion =
   typeof process.env.VITE_APP_VERSION === "string" && process.env.VITE_APP_VERSION
     ? process.env.VITE_APP_VERSION
     : (pkg?.version ?? "0.0.0");
+/** Default 127.0.0.1: su macOS `localhost` può risolvere a ::1 e il proxy fallisce con ECONNREFUSED → "Failed to fetch". */
 const proxyTarget =
   typeof process.env.VITE_PROXY_TARGET === "string" && process.env.VITE_PROXY_TARGET
     ? process.env.VITE_PROXY_TARGET
-    : "http://localhost:8080";
+    : "http://127.0.0.1:8080";
+
+const apiProxy = {
+  "/v1": {
+    target: proxyTarget,
+    changeOrigin: true
+  }
+} as const;
 
 export default defineConfig({
   plugins: [
@@ -20,6 +28,10 @@ export default defineConfig({
     VitePWA({
       registerType: "prompt",
       injectRegister: null,
+      /** Nessuno SW in dev: evita che intercetti /v1 mentre il proxy punta a 127.0.0.1:8080. */
+      devOptions: {
+        enabled: false
+      },
       includeAssets: ["apple-touch-icon.svg", "icon-192.png", "icon-512.png", "itd-logo.svg", "offline.html"],
       manifest: {
         name: "Followup 3.0",
@@ -90,12 +102,11 @@ export default defineConfig({
   },
   server: {
     port: 5177,
-    proxy: {
-      "/v1": {
-        target: proxyTarget,
-        changeOrigin: true
-      }
-    }
+    proxy: { ...apiProxy }
+  },
+  /** Stesso proxy del dev server: senza questo, `vite preview` risponde a /v1 con SPA/404 e le fetch falliscono. */
+  preview: {
+    proxy: { ...apiProxy }
   },
   test: {
     globals: true,

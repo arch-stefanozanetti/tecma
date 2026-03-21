@@ -11,6 +11,7 @@ import {
   viewerAssignmentUserId,
   type EntityAssignmentListViewer,
 } from "../workspaces/entity-assignment-query.util.js";
+import { escapeForMongoRegexSubstring } from "../shared/searchTextRegex.js";
 
 const ObjectIdLikeSchema = z.string().min(1);
 
@@ -102,10 +103,10 @@ const buildMatch = (q: ListQueryInput) => {
   }
 
   if (q.searchText && q.searchText.trim()) {
-    const safe = q.searchText.trim();
+    const lit = escapeForMongoRegexSubstring(q.searchText.trim());
     match.$or = [
-      { name: { $regex: safe, $options: "i" } },
-      { code: { $regex: safe, $options: "i" } }
+      { name: { $regex: lit, $options: "i" } },
+      { code: { $regex: lit, $options: "i" } },
     ];
   }
 

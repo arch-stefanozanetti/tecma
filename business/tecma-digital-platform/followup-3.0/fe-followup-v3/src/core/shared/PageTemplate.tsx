@@ -18,6 +18,7 @@ import {
   Menu,
   Plug,
   Settings,
+  Shield,
   UserCircle,
   Users,
 } from "lucide-react";
@@ -30,6 +31,7 @@ import { LogoTecma } from "../../components/LogoTecma";
 import type { ProjectAccessProject } from "../../types/domain";
 import { clearProjectScope, WorkspaceOverrideProvider } from "../../auth/projectScope";
 import { followupApi } from "../../api/followupApi";
+import { isBssAuth } from "../../api/authApi";
 import { clearTokens, getRefreshToken } from "../../api/http";
 import { isSectionEnabledByFeature, isPriceAvailabilityRelevant } from "../features";
 import { Inbox } from "./Inbox";
@@ -738,6 +740,19 @@ export const PageTemplate = ({
                       <Layers className="h-4 w-4" />
                       Cambia progetti
                     </button>
+                    {!isBssAuth() && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          onSectionChange("accountSecurity");
+                        }}
+                        className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted"
+                      >
+                        <Shield className="h-4 w-4" />
+                        Sicurezza (MFA)
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={handleLogout}

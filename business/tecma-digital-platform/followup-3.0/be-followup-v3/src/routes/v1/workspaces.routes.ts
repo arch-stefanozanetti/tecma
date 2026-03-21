@@ -57,7 +57,7 @@ import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
 import { requireAdmin, requireTecmaAdmin } from "../authMiddleware.js";
 import { requireCanAccessWorkspace } from "../accessMiddleware.js";
-import { requireAnyPermission, requirePermission } from "../permissionMiddleware.js";
+import { requireAnyPermission, requirePermission, requirePermissionOrTecmaAdmin } from "../permissionMiddleware.js";
 import { PERMISSIONS } from "../../core/rbac/permissions.js";
 import { record as auditRecord } from "../../core/audit/audit-log.service.js";
 import { safeAsync } from "../../core/shared/safeAsync.js";
@@ -76,18 +76,24 @@ export const workspacesRoutes = Router();
 
 workspacesRoutes.get(
   "/workspaces",
+  // route-guard: workspace-list-self-filtered (filtro membership in handler)
   handleAsync(async (req) => {
     const all = await listWorkspaces();
     const isAdmin = req.user?.isAdmin === true;
+    const isTecma = req.user?.system_role === "tecma_admin" || req.user?.isTecmaAdmin === true;
     const email = typeof req.user?.email === "string" ? req.user.email : "";
-    if (isAdmin || !email) return all;
+    if (isAdmin || isTecma || !email) return all;
     const allowedIds = await listWorkspaceIdsForUser(email);
     const set = new Set(allowedIds);
     return all.filter((w) => set.has(w._id));
   })
 );
 
-workspacesRoutes.get("/workspaces/:id/users", handleAsync((req) => listWorkspaceUsers(req.params.id)));
+workspacesRoutes.get(
+  "/workspaces/:id/users",
+  requireCanAccessWorkspace("id"),
+  handleAsync((req) => listWorkspaceUsers(req.params.id))
+);
 workspacesRoutes.post(
   "/workspaces/:id/users",
   requireAdmin,
@@ -159,6 +165,7 @@ workspacesRoutes.delete(
 
 workspacesRoutes.get(
   "/workspaces/:id/users/:userId/projects",
+  requireCanAccessWorkspace("id"),
   handleAsync((req) => {
     const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
     return listWorkspaceUserProjects(req.params.id, userId);
@@ -216,11 +223,13 @@ workspacesRoutes.delete(
 
 workspacesRoutes.get(
   "/workspaces/:id/projects",
+  requireCanAccessWorkspace("id"),
   handleAsync((req) => listWorkspaceProjects(req.params.id).then((rows) => ({ data: rows })))
 );
 
 workspacesRoutes.get(
   "/workspaces/:workspaceId/price-availability",
+  requireCanAccessWorkspace("workspaceId"),
   requirePermission(PERMISSIONS.APARTMENTS_READ),
   handleAsync(async (req) => {
     const workspaceId = req.params.workspaceId;
@@ -243,6 +252,7 @@ workspacesRoutes.get(
 
 workspacesRoutes.get(
   "/workspaces/:workspaceId/entities/:entityType/:entityId/assignments",
+  requireCanAccessWorkspace("workspaceId"),
   requireAnyPermission(
     PERMISSIONS.CLIENTS_READ,
     PERMISSIONS.APARTMENTS_READ,
@@ -306,6 +316,7 @@ workspacesRoutes.delete(
 
 workspacesRoutes.get(
   "/workspaces/:id/users/:userId/assignments",
+  requireCanAccessWorkspace("id"),
   requirePermission(PERMISSIONS.SETTINGS_READ),
   handleAsync((req) => {
     const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
@@ -425,10 +436,15 @@ workspacesRoutes.delete(
 
 workspacesRoutes.get(
   "/workspaces/:workspaceId/additional-infos",
+  requireCanAccessWorkspace("workspaceId"),
   handleAsync((req) => listAdditionalInfos(req.params.workspaceId).then((rows) => ({ data: rows })))
 );
 
-workspacesRoutes.get("/workspaces/:id", handleAsync((req) => getWorkspaceById(req.params.id)));
+workspacesRoutes.get(
+  "/workspaces/:id",
+  requireCanAccessWorkspace("id"),
+  handleAsync((req) => getWorkspaceById(req.params.id))
+);
 workspacesRoutes.get(
   "/workspaces/:id/platform-api-keys",
   requireAdmin,
@@ -512,7 +528,7 @@ workspacesRoutes.get(
 
 workspacesRoutes.get(
   "/workspaces/:id/entitlements",
-  requirePermission(PERMISSIONS.SETTINGS_READ),
+  requirePermissionOrTecmaAdmin(PERMISSIONS.SETTINGS_READ),
   requireCanAccessWorkspace("id"),
   handleAsync((req) =>
     listEffectiveWorkspaceEntitlements(req.params.id).then((data) => ({ data }))
@@ -551,6 +567,7 @@ workspacesRoutes.patch(
 
 workspacesRoutes.get(
   "/workspaces/:id/ai-config",
+  requireCanAccessWorkspace("id"),
   requirePermission(PERMISSIONS.SETTINGS_READ),
   handleAsync((req) => getWorkspaceAiConfig(req.params.id))
 );

@@ -11,6 +11,8 @@ import {
 } from "../auth/inviteToken.service.js";
 import { isInviteEmailDeliverable, sendInviteEmail } from "../email/email.service.js";
 import { signAccessToken, type AccessTokenPayload } from "../auth/token.service.js";
+import { assertPasswordMeetsPolicy } from "../auth/passwordPolicy.js";
+import { recordSecurityEvent } from "../compliance/security-audit.service.js";
 import { createSession } from "../auth/refreshSession.service.js";
 import {
   USER_COLLECTION_CANDIDATES,
@@ -155,9 +157,7 @@ export async function setPasswordFromInvite(
   if (!doc) {
     throw new HttpError("Utente non trovato", 400);
   }
-  if (params.password.length < 8) {
-    throw new HttpError("Password minimo 8 caratteri", 400);
-  }
+  assertPasswordMeetsPolicy(params.password);
   const hash = await bcrypt.hash(params.password, 12);
   await usersColl().updateOne(
     { _id: doc._id },
@@ -173,6 +173,14 @@ export async function setPasswordFromInvite(
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,
     success: true
+  });
+  void recordSecurityEvent({
+    action: "auth.invite_password_set",
+    entityType: "user",
+    entityId: payload.sub,
+    userId: payload.sub,
+    ip: meta.ipAddress ?? undefined,
+    userAgent: meta.userAgent ?? undefined
   });
   return {
     accessToken,

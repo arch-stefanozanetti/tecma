@@ -13,7 +13,11 @@ export type AuthEventType =
   | "login_failed"
   | "password_reset_requested"
   | "password_reset_completed"
-  | "invite_accepted";
+  | "invite_accepted"
+  | "mfa_challenge_issued"
+  | "mfa_failed"
+  | "mfa_success"
+  | "mfa_disabled";
 
 export interface AuthEventDoc {
   _id?: import("mongodb").ObjectId;

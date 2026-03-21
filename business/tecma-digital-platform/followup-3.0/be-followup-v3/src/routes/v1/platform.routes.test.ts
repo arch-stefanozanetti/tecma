@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import request from "supertest";
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
+import type { Server } from "node:http";
 import express from "express";
+import { closeStable, listenStable, stableRequest } from "../../test/stableHttpServer.js";
 import { platformRoutes } from "./platform.routes.js";
 
 vi.mock("../../config/env.js", async (importOriginal) => {
@@ -51,7 +52,26 @@ vi.mock("../../config/db.js", () => ({
   }),
 }));
 
+const platformApp = express();
+platformApp.use(express.json());
+platformApp.use("/v1/platform", platformRoutes);
+
 describe("platform.routes", () => {
+  let server: Server;
+  let origin: string;
+
+  beforeAll(async () => {
+    const x = await listenStable(platformApp);
+    server = x.server;
+    origin = x.origin;
+  });
+
+  afterAll(async () => {
+    await closeStable(server);
+  });
+
+  const st = () => stableRequest(origin);
+
   beforeEach(() => {
     vi.clearAllMocks();
     queryApartmentsMock.mockResolvedValue({ data: [], paginationInfo: {} });
@@ -60,11 +80,7 @@ describe("platform.routes", () => {
   });
 
   it("POST /clients/lite/query usa workspace della chiave e interseca projectIds", async () => {
-    const app = express();
-    app.use(express.json());
-    app.use("/v1/platform", platformRoutes);
-
-    const res = await request(app)
+    const res = await st()
       .post("/v1/platform/clients/lite/query")
       .set("x-api-key", "k-test")
       .send({ projectIds: ["p1"] });
@@ -75,11 +91,7 @@ describe("platform.routes", () => {
   });
 
   it("POST /clients/lite/query 403 se projectIds fuori scope", async () => {
-    const app = express();
-    app.use(express.json());
-    app.use("/v1/platform", platformRoutes);
-
-    const res = await request(app)
+    const res = await st()
       .post("/v1/platform/clients/lite/query")
       .set("x-api-key", "k-test")
       .send({ projectIds: ["other"] });

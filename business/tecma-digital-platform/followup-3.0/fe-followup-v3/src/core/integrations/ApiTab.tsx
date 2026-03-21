@@ -104,6 +104,19 @@ export function ApiTab({
       [
         { order: 1, delayMinutes: 0, channel: "email", templateSubject: "Follow-up richiesta {{entityId}}", templateBody: "Ciao {{clientName}}, ti aggiorniamo sulla pratica {{entityId}}" },
         { order: 2, delayMinutes: 60, channel: "webhook", webhookUrl: "https://example.com/webhook", templateBody: "payload" },
+        {
+          order: 3,
+          delayMinutes: 0,
+          channel: "mailchimp",
+          mailchimpListId: "sostituisci_con_audience_id",
+          mailchimpStatus: "subscribed",
+        },
+        {
+          order: 4,
+          delayMinutes: 0,
+          channel: "activecampaign",
+          activecampaignListId: "sostituisci_con_list_id_opzionale",
+        },
       ],
       null,
       2,

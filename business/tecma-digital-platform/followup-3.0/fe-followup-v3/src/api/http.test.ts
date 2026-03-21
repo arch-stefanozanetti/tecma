@@ -9,7 +9,8 @@ import {
   putJson,
   patchJson,
   deleteJson,
-  API_BASE_URL
+  API_BASE_URL,
+  HttpApiError
 } from "./http";
 
 const STORAGE_ACCESS = "followup3.accessToken";
@@ -129,6 +130,31 @@ describe("http", () => {
       );
 
       await expect(getJson("/missing")).rejects.toThrow(/404|Not found/);
+    });
+
+    it("risposta JSON errore lancia HttpApiError con code e hint", async () => {
+      const mockFetch = vi.mocked(fetch);
+      mockFetch.mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            error: "Policy",
+            code: "PASSWORD_POLICY",
+            hint: "Aggiungi un numero."
+          }),
+          { status: 400 }
+        )
+      );
+
+      try {
+        await getJson("/x");
+        expect.fail("expected HttpApiError");
+      } catch (e) {
+        expect(e).toBeInstanceOf(HttpApiError);
+        const he = e as HttpApiError;
+        expect(he.status).toBe(400);
+        expect(he.code).toBe("PASSWORD_POLICY");
+        expect(he.hint).toBe("Aggiungi un numero.");
+      }
     });
 
     it("fetch in errore lancia con messaggio utile", async () => {

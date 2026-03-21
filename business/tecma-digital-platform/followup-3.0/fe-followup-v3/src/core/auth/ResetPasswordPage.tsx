@@ -1,6 +1,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { followupApi } from "../../api/followupApi";
+import { HttpApiError } from "../../api/http";
 import { Button } from "../../components/ui/button";
 import { PasswordInput } from "../../components/ui/password-input";
 import { LogoTecma } from "../../components/LogoTecma";
@@ -34,7 +35,11 @@ export const ResetPasswordPage = () => {
       await followupApi.resetPassword(token, password);
       setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Reset non riuscito.");
+      if (err instanceof HttpApiError && err.code === "PASSWORD_POLICY" && err.hint) {
+        setError(`${err.message} ${err.hint}`);
+      } else {
+        setError(err instanceof Error ? err.message : "Reset non riuscito.");
+      }
     } finally {
       setLoading(false);
     }

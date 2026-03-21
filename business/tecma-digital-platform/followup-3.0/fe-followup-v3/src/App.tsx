@@ -20,6 +20,7 @@ import { WorkflowConfigPage } from "./core/workflows/WorkflowConfigPage";
 import { HCMasterCatalogPage } from "./core/hc/HCMasterCatalogPage";
 import { TemplateConfigPage } from "./core/templates/TemplateConfigPage";
 import { LoginPage } from "./core/auth/LoginPage";
+import { AccountSecurityPage } from "./core/auth/AccountSecurityPage";
 import { SetPasswordFromInvitePage } from "./core/auth/SetPasswordFromInvitePage";
 import { ResetPasswordPage } from "./core/auth/ResetPasswordPage";
 import { ForgotPasswordPage } from "./core/auth/ForgotPasswordPage";
@@ -221,6 +222,21 @@ const renderSection = (
     );
   }
 
+  if (section === "tecmaEntitlements") {
+    if (!isTecmaAdmin) {
+      return (
+        <PageSimple title="Accesso negato" description="Solo amministratori Tecma possono gestire gli entitlement per workspace.">
+          <p className="text-sm text-muted-foreground">Verifica il ruolo sull’account o contatta Tecma.</p>
+        </PageSimple>
+      );
+    }
+    return (
+      <PageSimple title="Entitlement workspace" description="Attiva o sospendi moduli commerciali e UI per ogni workspace (audit sul backend).">
+        <TecmaEntitlementsPage workspaceId={workspaceId} isTecmaAdmin />
+      </PageSimple>
+    );
+  }
+
   if (section === "workflowConfig") {
     return (
       <PageSimple title="Configurazione workflow" description="Workflow, stati e transizioni per le trattative (solo admin).">
@@ -305,29 +321,6 @@ const renderSection = (
     return <IntegrationsPage workspaceId={workspaceId} />;
   }
 
-  if (section === "tecmaEntitlements") {
-    if (!isTecmaAdmin) {
-      return (
-        <PageSimple
-          title="Accesso riservato"
-          description="La console entitlement è riservata agli amministratori Tecma."
-        >
-          <p className="text-sm text-muted-foreground">
-            Se ritieni di dovervi accedere, verifica che il tuo utente abbia il ruolo di sistema corretto e ripeti il login.
-          </p>
-        </PageSimple>
-      );
-    }
-    return (
-      <PageSimple
-        title="Console Tecma — entitlement"
-        description="Attivazione e sospensione dei moduli commerciali per il workspace selezionato nell’header."
-      >
-        <TecmaEntitlementsPage workspaceId={workspaceId} />
-      </PageSimple>
-    );
-  }
-
   if (section === "inbox") {
     return (
       <InboxPage
@@ -351,6 +344,14 @@ const renderSection = (
 
   if (section === "projects") {
     return <ProjectsPage />;
+  }
+
+  if (section === "accountSecurity") {
+    return (
+      <PageSimple title="Sicurezza account" description="Autenticazione a due fattori (TOTP) e codici di backup.">
+        <AccountSecurityPage />
+      </PageSimple>
+    );
   }
 
   if (section === "apartments") {
@@ -462,6 +463,10 @@ export const App = () => {
     }
     if (pathname.startsWith("/projects")) {
       setSection("projects");
+      return;
+    }
+    if (pathname === "/account/security") {
+      setSection("accountSecurity");
       return;
     }
     if (pathname === "/" || pathname === "") {

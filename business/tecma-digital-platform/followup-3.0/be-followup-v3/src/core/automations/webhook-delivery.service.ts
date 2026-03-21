@@ -3,6 +3,7 @@
  */
 import crypto from "crypto";
 import type { WebhookConfigRow } from "./webhook-configs.service.js";
+import { assertSafeWebhookDeliveryUrl } from "./webhook-url-safety.js";
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
@@ -22,6 +23,7 @@ export async function deliverWebhook(
   eventType: string,
   payload: Record<string, unknown>
 ): Promise<void> {
+  await assertSafeWebhookDeliveryUrl(config.url);
   const body: WebhookPayload = {
     event: eventType,
     at: new Date().toISOString(),
@@ -48,6 +50,7 @@ export async function deliverWebhook(
         method: "POST",
         headers,
         body: bodyStr,
+        redirect: "error",
       });
       if (res.ok) return;
       lastError = new Error(`HTTP ${res.status}`);

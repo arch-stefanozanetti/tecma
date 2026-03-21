@@ -7,9 +7,9 @@ import { ENV, isProductionLike } from "./config/env.js";
 import { connectDb } from "./config/db.js";
 import { ensureCoreIndexes } from "./config/ensureIndexes.js";
 import { v1Router } from "./routes/v1.js";
-import { platformRoutes } from "./routes/v1/platform.routes.js";
 import { customerPortalPublicRoutes, customerPortalRoutes } from "./routes/v1/customer-portal.routes.js";
 import { ensureDefaultRoleDefinitions } from "./core/rbac/roleDefinitions.service.js";
+import { ensureDefaultPrivacyPolicy } from "./core/gdpr/legal-documents.service.js";
 import { logger } from "./observability/logger.js";
 import { initOtel, shutdownOtel } from "./observability/otel.js";
 import { requestContextMiddleware } from "./routes/requestContextMiddleware.js";
@@ -56,6 +56,9 @@ const bootstrap = async () => {
   await ensureDefaultRoleDefinitions().catch((err) => {
     logger.error({ err }, "[rbac] ensureDefaultRoleDefinitions failed");
   });
+  await ensureDefaultPrivacyPolicy().catch((err) => {
+    logger.error({ err }, "[legal] ensureDefaultPrivacyPolicy failed");
+  });
 
   const app = express();
   if (isProductionLike()) {
@@ -74,7 +77,7 @@ const bootstrap = async () => {
 
   app.use("/v1/portal", customerPortalPublicRoutes);
   app.use("/v1/portal", requireAuth, customerPortalRoutes);
-  app.use("/v1/platform", platformRoutes);
+  /** Platform API: montata una sola volta sotto /v1 via v1Router (vedi routes/v1.ts). */
   app.use("/v1", v1Router);
 
   const server = http.createServer(

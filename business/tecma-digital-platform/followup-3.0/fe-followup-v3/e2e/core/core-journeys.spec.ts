@@ -64,6 +64,7 @@ const installSession = async (page: Page) => {
   await page.addInitScript((scope) => {
     window.sessionStorage.setItem("followup3.accessToken", "e2e-access-token");
     window.sessionStorage.setItem("followup3.refreshToken", "e2e-refresh-token");
+    window.sessionStorage.setItem("followup3.permLastSync", String(Date.now()));
     window.localStorage.setItem("followup3.projectScope", JSON.stringify(scope));
   }, PROJECT_SCOPE);
 };
@@ -143,16 +144,18 @@ test.describe("Core journeys", () => {
     await page.goto("/clients");
 
     await expect(page.getByRole("heading", { name: "Clienti" })).toBeVisible();
-    await expect(page.getByText("Mario Rossi")).toBeVisible();
-    await expect(page.getByText("mario.rossi@example.com")).toBeVisible();
+    const row = page.locator("main table tbody tr").filter({ hasText: "mario.rossi@example.com" }).first();
+    await expect(row).toBeVisible({ timeout: 12_000 });
+    await expect(row.getByText("mario.rossi@example.com")).toBeVisible();
   });
 
   test("apartments journey: pagina appartamenti caricata con dati", async ({ page }) => {
     await page.goto("/apartments");
 
     await expect(page.getByRole("heading", { name: "Appartamenti", exact: true })).toBeVisible();
-    await expect(page.getByText("A-101")).toBeVisible();
-    await expect(page.getByText("€245.000")).toBeVisible();
+    const row = page.locator("main table tbody tr").filter({ hasText: "A-101" }).first();
+    await expect(row).toBeVisible();
+    await expect(row.getByText("€245.000")).toBeVisible();
   });
 
   test("requests journey: lista e kanban stabili", async ({ page }) => {

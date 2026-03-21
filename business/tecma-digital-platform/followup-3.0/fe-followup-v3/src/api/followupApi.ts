@@ -3,12 +3,81 @@ import {
   getJson,
   getAccessToken,
   API_BASE_URL,
+  HttpApiError,
   patchJson,
   postJson,
   postFormData,
   putJson,
   setTokens
 } from "./http";
+
+/** Utente sessione come restituito da login / MFA verify. */
+export type FollowupAuthUser = {
+  id: string;
+  email: string;
+  role: string | null;
+  isAdmin: boolean;
+  permissions?: string[];
+  projectId?: string | null;
+  system_role?: string;
+  isTecmaAdmin?: boolean;
+  mfaEnabled?: boolean;
+};
+
+export type FollowupLoginResponse =
+  | { mfaRequired: true; mfaToken: string; expiresIn?: string }
+  | {
+      mfaRequired: false;
+      accessToken: string;
+      refreshToken: string;
+      expiresIn?: string;
+      user: FollowupAuthUser;
+    };
+
+async function postAuthLogin(email: string, password: string): Promise<FollowupLoginResponse> {
+  const res = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: email.trim(), password })
+  });
+  const text = await res.text();
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    if (!res.ok) {
+      throw new HttpApiError(text || `Errore HTTP ${res.status}`, { status: res.status });
+    }
+    throw new Error(text || "Risposta di login non valida");
+  }
+  const p = parsed as Record<string, unknown>;
+  if (!res.ok) {
+    const msg =
+      typeof p.error === "string" && p.error.length > 0 ? p.error : text || `Errore HTTP ${res.status}`;
+    throw new HttpApiError(msg, {
+      status: res.status,
+      code: typeof p.code === "string" ? p.code : undefined,
+      hint: typeof p.hint === "string" ? p.hint : undefined
+    });
+  }
+  if (p.mfaRequired === true) {
+    const mfaToken = typeof p.mfaToken === "string" ? p.mfaToken : "";
+    if (!mfaToken) throw new Error("Risposta MFA incompleta dal server");
+    return {
+      mfaRequired: true,
+      mfaToken,
+      expiresIn: typeof p.expiresIn === "string" ? p.expiresIn : undefined
+    };
+  }
+  const user = p.user as FollowupAuthUser;
+  return {
+    mfaRequired: false,
+    accessToken: String(p.accessToken ?? ""),
+    refreshToken: String(p.refreshToken ?? ""),
+    expiresIn: typeof p.expiresIn === "string" ? p.expiresIn : undefined,
+    user
+  };
+}
 import type {
   AdditionalInfoCreateInput,
   AdditionalInfoRow,
@@ -972,6 +1041,40 @@ export const followupApi = {
     ),
   deleteMetaWhatsAppConfig: (workspaceId: string) =>
     deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/meta-whatsapp/config`),
+  getMailchimpConnectorConfig: (workspaceId: string) =>
+    getJson<{
+      config: {
+        _id: string;
+        workspaceId: string;
+        connectorId: string;
+        config: { apiKeyMasked?: string };
+        updatedAt: string;
+      } | null;
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/mailchimp/config`),
+  saveMailchimpConnectorConfig: (workspaceId: string, body: { apiKey: string }) =>
+    postJson<{ config: Record<string, unknown> }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/connectors/mailchimp/config`,
+      body
+    ),
+  deleteMailchimpConnectorConfig: (workspaceId: string) =>
+    deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/mailchimp/config`),
+  getActiveCampaignConnectorConfig: (workspaceId: string) =>
+    getJson<{
+      config: {
+        _id: string;
+        workspaceId: string;
+        connectorId: string;
+        config: { apiKeyMasked?: string; apiBaseUrl?: string };
+        updatedAt: string;
+      } | null;
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/activecampaign/config`),
+  saveActiveCampaignConnectorConfig: (workspaceId: string, body: { apiKey: string; apiBaseUrl?: string }) =>
+    postJson<{ config: Record<string, unknown> }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/connectors/activecampaign/config`,
+      body
+    ),
+  deleteActiveCampaignConnectorConfig: (workspaceId: string) =>
+    deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/activecampaign/config`),
   testMetaWhatsAppMessage: (
     workspaceId: string,
     body: { to: string; templateName: string; languageCode: string; bodyParameters?: string[] }
@@ -988,33 +1091,20 @@ export const followupApi = {
       page: 1,
       perPage: 5,
     }),
-  login: (email: string, password: string) =>
+  login: (email: string, password: string) => postAuthLogin(email, password),
+  verifyMfaLogin: (mfaToken: string, code: string) =>
     postJson<{
       accessToken: string;
       refreshToken: string;
       expiresIn?: string;
-      user: {
-        id: string;
-        email: string;
-        role: string | null;
-        isAdmin: boolean;
-        permissions?: string[];
-        projectId?: string | null;
-        system_role?: string;
-        isTecmaAdmin?: boolean;
-      };
-    }>("/auth/login", { email, password }),
-  me: () =>
-    getJson<{
-      id: string;
-      email: string;
-      role: string | null;
-      isAdmin: boolean;
-      permissions?: string[];
-      projectId?: string | null;
-      system_role?: string;
-      isTecmaAdmin?: boolean;
-    }>("/auth/me"),
+      user: FollowupAuthUser;
+    }>("/auth/mfa/verify", { mfaToken, code: code.trim() }),
+  startMfaSetup: () => postJson<{ otpauthUrl: string }>("/auth/mfa/setup/start", {}),
+  confirmMfaSetup: (code: string) =>
+    postJson<{ backupCodes: string[] }>("/auth/mfa/setup/confirm", { code: code.trim().replace(/\s/g, "") }),
+  disableMfa: (code: string) =>
+    postJson<{ ok: true }>("/auth/mfa/disable", { code: code.trim().replace(/\s/g, "") }),
+  me: () => getJson<FollowupAuthUser>("/auth/me"),
   ssoExchange: (ssoJwt: string) =>
     postJson<{
       accessToken: string;

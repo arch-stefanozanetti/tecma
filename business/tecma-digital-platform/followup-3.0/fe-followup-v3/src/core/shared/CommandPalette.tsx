@@ -44,6 +44,7 @@ const SECTION_COMMANDS: CommandSectionItem[] = [
   { kind: "section", id: "integrations", label: "Integrazioni e automazioni", hint: "Connettori, regole, webhook, API" },
   { kind: "section", id: "reports", label: "Report", hint: "Pipeline, clienti, appartamenti" },
   { kind: "section", id: "releases", label: "Release", hint: "Novità e cronologia release" },
+  { kind: "section", id: "accountSecurity", label: "Sicurezza account (MFA)", hint: "TOTP e codici di backup" },
   { kind: "section", id: "workspaces", label: "Workspaces", hint: "Gestione workspace (admin)" },
   { kind: "section", id: "users", label: "User", hint: "Utenti e visibilità (admin)" },
   { kind: "section", id: "emailFlows", label: "Email", hint: "Template mail transazionali (admin)" },

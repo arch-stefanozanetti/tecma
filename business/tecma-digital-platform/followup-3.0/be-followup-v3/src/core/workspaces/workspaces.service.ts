@@ -7,6 +7,7 @@ import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
 import { HttpError } from "../../types/http.js";
+import { listWorkspaceClientFeatureKeys } from "./workspace-entitlements.service.js";
 
 const COLLECTION_WORKSPACES = "tz_workspaces";
 const COLLECTION_WORKSPACE_PROJECTS = "tz_workspace_projects";
@@ -15,8 +16,12 @@ export interface WorkspaceRow {
   _id: string;
   name: string;
   owner_user_id?: string | null;
+  /** Se true, membership richiede MFA attivo per login completo. */
+  mfaRequired?: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Chiavi moduli UI abilitate (derivate da tz_workspace_entitlements). */
+  features?: string[];
 }
 
 export interface WorkspaceProjectRow {
@@ -41,6 +46,7 @@ const WorkspaceCreateSchema = z.object({
 const WorkspaceUpdateSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   owner_user_id: z.string().optional().nullable(),
+  mfaRequired: z.boolean().optional(),
 });
 
 const AssociateProjectSchema = z.object({
@@ -89,6 +95,7 @@ export const listWorkspaces = async (): Promise<WorkspaceRow[]> => {
     _id: String(d._id ?? ""),
     name: typeof d.name === "string" ? d.name : "",
     owner_user_id: d.owner_user_id != null ? String(d.owner_user_id) : undefined,
+    mfaRequired: d.mfaRequired === true,
     createdAt: toIsoDate(d.createdAt),
     updatedAt: toIsoDate(d.updatedAt),
   }));
@@ -116,6 +123,7 @@ export const createWorkspace = async (rawInput: unknown): Promise<{ workspace: W
       _id,
       name: (ws?.name as string) ?? doc.name as string,
       owner_user_id: ws?.owner_user_id != null ? String(ws.owner_user_id) : undefined,
+      mfaRequired: (ws as { mfaRequired?: boolean } | null)?.mfaRequired === true,
       createdAt: now,
       updatedAt: now,
     },
@@ -133,13 +141,17 @@ export const getWorkspaceById = async (rawId: unknown): Promise<{ workspace: Wor
   if (!doc) {
     throw new HttpError("Workspace not found", 404);
   }
+  const _id = String(doc._id);
+  const features = await listWorkspaceClientFeatureKeys(_id);
   return {
     workspace: {
-      _id: String(doc._id),
+      _id,
       name: typeof doc.name === "string" ? doc.name : "",
       owner_user_id: doc.owner_user_id != null ? String(doc.owner_user_id) : undefined,
+      mfaRequired: (doc as { mfaRequired?: boolean }).mfaRequired === true,
       createdAt: toIsoDate(doc.createdAt),
       updatedAt: toIsoDate(doc.updatedAt),
+      features,
     },
   };
 };
@@ -161,6 +173,9 @@ export const updateWorkspace = async (
   if (input.owner_user_id !== undefined) {
     update.owner_user_id = input.owner_user_id && ObjectId.isValid(input.owner_user_id) ? new ObjectId(input.owner_user_id) : null;
   }
+  if (input.mfaRequired !== undefined) {
+    update.mfaRequired = input.mfaRequired;
+  }
   const result = await coll.findOneAndUpdate(
     { _id: new ObjectId(id) },
     { $set: update },
@@ -169,14 +184,25 @@ export const updateWorkspace = async (
   if (!result) {
     throw new HttpError("Workspace not found", 404);
   }
-  const doc = result as { _id: ObjectId; name?: string; owner_user_id?: ObjectId | null; createdAt?: unknown; updatedAt?: unknown };
+  const doc = result as {
+    _id: ObjectId;
+    name?: string;
+    owner_user_id?: ObjectId | null;
+    mfaRequired?: boolean;
+    createdAt?: unknown;
+    updatedAt?: unknown;
+  };
+  const wid = doc._id.toHexString();
+  const features = await listWorkspaceClientFeatureKeys(wid);
   return {
     workspace: {
-      _id: doc._id.toHexString(),
+      _id: wid,
       name: typeof doc.name === "string" ? doc.name : "",
       owner_user_id: doc.owner_user_id != null ? String(doc.owner_user_id) : undefined,
+      mfaRequired: doc.mfaRequired === true,
       createdAt: toIsoDate(doc.createdAt),
       updatedAt: toIsoDate(doc.updatedAt),
+      features,
     },
   };
 };

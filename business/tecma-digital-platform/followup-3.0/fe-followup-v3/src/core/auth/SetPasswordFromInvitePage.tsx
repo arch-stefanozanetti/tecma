@@ -1,7 +1,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { followupApi } from "../../api/followupApi";
-import { setTokens } from "../../api/http";
+import { HttpApiError, setTokens } from "../../api/http";
 import { Button } from "../../components/ui/button";
 import { PasswordInput } from "../../components/ui/password-input";
 import { LogoTecma } from "../../components/LogoTecma";
@@ -40,7 +40,11 @@ export const SetPasswordFromInvitePage = () => {
       setDone(true);
       window.location.replace("/");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossibile impostare la password.");
+      if (err instanceof HttpApiError && err.code === "PASSWORD_POLICY" && err.hint) {
+        setError(`${err.message} ${err.hint}`);
+      } else {
+        setError(err instanceof Error ? err.message : "Impossibile impostare la password.");
+      }
     } finally {
       setLoading(false);
     }

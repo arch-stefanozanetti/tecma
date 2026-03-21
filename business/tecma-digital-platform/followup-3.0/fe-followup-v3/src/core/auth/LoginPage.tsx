@@ -2,8 +2,8 @@ import { FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { buildItdLoginRedirectUrl, getJwtFromCookie } from "../../auth/itdLogin";
 import { followupApi } from "../../api/followupApi";
-import { login as authLogin, isBssAuth } from "../../api/authApi";
-import { setTokens } from "../../api/http";
+import { login as authLogin, completeMfaLogin, isBssAuth } from "../../api/authApi";
+import { HttpApiError, setTokens } from "../../api/http";
 import { Button } from "../../components/ui/button";
 import { CheckboxWithLabel } from "../../components/ui/checkbox";
 import { Input } from "../../components/ui/input";
@@ -23,6 +23,22 @@ const BUSINESS_PLATFORM_LOGIN_URL =
 const FORGOT_CREDENTIALS_URL = import.meta.env.VITE_FORGOT_CREDENTIALS_URL ?? "#";
 
 const STORAGE_EMAIL = "followup3.rememberedEmail";
+
+function formatAuthErrorMessage(e: unknown): string {
+  if (e instanceof HttpApiError) {
+    if (e.code === "ACCOUNT_LOCKED") {
+      return "Account temporaneamente bloccato per troppi tentativi falliti. Riprova più tardi o contatta l'assistenza.";
+    }
+    if (e.code === "MFA_ENROLLMENT_REQUIRED") {
+      return "È richiesta l'autenticazione a due fattori (MFA). Configura MFA dal profilo utente o chiedi supporto all'amministratore.";
+    }
+    if (e.code === "PASSWORD_POLICY" && e.hint) {
+      return `${e.message} ${e.hint}`;
+    }
+    return e.message;
+  }
+  return e instanceof Error ? e.message : "Errore login";
+}
 
 function getStoredEmail(): string {
   if (typeof window === "undefined") return "";
@@ -50,6 +66,8 @@ export const LoginPage = () => {
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
   const [loginStep, setLoginStep] = useState<1 | 2>(1);
   const [userAfterLogin, setUserAfterLogin] = useState<{ email: string; isAdmin: boolean } | null>(null);
   const [chosenWorkspace, setChosenWorkspace] = useState<WorkspaceId>("demo");
@@ -100,6 +118,35 @@ export const LoginPage = () => {
       });
   }, []);
 
+  const finishLoginSuccess = (result: {
+    accessToken: string;
+    refreshToken: string;
+    user: { email: string; isAdmin: boolean };
+  }) => {
+    if (typeof window !== "undefined") {
+      setTokens(result.accessToken, result.refreshToken);
+      window.sessionStorage.setItem("followup3.lastEmail", result.user.email);
+      if (rememberCredentials) {
+        try {
+          window.localStorage.setItem(STORAGE_EMAIL, email.trim());
+        } catch {
+          // ignore quota or disabled localStorage
+        }
+      } else {
+        try {
+          window.localStorage.removeItem(STORAGE_EMAIL);
+        } catch {
+          // ignore
+        }
+      }
+    }
+    setMfaToken(null);
+    setMfaCode("");
+    setUserAfterLogin({ email: result.user.email, isAdmin: result.user.isAdmin });
+    setChosenWorkspace(result.user.isAdmin ? "dev-1" : "demo");
+    setLoginStep(2);
+  };
+
   const handleAccedi = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
@@ -110,32 +157,41 @@ export const LoginPage = () => {
     setLoading(true);
     try {
       const result = await authLogin(email, password, bssAuthMode ? projectId.trim() : undefined);
-      if (typeof window !== "undefined") {
-        setTokens(result.accessToken, result.refreshToken);
-        window.sessionStorage.setItem("followup3.lastEmail", result.user.email);
-        if (rememberCredentials) {
-          try {
-            window.localStorage.setItem(STORAGE_EMAIL, email.trim());
-          } catch {
-            // ignore quota or disabled localStorage
-          }
-        } else {
-          try {
-            window.localStorage.removeItem(STORAGE_EMAIL);
-          } catch {
-            // ignore
-          }
-        }
+      if (result.step === "mfa") {
+        setMfaToken(result.mfaToken);
+        setMfaCode("");
+        return;
       }
-      setUserAfterLogin({ email: result.user.email, isAdmin: result.user.isAdmin });
-      setChosenWorkspace(result.user.isAdmin ? "dev-1" : "demo");
-      setLoginStep(2);
+      finishLoginSuccess(result);
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Errore login";
-      setError(message);
+      setError(formatAuthErrorMessage(e));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleMfaVerify = async (event: FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    if (!mfaToken || mfaCode.trim().length < 6) {
+      setError("Inserisci il codice a 6 cifre dall'app di autenticazione.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await completeMfaLogin(mfaToken, mfaCode.trim());
+      finishLoginSuccess(result);
+    } catch (e) {
+      setError(formatAuthErrorMessage(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMfaBack = () => {
+    setMfaToken(null);
+    setMfaCode("");
+    setError(null);
   };
 
   const handleContinua = () => {
@@ -243,10 +299,49 @@ export const LoginPage = () => {
           <div className="glass-panel rounded-ui px-7 py-8 shadow-panel">
             <div className="mb-6 flex flex-col items-center lg:items-start">
               <LogoTecma className="h-10 w-10 opacity-90 lg:hidden" />
-              <h2 className="mt-2 lg:mt-0 text-2xl font-semibold text-foreground">Accedi a Followup 3.0</h2>
-              <p className="mt-2 text-sm text-muted-foreground">Inserisci le tue credenziali.</p>
+              <h2 className="mt-2 lg:mt-0 text-2xl font-semibold text-foreground">
+                {mfaToken ? "Verifica in due passaggi" : "Accedi a Followup 3.0"}
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {mfaToken
+                  ? "Inserisci il codice a 6 cifre dalla tua app di autenticazione (TOTP)."
+                  : "Inserisci le tue credenziali."}
+              </p>
             </div>
 
+            {mfaToken ? (
+              <form onSubmit={handleMfaVerify} className="space-y-3">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Codice MFA
+                  </label>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="one-time-code"
+                    maxLength={12}
+                    value={mfaCode}
+                    onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))}
+                    placeholder="000000"
+                    className="min-h-11 h-11 rounded-lg tracking-widest font-mono text-lg"
+                  />
+                </div>
+                {error && <p className="text-xs text-destructive">{error}</p>}
+                <Button type="submit" disabled={loading} className="mt-1 w-full min-h-11 rounded-lg">
+                  {loading ? "Verifica…" : "Conferma e accedi"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={loading}
+                  className="w-full min-h-11 rounded-lg"
+                  onClick={handleMfaBack}
+                >
+                  Torna al login
+                </Button>
+              </form>
+            ) : (
             <form onSubmit={handleAccedi} className="space-y-3">
               <div>
                 <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -315,6 +410,7 @@ export const LoginPage = () => {
                 )}
               </p>
             </form>
+            )}
 
             {!bssAuthMode && (
               <div className="mt-6 border-t border-border pt-5 text-center">

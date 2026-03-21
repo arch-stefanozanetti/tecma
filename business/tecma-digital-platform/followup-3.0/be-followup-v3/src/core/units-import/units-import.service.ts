@@ -2,7 +2,7 @@
  * Import massivo unit da Excel. Pipeline: parse → validate → preview → execute.
  * Schema Excel: unit_code, name, floor, size_m2, rooms, bathrooms, type, price, status.
  */
-import * as XLSX from "xlsx";
+import readXlsxFile from "read-excel-file/node";
 import { getDb } from "../../config/db.js";
 import { HttpError } from "../../types/http.js";
 import { createApartment } from "../apartments/apartments.service.js";
@@ -40,19 +40,27 @@ function normalizeHeader(h: string): string {
     .replace(/\s+/g, "_");
 }
 
-export const parseExcelBuffer = (buffer: Buffer): ExcelUnitRow[] => {
-  const workbook = XLSX.read(buffer, { type: "buffer", raw: false });
-  const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-  if (!firstSheet) return [];
-  const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, { defval: "" });
-  if (!Array.isArray(data) || data.length === 0) return [];
+function cellToTrimmedString(cell: unknown): string {
+  if (cell == null || cell === "") return "";
+  if (cell instanceof Date) return cell.toISOString();
+  return String(cell).trim();
+}
 
+/** Prima riga = intestazioni; righe successive = dati (come sheet_to_json di xlsx). */
+export function matrixToExcelUnitRows(matrix: unknown[][]): ExcelUnitRow[] {
+  if (!Array.isArray(matrix) || matrix.length === 0) return [];
+  const headerRow = matrix[0];
+  if (!Array.isArray(headerRow)) return [];
+  const headers = headerRow.map((h) => normalizeHeader(cellToTrimmedString(h)));
   const rows: ExcelUnitRow[] = [];
-  for (const raw of data) {
-    const keys = Object.keys(raw);
+
+  for (let r = 1; r < matrix.length; r++) {
+    const cells = matrix[r];
+    if (!Array.isArray(cells)) continue;
     const map: Record<string, string> = {};
-    keys.forEach((k) => {
-      map[normalizeHeader(k)] = String(raw[k] ?? "").trim();
+    headers.forEach((h, i) => {
+      if (!h) return;
+      map[h] = cellToTrimmedString(cells[i]);
     });
     const unit_code = map.unit_code || map.unitcode || "";
     if (!unit_code) continue;
@@ -75,7 +83,12 @@ export const parseExcelBuffer = (buffer: Buffer): ExcelUnitRow[] => {
     });
   }
   return rows;
-};
+}
+
+export async function parseExcelBuffer(buffer: Buffer): Promise<ExcelUnitRow[]> {
+  const matrix = (await readXlsxFile(buffer)) as unknown[][];
+  return matrixToExcelUnitRows(matrix);
+}
 
 export const validateRows = async (
   rows: ExcelUnitRow[],

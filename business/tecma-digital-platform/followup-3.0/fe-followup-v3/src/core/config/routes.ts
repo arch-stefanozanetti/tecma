@@ -45,7 +45,8 @@ export type Section =
   | "inbox"
   | "customer360"
   | "productDiscovery"
-  | "tecmaEntitlements";
+  | "tecmaEntitlements"
+  | "accountSecurity";
 
 export const SECTIONS: Section[] = [
   "cockpit",
@@ -75,6 +76,7 @@ export const SECTIONS: Section[] = [
   "priceAvailability",
   "productDiscovery",
   "tecmaEntitlements",
+  "accountSecurity",
 ];
 
 /** Path puliti per le sezioni; le altre usano ?section=X */
@@ -98,6 +100,7 @@ export const SECTION_TO_PATH: Partial<Record<Section, string>> = {
   priceAvailability: "/prices",
   productDiscovery: "/product-discovery",
   tecmaEntitlements: "/tecma/entitlements",
+  accountSecurity: "/account/security",
 };
 
 export const PATH_TO_SECTION: Record<string, Section> = Object.fromEntries(

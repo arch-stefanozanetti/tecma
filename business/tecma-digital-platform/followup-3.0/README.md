@@ -104,6 +104,42 @@ npm run dev
 - **Qualità e test:** componenti UI in `src/components/ui/` (Button, Input, PasswordInput, PhoneInput, ButtonGroup, Select, Dialog, ecc.); classi DS condivise in `src/lib/ds-form-classes.ts` (DRY per select/textarea nativi). Test con Vitest + React Testing Library: `npm run test`, `npm run test:run`, `npm run test:coverage`. Ogni nuovo componente UI dovrebbe avere test in `*.test.tsx`/`*.spec.tsx`.
 - **CI:** workflow [.github/workflows/ci-fe.yml](.github/workflows/ci-fe.yml) esegue test e build su push/PR che modificano `fe-followup-v3/`.
 
+## Checklist prima del merge
+
+**MR/PR:** esegui i comandi per i **package toccati dalla merge request**. Per cambi full-stack o prima di un rilascio, conviene fare **tutta** la checklist.
+
+### Backend (`be-followup-v3`)
+
+```bash
+cd be-followup-v3
+npm run build
+npm run test
+```
+
+**Parità con CI** [.github/workflows/ci-be.yml](.github/workflows/ci-be.yml) (oltre a `build`): `npm run test:lint:core`, `npm run check:openapi`, `npm run check:route-guards`, `npm run check:no-legacy-runtime`, `npm run test:coverage:core`, `npm run test:integration`.
+
+### Frontend (`fe-followup-v3`)
+
+```bash
+cd fe-followup-v3
+pnpm run test:run
+pnpm run build
+```
+
+**Parità con CI** [.github/workflows/ci-fe.yml](.github/workflows/ci-fe.yml) (job `fe-core-strict`): `pnpm run check:panels`, `pnpm run check:detail-architecture`, `pnpm run test:panels`, `pnpm run test:lint:core`, `pnpm run typecheck`, `pnpm run check:bundle-budget`, `pnpm run test:coverage:core`.
+
+### E2E Playwright (come job `fe-e2e-core` in CI)
+
+```bash
+cd fe-followup-v3
+pnpm exec playwright install chromium   # solo la prima volta (o dopo upgrade)
+CI= PLAYWRIGHT_USE_WEBSERVER=true pnpm run test:e2e:ci
+```
+
+`CI=` evita che un `CI=true` ereditato dalla shell impedisca l’uso del web server integrato dei test. Dettagli env e smoke opzionale su API reale: [fe-followup-v3/e2e/README.md](fe-followup-v3/e2e/README.md). Per abilitare lo smoke API anche in GitHub Actions vedi [docs/DOCS_CI_CD.md](docs/DOCS_CI_CD.md) (secret opzionali).
+
+**Dopo deploy su staging:** checklist manuale entitlement/Tecma in [docs/STAGING_ENTITLEMENTS_SMOKE.md](docs/STAGING_ENTITLEMENTS_SMOKE.md). Indice CI/CD: [docs/DOCS_CI_CD.md](docs/DOCS_CI_CD.md).
+
 ## API: core CRM vs riusabili
 
 - **Core CRM** — uso dall’app Followup: auth, session, calendar, clienti (completi), appartamenti (CRUD completo), associations, workflows, templates, AI, requests. Queste API servono il flusso operativo del CRM.

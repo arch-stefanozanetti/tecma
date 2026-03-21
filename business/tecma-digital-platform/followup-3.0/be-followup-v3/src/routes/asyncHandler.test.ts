@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import type { Request, Response } from "express";
 import { z } from "zod";
 import { sendError, handleAsync } from "./asyncHandler.js";
@@ -28,6 +28,12 @@ describe("sendError", () => {
 });
 
 describe("sendError in modalità production-like", () => {
+  afterEach(() => {
+    process.env.NODE_ENV = "test";
+    process.env.APP_ENV = "dev-1";
+    vi.resetModules();
+  });
+
   it("maschera 5xx con messaggio generico", async () => {
     vi.resetModules();
     const save = {
@@ -44,7 +50,8 @@ describe("sendError in modalità production-like", () => {
       MONGO_DB_NAME: save.MONGO_DB_NAME || "test",
       AUTH_JWT_SECRET: save.AUTH_JWT_SECRET && save.AUTH_JWT_SECRET.length >= 32
         ? save.AUTH_JWT_SECRET
-        : "prod-auth-jwt-secret-at-least-32-characters"
+        : "prod-auth-jwt-secret-at-least-32-characters",
+      SIGNATURE_WEBHOOK_SECRET: "prod-signature-webhook-secret-16"
     });
     const { sendError: sendErrorProd } = await import("./asyncHandler.js");
     const res = { status: vi.fn().mockReturnThis(), json: vi.fn() } as unknown as Response;
@@ -73,7 +80,8 @@ describe("sendError in modalità production-like", () => {
       AUTH_JWT_SECRET:
         save.AUTH_JWT_SECRET && save.AUTH_JWT_SECRET.length >= 32
           ? save.AUTH_JWT_SECRET
-          : "staging-auth-jwt-secret-min-32-chars-ok!!"
+          : "staging-auth-jwt-secret-min-32-chars-ok!!",
+      SIGNATURE_WEBHOOK_SECRET: "staging-signature-webhook-secret"
     });
     const { sendError: sendErrorProd } = await import("./asyncHandler.js");
     const res = { status: vi.fn().mockReturnThis(), json: vi.fn() } as unknown as Response;
@@ -95,7 +103,8 @@ describe("sendError in modalità production-like", () => {
       AUTH_JWT_SECRET:
         process.env.AUTH_JWT_SECRET && process.env.AUTH_JWT_SECRET.length >= 32
           ? process.env.AUTH_JWT_SECRET
-          : "prod-auth-jwt-secret-at-least-32-characters"
+          : "prod-auth-jwt-secret-at-least-32-characters",
+      SIGNATURE_WEBHOOK_SECRET: "prod-signature-webhook-secret-16"
     });
     const { sendError: sendErrorProd } = await import("./asyncHandler.js");
     const res = { status: vi.fn().mockReturnThis(), json: vi.fn() } as unknown as Response;

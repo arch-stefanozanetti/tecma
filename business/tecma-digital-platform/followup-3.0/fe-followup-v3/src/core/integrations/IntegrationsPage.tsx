@@ -22,6 +22,7 @@ import { followupApi } from "../../api/followupApi";
 import { PageSimple } from "../shared/PageSimple";
 import type { WorkspaceEntitlementEffectiveRow } from "../../types/domain";
 import { workspaceFeatureEntitled } from "./workspaceEntitlementUi";
+import { commercialContactInlineNode } from "./tecmaCommercialContact";
 
 interface IntegrationsPageProps {
   workspaceId: string;
@@ -37,6 +38,8 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
   const [outlookConnected, setOutlookConnected] = useState(false);
   const [twilioConfigured, setTwilioConfigured] = useState(false);
   const [metaWhatsAppConfigured, setMetaWhatsAppConfigured] = useState(false);
+  const [mailchimpConfigured, setMailchimpConfigured] = useState(false);
+  const [activeCampaignConfigured, setActiveCampaignConfigured] = useState(false);
   const [autoOpenTwilio, setAutoOpenTwilio] = useState(false);
   const [autoOpenMetaWhatsapp, setAutoOpenMetaWhatsapp] = useState(false);
   const [workspaceEntitlements, setWorkspaceEntitlements] = useState<
@@ -99,6 +102,22 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
       .catch(() => setMetaWhatsAppConfigured(false));
   }, [workspaceId]);
 
+  const loadMailchimpStatus = useCallback(() => {
+    if (!workspaceId) return;
+    followupApi
+      .getMailchimpConnectorConfig(workspaceId)
+      .then((r) => setMailchimpConfigured(!!r.config))
+      .catch(() => setMailchimpConfigured(false));
+  }, [workspaceId]);
+
+  const loadActiveCampaignStatus = useCallback(() => {
+    if (!workspaceId) return;
+    followupApi
+      .getActiveCampaignConnectorConfig(workspaceId)
+      .then((r) => setActiveCampaignConfigured(!!r.config))
+      .catch(() => setActiveCampaignConfigured(false));
+  }, [workspaceId]);
+
   useEffect(() => {
     loadN8nConfig();
   }, [loadN8nConfig]);
@@ -114,6 +133,14 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
   useEffect(() => {
     loadMetaWhatsAppStatus();
   }, [loadMetaWhatsAppStatus]);
+
+  useEffect(() => {
+    loadMailchimpStatus();
+  }, [loadMailchimpStatus]);
+
+  useEffect(() => {
+    loadActiveCampaignStatus();
+  }, [loadActiveCampaignStatus]);
 
   useEffect(() => {
     if (searchParams.get("outlook") === "connected") {
@@ -203,10 +230,25 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
         if (c.id === "connector_meta_whatsapp") {
           return { ...c, status: metaWhatsAppConfigured ? "configured" : "available" };
         }
+        if (c.id === "connector_mailchimp") {
+          return { ...c, status: mailchimpConfigured ? "configured" : "beta" };
+        }
+        if (c.id === "connector_activecampaign") {
+          return { ...c, status: activeCampaignConfigured ? "configured" : "beta" };
+        }
         return c;
       })
     );
-  }, [workspaceId, webhookConfigs, n8nConfig, outlookConnected, twilioConfigured, metaWhatsAppConfigured]);
+  }, [
+    workspaceId,
+    webhookConfigs,
+    n8nConfig,
+    outlookConnected,
+    twilioConfigured,
+    metaWhatsAppConfigured,
+    mailchimpConfigured,
+    activeCampaignConfigured,
+  ]);
 
   const setTab = (value: TabKey) => {
     setSearchParams((prev) => {
@@ -237,6 +279,8 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
   const integrationsReadOnly = !canMutateIntegrations;
   const publicApiEntitled = workspaceFeatureEntitled(workspaceEntitlements, "publicApi");
   const twilioEntitled = workspaceFeatureEntitled(workspaceEntitlements, "twilio");
+  const mailchimpEntitled = workspaceFeatureEntitled(workspaceEntitlements, "mailchimp");
+  const activecampaignEntitled = workspaceFeatureEntitled(workspaceEntitlements, "activecampaign");
   const marketingAutomationEntitled =
     workspaceFeatureEntitled(workspaceEntitlements, "mailchimp") ||
     workspaceFeatureEntitled(workspaceEntitlements, "activecampaign");
@@ -253,10 +297,13 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
               Connettori, regole if/then, webhook e API per estendere il CRM.
             </p>
             <Alert variant="info" title="Attivazioni commerciali (Tecma)" className="mt-4 max-w-3xl">
-              Moduli a consumo — Public API, Twilio, automazioni marketing collegate a Mailchimp/ActiveCampaign e altre capability in elenco — si attivano
-              solo dopo accordo con Tecma.{" "}
-              <strong className="font-medium text-foreground">Non è possibile auto-abilitarli dal portale.</strong>{" "}
-              Contatta il referente commerciale o il supporto per richiedere l’attivazione sul workspace.
+              <span className="block leading-relaxed">
+                Moduli a consumo — Public API, Twilio, automazioni marketing collegate a Mailchimp/ActiveCampaign e altre capability in elenco — si
+                attivano solo dopo accordo con Tecma.{" "}
+                <strong className="font-medium text-foreground">Non è possibile auto-abilitarli dal portale.</strong>{" "}
+                Contatta il referente commerciale o il supporto per richiedere l’attivazione sul workspace.
+                {commercialContactInlineNode()}
+              </span>
             </Alert>
             {integrationsReadOnly && (
               <p className="mt-2 text-sm font-medium text-amber-800 dark:text-amber-200">
@@ -317,6 +364,10 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
               onMetaAutoOpenConsumed={consumeMetaWhatsappConnectorQuery}
               reloadMetaWhatsAppStatus={loadMetaWhatsAppStatus}
               twilioEntitled={twilioEntitled}
+              mailchimpEntitled={mailchimpEntitled}
+              activecampaignEntitled={activecampaignEntitled}
+              reloadMailchimpStatus={loadMailchimpStatus}
+              reloadActiveCampaignStatus={loadActiveCampaignStatus}
               workspaceEntitlements={workspaceEntitlements}
             />
           </TabsContent>

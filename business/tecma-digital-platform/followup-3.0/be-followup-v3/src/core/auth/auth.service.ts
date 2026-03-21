@@ -16,6 +16,13 @@ import {
 import { createPasswordResetToken, consumePasswordResetToken } from "./passwordResetToken.service.js";
 import { signAccessToken } from "./token.service.js";
 import { verifySsoJwtAndGetPayload } from "./ssoJwtVerify.service.js";
+import { assertPasswordMeetsPolicy } from "./passwordPolicy.js";
+import { isEmailLocked, clearLockoutForEmail, recordFailedPasswordAttempt } from "./accountLockout.service.js";
+import { isMfaEnabledForUser, verifyMfaForLogin } from "./mfa.service.js";
+import { signMfaPendingToken, verifyMfaPendingToken } from "./mfaPendingToken.service.js";
+import { emailRequiresMfaByWorkspacePolicy } from "../workspaces/workspaceMfaPolicy.service.js";
+import { observeSecurityMfaFailure } from "../../observability/metrics.js";
+import { recordSecurityEvent } from "../compliance/security-audit.service.js";
 import {
   USER_COLLECTION_CANDIDATES,
   buildAccessPayloadFromUserDoc,
@@ -100,11 +107,33 @@ export type AuthRequestMeta = { ipAddress?: string | null; userAgent?: string | 
 
 export const loginWithCredentials = async (rawInput: unknown, meta: AuthRequestMeta = {}) => {
   const { email, password } = LoginInputSchema.parse(rawInput);
+  const emailLower = email.toLowerCase();
 
-  const failLogin = async () => {
+  const lockedUntil = await isEmailLocked(emailLower);
+  if (lockedUntil) {
     await bcrypt.compare(password, DUMMY_BCRYPT);
     await logAuthEvent("login_failed", {
-      email: email.toLowerCase(),
+      email: emailLower,
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+      success: false
+    });
+    throw new HttpError(
+      "Account temporaneamente bloccato per troppi tentativi falliti. Riprova più tardi.",
+      403,
+      "ACCOUNT_LOCKED"
+    );
+  }
+
+  const user = await findLegacyUserByEmail(email);
+
+  const failLogin = async (recordLockout: boolean) => {
+    await bcrypt.compare(password, DUMMY_BCRYPT);
+    if (recordLockout && user?.password && !user.isDisabled && !invitedCannotLogin(user)) {
+      await recordFailedPasswordAttempt(emailLower);
+    }
+    await logAuthEvent("login_failed", {
+      email: emailLower,
       ipAddress: meta.ipAddress,
       userAgent: meta.userAgent,
       success: false
@@ -112,16 +141,51 @@ export const loginWithCredentials = async (rawInput: unknown, meta: AuthRequestM
     throw new HttpError("Credenziali non valide", 401);
   };
 
-  const user = await findLegacyUserByEmail(email);
   if (!user || user.isDisabled || invitedCannotLogin(user)) {
-    await failLogin();
+    await failLogin(false);
     return null as never;
   }
 
   const passwordOk = await bcrypt.compare(password, user.password!);
   if (!passwordOk) {
-    await failLogin();
+    await failLogin(true);
     return null as never;
+  }
+
+  await clearLockoutForEmail(emailLower);
+
+  const userIdHex = user._id.toHexString();
+  const mustEnrollMfa = await emailRequiresMfaByWorkspacePolicy(emailLower);
+  const mfaOn = await isMfaEnabledForUser(userIdHex);
+  if (mustEnrollMfa && !mfaOn) {
+    await logAuthEvent("login_failed", {
+      userId: userIdHex,
+      email: emailLower,
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+      success: false
+    });
+    throw new HttpError(
+      "È obbligatorio attivare l'autenticazione a due fattori. Accedi con un account che ha già MFA oppure contatta un amministratore.",
+      403,
+      "MFA_ENROLLMENT_REQUIRED"
+    );
+  }
+
+  if (mfaOn) {
+    const mfaToken = signMfaPendingToken({ sub: userIdHex, email: emailLower });
+    await logAuthEvent("mfa_challenge_issued", {
+      userId: userIdHex,
+      email: emailLower,
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+      success: true
+    });
+    return {
+      mfaRequired: true as const,
+      mfaToken,
+      expiresIn: ENV.AUTH_MFA_PENDING_EXPIRES_IN
+    };
   }
 
   try {
@@ -137,13 +201,66 @@ export const loginWithCredentials = async (rawInput: unknown, meta: AuthRequestM
     });
 
     return {
+      mfaRequired: false as const,
       accessToken,
       refreshToken,
       expiresIn: ENV.AUTH_JWT_EXPIRES_IN,
       user: toAuthSessionUser(payload)
     };
   } catch (err) {
-    logger.error({ err, email: email.toLowerCase() }, "[auth] login success path failed");
+    logger.error({ err, email: emailLower }, "[auth] login success path failed");
+    throw new HttpError("Errore durante l'accesso. Riprova più tardi.", 500);
+  }
+};
+
+const MfaVerifyLoginSchema = z.object({
+  mfaToken: z.string().min(1),
+  code: z.string().min(6).max(32)
+});
+
+export const completeLoginWithMfa = async (rawInput: unknown, meta: AuthRequestMeta = {}) => {
+  const { mfaToken, code } = MfaVerifyLoginSchema.parse(rawInput);
+  const pending = verifyMfaPendingToken(mfaToken);
+  const user = await findLegacyUserById(pending.sub);
+  if (!user || user.isDisabled || invitedCannotLogin(user)) {
+    throw new HttpError("Credenziali non valide", 401);
+  }
+  const userEmail = (user.email || "").toLowerCase();
+  if (userEmail !== pending.email.toLowerCase()) {
+    throw new HttpError("Token MFA non valido", 401);
+  }
+  const ok = await verifyMfaForLogin(pending.sub, code);
+  if (!ok) {
+    observeSecurityMfaFailure();
+    await logAuthEvent("mfa_failed", {
+      userId: pending.sub,
+      email: pending.email,
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+      success: false
+    });
+    throw new HttpError("Codice MFA non valido", 401);
+  }
+
+  try {
+    const payload = await buildAccessPayloadFromUserDoc(user, user.email || pending.email);
+    const accessToken = signAccessToken(payload);
+    const refreshToken = await createSession(payload.sub, payload.email);
+    await logAuthEvent("mfa_success", {
+      userId: payload.sub,
+      email: payload.email,
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+      success: true
+    });
+    return {
+      accessToken,
+      refreshToken,
+      expiresIn: ENV.AUTH_JWT_EXPIRES_IN,
+      user: toAuthSessionUser(payload)
+    };
+  } catch (err) {
+    logger.error({ err, email: pending.email }, "[auth] MFA login completion failed");
     throw new HttpError("Errore durante l'accesso. Riprova più tardi.", 500);
   }
 };
@@ -272,11 +389,12 @@ export const requestPasswordReset = async (rawInput: unknown, meta: AuthRequestM
 
 const ResetPasswordSchema = z.object({
   token: z.string().min(1),
-  password: z.string().min(8)
+  password: z.string().min(1)
 });
 
 export const resetPasswordWithToken = async (rawInput: unknown, meta: AuthRequestMeta = {}) => {
   const { token, password } = ResetPasswordSchema.parse(rawInput);
+  assertPasswordMeetsPolicy(password);
   const consumed = await consumePasswordResetToken(token);
   if (!consumed) {
     throw new HttpError("Token non valido o scaduto", 400);
@@ -296,6 +414,14 @@ export const resetPasswordWithToken = async (rawInput: unknown, meta: AuthReques
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,
     success: true
+  });
+  void recordSecurityEvent({
+    action: "auth.password_reset_completed",
+    entityType: "user",
+    entityId: consumed.userId,
+    userId: consumed.userId,
+    ip: meta.ipAddress ?? undefined,
+    userAgent: meta.userAgent ?? undefined
   });
   return { ok: true };
 };

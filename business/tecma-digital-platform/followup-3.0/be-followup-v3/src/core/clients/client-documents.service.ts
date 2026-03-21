@@ -3,7 +3,12 @@
  * Upload via signed URL; visibility internal | client; audit su upload/access.
  */
 import { getDb } from "../../config/db.js";
-import { getPresignedGetUrl, getPresignedPutUrl, deleteObject } from "../assets/assets-s3.service.js";
+import {
+  getPresignedGetUrl,
+  getPresignedPutUrl,
+  deleteObject,
+  type PresignedGetAuditContext
+} from "../assets/assets-s3.service.js";
 import { HttpError } from "../../types/http.js";
 import { ObjectId } from "mongodb";
 import { z } from "zod";
@@ -127,11 +132,17 @@ export async function getClientDocumentDownloadUrl(
   workspaceId: string,
   clientId: string,
   docId: string,
-  expiresInSec: number = DEFAULT_DOWNLOAD_EXPIRY_SEC
+  expiresInSec: number = DEFAULT_DOWNLOAD_EXPIRY_SEC,
+  audit?: Omit<PresignedGetAuditContext, "entityType" | "entityId" | "workspaceId">
 ): Promise<{ downloadUrl: string; expiresAt: string }> {
   const doc = await getClientDocumentById(workspaceId, clientId, docId);
   if (!doc) throw new HttpError("Documento non trovato", 404);
-  const { downloadUrl, expiresAt } = await getPresignedGetUrl(doc.file_key, expiresInSec);
+  const { downloadUrl, expiresAt } = await getPresignedGetUrl(doc.file_key, expiresInSec, {
+    ...audit,
+    workspaceId,
+    entityType: "client_document",
+    entityId: docId
+  });
   return { downloadUrl, expiresAt: expiresAt.toISOString() };
 }
 

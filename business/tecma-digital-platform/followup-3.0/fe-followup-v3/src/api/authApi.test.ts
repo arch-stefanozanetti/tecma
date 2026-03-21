@@ -10,6 +10,7 @@ describe("authApi", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(followupApi.followupApi.login).mockResolvedValue({
+      mfaRequired: false,
       accessToken: "at",
       refreshToken: "rt",
       expiresIn: "15m",
@@ -35,11 +36,34 @@ describe("authApi", () => {
       expect(followupApi.followupApi.login).toHaveBeenCalledWith("u@test.com", "pass");
       expect(bssAuthAdapter.loginBss).not.toHaveBeenCalled();
       expect(result).toEqual({
+        step: "done",
         accessToken: "at",
         refreshToken: "rt",
         expiresIn: "15m",
         user: { id: "1", email: "u@test.com", role: "user", isAdmin: false }
       });
+    });
+
+    it("login con MFA ritorna step mfa", async () => {
+      vi.mocked(followupApi.followupApi.login).mockResolvedValueOnce({
+        mfaRequired: true,
+        mfaToken: "mt",
+        expiresIn: "5m"
+      });
+      const result = await authApi.login("u@test.com", "pass");
+      expect(result).toEqual({ step: "mfa", mfaToken: "mt", expiresIn: "5m" });
+    });
+
+    it("completeMfaLogin chiama verifyMfaLogin", async () => {
+      vi.mocked(followupApi.followupApi.verifyMfaLogin).mockResolvedValueOnce({
+        accessToken: "at3",
+        refreshToken: "rt3",
+        expiresIn: "15m",
+        user: { id: "1", email: "u@test.com", role: "user", isAdmin: false }
+      });
+      const r = await authApi.completeMfaLogin("mt", "123456");
+      expect(followupApi.followupApi.verifyMfaLogin).toHaveBeenCalledWith("mt", "123456");
+      expect(r.accessToken).toBe("at3");
     });
 
     it("me chiama followupApi.me", async () => {

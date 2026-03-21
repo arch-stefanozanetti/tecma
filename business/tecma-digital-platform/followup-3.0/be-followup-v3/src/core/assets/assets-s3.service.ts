@@ -6,6 +6,10 @@
 import { GetObjectCommand, PutObjectCommand, DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomBytes } from "node:crypto";
+import {
+  hashStorageKey,
+  recordSecurityEvent
+} from "../compliance/security-audit.service.js";
 import type { AssetType } from "../../types/models.js";
 
 const DEFAULT_UPLOAD_EXPIRY_SEC = 15 * 60; // 15 min
@@ -112,15 +116,42 @@ export async function getPresignedPutUrl(
   return { uploadUrl, expiresAt };
 }
 
+export interface PresignedGetAuditContext {
+  actorUserId?: string;
+  workspaceId?: string;
+  projectId?: string;
+  entityType: string;
+  entityId: string;
+  ip?: string | null;
+  userAgent?: string | null;
+}
+
 export async function getPresignedGetUrl(
   key: string,
-  expiresInSec: number = DEFAULT_DOWNLOAD_EXPIRY_SEC
+  expiresInSec: number = DEFAULT_DOWNLOAD_EXPIRY_SEC,
+  audit?: PresignedGetAuditContext
 ): Promise<{ downloadUrl: string; expiresAt: Date }> {
   const client = getClient();
   const bucket = getBucket();
   const expiresAt = new Date(Date.now() + expiresInSec * 1000);
   const command = new GetObjectCommand({ Bucket: bucket, Key: key });
   const downloadUrl = await getSignedUrl(client, command, { expiresIn: expiresInSec });
+  if (audit) {
+    void recordSecurityEvent({
+      action: "document.signed_get_url_issued",
+      userId: audit.actorUserId,
+      entityType: audit.entityType,
+      entityId: audit.entityId,
+      workspaceId: audit.workspaceId,
+      projectId: audit.projectId,
+      ip: audit.ip ?? undefined,
+      userAgent: audit.userAgent ?? undefined,
+      metadata: {
+        expiresInSec,
+        storageKeySha256Prefix: hashStorageKey(key)
+      }
+    });
+  }
   return { downloadUrl, expiresAt };
 }
 

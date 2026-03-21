@@ -1,8 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { followupApi } from "./followupApi";
 import * as http from "./http";
+import { API_BASE_URL } from "./http";
 
-vi.mock("./http");
+vi.mock("./http", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("./http")>();
+  return {
+    ...mod,
+    postJson: vi.fn(),
+    getJson: vi.fn(),
+    patchJson: vi.fn(),
+    putJson: vi.fn(),
+    deleteJson: vi.fn(),
+    postFormData: vi.fn()
+  };
+});
 
 describe("followupApi", () => {
   beforeEach(() => {
@@ -20,10 +32,83 @@ describe("followupApi", () => {
     expect(http.postJson).toHaveBeenCalledWith("/clients/query", query);
   });
 
-  it("login chiama postJson con /auth/login e email, password", async () => {
-    await followupApi.login("a@b.c", "secret");
+  it("login con fetch ritorna token quando MFA non richiesto", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          mfaRequired: false,
+          accessToken: "at",
+          refreshToken: "rt",
+          user: { id: "1", email: "a@b.c", role: null, isAdmin: false }
+        }),
+        { status: 200 }
+      )
+    );
+    vi.stubGlobal("fetch", mockFetch);
+    const r = await followupApi.login("a@b.c", "secret");
+    expect(r).toEqual({
+      mfaRequired: false,
+      accessToken: "at",
+      refreshToken: "rt",
+      user: { id: "1", email: "a@b.c", role: null, isAdmin: false }
+    });
+    expect(mockFetch).toHaveBeenCalledWith(
+      `${API_BASE_URL}/auth/login`,
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ email: "a@b.c", password: "secret" })
+      })
+    );
+    vi.unstubAllGlobals();
+  });
 
-    expect(http.postJson).toHaveBeenCalledWith("/auth/login", { email: "a@b.c", password: "secret" });
+  it("login con MFA ritorna mfaToken", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ mfaRequired: true, mfaToken: "tok", expiresIn: "5m" }), { status: 200 })
+      )
+    );
+    const r = await followupApi.login("a@b.c", "secret");
+    expect(r).toEqual({ mfaRequired: true, mfaToken: "tok", expiresIn: "5m" });
+    vi.unstubAllGlobals();
+  });
+
+  it("login errore JSON lancia HttpApiError con code", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: "Bloccato", code: "ACCOUNT_LOCKED" }), { status: 423 })
+      )
+    );
+    await expect(followupApi.login("a@b.c", "secret")).rejects.toMatchObject({
+      name: "HttpApiError",
+      message: "Bloccato",
+      code: "ACCOUNT_LOCKED"
+    });
+    vi.unstubAllGlobals();
+  });
+
+  it("verifyMfaLogin chiama postJson", async () => {
+    vi.mocked(http.postJson).mockResolvedValue({
+      accessToken: "a",
+      refreshToken: "r",
+      user: { id: "1", email: "x@y.z", role: null, isAdmin: false }
+    } as never);
+    await followupApi.verifyMfaLogin("mt", "123456");
+    expect(http.postJson).toHaveBeenCalledWith("/auth/mfa/verify", { mfaToken: "mt", code: "123456" });
+  });
+
+  it("startMfaSetup e confirmMfaSetup e disableMfa chiamano postJson", async () => {
+    vi.mocked(http.postJson).mockResolvedValue({ otpauthUrl: "otpauth://x" } as never);
+    await followupApi.startMfaSetup();
+    expect(http.postJson).toHaveBeenCalledWith("/auth/mfa/setup/start", {});
+    vi.mocked(http.postJson).mockResolvedValue({ backupCodes: ["a", "b"] } as never);
+    await followupApi.confirmMfaSetup(" 123456 ");
+    expect(http.postJson).toHaveBeenCalledWith("/auth/mfa/setup/confirm", { code: "123456" });
+    vi.mocked(http.postJson).mockResolvedValue({ ok: true } as never);
+    await followupApi.disableMfa("999999");
+    expect(http.postJson).toHaveBeenCalledWith("/auth/mfa/disable", { code: "999999" });
   });
 
   it("me chiama getJson con /auth/me", async () => {

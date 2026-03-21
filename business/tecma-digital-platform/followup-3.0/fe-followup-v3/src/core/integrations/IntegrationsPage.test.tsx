@@ -11,12 +11,14 @@ vi.mock("../../api/followupApi", () => ({
     getOutlookStatus: vi.fn().mockResolvedValue({ connected: false }),
     getWhatsAppConfig: vi.fn().mockResolvedValue({ config: null }),
     getMetaWhatsAppConfig: vi.fn().mockResolvedValue({ config: null }),
+    getMailchimpConnectorConfig: vi.fn().mockResolvedValue({ config: null }),
+    getActiveCampaignConnectorConfig: vi.fn().mockResolvedValue({ config: null }),
     getWorkspaceEntitlements: vi.fn().mockResolvedValue({
       data: [
-        { feature: "publicApi", entitled: true, recordedStatus: null, implicit: true },
-        { feature: "twilio", entitled: true, recordedStatus: null, implicit: true },
-        { feature: "mailchimp", entitled: true, recordedStatus: null, implicit: true },
-        { feature: "activecampaign", entitled: true, recordedStatus: null, implicit: true },
+        { feature: "publicApi", entitled: true, recordedStatus: null, implicit: true, recordedNotes: null },
+        { feature: "twilio", entitled: true, recordedStatus: null, implicit: true, recordedNotes: null },
+        { feature: "mailchimp", entitled: true, recordedStatus: null, implicit: true, recordedNotes: null },
+        { feature: "activecampaign", entitled: true, recordedStatus: null, implicit: true, recordedNotes: null },
       ],
     }),
     listCommunicationTemplates: vi.fn().mockResolvedValue({ data: [] }),

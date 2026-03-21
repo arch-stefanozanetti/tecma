@@ -1,14 +1,19 @@
 /**
  * Fase 0.2 — Entitlement commerciale per workspace (tz_workspace_entitlements).
  * Regola: canUseFeature = isEntitled(workspace, feature) AND hasPermission(user, action).
- * Assenza di riga DB per (workspaceId, feature) ⇒ considerato attivo (compatibilità deploy esistenti).
+ * Default assenza riga: vedi WORKSPACE_FEATURE_CATALOG (defaultEntitledWhenNoRow per chiave).
  */
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
+import {
+  getDefaultEntitledWhenNoRow,
+  shouldIncludeFeatureInWorkspacePayload,
+  WORKSPACE_ENTITLEMENT_FEATURES,
+  type WorkspaceEntitlementFeature,
+} from "./workspace-feature-catalog.js";
 
-export const WORKSPACE_ENTITLEMENT_FEATURES = ["publicApi", "twilio", "mailchimp", "activecampaign"] as const;
-export type WorkspaceEntitlementFeature = (typeof WORKSPACE_ENTITLEMENT_FEATURES)[number];
+export { WORKSPACE_ENTITLEMENT_FEATURES, type WorkspaceEntitlementFeature } from "./workspace-feature-catalog.js";
 
 const STATUSES = ["inactive", "pending_approval", "active", "suspended"] as const;
 export type EntitlementStatus = (typeof STATUSES)[number];
@@ -33,6 +38,8 @@ export interface EffectiveEntitlementItem {
   /** Stato persistito; null se nessuna riga. */
   recordedStatus: EntitlementStatus | null;
   implicit: boolean;
+  /** Note persistite su DB; null se nessuna riga (implicito). */
+  recordedNotes: string | null;
 }
 
 function toRow(doc: Record<string, unknown>): WorkspaceEntitlementRow {
@@ -61,7 +68,7 @@ export async function listWorkspaceEntitlements(workspaceId: string): Promise<Wo
   return docs.map((d) => toRow(d as Record<string, unknown>));
 }
 
-/** Presenza riga + status === active ⇒ entitled; nessuna riga ⇒ entitled (grandfathered). */
+/** Presenza riga + status === active ⇒ entitled; nessuna riga ⇒ default da catalogo. */
 export async function isWorkspaceEntitledToFeature(
   workspaceId: string,
   feature: WorkspaceEntitlementFeature
@@ -69,7 +76,7 @@ export async function isWorkspaceEntitledToFeature(
   if (!workspaceId.trim()) return false;
   const db = getDb();
   const doc = await db.collection(COLLECTION).findOne({ workspaceId, feature });
-  if (!doc) return true;
+  if (!doc) return getDefaultEntitledWhenNoRow(feature);
   return (doc as { status?: string }).status === "active";
 }
 
@@ -78,12 +85,27 @@ export async function listEffectiveWorkspaceEntitlements(workspaceId: string): P
   const byFeature = new Map(rows.map((r) => [r.feature, r]));
   return WORKSPACE_ENTITLEMENT_FEATURES.map((feature) => {
     const row = byFeature.get(feature);
+    const defaultEntitled = getDefaultEntitledWhenNoRow(feature);
     if (!row) {
-      return { feature, entitled: true, recordedStatus: null, implicit: true };
+      return { feature, entitled: defaultEntitled, recordedStatus: null, implicit: true, recordedNotes: null };
     }
     const entitled = row.status === "active";
-    return { feature, entitled, recordedStatus: row.status, implicit: false };
+    return {
+      feature,
+      entitled,
+      recordedStatus: row.status,
+      implicit: false,
+      recordedNotes: row.notes ?? "",
+    };
   });
+}
+
+/** Elenco chiavi da esporre in GET /workspaces/:id come `features` (nav FE). */
+export async function listWorkspaceClientFeatureKeys(workspaceId: string): Promise<string[]> {
+  const effective = await listEffectiveWorkspaceEntitlements(workspaceId);
+  return effective
+    .filter((e) => shouldIncludeFeatureInWorkspacePayload(e.feature) && e.entitled)
+    .map((e) => e.feature);
 }
 
 const UpsertSchema = z.object({

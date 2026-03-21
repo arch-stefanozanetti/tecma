@@ -74,6 +74,8 @@ export const PERMISSIONS = {
   DEALS_CLOSE: "deals.close",
   /** Template email transazionali (admin) */
   EMAIL_FLOWS_MANAGE: "email_flows.manage",
+  /** Lettura audit di sicurezza (tz_security_audit) */
+  COMPLIANCE_AUDIT_READ: "compliance.audit.read",
   /** Wildcard: tutti i permessi */
   ALL: "*"
 } as const;
@@ -170,7 +172,8 @@ const MODULE_LABELS: Record<string, string> = {
   reports: "Report",
   integrations: "Integrazioni",
   settings: "Impostazioni",
-  email_flows: "Email transazionali"
+  email_flows: "Email transazionali",
+  compliance: "Compliance"
 };
 
 const ACTION_LABELS: Record<string, string> = {

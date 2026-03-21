@@ -17,6 +17,8 @@ Indice della documentazione di progetto. **Piano unico (checklist, fasi, backlog
 
 | File | Contenuto |
 |------|-----------|
+| [DOCS_CI_CD.md](DOCS_CI_CD.md) | CI monorepo e **followup-3.0** (`ci-be` / `ci-fe`), checklist merge (link), secret E2E opzionali, deploy Render. |
+| [STAGING_ENTITLEMENTS_SMOKE.md](STAGING_ENTITLEMENTS_SMOKE.md) | Checklist manuale post-deploy: console Tecma, 403 entitlement, liste workspace. |
 | [API_RIUSABILI.md](API_RIUSABILI.md) | API per uso esterno (riusabili): listati appartamenti, lista light clienti; contratti, auth, esempi; riferimento OpenAPI. |
 | [OBSERVABILITY.md](OBSERVABILITY.md) | Logging strutturato (`pino`), request correlation (`x-request-id`/`x-correlation-id`), OpenTelemetry (traces + metriche OTLP). |
 | [ACCEPTANCE_GATES.md](ACCEPTANCE_GATES.md) | Gate finali bloccanti: soglie CI hard, journey E2E core stabilizzati, verifica operativa post-release. |

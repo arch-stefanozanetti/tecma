@@ -77,6 +77,7 @@ export const createSignatureRequest = async (rawInput: unknown): Promise<Record<
   };
 };
 
+/** Idempotente: stesso providerRequestId con stesso stato può essere ripetuto senza effetti collaterali oltre all'update. */
 export const applySignatureWebhook = async (rawInput: unknown): Promise<{ ok: boolean; status: SignatureRequestStatus }> => {
   const input = WebhookSchema.parse(rawInput);
   const db = getDb();

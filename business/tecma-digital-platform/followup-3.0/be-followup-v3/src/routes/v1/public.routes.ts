@@ -3,6 +3,7 @@ import { z } from "zod";
 import { queryApartments } from "../../core/apartments/apartments.service.js";
 import {
   loginWithCredentials,
+  completeLoginWithMfa,
   exchangeSsoJwt,
   refreshAccessToken,
   logoutWithRefreshToken,
@@ -12,9 +13,16 @@ import {
 import { setPasswordFromInvite } from "../../core/users/users-mutations.service.js";
 import { exchangeCodeForTokens } from "../../core/connectors/outlook.service.js";
 import { openApiV1 } from "../../docs/openapi.js";
+import { getCurrentPrivacyPolicy } from "../../core/gdpr/legal-documents.service.js";
 import { HttpError } from "../../types/http.js";
+import { ENV, isProductionLike } from "../../config/env.js";
 import { handleAsync, sendError } from "../asyncHandler.js";
-import { authRateLimiter, publicApiRateLimiter, refreshRateLimiter } from "../rateLimitMiddleware.js";
+import {
+  authRateLimiter,
+  mfaVerifyRateLimiter,
+  publicApiRateLimiter,
+  refreshRateLimiter
+} from "../rateLimitMiddleware.js";
 import { getClientIp } from "../requestMeta.js";
 
 const SWAGGER_UI_HTML = `<!DOCTYPE html>
@@ -50,11 +58,24 @@ publicRoutes.get("/health", (_req, res) => {
   res.json({ ok: true, service: "be-followup-v3" });
 });
 
+publicRoutes.get("/legal/privacy-policy", handleAsync(async () => {
+  const data = await getCurrentPrivacyPolicy();
+  return { data };
+}));
+
 publicRoutes.get("/openapi.json", (_req, res) => {
+  if (isProductionLike() && !ENV.PUBLIC_API_DOCS_ENABLED) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
   res.json(openApiV1);
 });
 
 publicRoutes.get("/docs", (_req, res) => {
+  if (isProductionLike() && !ENV.PUBLIC_API_DOCS_ENABLED) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
   res.type("html").send(SWAGGER_UI_HTML);
 });
 
@@ -65,6 +86,9 @@ const authMeta = (req: import("express").Request) => ({
 
 publicRoutes.post("/auth/login", authRateLimiter, handleAsync((req) =>
   loginWithCredentials(req.body, authMeta(req))
+));
+publicRoutes.post("/auth/mfa/verify", mfaVerifyRateLimiter, handleAsync((req) =>
+  completeLoginWithMfa(req.body, authMeta(req))
 ));
 publicRoutes.post("/auth/sso-exchange", authRateLimiter, handleAsync((req) => exchangeSsoJwt(req.body)));
 publicRoutes.post("/auth/refresh", refreshRateLimiter, handleAsync((req) => refreshAccessToken(req.body)));
@@ -80,9 +104,7 @@ publicRoutes.post("/auth/reset-password", authRateLimiter, handleAsync((req) =>
   resetPasswordWithToken(req.body, authMeta(req))
 ));
 publicRoutes.post("/auth/set-password-from-invite", authRateLimiter, handleAsync((req) => {
-  const body = z
-    .object({ token: z.string().min(1), password: z.string().min(8) })
-    .parse(req.body);
+  const body = z.object({ token: z.string().min(1), password: z.string().min(1) }).parse(req.body);
   return setPasswordFromInvite(body, authMeta(req));
 }));
 

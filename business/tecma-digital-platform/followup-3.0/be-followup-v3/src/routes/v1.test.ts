@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
+import type { Server } from "node:http";
 import express from "express";
-import request from "supertest";
+import { closeStable, listenStable, stableRequest } from "../test/stableHttpServer.js";
 import { signAccessToken, type AccessTokenPayload } from "../core/auth/token.service.js";
 import { BUILTIN_ROLE_PERMISSIONS, PERMISSIONS } from "../core/rbac/permissions.js";
 
@@ -26,6 +27,13 @@ vi.mock("../core/access/canAccess.js", () => ({
   canAccess: vi.fn().mockResolvedValue(true),
   getWorkspacesForUser: vi.fn().mockResolvedValue(["ws1"]),
   getProjectsAccessibleByUser: vi.fn().mockResolvedValue(["p1"]),
+}));
+
+vi.mock("../core/auth/mfa.service.js", () => ({
+  getUserSecurity: vi.fn().mockResolvedValue(null),
+  startMfaSetup: vi.fn(),
+  confirmMfaSetup: vi.fn(),
+  disableMfa: vi.fn(),
 }));
 
 vi.mock("../core/clients/clients.service.js", () => ({
@@ -134,9 +142,24 @@ app.use(express.json());
 app.use("/v1", v1Router);
 
 describe("v1 routes", () => {
+  let server: Server;
+  let origin: string;
+
+  beforeAll(async () => {
+    const x = await listenStable(app);
+    server = x.server;
+    origin = x.origin;
+  });
+
+  afterAll(async () => {
+    await closeStable(server);
+  });
+
+  const st = () => stableRequest(origin);
+
   describe("GET /v1/health", () => {
     it("returns 200 and { ok: true, service: string }", async () => {
-      const res = await request(app).get("/v1/health");
+      const res = await st().get("/v1/health");
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ ok: true, service: "be-followup-v3" });
     });
@@ -144,14 +167,14 @@ describe("v1 routes", () => {
 
   describe("GET /v1/openapi.json", () => {
     it("returns 200 and OpenAPI object with openapi and paths", async () => {
-      const res = await request(app).get("/v1/openapi.json");
+      const res = await st().get("/v1/openapi.json");
       expect(res.status).toBe(200);
       expect(res.body.openapi).toBeDefined();
       expect(res.body.paths).toBeDefined();
       expect(typeof res.body.paths).toBe("object");
     });
     it("exposes Riusabili tag and tags apartments/query and clients/lite/query as Riusabili", async () => {
-      const res = await request(app).get("/v1/openapi.json");
+      const res = await st().get("/v1/openapi.json");
       expect(res.status).toBe(200);
       const tags = res.body.tags || [];
       expect(tags.some((t: { name: string }) => t.name === "Riusabili")).toBe(true);
@@ -159,7 +182,7 @@ describe("v1 routes", () => {
       expect(res.body.paths["/clients/lite/query"]?.post?.tags).toContain("Riusabili");
     });
     it("documents public listings path", async () => {
-      const res = await request(app).get("/v1/openapi.json");
+      const res = await st().get("/v1/openapi.json");
       expect(res.status).toBe(200);
       expect(res.body.paths["/public/listings"]?.post).toBeDefined();
       expect(res.body.paths["/public/listings"].post.summary).toContain("Public");
@@ -168,7 +191,7 @@ describe("v1 routes", () => {
 
   describe("POST /v1/public/listings", () => {
     it("returns 200 with paginated data when body is valid (no JWT required)", async () => {
-      const res = await request(app)
+      const res = await st()
         .post("/v1/public/listings")
         .set("Content-Type", "application/json")
         .send({
@@ -183,7 +206,7 @@ describe("v1 routes", () => {
       expect(res.body.pagination).toEqual({ page: 1, perPage: 25, total: 0, totalPages: 0 });
     });
     it("returns 400 when body is invalid", async () => {
-      const res = await request(app)
+      const res = await st()
         .post("/v1/public/listings")
         .set("Content-Type", "application/json")
         .send({ workspaceId: "dev-1" });
@@ -194,7 +217,7 @@ describe("v1 routes", () => {
 
   describe("platform boundary", () => {
     it("GET /v1/platform/capabilities returns 401 without x-api-key", async () => {
-      const res = await request(app).get("/v1/platform/capabilities");
+      const res = await st().get("/v1/platform/capabilities");
       expect(res.status).toBe(401);
       expect(res.body.error).toBeDefined();
     });
@@ -203,7 +226,7 @@ describe("v1 routes", () => {
   describe("POST /v1/session/projects-by-email", () => {
     it("returns 400 when body is invalid", async () => {
       const token = makeToken();
-      const res = await request(app)
+      const res = await st()
         .post("/v1/session/projects-by-email")
         .set("Authorization", `Bearer ${token}`)
         .send({});
@@ -214,13 +237,13 @@ describe("v1 routes", () => {
 
   describe("auth middleware", () => {
     it("returns 401 when no token", async () => {
-      const res = await request(app).get("/v1/auth/me");
+      const res = await st().get("/v1/auth/me");
       expect(res.status).toBe(401);
       expect(res.body.error).toBeDefined();
     });
 
     it("returns 401 when token is invalid", async () => {
-      const res = await request(app)
+      const res = await st()
         .get("/v1/auth/me")
         .set("Authorization", "Bearer invalid.jwt.token");
       expect(res.status).toBe(401);
@@ -236,7 +259,7 @@ describe("v1 routes", () => {
         permissions: ["apartments.read"],
         projectId: "p1"
       });
-      const res = await request(app)
+      const res = await st()
         .get("/v1/auth/me")
         .set("Authorization", `Bearer ${token}`);
       expect(res.status).toBe(200);
@@ -248,13 +271,14 @@ describe("v1 routes", () => {
         permissions: ["apartments.read"],
         projectId: "p1",
         isTecmaAdmin: false,
+        mfaEnabled: false,
       });
     });
   });
 
   describe("realtime stream", () => {
     it("returns 401 when token is missing", async () => {
-      const res = await request(app).get("/v1/realtime/stream?workspaceId=ws1");
+      const res = await st().get("/v1/realtime/stream?workspaceId=ws1");
       expect(res.status).toBe(401);
       expect(res.body.error).toBeDefined();
     });
@@ -262,7 +286,7 @@ describe("v1 routes", () => {
 
   describe("POST /v1/auth/refresh", () => {
     it("returns 400 when body is invalid", async () => {
-      const res = await request(app).post("/v1/auth/refresh").send({});
+      const res = await st().post("/v1/auth/refresh").send({});
       expect(res.status).toBe(400);
       expect(res.body.error).toBeDefined();
     });
@@ -277,14 +301,14 @@ describe("v1 routes", () => {
     };
 
     it("returns 401 when no token", async () => {
-      const res = await request(app).post("/v1/requests/query").send(validBody);
+      const res = await st().post("/v1/requests/query").send(validBody);
       expect(res.status).toBe(401);
       expect(res.body.error).toBeDefined();
     });
 
     it("returns 200 with data and pagination when body is valid and JWT present", async () => {
       const token = makeToken();
-      const res = await request(app)
+      const res = await st()
         .post("/v1/requests/query")
         .set("Authorization", `Bearer ${token}`)
         .send(validBody);
@@ -299,7 +323,7 @@ describe("v1 routes", () => {
 
     it("returns 400 when body is invalid (missing workspaceId)", async () => {
       const token = makeToken();
-      const res = await request(app)
+      const res = await st()
         .post("/v1/requests/query")
         .set("Authorization", `Bearer ${token}`)
         .send({ projectIds: ["p1"] });
@@ -309,7 +333,7 @@ describe("v1 routes", () => {
 
     it("returns 400 when body is invalid (empty projectIds)", async () => {
       const token = makeToken();
-      const res = await request(app)
+      const res = await st()
         .post("/v1/requests/query")
         .set("Authorization", `Bearer ${token}`)
         .send({ workspaceId: "ws1", projectIds: [] });
@@ -328,14 +352,14 @@ describe("v1 routes", () => {
     };
 
     it("returns 401 when no token", async () => {
-      const res = await request(app).post("/v1/requests").send(validBody);
+      const res = await st().post("/v1/requests").send(validBody);
       expect(res.status).toBe(401);
       expect(res.body.error).toBeDefined();
     });
 
     it("returns 200 with request when body is valid and JWT present", async () => {
       const token = makeToken();
-      const res = await request(app)
+      const res = await st()
         .post("/v1/requests")
         .set("Authorization", `Bearer ${token}`)
         .send(validBody);
@@ -353,7 +377,7 @@ describe("v1 routes", () => {
 
     it("returns 400 when body is invalid (missing clientId)", async () => {
       const token = makeToken();
-      const res = await request(app)
+      const res = await st()
         .post("/v1/requests")
         .set("Authorization", `Bearer ${token}`)
         .send({ workspaceId: "ws1", projectId: "p1", type: "sell" });
@@ -364,14 +388,14 @@ describe("v1 routes", () => {
 
   describe("GET /v1/clients/:id", () => {
     it("returns 401 when no token", async () => {
-      const res = await request(app).get("/v1/clients/c1");
+      const res = await st().get("/v1/clients/c1");
       expect(res.status).toBe(401);
       expect(res.body.error).toBeDefined();
     });
 
     it("returns 200 with client when id is valid and JWT present", async () => {
       const token = makeToken();
-      const res = await request(app)
+      const res = await st()
         .get("/v1/clients/c1")
         .query({ workspaceId: "ws1" })
         .set("Authorization", `Bearer ${token}`);
@@ -387,7 +411,7 @@ describe("v1 routes", () => {
 
     it("returns 404 when client not found", async () => {
       const token = makeToken();
-      const res = await request(app)
+      const res = await st()
         .get("/v1/clients/404")
         .query({ workspaceId: "ws1" })
         .set("Authorization", `Bearer ${token}`);
@@ -398,14 +422,14 @@ describe("v1 routes", () => {
 
   describe("workspace assets and client documents (mounted on v1)", () => {
     it("GET /v1/workspaces/:id/assets returns 401 without token", async () => {
-      const res = await request(app).get("/v1/workspaces/ws1/assets");
+      const res = await st().get("/v1/workspaces/ws1/assets");
       expect(res.status).toBe(401);
       expect(res.body.error).toBeDefined();
     });
 
     it("GET /v1/workspaces/:id/assets returns 200 with data when JWT present", async () => {
       const token = makeToken();
-      const res = await request(app)
+      const res = await st()
         .get("/v1/workspaces/ws1/assets")
         .set("Authorization", `Bearer ${token}`);
       expect(res.status).toBe(200);
@@ -413,14 +437,14 @@ describe("v1 routes", () => {
     });
 
     it("GET /v1/workspaces/:id/clients/:cid/documents returns 401 without token", async () => {
-      const res = await request(app).get("/v1/workspaces/ws1/clients/c1/documents");
+      const res = await st().get("/v1/workspaces/ws1/clients/c1/documents");
       expect(res.status).toBe(401);
       expect(res.body.error).toBeDefined();
     });
 
     it("GET /v1/workspaces/:id/clients/:cid/documents returns 200 with data when JWT present", async () => {
       const token = makeToken();
-      const res = await request(app)
+      const res = await st()
         .get("/v1/workspaces/ws1/clients/c1/documents")
         .set("Authorization", `Bearer ${token}`);
       expect(res.status).toBe(200);

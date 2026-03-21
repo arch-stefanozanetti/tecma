@@ -4,6 +4,7 @@ import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
 import { ALL_PERMISSION_IDS, PERMISSIONS, hasPermission } from "../../core/rbac/permissions.js";
 import { writeAuditLog } from "../../core/audit/audit.service.js";
+import { recordSecurityEvent } from "../../core/compliance/security-audit.service.js";
 import {
   inviteUser,
   findUserById,
@@ -12,6 +13,7 @@ import {
 } from "../../core/users/users-mutations.service.js";
 import { requirePermission, requireAnyPermission } from "../permissionMiddleware.js";
 import { listUsersWithVisibility } from "../../core/users/users-admin.service.js";
+import { getClientIp } from "../requestMeta.js";
 
 export const usersAdminRoutes = Router();
 
@@ -48,6 +50,17 @@ usersAdminRoutes.post(
       entityId: result.userId,
       changes: { after: { email: body.email, role: body.role, projectId: body.projectId } },
       projectId: req.user!.projectId ?? body.projectId,
+    });
+
+    void recordSecurityEvent({
+      action: "users.invited",
+      entityType: "user",
+      entityId: result.userId,
+      userId: req.user!.sub,
+      projectId: body.projectId,
+      ip: getClientIp(req) ?? undefined,
+      userAgent: req.get("user-agent") ?? undefined,
+      metadata: { roleLabel: body.role }
     });
 
     return result;

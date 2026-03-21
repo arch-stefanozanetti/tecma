@@ -4,6 +4,7 @@ import { getDb } from "../../config/db.js";
 import { HttpError } from "../../types/http.js";
 import { emitDomainEvent } from "../events/event-log.service.js";
 import { getWorkspaceAiConfigInternal, isWorkspaceAiConfigured } from "../workspaces/workspace-ai-config.service.js";
+import { isWorkspaceEntitledToFeature } from "../workspaces/workspace-entitlements.service.js";
 import { ENV } from "../../config/env.js";
 import {
   refineSuggestionsWithLlm,
@@ -373,6 +374,10 @@ export const decideAiSuggestion = async (rawInput: unknown) => {
   const existing = await db.collection<SuggestionDoc>("tz_ai_suggestions").findOne({ _id: suggestionId });
   if (!existing) {
     throw new HttpError("Suggestion not found", 404);
+  }
+  const entitledAi = await isWorkspaceEntitledToFeature(existing.workspaceId, "aiApprovals");
+  if (!entitledAi) {
+    throw new HttpError("Funzionalità non abilitata per questo workspace", 403, "FEATURE_NOT_ENTITLED");
   }
 
   await db.collection("tz_ai_suggestions").updateOne(

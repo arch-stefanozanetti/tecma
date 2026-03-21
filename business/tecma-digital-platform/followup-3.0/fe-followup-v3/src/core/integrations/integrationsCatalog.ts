@@ -115,7 +115,7 @@ export const CONNECTOR_CATALOG: ConnectorCatalogItem[] = [
     id: "connector_mailchimp",
     name: "Mailchimp",
     group: "Marketing",
-    status: "coming_soon",
+    status: "beta",
     brandId: "mailchimp",
     description:
       "Segmenti marketing da profili CRM e trigger campagne da eventi trattativa. L’attivazione è commerciale: nessuna auto-provisioning dal portale.",
@@ -126,7 +126,7 @@ export const CONNECTOR_CATALOG: ConnectorCatalogItem[] = [
     id: "connector_activecampaign",
     name: "ActiveCampaign",
     group: "Marketing",
-    status: "coming_soon",
+    status: "beta",
     description:
       "Automazioni e liste collegate al CRM. Stesso modello di Mailchimp: attivazione solo dopo accordo commerciale con Tecma.",
     capabilities: ["List sync", "Automation hooks", "Event triggers"],

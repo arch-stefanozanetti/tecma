@@ -6,7 +6,6 @@
 import { getDb } from "../../config/db.js";
 import { listWorkspaceIdsForUser } from "../workspaces/workspace-users.service.js";
 
-const COLLECTION_MEMBERSHIPS = "tz_user_workspaces";
 const COLLECTION_PROJECTS = "tz_projects";
 const COLLECTION_WORKSPACE_PROJECTS = "tz_workspace_projects";
 const COLLECTION_PROJECT_ACCESS = "tz_project_access";

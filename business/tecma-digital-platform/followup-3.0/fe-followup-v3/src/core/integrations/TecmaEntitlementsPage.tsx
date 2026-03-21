@@ -21,6 +21,9 @@ const FEATURE_LABELS: Record<WorkspaceEntitlementFeature, string> = {
   twilio: "Twilio (WhatsApp)",
   mailchimp: "Mailchimp",
   activecampaign: "ActiveCampaign",
+  aiApprovals: "Approvazioni AI / suggerimenti",
+  reports: "Reportistica",
+  integrations: "Integrazioni e automazioni",
 };
 
 const STATUSES: WorkspaceEntitlementStatus[] = [
@@ -39,9 +42,13 @@ const STATUS_LABELS: Record<WorkspaceEntitlementStatus, string> = {
 
 interface TecmaEntitlementsPageProps {
   workspaceId: string;
+  /** Se true, mostra selettore workspace (lista da API) per gestire clienti senza cambiare contesto header. */
+  isTecmaAdmin?: boolean;
 }
 
-export function TecmaEntitlementsPage({ workspaceId }: TecmaEntitlementsPageProps) {
+export function TecmaEntitlementsPage({ workspaceId, isTecmaAdmin = false }: TecmaEntitlementsPageProps) {
+  const [targetWorkspaceId, setTargetWorkspaceId] = useState(workspaceId);
+  const [workspaceOptions, setWorkspaceOptions] = useState<{ _id: string; name: string }[]>([]);
   const [rows, setRows] = useState<WorkspaceEntitlementEffectiveRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -50,19 +57,32 @@ export function TecmaEntitlementsPage({ workspaceId }: TecmaEntitlementsPageProp
   const [draftStatus, setDraftStatus] = useState<Partial<Record<WorkspaceEntitlementFeature, WorkspaceEntitlementStatus>>>({});
   const [draftNotes, setDraftNotes] = useState<Partial<Record<WorkspaceEntitlementFeature, string>>>({});
 
+  useEffect(() => {
+    setTargetWorkspaceId(workspaceId);
+  }, [workspaceId]);
+
+  useEffect(() => {
+    if (!isTecmaAdmin) return;
+    void followupApi
+      .listWorkspaces()
+      .then((list) => setWorkspaceOptions(list.map((w) => ({ _id: w._id, name: w.name }))))
+      .catch(() => setWorkspaceOptions([]));
+  }, [isTecmaAdmin]);
+
   const load = useCallback(async () => {
-    if (!workspaceId.trim()) return;
+    const wid = targetWorkspaceId.trim();
+    if (!wid) return;
     setLoading(true);
     setError("");
     try {
-      const res = await followupApi.getWorkspaceEntitlements(workspaceId);
+      const res = await followupApi.getWorkspaceEntitlements(wid);
       const data = res.data ?? [];
       setRows(data);
       const st: Partial<Record<WorkspaceEntitlementFeature, WorkspaceEntitlementStatus>> = {};
       const nt: Partial<Record<WorkspaceEntitlementFeature, string>> = {};
       for (const r of data) {
         st[r.feature] = r.recordedStatus ?? (r.entitled ? "active" : "inactive");
-        nt[r.feature] = "";
+        nt[r.feature] = r.recordedNotes ?? "";
       }
       setDraftStatus(st);
       setDraftNotes(nt);
@@ -72,7 +92,7 @@ export function TecmaEntitlementsPage({ workspaceId }: TecmaEntitlementsPageProp
     } finally {
       setLoading(false);
     }
-  }, [workspaceId]);
+  }, [targetWorkspaceId]);
 
   useEffect(() => {
     void load();
@@ -81,10 +101,12 @@ export function TecmaEntitlementsPage({ workspaceId }: TecmaEntitlementsPageProp
   const saveFeature = async (feature: WorkspaceEntitlementFeature) => {
     const status = draftStatus[feature];
     if (!status) return;
+    const wid = targetWorkspaceId.trim();
+    if (!wid) return;
     setSavingFeature(feature);
     setError("");
     try {
-      await followupApi.patchWorkspaceEntitlement(workspaceId, feature, {
+      await followupApi.patchWorkspaceEntitlement(wid, feature, {
         status,
         notes: draftNotes[feature]?.trim() || undefined,
         billingMode: "manual_invoice",
@@ -97,19 +119,36 @@ export function TecmaEntitlementsPage({ workspaceId }: TecmaEntitlementsPageProp
     }
   };
 
-  if (!workspaceId.trim()) {
+  if (!targetWorkspaceId.trim()) {
     return (
-      <p className="text-sm text-muted-foreground">Seleziona un workspace dall’header per gestire gli entitlement.</p>
+      <p className="text-sm text-muted-foreground">Seleziona un workspace dall’header o dal menu sotto per gestire gli entitlement.</p>
     );
   }
 
   return (
     <div className="space-y-6">
+      {isTecmaAdmin && workspaceOptions.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 p-4">
+          <span className="text-sm font-medium text-foreground">Workspace da configurare</span>
+          <Select value={targetWorkspaceId} onValueChange={(v) => setTargetWorkspaceId(v)}>
+            <SelectTrigger className="h-10 w-full max-w-md">
+              <SelectValue placeholder="Scegli workspace" />
+            </SelectTrigger>
+            <SelectContent>
+              {workspaceOptions.map((w) => (
+                <SelectItem key={w._id} value={w._id}>
+                  {w.name || w._id}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <p className="max-w-2xl text-sm text-muted-foreground">
           <ShieldCheck className="mr-1 inline h-4 w-4 align-text-bottom text-primary" aria-hidden />
-          Attiva o sospendi i moduli a consumo per il workspace selezionato nell’header. Le modifiche sono tracciate in audit.
-          Assenza di riga in DB equivale a <strong className="text-foreground">attivo</strong> (compatibilità deploy).
+          Attiva o sospendi capability e moduli UI per il workspace selezionato. Le modifiche sono tracciate in audit.
+          Il default senza riga in DB dipende dalla chiave (catalogo backend / documentazione piano feature flags).
         </p>
         <Button variant="outline" size="sm" className="min-h-11 gap-2" onClick={() => void load()} disabled={loading}>
           <RefreshCw className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />

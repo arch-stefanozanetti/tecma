@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { handleAsync } from "../asyncHandler.js";
 import { requirePermission } from "../permissionMiddleware.js";
+import { signatureWebhookRateLimiter } from "../rateLimitMiddleware.js";
+import { requireSignatureWebhookClientIp } from "../signatureWebhookIpAllowlist.js";
+import { requireSignatureWebhookSecret } from "../signatureWebhookMiddleware.js";
 import { PERMISSIONS } from "../../core/rbac/permissions.js";
 import { applySignatureWebhook, createSignatureRequest, getSignatureStatusForRequest } from "../../core/contracts/signature.service.js";
 
@@ -20,6 +23,9 @@ contractsRoutes.post(
 
 contractsPublicRoutes.post(
   "/contracts/signature-requests/webhook",
+  signatureWebhookRateLimiter,
+  requireSignatureWebhookClientIp,
+  requireSignatureWebhookSecret,
   handleAsync((req) => applySignatureWebhook(req.body)),
 );
 

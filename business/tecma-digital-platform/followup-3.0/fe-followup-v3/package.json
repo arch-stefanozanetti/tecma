@@ -17,6 +17,7 @@
     "test:e2e": "playwright test",
     "test:e2e:core": "playwright test e2e/core --project=chromium",
     "test:e2e:enterprise": "playwright test e2e/core/enterprise-journeys.spec.ts --project=chromium",
+    "test:e2e:ci": "playwright test e2e/core e2e/entitlements.spec.ts --project=chromium",
     "test:e2e:ui": "playwright test --ui",
     "test:visual": "playwright test e2e/visual",
     "test:a11y": "playwright test e2e/a11y",

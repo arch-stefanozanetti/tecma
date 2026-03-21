@@ -9,7 +9,9 @@ export const mlsFeedPublicRoutes = Router();
 mlsFeedPublicRoutes.get(
   "/mls/feed/:workspaceId/:projectId.xml",
   handleAsync(async (req) => {
-    const apiKey = typeof req.query.apiKey === "string" ? req.query.apiKey : "";
+    const fromHeader = req.get("x-mls-api-key")?.trim() ?? "";
+    const fromQuery = typeof req.query.apiKey === "string" ? req.query.apiKey : "";
+    const apiKey = fromHeader || fromQuery;
     const xml = await generateMlsFeedXml({
       workspaceId: req.params.workspaceId,
       projectId: req.params.projectId,

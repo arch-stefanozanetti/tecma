@@ -12,6 +12,8 @@ import { createAiActionDraft, queryAiActionDrafts, decideAiActionDraft } from ".
 import { executeSuggestionWithAgent } from "../../core/ai/suggestion-agent.service.js";
 import { requirePermission } from "../permissionMiddleware.js";
 import { PERMISSIONS } from "../../core/rbac/permissions.js";
+import { requireWorkspaceEntitled, workspaceIdFromBodyOrQuery } from "../workspaceEntitlementMiddleware.js";
+import { isWorkspaceEntitledToFeature } from "../../core/workspaces/workspace-entitlements.service.js";
 
 export const intelligenceRoutes = Router();
 
@@ -26,7 +28,12 @@ intelligenceRoutes.get(
   })
 );
 
-intelligenceRoutes.post("/reports/:reportType", requirePermission(PERMISSIONS.REPORTS_READ), handleAsync((req) => runReport(req.params.reportType, req.body)));
+intelligenceRoutes.post(
+  "/reports/:reportType",
+  requirePermission(PERMISSIONS.REPORTS_READ),
+  requireWorkspaceEntitled("reports", workspaceIdFromBodyOrQuery),
+  handleAsync((req) => runReport(req.params.reportType, req.body))
+);
 
 intelligenceRoutes.post(
   "/audit/query",
@@ -71,6 +78,7 @@ intelligenceRoutes.get(
 intelligenceRoutes.get(
   "/ai/suggestions",
   requirePermission(PERMISSIONS.REQUESTS_READ),
+  requireWorkspaceEntitled("aiApprovals", workspaceIdFromBodyOrQuery),
   handleAsync(async (req) => {
     const user = req.user;
     if (!user?.email) throw new HttpError("Unauthorized", 401);
@@ -101,7 +109,12 @@ intelligenceRoutes.get(
   })
 );
 
-intelligenceRoutes.post("/ai/suggestions", requirePermission(PERMISSIONS.REQUESTS_UPDATE), handleAsync((req) => generateAiSuggestions(req.body)));
+intelligenceRoutes.post(
+  "/ai/suggestions",
+  requirePermission(PERMISSIONS.REQUESTS_UPDATE),
+  requireWorkspaceEntitled("aiApprovals", workspaceIdFromBodyOrQuery),
+  handleAsync((req) => generateAiSuggestions(req.body))
+);
 intelligenceRoutes.post(
   "/ai/suggestions/:suggestionId/execute",
   requirePermission(PERMISSIONS.REQUESTS_UPDATE),
@@ -124,6 +137,8 @@ intelligenceRoutes.post(
       { type: "workspace", workspaceId }
     );
     if (!allowed) throw new HttpError("Accesso al workspace non consentito", 403);
+    const entitledAi = await isWorkspaceEntitledToFeature(workspaceId, "aiApprovals");
+    if (!entitledAi) throw new HttpError("Funzionalità non abilitata per questo workspace", 403, "FEATURE_NOT_ENTITLED");
     const projectIds = Array.isArray(doc.projectIds) ? doc.projectIds.map((x: unknown) => String(x)) : [];
     return executeSuggestionWithAgent(suggestionId, req.body, {
       workspaceId,
@@ -135,8 +150,18 @@ intelligenceRoutes.post(
   })
 );
 intelligenceRoutes.post("/ai/approvals", requirePermission(PERMISSIONS.REQUESTS_UPDATE), handleAsync((req) => decideAiSuggestion(req.body)));
-intelligenceRoutes.post("/ai/actions/drafts", requirePermission(PERMISSIONS.REQUESTS_UPDATE), handleAsync((req) => createAiActionDraft(req.body)));
-intelligenceRoutes.post("/ai/actions/drafts/query", requirePermission(PERMISSIONS.REQUESTS_READ), handleAsync((req) => queryAiActionDrafts(req.body)));
+intelligenceRoutes.post(
+  "/ai/actions/drafts",
+  requirePermission(PERMISSIONS.REQUESTS_UPDATE),
+  requireWorkspaceEntitled("aiApprovals", workspaceIdFromBodyOrQuery),
+  handleAsync((req) => createAiActionDraft(req.body))
+);
+intelligenceRoutes.post(
+  "/ai/actions/drafts/query",
+  requirePermission(PERMISSIONS.REQUESTS_READ),
+  requireWorkspaceEntitled("aiApprovals", workspaceIdFromBodyOrQuery),
+  handleAsync((req) => queryAiActionDrafts(req.body))
+);
 intelligenceRoutes.post(
   "/ai/actions/drafts/:id/decision",
   requirePermission(PERMISSIONS.REQUESTS_UPDATE),

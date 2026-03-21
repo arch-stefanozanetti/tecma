@@ -3,7 +3,13 @@
  */
 import { getDb } from "../../config/db.js";
 import type { AssetType, TzAssetDoc } from "../../types/models.js";
-import { buildAssetKey, getPresignedGetUrl, getPresignedPutUrl, deleteObject } from "./assets-s3.service.js";
+import {
+  buildAssetKey,
+  getPresignedGetUrl,
+  getPresignedPutUrl,
+  deleteObject,
+  type PresignedGetAuditContext
+} from "./assets-s3.service.js";
 import { HttpError } from "../../types/http.js";
 import { ObjectId } from "mongodb";
 import { z } from "zod";
@@ -125,11 +131,18 @@ export async function getAssetById(workspaceId: string, assetId: string): Promis
 export async function getDownloadUrl(
   workspaceId: string,
   assetId: string,
-  expiresInSec?: number
+  expiresInSec?: number,
+  audit?: Omit<PresignedGetAuditContext, "entityType" | "entityId" | "workspaceId" | "projectId">
 ): Promise<{ downloadUrl: string; expiresAt: string }> {
   const asset = await getAssetById(workspaceId, assetId);
   if (!asset) throw new HttpError("Asset not found", 404);
-  const { downloadUrl, expiresAt } = await getPresignedGetUrl(asset.file_key, expiresInSec);
+  const { downloadUrl, expiresAt } = await getPresignedGetUrl(asset.file_key, expiresInSec, {
+    ...audit,
+    workspaceId,
+    projectId: asset.project_id ?? undefined,
+    entityType: "asset",
+    entityId: assetId
+  });
   return { downloadUrl, expiresAt: expiresAt.toISOString() };
 }
 

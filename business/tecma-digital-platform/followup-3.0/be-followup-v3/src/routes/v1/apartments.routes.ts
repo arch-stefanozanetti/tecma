@@ -239,7 +239,7 @@ apartmentsRoutes.post("/workspaces/:workspaceId/projects/:projectId/units/import
   const b64 = body.fileBase64;
   if (typeof b64 !== "string" || !b64) throw new HttpError("fileBase64 obbligatorio", 400);
   const buffer = Buffer.from(b64, "base64");
-  const rows = parseExcelBuffer(buffer);
+  const rows = await parseExcelBuffer(buffer);
   return validateRows(rows, workspaceId, projectId);
 }));
 

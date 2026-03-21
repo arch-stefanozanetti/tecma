@@ -7,7 +7,10 @@ import { z } from "zod";
 const PORT = Number(process.env.MCP_PORT || 5070);
 /** Backend API base (e.g. http://localhost:8080/v1). Endpoints /clients/query, /apartments/query, /associations/query require auth. */
 const API_BASE_URL = process.env.FOLLOWUP_API_BASE_URL || "http://localhost:8080/v1";
-const MCP_API_KEY = process.env.MCP_API_KEY || "change-me";
+const MCP_API_KEY = (process.env.MCP_API_KEY ?? "").trim() || "change-me";
+if (process.env.NODE_ENV === "production" && (!process.env.MCP_API_KEY?.trim() || MCP_API_KEY === "change-me")) {
+  throw new Error("mcp-followup: in produzione impostare MCP_API_KEY (valore forte, diverso da change-me)");
+}
 /** Bearer token sent to Followup BE for protected endpoints. Set FOLLOWUP_BEARER_TOKEN or MCP_BEARER_TOKEN. */
 const BEARER_TOKEN = process.env.FOLLOWUP_BEARER_TOKEN || process.env.MCP_BEARER_TOKEN || "";
 const AUDIT_FILE = join(process.cwd(), "logs", "audit.log");
@@ -24,9 +27,46 @@ const requireApiKey = (req: Request, res: Response, next: () => void) => {
   next();
 };
 
+function summarizeAuditInput(input: unknown): Record<string, unknown> {
+  if (input && typeof input === "object" && !Array.isArray(input)) {
+    const o = input as Record<string, unknown>;
+    const s: Record<string, unknown> = {};
+    if (typeof o.workspaceId === "string") s.workspaceIdLen = o.workspaceId.length;
+    if (Array.isArray(o.projectIds)) s.projectIdsCount = o.projectIds.length;
+    if (typeof o.searchText === "string") s.searchTextLen = o.searchText.length;
+    return s;
+  }
+  return {};
+}
+
+function summarizeAuditResult(result: unknown, status: "ok" | "error"): unknown {
+  if (status === "error" && typeof result === "string") {
+    return result.length > 240 ? `${result.slice(0, 240)}…` : result;
+  }
+  if (result && typeof result === "object" && !Array.isArray(result)) {
+    const o = result as Record<string, unknown>;
+    const copy: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(o)) {
+      if (typeof v === "number") copy[k] = v;
+      else if (typeof v === "boolean") copy[k] = v;
+      else if (typeof v === "string") copy[k] = v.length > 64 ? `[len:${v.length}]` : v;
+    }
+    return copy;
+  }
+  if (typeof result === "number") return result;
+  return "[redacted]";
+}
+
 const logAudit = async (tool: string, input: unknown, result: unknown, status: "ok" | "error") => {
   await mkdir(join(process.cwd(), "logs"), { recursive: true });
-  const line = JSON.stringify({ ts: new Date().toISOString(), tool, status, input, result }) + "\n";
+  const line =
+    JSON.stringify({
+      ts: new Date().toISOString(),
+      tool,
+      status,
+      inputSummary: summarizeAuditInput(input),
+      resultSummary: summarizeAuditResult(result, status),
+    }) + "\n";
   await appendFile(AUDIT_FILE, line, "utf8");
 };
 

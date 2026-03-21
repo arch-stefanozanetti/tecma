@@ -32,9 +32,17 @@ jobs:
           cache-dependency-path: be-followup-v3/package-lock.json
 
       - run: npm ci
+      - name: npm audit dipendenze runtime (high+, bloccante)
+        run: npm audit --omit=dev --audit-level=high
+      - name: npm audit albero completo dev+prod (informativo)
+        continue-on-error: true
+        run: npm audit --audit-level=high
       - run: npm run test:lint:core
       - run: npm run check:openapi
       - run: npm run check:route-guards
       - run: npm run check:no-legacy-runtime
       - run: npm run build
       - run: npm run test:coverage:core
+      # Vitest include anche i test HTTP su entitlement / workspace list (es. *entitlement*.test.ts, workspaces-*-*.http.test.ts).
+      - name: Integration tests (MongoMemoryServer)
+        run: npm run test:integration

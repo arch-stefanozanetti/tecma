@@ -19,6 +19,14 @@ const asyncSideEffectFailuresTotal = meter.createCounter("followup_async_side_ef
   description: "Async side-effects failures (audit/event/notifications) for Followup backend",
 });
 
+const securityAccountLockoutsTotal = meter.createCounter("followup_security_account_lockouts_total", {
+  description: "Account lockouts triggered after failed password attempts",
+});
+
+const securityMfaFailuresTotal = meter.createCounter("followup_security_mfa_failures_total", {
+  description: "Failed MFA verification attempts at login",
+});
+
 const statusClass = (statusCode: number): string => {
   if (statusCode >= 500) return "5xx";
   if (statusCode >= 400) return "4xx";
@@ -73,4 +81,12 @@ export const observeAsyncSideEffectFailure = ({
     "followup.operation": operation,
     "followup.entity_type": entityType ?? "unknown",
   });
+};
+
+export const observeSecurityAccountLockout = (): void => {
+  securityAccountLockoutsTotal.add(1);
+};
+
+export const observeSecurityMfaFailure = (): void => {
+  securityMfaFailuresTotal.add(1);
 };

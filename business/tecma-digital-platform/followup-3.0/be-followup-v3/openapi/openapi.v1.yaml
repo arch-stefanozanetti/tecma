@@ -125,6 +125,10 @@
       "description": "Configurazione webhook outbound per workspace"
     },
     {
+      "name": "connectors",
+      "description": "Connettori terze parti per workspace (API key marketing, messaging, automazioni)"
+    },
+    {
       "name": "assets",
       "description": "File asset workspace (immagini, documenti, planimetrie, branding)"
     },
@@ -151,6 +155,19 @@
         "responses": {
           "200": {
             "description": "Service healthy"
+          }
+        }
+      }
+    },
+    "/legal/privacy-policy": {
+      "get": {
+        "tags": [
+          "privacy"
+        ],
+        "summary": "Privacy policy corrente (pubblico)",
+        "responses": {
+          "200": {
+            "description": "Oggetto data con versione e testo o null se non seedata"
           }
         }
       }
@@ -188,52 +205,144 @@
         },
         "responses": {
           "200": {
-            "description": "Restituisce accessToken, refreshToken, user",
+            "description": "Token sessione oppure secondo fattore richiesto (mfaRequired true + mfaToken)",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "accessToken": {
-                      "type": "string"
-                    },
-                    "refreshToken": {
-                      "type": "string"
-                    },
-                    "user": {
+                  "oneOf": [
+                    {
                       "type": "object",
+                      "required": [
+                        "mfaRequired",
+                        "accessToken",
+                        "refreshToken",
+                        "expiresIn",
+                        "user"
+                      ],
                       "properties": {
-                        "id": {
+                        "mfaRequired": {
+                          "type": "boolean",
+                          "enum": [
+                            false
+                          ]
+                        },
+                        "accessToken": {
                           "type": "string"
                         },
-                        "email": {
+                        "refreshToken": {
                           "type": "string"
                         },
-                        "role": {
-                          "type": "string"
-                        },
-                        "isAdmin": {
-                          "type": "boolean"
-                        },
-                        "permissions": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        },
-                        "projectId": {
+                        "expiresIn": {
                           "type": "string",
-                          "nullable": true
+                          "description": "Durata access token (es. 15m)"
+                        },
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "email": {
+                              "type": "string"
+                            },
+                            "role": {
+                              "type": "string"
+                            },
+                            "isAdmin": {
+                              "type": "boolean"
+                            },
+                            "permissions": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "projectId": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "mfaEnabled": {
+                              "type": "boolean",
+                              "description": "Presente in /auth/me; non sempre nel payload login"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "mfaRequired",
+                        "mfaToken",
+                        "expiresIn"
+                      ],
+                      "properties": {
+                        "mfaRequired": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
+                        },
+                        "mfaToken": {
+                          "type": "string",
+                          "description": "JWT temporaneo; inviare a POST /auth/mfa/verify con codice TOTP"
+                        },
+                        "expiresIn": {
+                          "type": "string",
+                          "description": "TTL mfaToken"
                         }
                       }
                     }
-                  }
+                  ]
                 }
               }
             }
           },
           "401": {
             "description": "Credenziali non valide"
+          },
+          "403": {
+            "description": "Account bloccato (ACCOUNT_LOCKED) o MFA obbligatorio non configurato (MFA_ENROLLMENT_REQUIRED)"
+          }
+        }
+      }
+    },
+    "/auth/mfa/verify": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Completa login dopo MFA (TOTP o backup code)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "mfaToken",
+                  "code"
+                ],
+                "properties": {
+                  "mfaToken": {
+                    "type": "string",
+                    "description": "Token ricevuto da POST /auth/login quando mfaRequired è true"
+                  },
+                  "code": {
+                    "type": "string",
+                    "description": "Codice TOTP o backup code"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "accessToken, refreshToken, user"
+          },
+          "401": {
+            "description": "Token MFA non valido o codice errato"
           }
         }
       }
@@ -560,6 +669,18 @@
                     "projectId": {
                       "type": "string",
                       "nullable": true
+                    },
+                    "mfaEnabled": {
+                      "type": "boolean",
+                      "description": "True se TOTP MFA è attivo per l'utente"
+                    },
+                    "system_role": {
+                      "type": "string",
+                      "description": "Ruolo di sistema (es. tecma_admin) se presente"
+                    },
+                    "isTecmaAdmin": {
+                      "type": "boolean",
+                      "description": "True se utente Tecma admin"
                     }
                   }
                 }
@@ -568,17 +689,206 @@
           },
           "401": {
             "description": "Missing or invalid token"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      }
+    },
+    "/auth/mfa/setup/start": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "postAuthMfaSetupStart",
+        "summary": "Avvia configurazione MFA TOTP",
+        "description": "Genera segreto pending e restituisce otpauth URL per l'app authenticator. Richiede JWT.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "URI otpauth per QR / import manuale",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "otpauthUrl"
+                  ],
+                  "properties": {
+                    "otpauthUrl": {
+                      "type": "string",
+                      "description": "URI otpauth:// per TOTP"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token assente o non valido"
+          },
+          "409": {
+            "description": "MFA già attivo"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      }
+    },
+    "/auth/mfa/setup/confirm": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "postAuthMfaSetupConfirm",
+        "summary": "Conferma MFA con codice TOTP",
+        "description": "Attiva MFA e restituisce codici di backup monouso. Richiede JWT.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "code"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "description": "Codice TOTP a 6 cifre dall'app",
+                    "example": "123456"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "MFA attivo; codici di backup in chiaro (salvare subito)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "backupCodes"
+                  ],
+                  "properties": {
+                    "backupCodes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Codici di backup monouso"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Codice non valido o setup non avviato"
+          },
+          "401": {
+            "description": "Token assente o non valido"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      }
+    },
+    "/auth/mfa/disable": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "postAuthMfaDisable",
+        "summary": "Disattiva MFA",
+        "description": "Richiede codice TOTP valido o codice di backup. Richiede JWT.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "code"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "description": "Codice TOTP o backup",
+                    "example": "123456"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "MFA disattivato",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Codice non valido"
+          },
+          "401": {
+            "description": "Token assente o non valido"
+          },
+          "500": {
+            "description": "Errore server"
           }
         }
       }
     },
     "/workspace-roles": {
       "get": {
-        "tags": ["rbac"],
+        "tags": [
+          "rbac"
+        ],
         "operationId": "listWorkspaceRoles",
         "summary": "Elenco ruoli membership workspace con label",
         "description": "Fonte tz_roleDefinitions / fallback; autenticazione JWT richiesta.",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Lista ruoli in data",
@@ -611,18 +921,29 @@
               }
             }
           },
-          "401": { "description": "Non autenticato" },
-          "500": { "description": "Errore server" }
+          "401": {
+            "description": "Non autenticato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
     "/rbac/permission-catalog": {
       "get": {
-        "tags": ["rbac", "users"],
+        "tags": [
+          "rbac",
+          "users"
+        ],
         "operationId": "getRbacPermissionCatalog",
         "summary": "Catalogo permessi (moduli e azioni) per matrice override",
         "description": "Richiede permesso users.read.",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Gruppi modulo × permessi in data",
@@ -640,16 +961,29 @@
                           "items": {
                             "type": "object",
                             "properties": {
-                              "module": { "type": "string", "description": "Id modulo" },
-                              "label": { "type": "string", "description": "Etichetta modulo" },
+                              "module": {
+                                "type": "string",
+                                "description": "Id modulo"
+                              },
+                              "label": {
+                                "type": "string",
+                                "description": "Etichetta modulo"
+                              },
                               "permissions": {
                                 "type": "array",
                                 "items": {
                                   "type": "object",
                                   "properties": {
-                                    "id": { "type": "string", "description": "Id permesso es. clients.read" },
-                                    "label": { "type": "string" },
-                                    "action": { "type": "string" }
+                                    "id": {
+                                      "type": "string",
+                                      "description": "Id permesso es. clients.read"
+                                    },
+                                    "label": {
+                                      "type": "string"
+                                    },
+                                    "action": {
+                                      "type": "string"
+                                    }
                                   }
                                 }
                               }
@@ -663,26 +997,41 @@
               }
             }
           },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Permesso users.read richiesto" },
-          "500": { "description": "Errore server" }
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso users.read richiesto"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
     "/rbac/roles/{roleKey}/effective-permissions": {
       "get": {
-        "tags": ["rbac", "users"],
+        "tags": [
+          "rbac",
+          "users"
+        ],
         "operationId": "getRbacRoleEffectivePermissions",
         "summary": "Permessi effettivi per ruolo workspace (DB + builtin)",
         "description": "Anteprima per wizard utenti; richiede users.read. Se il ruolo ha accesso completo, permissions contiene \"*\".",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "roleKey",
             "in": "path",
             "required": true,
             "description": "Chiave ruolo workspace",
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "example": "collaborator"
           }
         ],
@@ -697,11 +1046,16 @@
                     "data": {
                       "type": "object",
                       "properties": {
-                        "roleKey": { "type": "string", "description": "Ruolo richiesto" },
+                        "roleKey": {
+                          "type": "string",
+                          "description": "Ruolo richiesto"
+                        },
                         "permissions": {
                           "type": "array",
                           "description": "Permessi effettivi o [\"*\"] se tutti",
-                          "items": { "type": "string" }
+                          "items": {
+                            "type": "string"
+                          }
                         }
                       }
                     }
@@ -710,10 +1064,18 @@
               }
             }
           },
-          "400": { "description": "roleKey mancante o non valido" },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Permesso users.read richiesto" },
-          "500": { "description": "Errore server" }
+          "400": {
+            "description": "roleKey mancante o non valido"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso users.read richiesto"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
@@ -1146,10 +1508,23 @@
                       "items": {
                         "type": "object",
                         "properties": {
-                          "id": { "type": "string" },
-                          "name": { "type": "string" },
-                          "displayName": { "type": "string" },
-                          "mode": { "type": "string", "enum": ["rent", "sell"], "description": "Project type for filtering (rent/sell)" }
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "displayName": {
+                            "type": "string"
+                          },
+                          "mode": {
+                            "type": "string",
+                            "enum": [
+                              "rent",
+                              "sell"
+                            ],
+                            "description": "Project type for filtering (rent/sell)"
+                          }
                         }
                       }
                     },
@@ -2199,9 +2574,15 @@
           "200": {
             "description": "Workspace creato"
           },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Solo amministratori" },
-          "500": { "description": "Errore server" }
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Solo amministratori"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
@@ -2228,7 +2609,58 @@
         ],
         "responses": {
           "200": {
-            "description": "Workspace"
+            "description": "Workspace con moduli UI effettivi in `workspace.features` (derivati da entitlement).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "workspace"
+                  ],
+                  "properties": {
+                    "workspace": {
+                      "type": "object",
+                      "required": [
+                        "_id",
+                        "name",
+                        "createdAt",
+                        "updatedAt"
+                      ],
+                      "properties": {
+                        "_id": {
+                          "type": "string",
+                          "description": "ObjectId workspace"
+                        },
+                        "name": {
+                          "type": "string",
+                          "description": "Nome workspace"
+                        },
+                        "owner_user_id": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "ObjectId owner opzionale"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "description": "Creazione ISO8601"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "description": "Ultimo aggiornamento ISO8601"
+                        },
+                        "features": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Chiavi moduli UI abilitati (es. aiApprovals, reports, integrations)"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           },
           "404": {
             "description": "Non trovato"
@@ -2280,12 +2712,18 @@
           "200": {
             "description": "Workspace aggiornato"
           },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Solo amministratori" },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Solo amministratori"
+          },
           "404": {
             "description": "Non trovato"
           },
-          "500": { "description": "Errore server" }
+          "500": {
+            "description": "Errore server"
+          }
         }
       },
       "delete": {
@@ -2313,12 +2751,18 @@
           "200": {
             "description": "Workspace eliminato"
           },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Solo amministratori" },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Solo amministratori"
+          },
           "404": {
             "description": "Non trovato"
           },
-          "500": { "description": "Errore server" }
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
@@ -2491,14 +2935,14 @@
           "200": {
             "description": "Config aggiornata"
           },
-          "404": {
-            "description": "Non trovata"
-          },
           "401": {
             "description": "Non autenticato"
           },
           "403": {
             "description": "Permesso negato"
+          },
+          "404": {
+            "description": "Non trovata"
           },
           "500": {
             "description": "Errore server"
@@ -2532,8 +2976,60 @@
           "200": {
             "description": "Eliminata"
           },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
           "404": {
             "description": "Non trovata"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/assets/upload-url": {
+      "post": {
+        "tags": [
+          "assets",
+          "workspaces"
+        ],
+        "summary": "URL presigned upload asset",
+        "operationId": "postWorkspaceAssetUploadUrl",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "ws_demo_001"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Metadati file e tipo asset"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "URL e campi presigned"
           },
           "401": {
             "description": "Non autenticato"
@@ -2547,204 +3043,579 @@
         }
       }
     },
-    "/workspaces/{workspaceId}/assets/upload-url": {
-      "post": {
-        "tags": ["assets", "workspaces"],
-        "summary": "URL presigned upload asset",
-        "operationId": "postWorkspaceAssetUploadUrl",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" }
-        ],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "description": "Metadati file e tipo asset" } } } },
-        "responses": {
-          "200": { "description": "URL e campi presigned" },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Permesso negato" },
-          "500": { "description": "Errore server" }
-        }
-      }
-    },
     "/workspaces/{workspaceId}/assets": {
       "get": {
-        "tags": ["assets", "workspaces"],
+        "tags": [
+          "assets",
+          "workspaces"
+        ],
         "summary": "Lista asset workspace",
         "operationId": "listWorkspaceAssets",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" },
-          { "name": "projectId", "in": "query", "required": false, "description": "Filtro progetto", "schema": { "type": "string" } },
-          { "name": "apartmentId", "in": "query", "required": false, "description": "Filtro appartamento", "schema": { "type": "string" } },
-          { "name": "type", "in": "query", "required": false, "description": "Tipo asset", "schema": { "type": "string" } }
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "ws_demo_001"
+          },
+          {
+            "name": "projectId",
+            "in": "query",
+            "required": false,
+            "description": "Filtro progetto",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "apartmentId",
+            "in": "query",
+            "required": false,
+            "description": "Filtro appartamento",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "description": "Tipo asset",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Lista in data" },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Permesso negato" },
-          "500": { "description": "Errore server" }
+          "200": {
+            "description": "Lista in data"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       },
       "post": {
-        "tags": ["assets", "workspaces"],
+        "tags": [
+          "assets",
+          "workspaces"
+        ],
         "summary": "Registra asset dopo upload",
         "operationId": "createWorkspaceAsset",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" }
+        "security": [
+          {
+            "bearerAuth": []
+          }
         ],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "description": "Metadati asset creato" } } } },
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "ws_demo_001"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Metadati asset creato"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": { "description": "Asset creato in data" },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Permesso negato" },
-          "500": { "description": "Errore server" }
+          "200": {
+            "description": "Asset creato in data"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
     "/workspaces/{workspaceId}/assets/{assetId}/download-url": {
       "get": {
-        "tags": ["assets", "workspaces"],
+        "tags": [
+          "assets",
+          "workspaces"
+        ],
         "summary": "URL download presigned asset",
         "operationId": "getWorkspaceAssetDownloadUrl",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" },
-          { "name": "assetId", "in": "path", "required": true, "description": "ID asset", "schema": { "type": "string" }, "example": "673abc12def4567890123456" }
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "ws_demo_001"
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "description": "ID asset",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
         ],
         "responses": {
-          "200": { "description": "URL download" },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Permesso negato" },
-          "500": { "description": "Errore server" }
+          "200": {
+            "description": "URL download"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
     "/workspaces/{workspaceId}/assets/{assetId}": {
       "delete": {
-        "tags": ["assets", "workspaces"],
+        "tags": [
+          "assets",
+          "workspaces"
+        ],
         "summary": "Elimina asset",
         "operationId": "deleteWorkspaceAsset",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" },
-          { "name": "assetId", "in": "path", "required": true, "description": "ID asset", "schema": { "type": "string" }, "example": "673abc12def4567890123456" }
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "ws_demo_001"
+          },
+          {
+            "name": "assetId",
+            "in": "path",
+            "required": true,
+            "description": "ID asset",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
         ],
         "responses": {
-          "200": { "description": "Eliminato" },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Permesso negato" },
-          "500": { "description": "Errore server" }
+          "200": {
+            "description": "Eliminato"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
     "/workspaces/{workspaceId}/clients/{clientId}/documents/upload-url": {
       "post": {
-        "tags": ["clients", "workspaces"],
+        "tags": [
+          "clients",
+          "workspaces"
+        ],
         "summary": "URL presigned upload documento cliente",
         "operationId": "postClientDocumentUploadUrl",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" },
-          { "name": "clientId", "in": "path", "required": true, "description": "ID cliente", "schema": { "type": "string" }, "example": "673abc12def4567890123456" }
+        "security": [
+          {
+            "bearerAuth": []
+          }
         ],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "description": "Metadati upload" } } } },
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "ws_demo_001"
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "description": "ID cliente",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Metadati upload"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": { "description": "URL presigned" },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Permesso negato" },
-          "500": { "description": "Errore server" }
+          "200": {
+            "description": "URL presigned"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
     "/workspaces/{workspaceId}/clients/{clientId}/documents": {
       "get": {
-        "tags": ["clients", "workspaces"],
+        "tags": [
+          "clients",
+          "workspaces"
+        ],
         "summary": "Lista documenti cliente",
         "operationId": "listClientDocuments",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" },
-          { "name": "clientId", "in": "path", "required": true, "description": "ID cliente", "schema": { "type": "string" }, "example": "673abc12def4567890123456" }
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "ws_demo_001"
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "description": "ID cliente",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
         ],
         "responses": {
-          "200": { "description": "Lista in data" },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Permesso negato" },
-          "500": { "description": "Errore server" }
+          "200": {
+            "description": "Lista in data"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       },
       "post": {
-        "tags": ["clients", "workspaces"],
+        "tags": [
+          "clients",
+          "workspaces"
+        ],
         "summary": "Crea record documento cliente",
         "operationId": "createClientDocument",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" },
-          { "name": "clientId", "in": "path", "required": true, "description": "ID cliente", "schema": { "type": "string" }, "example": "673abc12def4567890123456" }
+        "security": [
+          {
+            "bearerAuth": []
+          }
         ],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "description": "Metadati documento" } } } },
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "ws_demo_001"
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "description": "ID cliente",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Metadati documento"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": { "description": "Documento in data" },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Permesso negato" },
-          "500": { "description": "Errore server" }
+          "200": {
+            "description": "Documento in data"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
     "/workspaces/{workspaceId}/clients/{clientId}/documents/{docId}/download-url": {
       "get": {
-        "tags": ["clients", "workspaces"],
+        "tags": [
+          "clients",
+          "workspaces"
+        ],
         "summary": "URL download documento",
         "operationId": "getClientDocumentDownloadUrl",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" },
-          { "name": "clientId", "in": "path", "required": true, "description": "ID cliente", "schema": { "type": "string" }, "example": "673abc12def4567890123456" },
-          { "name": "docId", "in": "path", "required": true, "description": "ID documento", "schema": { "type": "string" }, "example": "673abc12def4567890123457" }
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "ws_demo_001"
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "description": "ID cliente",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          },
+          {
+            "name": "docId",
+            "in": "path",
+            "required": true,
+            "description": "ID documento",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123457"
+          }
         ],
         "responses": {
-          "200": { "description": "URL download" },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Permesso negato" },
-          "500": { "description": "Errore server" }
+          "200": {
+            "description": "URL download"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
     "/workspaces/{workspaceId}/clients/{clientId}/documents/{docId}/share-link": {
       "get": {
-        "tags": ["clients", "workspaces"],
+        "tags": [
+          "clients",
+          "workspaces"
+        ],
         "summary": "Link condivisione documento",
         "operationId": "getClientDocumentShareLink",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" },
-          { "name": "clientId", "in": "path", "required": true, "description": "ID cliente", "schema": { "type": "string" }, "example": "673abc12def4567890123456" },
-          { "name": "docId", "in": "path", "required": true, "description": "ID documento", "schema": { "type": "string" }, "example": "673abc12def4567890123457" }
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "ws_demo_001"
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "description": "ID cliente",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          },
+          {
+            "name": "docId",
+            "in": "path",
+            "required": true,
+            "description": "ID documento",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123457"
+          }
         ],
         "responses": {
-          "200": { "description": "Link o payload share" },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Permesso negato" },
-          "500": { "description": "Errore server" }
+          "200": {
+            "description": "Link o payload share"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
     "/workspaces/{workspaceId}/clients/{clientId}/documents/{docId}": {
       "delete": {
-        "tags": ["clients", "workspaces"],
+        "tags": [
+          "clients",
+          "workspaces"
+        ],
         "summary": "Elimina documento cliente",
         "operationId": "deleteClientDocument",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "workspaceId", "in": "path", "required": true, "description": "ID workspace", "schema": { "type": "string" }, "example": "ws_demo_001" },
-          { "name": "clientId", "in": "path", "required": true, "description": "ID cliente", "schema": { "type": "string" }, "example": "673abc12def4567890123456" },
-          { "name": "docId", "in": "path", "required": true, "description": "ID documento", "schema": { "type": "string" }, "example": "673abc12def4567890123457" }
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "ws_demo_001"
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "description": "ID cliente",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          },
+          {
+            "name": "docId",
+            "in": "path",
+            "required": true,
+            "description": "ID documento",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123457"
+          }
         ],
         "responses": {
-          "200": { "description": "Eliminato" },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Permesso negato" },
-          "500": { "description": "Errore server" }
+          "200": {
+            "description": "Eliminato"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
@@ -2835,9 +3706,15 @@
           "200": {
             "description": "API key creata (raw key restituita una sola volta)"
           },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Permesso negato o modulo Public API non abilitato per il workspace" },
-          "500": { "description": "Errore server" }
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato o modulo Public API non abilitato per il workspace"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
@@ -2875,9 +3752,15 @@
           "200": {
             "description": "Nuova raw key restituita una sola volta"
           },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Permesso negato o modulo Public API non abilitato per il workspace" },
-          "500": { "description": "Errore server" }
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato o modulo Public API non abilitato per il workspace"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
@@ -2967,18 +3850,27 @@
     },
     "/workspaces/projects/associate": {
       "post": {
-        "tags": ["workspaces"],
+        "tags": [
+          "workspaces"
+        ],
         "operationId": "associateProjectToWorkspace",
         "summary": "Associa progetto a workspace (admin)",
         "description": "Crea legame in tz_workspace_user_projects; idempotente se già presente.",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["workspaceId", "projectId"],
+                "required": [
+                  "workspaceId",
+                  "projectId"
+                ],
                 "properties": {
                   "workspaceId": {
                     "type": "string",
@@ -2996,27 +3888,45 @@
           }
         },
         "responses": {
-          "200": { "description": "workspaceId e projectId confermati" },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Solo amministratori" },
-          "404": { "description": "Workspace non trovato" },
-          "500": { "description": "Errore server" }
+          "200": {
+            "description": "workspaceId e projectId confermati"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Solo amministratori"
+          },
+          "404": {
+            "description": "Workspace non trovato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
     "/workspaces/{workspaceId}/projects/{projectId}": {
       "delete": {
-        "tags": ["workspaces"],
+        "tags": [
+          "workspaces"
+        ],
         "operationId": "dissociateProjectFromWorkspace",
         "summary": "Rimuovi associazione progetto-workspace (admin)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspaceId",
             "in": "path",
             "required": true,
             "description": "ID workspace",
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "example": "673abc12def4567890123456"
           },
           {
@@ -3024,33 +3934,54 @@
             "in": "path",
             "required": true,
             "description": "ID progetto",
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "example": "proj_demo_01"
           }
         ],
         "responses": {
-          "200": { "description": "Associazione rimossa" },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Solo amministratori" },
-          "404": { "description": "Associazione non trovata" },
-          "500": { "description": "Errore server" }
+          "200": {
+            "description": "Associazione rimossa"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Solo amministratori"
+          },
+          "404": {
+            "description": "Associazione non trovata"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
     "/workspaces/{id}/entitlements": {
       "get": {
-        "tags": ["workspaces", "entitlements"],
+        "tags": [
+          "workspaces",
+          "entitlements"
+        ],
         "operationId": "listWorkspaceEntitlementsEffective",
         "summary": "Elenco entitlement commerciali effettivi (Fase 0.2)",
-        "description": "Richiede settings.read e accesso al workspace. Senza riga in DB la capability è implicitamente attiva (compatibilità).",
-        "security": [{ "bearerAuth": [] }],
+        "description": "Richiede settings.read e accesso al workspace, oppure utente Tecma admin (bypass permesso). Default assenza riga: vedi catalogo feature backend.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
             "description": "ID workspace",
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "example": "673abc12def4567890123456"
           }
         ],
@@ -3061,27 +3992,58 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["data"],
+                  "required": [
+                    "data"
+                  ],
                   "properties": {
                     "data": {
                       "type": "array",
                       "items": {
                         "type": "object",
-                        "required": ["feature", "entitled", "implicit"],
+                        "required": [
+                          "feature",
+                          "entitled",
+                          "implicit",
+                          "recordedNotes"
+                        ],
                         "properties": {
                           "feature": {
                             "type": "string",
-                            "enum": ["publicApi", "twilio", "mailchimp", "activecampaign"],
-                            "description": "Capability commerciale"
+                            "enum": [
+                              "publicApi",
+                              "twilio",
+                              "mailchimp",
+                              "activecampaign",
+                              "aiApprovals",
+                              "reports",
+                              "integrations"
+                            ],
+                            "description": "Capability commerciale o modulo UI"
                           },
-                          "entitled": { "type": "boolean", "description": "Se l'uso è consentito" },
+                          "entitled": {
+                            "type": "boolean",
+                            "description": "Se l'uso è consentito"
+                          },
                           "recordedStatus": {
                             "type": "string",
                             "nullable": true,
-                            "enum": ["inactive", "pending_approval", "active", "suspended"],
+                            "enum": [
+                              "inactive",
+                              "pending_approval",
+                              "active",
+                              "suspended"
+                            ],
                             "description": "Stato su DB; null se nessuna riga"
                           },
-                          "implicit": { "type": "boolean", "description": "true se non esiste riga dedicata" }
+                          "implicit": {
+                            "type": "boolean",
+                            "description": "true se non esiste riga dedicata"
+                          },
+                          "recordedNotes": {
+                            "type": "string",
+                            "nullable": true,
+                            "description": "Note persistite; null se nessuna riga (implicito), stringa vuota se riga senza testo"
+                          }
                         }
                       }
                     }
@@ -3090,26 +4052,41 @@
               }
             }
           },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Permesso negato o workspace non accessibile" },
-          "500": { "description": "Errore server" }
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato o workspace non accessibile"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
     "/workspaces/{id}/entitlements/{feature}": {
       "patch": {
-        "tags": ["workspaces", "entitlements"],
+        "tags": [
+          "workspaces",
+          "entitlements"
+        ],
         "operationId": "patchWorkspaceEntitlement",
         "summary": "Aggiorna entitlement workspace (solo Tecma admin)",
         "description": "Solo system_role tecma_admin o isTecmaAdmin. Audit workspace.entitlement.updated.",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
             "description": "ID workspace",
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "example": "673abc12def4567890123456"
           },
           {
@@ -3119,7 +4096,15 @@
             "description": "Capability",
             "schema": {
               "type": "string",
-              "enum": ["publicApi", "twilio", "mailchimp", "activecampaign"]
+              "enum": [
+                "publicApi",
+                "twilio",
+                "mailchimp",
+                "activecampaign",
+                "aiApprovals",
+                "reports",
+                "integrations"
+              ]
             },
             "example": "publicApi"
           }
@@ -3130,17 +4115,29 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["status"],
+                "required": [
+                  "status"
+                ],
                 "properties": {
                   "status": {
                     "type": "string",
-                    "enum": ["inactive", "pending_approval", "active", "suspended"],
+                    "enum": [
+                      "inactive",
+                      "pending_approval",
+                      "active",
+                      "suspended"
+                    ],
                     "description": "Stato commerciale della capability"
                   },
-                  "notes": { "type": "string", "description": "Note interne / commercio" },
+                  "notes": {
+                    "type": "string",
+                    "description": "Note interne / commercio"
+                  },
                   "billingMode": {
                     "type": "string",
-                    "enum": ["manual_invoice"],
+                    "enum": [
+                      "manual_invoice"
+                    ],
                     "default": "manual_invoice",
                     "description": "Modalità fatturazione"
                   }
@@ -3156,20 +4153,48 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["entitlement"],
+                  "required": [
+                    "entitlement"
+                  ],
                   "properties": {
                     "entitlement": {
                       "type": "object",
                       "description": "Record persistito",
                       "properties": {
-                        "_id": { "type": "string", "description": "ID documento" },
-                        "workspaceId": { "type": "string", "description": "Workspace" },
-                        "feature": { "type": "string", "description": "Capability" },
-                        "status": { "type": "string", "description": "Stato" },
-                        "billingMode": { "type": "string", "description": "Fatturazione" },
-                        "notes": { "type": "string", "description": "Note" },
-                        "createdAt": { "type": "string", "format": "date-time", "description": "Creazione UTC" },
-                        "updatedAt": { "type": "string", "format": "date-time", "description": "Aggiornamento UTC" }
+                        "_id": {
+                          "type": "string",
+                          "description": "ID documento"
+                        },
+                        "workspaceId": {
+                          "type": "string",
+                          "description": "Workspace"
+                        },
+                        "feature": {
+                          "type": "string",
+                          "description": "Capability"
+                        },
+                        "status": {
+                          "type": "string",
+                          "description": "Stato"
+                        },
+                        "billingMode": {
+                          "type": "string",
+                          "description": "Fatturazione"
+                        },
+                        "notes": {
+                          "type": "string",
+                          "description": "Note"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "Creazione UTC"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "Aggiornamento UTC"
+                        }
                       }
                     }
                   }
@@ -3177,50 +4202,84 @@
               }
             }
           },
-          "400": { "description": "Feature o body non valido" },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Solo TECMA admin" },
-          "500": { "description": "Errore server" }
+          "400": {
+            "description": "Feature o body non valido"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Solo TECMA admin"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
     "/workspaces/{id}/ai-config": {
       "get": {
-        "tags": ["workspaces", "ai"],
+        "tags": [
+          "workspaces",
+          "ai"
+        ],
         "operationId": "getWorkspaceAiConfig",
         "summary": "Stato configurazione AI workspace (chiave solo masked)",
         "description": "Richiede settings.read. Non espone mai l'API key in chiaro.",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
             "description": "ID workspace",
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "example": "673abc12def4567890123456"
           }
         ],
         "responses": {
-          "200": { "description": "configured, provider, apiKeyMasked se presente" },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Permesso negato" },
-          "500": { "description": "Errore server" }
+          "200": {
+            "description": "configured, provider, apiKeyMasked se presente"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       },
       "put": {
-        "tags": ["workspaces", "ai"],
+        "tags": [
+          "workspaces",
+          "ai"
+        ],
         "operationId": "putWorkspaceAiConfig",
         "summary": "Salva o rimuove config AI workspace (admin)",
         "description": "Solo admin. apiKey vuota rimuove la configurazione. Evento audit senza segreto in chiaro.",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
             "description": "ID workspace",
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "example": "673abc12def4567890123456"
           }
         ],
@@ -3230,11 +4289,18 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["provider", "apiKey"],
+                "required": [
+                  "provider",
+                  "apiKey"
+                ],
                 "properties": {
                   "provider": {
                     "type": "string",
-                    "enum": ["claude", "openai", "gemini"],
+                    "enum": [
+                      "claude",
+                      "openai",
+                      "gemini"
+                    ],
                     "description": "Provider LLM"
                   },
                   "apiKey": {
@@ -3247,61 +4313,1825 @@
           }
         },
         "responses": {
-          "200": { "description": "Risposta pubblica (masked)" },
-          "400": { "description": "Body non valido" },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Solo amministratori" },
-          "500": { "description": "Errore server" }
+          "200": {
+            "description": "Risposta pubblica (masked)"
+          },
+          "400": {
+            "description": "Body non valido"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Solo amministratori"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
-    "/additional-infos": {
+    "/workspaces/{workspaceId}/connectors/n8n/config": {
+      "get": {
+        "tags": [
+          "connectors",
+          "workspaces"
+        ],
+        "operationId": "getN8nConnectorConfig",
+        "summary": "Legge configurazione n8n del workspace",
+        "description": "Richiede integrations.read e workspace con modulo Integrazioni abilitato.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "config null se assente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "config"
+                  ],
+                  "properties": {
+                    "config": {
+                      "nullable": true,
+                      "type": "object",
+                      "description": "Riga connettore n8n",
+                      "properties": {
+                        "_id": {
+                          "type": "string",
+                          "description": "ID documento"
+                        },
+                        "workspaceId": {
+                          "type": "string",
+                          "description": "ID workspace"
+                        },
+                        "connectorId": {
+                          "type": "string",
+                          "description": "Valore fisso n8n"
+                        },
+                        "config": {
+                          "type": "object",
+                          "properties": {
+                            "baseUrl": {
+                              "type": "string",
+                              "description": "URL base istanza n8n"
+                            },
+                            "apiKeyMasked": {
+                              "type": "string",
+                              "description": "API key mascherata"
+                            },
+                            "defaultWorkflowId": {
+                              "type": "string",
+                              "description": "ID workflow predefinito"
+                            }
+                          }
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "Aggiornamento UTC"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato o modulo non abilitato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      },
       "post": {
-        "tags": ["workspaces"],
-        "operationId": "createAdditionalInfo",
-        "summary": "Crea campo additional info per workspace (admin)",
-        "security": [{ "bearerAuth": [] }],
+        "tags": [
+          "connectors",
+          "workspaces"
+        ],
+        "operationId": "saveN8nConnectorConfig",
+        "summary": "Salva configurazione n8n",
+        "description": "Richiede integrations.update. Valida URL e salva baseUrl, apiKey, opzionale defaultWorkflowId.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["workspaceId", "name", "type", "label"],
-                "description": "Campi custom ereditati dai progetti del workspace",
+                "required": [
+                  "baseUrl",
+                  "apiKey"
+                ],
                 "properties": {
-                  "workspaceId": { "type": "string", "description": "ID workspace" },
-                  "name": { "type": "string", "description": "Nome tecnico (slug)" },
-                  "type": { "type": "string", "enum": ["text", "radio", "slider", "number", "checkbox"] },
-                  "label": { "type": "string", "description": "Etichetta UI" }
+                  "baseUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "URL base n8n (es. https://n8n.example.com)"
+                  },
+                  "apiKey": {
+                    "type": "string",
+                    "description": "API key n8n"
+                  },
+                  "defaultWorkflowId": {
+                    "type": "string",
+                    "description": "Workflow ID predefinito per trigger"
+                  }
                 }
               }
             }
           }
         },
         "responses": {
-          "200": { "description": "additionalInfo creato" },
-          "400": { "description": "Validazione fallita o nome duplicato" },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Solo amministratori" },
-          "404": { "description": "Workspace non trovato" },
-          "500": { "description": "Errore server" }
+          "200": {
+            "description": "Config salvata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "config"
+                  ],
+                  "properties": {
+                    "config": {
+                      "type": "object",
+                      "description": "Riga con valori mascherati"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validazione fallita (URL o campi)"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "connectors",
+          "workspaces"
+        ],
+        "operationId": "deleteN8nConnectorConfig",
+        "summary": "Rimuove configurazione n8n",
+        "description": "Richiede integrations.delete.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Esito cancellazione",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "deleted"
+                  ],
+                  "properties": {
+                    "deleted": {
+                      "type": "boolean",
+                      "description": "true se rimosso"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/connectors/n8n/trigger": {
+      "post": {
+        "tags": [
+          "connectors",
+          "workspaces"
+        ],
+        "operationId": "triggerN8nConnectorWorkflow",
+        "summary": "Esegue un workflow n8n via API",
+        "description": "Richiede integrations.update e n8n configurato. Usa workflowId nel body o defaultWorkflowId in config.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "workflowId": {
+                    "type": "string",
+                    "description": "ID workflow n8n (override del default)"
+                  },
+                  "data": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "description": "Payload inviato al workflow"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Risposta API execute n8n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "executionId": {
+                      "type": "integer",
+                      "description": "ID esecuzione"
+                    },
+                    "waitingForWebhook": {
+                      "type": "boolean",
+                      "description": "Workflow in attesa webhook"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "n8n non configurato o workflowId mancante"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          },
+          "502": {
+            "description": "Errore upstream n8n"
+          }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/connectors/whatsapp/config": {
+      "get": {
+        "tags": [
+          "connectors",
+          "workspaces"
+        ],
+        "operationId": "getWhatsappConnectorConfig",
+        "summary": "Legge configurazione WhatsApp Twilio",
+        "description": "Richiede integrations.read. Credenziali Twilio per invio WhatsApp; auth token solo mascherato.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "config null se assente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "config"
+                  ],
+                  "properties": {
+                    "config": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "_id": {
+                          "type": "string",
+                          "description": "ID documento"
+                        },
+                        "workspaceId": {
+                          "type": "string",
+                          "description": "ID workspace"
+                        },
+                        "connectorId": {
+                          "type": "string",
+                          "description": "Valore fisso whatsapp"
+                        },
+                        "config": {
+                          "type": "object",
+                          "properties": {
+                            "accountSid": {
+                              "type": "string",
+                              "description": "Twilio Account SID"
+                            },
+                            "authTokenMasked": {
+                              "type": "string",
+                              "description": "Token mascherato"
+                            },
+                            "fromNumber": {
+                              "type": "string",
+                              "description": "Numero mittente WhatsApp"
+                            }
+                          }
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "Aggiornamento UTC"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato o modulo non abilitato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "connectors",
+          "workspaces"
+        ],
+        "operationId": "saveWhatsappConnectorConfig",
+        "summary": "Salva configurazione WhatsApp Twilio",
+        "description": "Richiede integrations.update. Richiede anche modulo Twilio abilitato sul workspace (controllo a salvataggio).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "accountSid",
+                  "authToken",
+                  "fromNumber"
+                ],
+                "properties": {
+                  "accountSid": {
+                    "type": "string",
+                    "description": "Twilio Account SID"
+                  },
+                  "authToken": {
+                    "type": "string",
+                    "description": "Auth token Twilio"
+                  },
+                  "fromNumber": {
+                    "type": "string",
+                    "description": "Numero mittente (E.164 / whatsapp:)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Config salvata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "config"
+                  ],
+                  "properties": {
+                    "config": {
+                      "type": "object",
+                      "description": "Riga con valori mascherati"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body non valido"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato o Twilio non abilitato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "connectors",
+          "workspaces"
+        ],
+        "operationId": "deleteWhatsappConnectorConfig",
+        "summary": "Rimuove configurazione WhatsApp Twilio",
+        "description": "Richiede integrations.delete.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Esito cancellazione",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "deleted"
+                  ],
+                  "properties": {
+                    "deleted": {
+                      "type": "boolean",
+                      "description": "true se rimosso"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/connectors/whatsapp/test": {
+      "post": {
+        "tags": [
+          "connectors",
+          "workspaces"
+        ],
+        "operationId": "sendWhatsappConnectorTestMessage",
+        "summary": "Invio prova WhatsApp (Twilio)",
+        "description": "Solo amministratore (requireAdmin). Verifica config Twilio e prefisso whatsapp:.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "to"
+                ],
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "description": "Destinatario (E.164 o whatsapp:)"
+                  },
+                  "body": {
+                    "type": "string",
+                    "maxLength": 1600,
+                    "description": "Testo messaggio (opzionale)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Messaggio accodato/inviato",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "description": "Esito positivo"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body non valido"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Non amministratore"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/connectors/meta-whatsapp/config": {
+      "get": {
+        "tags": [
+          "connectors",
+          "workspaces"
+        ],
+        "operationId": "getMetaWhatsappConnectorConfig",
+        "summary": "Legge configurazione WhatsApp Meta Cloud API",
+        "description": "Richiede integrations.read. Phone Number ID e token solo mascherato.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "config null se assente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "config"
+                  ],
+                  "properties": {
+                    "config": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "_id": {
+                          "type": "string",
+                          "description": "ID documento"
+                        },
+                        "workspaceId": {
+                          "type": "string",
+                          "description": "ID workspace"
+                        },
+                        "connectorId": {
+                          "type": "string",
+                          "description": "Valore fisso meta_whatsapp"
+                        },
+                        "config": {
+                          "type": "object",
+                          "properties": {
+                            "phoneNumberId": {
+                              "type": "string",
+                              "description": "Phone Number ID Meta"
+                            },
+                            "accessTokenMasked": {
+                              "type": "string",
+                              "description": "Token mascherato"
+                            }
+                          }
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "Aggiornamento UTC"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato o modulo non abilitato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "connectors",
+          "workspaces"
+        ],
+        "operationId": "saveMetaWhatsappConnectorConfig",
+        "summary": "Salva configurazione WhatsApp Meta Cloud API",
+        "description": "Richiede integrations.update.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "phoneNumberId",
+                  "accessToken"
+                ],
+                "properties": {
+                  "phoneNumberId": {
+                    "type": "string",
+                    "description": "Phone Number ID da Meta"
+                  },
+                  "accessToken": {
+                    "type": "string",
+                    "description": "Access token Graph API"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Config salvata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "config"
+                  ],
+                  "properties": {
+                    "config": {
+                      "type": "object",
+                      "description": "Riga con valori mascherati"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body non valido"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "connectors",
+          "workspaces"
+        ],
+        "operationId": "deleteMetaWhatsappConnectorConfig",
+        "summary": "Rimuove configurazione Meta WhatsApp",
+        "description": "Richiede integrations.delete.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Esito cancellazione",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "deleted"
+                  ],
+                  "properties": {
+                    "deleted": {
+                      "type": "boolean",
+                      "description": "true se rimosso"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/connectors/meta-whatsapp/test": {
+      "post": {
+        "tags": [
+          "connectors",
+          "workspaces"
+        ],
+        "operationId": "sendMetaWhatsappConnectorTestMessage",
+        "summary": "Invio prova template Meta WhatsApp",
+        "description": "Solo amministratore. Invio tramite messaging gateway (template approvato).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "to",
+                  "templateName",
+                  "languageCode"
+                ],
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "description": "Destinatario E.164"
+                  },
+                  "templateName": {
+                    "type": "string",
+                    "description": "Nome template approvato su Meta"
+                  },
+                  "languageCode": {
+                    "type": "string",
+                    "description": "Codice lingua (es. it, en_US)"
+                  },
+                  "bodyParameters": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Valori variabili corpo template"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Invio riuscito",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "description": "Esito positivo"
+                    },
+                    "externalId": {
+                      "type": "string",
+                      "description": "ID messaggio provider (se presente)"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body non valido"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Non amministratore"
+          },
+          "500": {
+            "description": "Errore server"
+          },
+          "502": {
+            "description": "Provider Meta / gateway fallito"
+          }
+        }
+      }
+    },
+    "/connectors/outlook": {
+      "delete": {
+        "tags": [
+          "connectors"
+        ],
+        "operationId": "deleteOutlookConnectorCredentials",
+        "summary": "Revoca credenziali Outlook (utente corrente)",
+        "description": "Richiede integrations.update. Opzionale query workspaceId: se presente e workspace entitled a integrazioni, revoca credenziali per quel contesto.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "query",
+            "required": false,
+            "description": "ID workspace per revoca contestuale (opzionale)",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Esito revoca",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "deleted"
+                  ],
+                  "properties": {
+                    "deleted": {
+                      "type": "boolean",
+                      "description": "true se eliminate credenziali"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      }
+    },
+    "/connectors/outlook/auth": {
+      "get": {
+        "tags": [
+          "connectors"
+        ],
+        "operationId": "getOutlookConnectorAuthRedirect",
+        "summary": "Avvia OAuth Microsoft Outlook (redirect 302)",
+        "description": "Richiede integrations.read. Query workspaceId opzionale: se presente, il workspace deve essere entitled a integrazioni. Risponde 302 verso Microsoft.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "query",
+            "required": false,
+            "description": "ID workspace per contesto OAuth (opzionale)",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect verso URL di autorizzazione Microsoft",
+            "headers": {
+              "Location": {
+                "description": "URL OAuth Microsoft",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato o workspace non entitled"
+          },
+          "503": {
+            "description": "Connettore Outlook non configurato sul server (OUTLOOK_REDIRECT_URI)"
+          }
+        }
+      }
+    },
+    "/connectors/outlook/calendar/events": {
+      "get": {
+        "tags": [
+          "connectors"
+        ],
+        "operationId": "listOutlookConnectorCalendarEvents",
+        "summary": "Elenco eventi calendario Outlook (Microsoft Graph)",
+        "description": "Richiede integrations.read e utente con Outlook connesso. workspaceId opzionale; se presente richiede entitlement integrazioni sul workspace.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "dateFrom",
+            "in": "query",
+            "required": true,
+            "description": "Inizio intervallo (ISO 8601 datetime)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "example": "2025-03-01T00:00:00.000Z"
+          },
+          {
+            "name": "dateTo",
+            "in": "query",
+            "required": true,
+            "description": "Fine intervallo (ISO 8601 datetime)",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "example": "2025-03-15T23:59:59.999Z"
+          },
+          {
+            "name": "workspaceId",
+            "in": "query",
+            "required": false,
+            "description": "Contesto workspace per credenziali (opzionale)",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Eventi nel periodo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "description": "Eventi normalizzati da Graph calendarView",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "subject",
+                          "start",
+                          "end"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "ID evento Graph"
+                          },
+                          "subject": {
+                            "type": "string",
+                            "description": "Oggetto"
+                          },
+                          "start": {
+                            "type": "string",
+                            "description": "Inizio (dateTime ISO)"
+                          },
+                          "end": {
+                            "type": "string",
+                            "description": "Fine (dateTime ISO)"
+                          },
+                          "isAllDay": {
+                            "type": "boolean",
+                            "description": "Evento tutto il giorno"
+                          },
+                          "webLink": {
+                            "type": "string",
+                            "description": "Link apertura in Outlook Web"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "dateFrom o dateTo mancanti"
+          },
+          "401": {
+            "description": "Non autenticato o Outlook non connesso"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          },
+          "502": {
+            "description": "Errore Microsoft Graph"
+          }
+        }
+      }
+    },
+    "/connectors/outlook/status": {
+      "get": {
+        "tags": [
+          "connectors"
+        ],
+        "operationId": "getOutlookConnectorStatus",
+        "summary": "Stato connessione Outlook per l'utente corrente",
+        "description": "Richiede integrations.read. Indica se esistono credenziali OAuth salvate per l'utente.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stato connessione",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "connected"
+                  ],
+                  "properties": {
+                    "connected": {
+                      "type": "boolean",
+                      "description": "true se Outlook è connesso"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/connectors/mailchimp/config": {
+      "get": {
+        "tags": [
+          "connectors",
+          "workspaces"
+        ],
+        "operationId": "getMailchimpConnectorConfig",
+        "summary": "Legge configurazione Mailchimp del workspace",
+        "description": "Richiede integrations.read. Il workspace deve essere abilitato a integrazioni e mailchimp. Espone solo apiKeyMasked se presente.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "config null se assente, altrimenti riga connettore senza segreto in chiaro",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "config"
+                  ],
+                  "properties": {
+                    "config": {
+                      "description": "Documento tz_connector_configs o assenza",
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "_id": {
+                          "type": "string",
+                          "description": "ID documento MongoDB"
+                        },
+                        "workspaceId": {
+                          "type": "string",
+                          "description": "ID workspace"
+                        },
+                        "connectorId": {
+                          "type": "string",
+                          "description": "Valore fisso mailchimp"
+                        },
+                        "config": {
+                          "type": "object",
+                          "description": "Campi pubblici; apiKey mai in chiaro",
+                          "properties": {
+                            "apiKeyMasked": {
+                              "type": "string",
+                              "description": "API key mascherata"
+                            }
+                          }
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "Aggiornamento UTC"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato o modulo non abilitato sul workspace"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "connectors",
+          "workspaces"
+        ],
+        "operationId": "saveMailchimpConnectorConfig",
+        "summary": "Salva API key Mailchimp per il workspace",
+        "description": "Richiede integrations.update. Workspace abilitato a integrazioni e mailchimp.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "apiKey"
+                ],
+                "properties": {
+                  "apiKey": {
+                    "type": "string",
+                    "description": "API key Mailchimp"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Config salvata (risposta con valori mascherati)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "config"
+                  ],
+                  "properties": {
+                    "config": {
+                      "type": "object",
+                      "description": "Riga connettore aggiornata"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body non valido"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato o modulo non abilitato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "connectors",
+          "workspaces"
+        ],
+        "operationId": "deleteMailchimpConnectorConfig",
+        "summary": "Rimuove configurazione Mailchimp dal workspace",
+        "description": "Richiede integrations.delete. Workspace abilitato a integrazioni e mailchimp.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Esito cancellazione",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "deleted"
+                  ],
+                  "properties": {
+                    "deleted": {
+                      "type": "boolean",
+                      "description": "true se eliminato almeno un documento"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato o modulo non abilitato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/connectors/activecampaign/config": {
+      "get": {
+        "tags": [
+          "connectors",
+          "workspaces"
+        ],
+        "operationId": "getActiveCampaignConnectorConfig",
+        "summary": "Legge configurazione ActiveCampaign del workspace",
+        "description": "Richiede integrations.read. Il workspace deve essere abilitato a integrazioni e activecampaign.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "config null se assente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "config"
+                  ],
+                  "properties": {
+                    "config": {
+                      "description": "Documento tz_connector_configs o assenza",
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "_id": {
+                          "type": "string",
+                          "description": "ID documento MongoDB"
+                        },
+                        "workspaceId": {
+                          "type": "string",
+                          "description": "ID workspace"
+                        },
+                        "connectorId": {
+                          "type": "string",
+                          "description": "Valore fisso activecampaign"
+                        },
+                        "config": {
+                          "type": "object",
+                          "description": "Campi pubblici",
+                          "properties": {
+                            "apiKeyMasked": {
+                              "type": "string",
+                              "description": "API key mascherata"
+                            },
+                            "apiBaseUrl": {
+                              "type": "string",
+                              "format": "uri",
+                              "description": "Base URL API account (es. https://nome.api-us1.com)"
+                            }
+                          }
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "description": "Aggiornamento UTC"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato o modulo non abilitato sul workspace"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "connectors",
+          "workspaces"
+        ],
+        "operationId": "saveActiveCampaignConnectorConfig",
+        "summary": "Salva API key ActiveCampaign per il workspace",
+        "description": "Richiede integrations.update. Workspace abilitato a integrazioni e activecampaign. Al primo salvataggio è obbligatorio apiBaseUrl (URL dal pannello Developer AC); in aggiornamento key si può omettere e resta l'URL già salvato.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "apiKey"
+                ],
+                "properties": {
+                  "apiKey": {
+                    "type": "string",
+                    "description": "API key ActiveCampaign"
+                  },
+                  "apiBaseUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "URL base API (obbligatorio al primo salvataggio)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Config salvata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "config"
+                  ],
+                  "properties": {
+                    "config": {
+                      "type": "object",
+                      "description": "Riga connettore aggiornata"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Body non valido o apiBaseUrl mancante al primo salvataggio"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato o modulo non abilitato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "connectors",
+          "workspaces"
+        ],
+        "operationId": "deleteActiveCampaignConnectorConfig",
+        "summary": "Rimuove configurazione ActiveCampaign dal workspace",
+        "description": "Richiede integrations.delete. Workspace abilitato a integrazioni e activecampaign.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": {
+              "type": "string"
+            },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Esito cancellazione",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "deleted"
+                  ],
+                  "properties": {
+                    "deleted": {
+                      "type": "boolean",
+                      "description": "true se eliminato almeno un documento"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Permesso negato o modulo non abilitato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      }
+    },
+    "/additional-infos": {
+      "post": {
+        "tags": [
+          "workspaces"
+        ],
+        "operationId": "createAdditionalInfo",
+        "summary": "Crea campo additional info per workspace (admin)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "workspaceId",
+                  "name",
+                  "type",
+                  "label"
+                ],
+                "description": "Campi custom ereditati dai progetti del workspace",
+                "properties": {
+                  "workspaceId": {
+                    "type": "string",
+                    "description": "ID workspace"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Nome tecnico (slug)"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "text",
+                      "radio",
+                      "slider",
+                      "number",
+                      "checkbox"
+                    ]
+                  },
+                  "label": {
+                    "type": "string",
+                    "description": "Etichetta UI"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "additionalInfo creato"
+          },
+          "400": {
+            "description": "Validazione fallita o nome duplicato"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Solo amministratori"
+          },
+          "404": {
+            "description": "Workspace non trovato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
     "/additional-infos/{id}": {
       "patch": {
-        "tags": ["workspaces"],
+        "tags": [
+          "workspaces"
+        ],
         "operationId": "updateAdditionalInfo",
         "summary": "Aggiorna additional info (admin)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
             "description": "ID documento additional info",
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "example": "673abc12def4567890123456"
           }
         ],
@@ -3317,34 +6147,62 @@
           }
         },
         "responses": {
-          "200": { "description": "additionalInfo aggiornato" },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Solo amministratori" },
-          "404": { "description": "Non trovato" },
-          "500": { "description": "Errore server" }
+          "200": {
+            "description": "additionalInfo aggiornato"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Solo amministratori"
+          },
+          "404": {
+            "description": "Non trovato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       },
       "delete": {
-        "tags": ["workspaces"],
+        "tags": [
+          "workspaces"
+        ],
         "operationId": "deleteAdditionalInfo",
         "summary": "Elimina additional info (admin)",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
             "description": "ID documento additional info",
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "example": "673abc12def4567890123456"
           }
         ],
         "responses": {
-          "200": { "description": "Eliminato" },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Solo amministratori" },
-          "404": { "description": "Non trovato" },
-          "500": { "description": "Errore server" }
+          "200": {
+            "description": "Eliminato"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Solo amministratori"
+          },
+          "404": {
+            "description": "Non trovato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
@@ -4737,9 +7595,15 @@
           "200": {
             "description": "Workflow creato"
           },
-          "401": { "description": "Non autenticato" },
-          "403": { "description": "Modulo marketing non abilitato (serve Mailchimp o ActiveCampaign sul workspace)" },
-          "500": { "description": "Errore server" }
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Modulo marketing non abilitato (serve Mailchimp o ActiveCampaign sul workspace)"
+          },
+          "500": {
+            "description": "Errore server"
+          }
         }
       }
     },
@@ -4766,31 +7630,48 @@
         "tags": [
           "mls"
         ],
-        "summary": "Feed XML MLS autenticato con apiKey query",
+        "summary": "Feed XML MLS autenticato con apiKey",
+        "description": "Autenticazione MLS: inviare la stessa chiave via header `x-mls-api-key` (preferito) oppure query `apiKey`. Almeno uno dei due deve essere presente e valido.",
         "parameters": [
           {
             "name": "workspaceId",
             "in": "path",
             "required": true,
+            "description": "Identificativo workspace",
             "schema": {
               "type": "string"
-            }
+            },
+            "example": "507f1f77bcf86cd799439011"
           },
           {
             "name": "projectId",
             "in": "path",
             "required": true,
+            "description": "Identificativo progetto",
             "schema": {
               "type": "string"
-            }
+            },
+            "example": "507f191e810c19729de860ea"
+          },
+          {
+            "name": "x-mls-api-key",
+            "in": "header",
+            "required": false,
+            "description": "Chiave API MLS (alternativa alla query `apiKey`)",
+            "schema": {
+              "type": "string"
+            },
+            "example": "mls-portal-secret-key"
           },
           {
             "name": "apiKey",
             "in": "query",
-            "required": true,
+            "required": false,
+            "description": "Chiave API MLS in query (retrocompatibile; preferire `x-mls-api-key`)",
             "schema": {
               "type": "string"
-            }
+            },
+            "example": "mls-portal-secret-key"
           }
         ],
         "responses": {

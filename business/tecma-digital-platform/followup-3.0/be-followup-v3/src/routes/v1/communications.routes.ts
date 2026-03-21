@@ -19,17 +19,20 @@ import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
 import { requirePermission } from "../permissionMiddleware.js";
 import { PERMISSIONS } from "../../core/rbac/permissions.js";
+import { requireWorkspaceEntitled } from "../workspaceEntitlementMiddleware.js";
+
+const entitledIntegrationsWs = requireWorkspaceEntitled("integrations", (req) => req.params.workspaceId);
 
 export const communicationsRoutes = Router();
 
-communicationsRoutes.get("/workspaces/:workspaceId/communication-templates", requirePermission(PERMISSIONS.INTEGRATIONS_READ), handleAsync(async (req) => {
+communicationsRoutes.get("/workspaces/:workspaceId/communication-templates", requirePermission(PERMISSIONS.INTEGRATIONS_READ), entitledIntegrationsWs, handleAsync(async (req) => {
   const projectId = typeof req.query.projectId === "string" ? req.query.projectId : undefined;
   const channelRaw = typeof req.query.channel === "string" ? req.query.channel : undefined;
   const channel = channelRaw && ["email", "whatsapp", "sms", "in_app"].includes(channelRaw) ? (channelRaw as "email" | "whatsapp" | "sms" | "in_app") : undefined;
   const data = await listCommunicationTemplates(req.params.workspaceId, { projectId, channel });
   return { data };
 }));
-communicationsRoutes.post("/workspaces/:workspaceId/communication-templates", requirePermission(PERMISSIONS.INTEGRATIONS_CREATE), handleAsync(async (req) => {
+communicationsRoutes.post("/workspaces/:workspaceId/communication-templates", requirePermission(PERMISSIONS.INTEGRATIONS_CREATE), entitledIntegrationsWs, handleAsync(async (req) => {
   const body = z.object({
     projectId: z.string().optional(),
     channel: z.enum(["email", "whatsapp", "sms", "in_app"]),
@@ -63,17 +66,17 @@ communicationsRoutes.delete("/communication-templates/:id", requirePermission(PE
   if (!ok) throw new HttpError("Template not found", 404);
   return { deleted: true };
 }));
-communicationsRoutes.get("/workspaces/:workspaceId/communication-rules", requirePermission(PERMISSIONS.INTEGRATIONS_READ), handleAsync(async (req) => {
+communicationsRoutes.get("/workspaces/:workspaceId/communication-rules", requirePermission(PERMISSIONS.INTEGRATIONS_READ), entitledIntegrationsWs, handleAsync(async (req) => {
   const projectId = typeof req.query.projectId === "string" ? req.query.projectId : undefined;
   const data = await listCommunicationRules(req.params.workspaceId, { projectId });
   return { data };
 }));
-communicationsRoutes.get("/workspaces/:workspaceId/communication-deliveries", requirePermission(PERMISSIONS.INTEGRATIONS_READ), handleAsync(async (req) => {
+communicationsRoutes.get("/workspaces/:workspaceId/communication-deliveries", requirePermission(PERMISSIONS.INTEGRATIONS_READ), entitledIntegrationsWs, handleAsync(async (req) => {
   const limit = typeof req.query.limit === "string" ? Math.min(100, parseInt(req.query.limit, 10) || 50) : 50;
   const data = await listCommunicationDeliveries(req.params.workspaceId, limit);
   return { data };
 }));
-communicationsRoutes.post("/workspaces/:workspaceId/communication-rules", requirePermission(PERMISSIONS.INTEGRATIONS_CREATE), handleAsync(async (req) => {
+communicationsRoutes.post("/workspaces/:workspaceId/communication-rules", requirePermission(PERMISSIONS.INTEGRATIONS_CREATE), entitledIntegrationsWs, handleAsync(async (req) => {
   const body = z.record(z.unknown()).parse(req.body);
   const rule = await createCommunicationRule({ ...body, workspaceId: req.params.workspaceId } as Parameters<typeof createCommunicationRule>[0]);
   return { rule };

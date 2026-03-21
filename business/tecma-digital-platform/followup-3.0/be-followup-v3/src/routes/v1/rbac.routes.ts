@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { listWorkspaceMembershipRoles, getPermissionsForRole } from "../../core/rbac/roleDefinitions.service.js";
+import { listEnterpriseRoleMappings } from "../../core/rbac/enterpriseRoles.mapper.js";
 import { buildPermissionCatalog, PERMISSIONS } from "../../core/rbac/permissions.js";
 import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
@@ -12,6 +13,16 @@ rbacRoutes.get(
   "/workspace-roles",
   handleAsync(async () => {
     const data = await listWorkspaceMembershipRoles();
+    return { data };
+  })
+);
+
+/** Mappatura ruoli enterprise (documentazione / audit) — lettura utenti. */
+rbacRoutes.get(
+  "/rbac/enterprise-role-map",
+  requirePermission(PERMISSIONS.USERS_READ),
+  handleAsync(async () => {
+    const data = listEnterpriseRoleMappings();
     return { data };
   })
 );

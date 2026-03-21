@@ -1,4 +1,13 @@
-import { useState, useMemo, useEffect, useRef, useCallback, type Dispatch, type SetStateAction } from "react";
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useRef,
+  useCallback,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 import {
   Search,
   RefreshCcw,
@@ -26,7 +35,7 @@ import {
 import { followupApi } from "../../api/followupApi";
 import { useToast } from "../../contexts/ToastContext";
 import type { WebhookConfigRow, AutomationEventType, WorkspaceEntitlementEffectiveRow } from "../../types/domain";
-import { commercialActivationFootnote } from "./workspaceEntitlementUi";
+import { connectorEntitlementFootnote, workspaceFeatureEntitled } from "./workspaceEntitlementUi";
 import { cn } from "../../lib/utils";
 import {
   LOOKER_CONNECTOR_STORAGE_KEY,
@@ -71,7 +80,7 @@ function ConnectorCatalogCard({
   configureLabel?: string;
   readOnly?: boolean;
   /** Vetrina: modulo commerciale non attivo (contatta Tecma). */
-  entitlementFootnote?: string;
+  entitlementFootnote?: ReactNode;
 }) {
   const cfg = STATUS_CONFIG[connector.status];
   const StatusIcon = cfg.icon;
@@ -227,6 +236,10 @@ export function ConnettoriTab({
   reloadMetaWhatsAppStatus,
   /** false se il modulo Twilio non è abilitato (entitlement). Default true. */
   twilioEntitled = true,
+  mailchimpEntitled = true,
+  activecampaignEntitled = true,
+  reloadMailchimpStatus,
+  reloadActiveCampaignStatus,
   workspaceEntitlements,
 }: {
   connectors: ConnectorCatalogItem[];
@@ -251,11 +264,18 @@ export function ConnettoriTab({
   onMetaAutoOpenConsumed?: () => void;
   reloadMetaWhatsAppStatus?: () => void;
   twilioEntitled?: boolean;
+  mailchimpEntitled?: boolean;
+  activecampaignEntitled?: boolean;
+  reloadMailchimpStatus?: () => void;
+  reloadActiveCampaignStatus?: () => void;
   /** Per vetrina: stato commerciale per connettori mappati (Twilio, Mailchimp, Looker…). */
   workspaceEntitlements?: WorkspaceEntitlementEffectiveRow[];
 }) {
   const { toastError, toastSuccess } = useToast();
   const ro = readOnly;
+  const integrationsEntitled = workspaceFeatureEntitled(workspaceEntitlements, "integrations");
+  const mailchimpSaveOk = integrationsEntitled && mailchimpEntitled;
+  const activeCampaignSaveOk = integrationsEntitled && activecampaignEntitled;
   const [search, setSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState<"all" | ConnectorGroup>("all");
   const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -266,6 +286,8 @@ export function ConnettoriTab({
     | "connector_looker"
     | "connector_twilio"
     | "connector_meta_whatsapp"
+    | "connector_mailchimp"
+    | "connector_activecampaign"
     | null
   >(null);
   const [connectorFormUrl, setConnectorFormUrl] = useState("");
@@ -304,6 +326,15 @@ export function ConnettoriTab({
   const [metaTestParamsRaw, setMetaTestParamsRaw] = useState("");
   const [metaTestSending, setMetaTestSending] = useState(false);
   const metaAutoOpenDoneRef = useRef(false);
+  const [mailchimpApiKey, setMailchimpApiKey] = useState("");
+  const [mailchimpHasSavedConfig, setMailchimpHasSavedConfig] = useState(false);
+  const [mailchimpSaving, setMailchimpSaving] = useState(false);
+  const [mailchimpDrawerError, setMailchimpDrawerError] = useState<string | null>(null);
+  const [activeCampaignApiKey, setActiveCampaignApiKey] = useState("");
+  const [activeCampaignApiBaseUrl, setActiveCampaignApiBaseUrl] = useState("");
+  const [activeCampaignHasSavedConfig, setActiveCampaignHasSavedConfig] = useState(false);
+  const [activeCampaignSaving, setActiveCampaignSaving] = useState(false);
+  const [activeCampaignDrawerError, setActiveCampaignDrawerError] = useState<string | null>(null);
 
   const openMetaDrawer = useCallback(() => {
     if (!workspaceId) return;
@@ -366,6 +397,43 @@ export function ConnettoriTab({
       });
   }, [workspaceId]);
 
+  const openMailchimpDrawer = useCallback(() => {
+    if (!workspaceId) return;
+    setMailchimpDrawerError(null);
+    followupApi
+      .getMailchimpConnectorConfig(workspaceId)
+      .then((r) => {
+        setMailchimpHasSavedConfig(!!r.config);
+        setMailchimpApiKey("");
+        setConnectorConfigDrawer("connector_mailchimp");
+      })
+      .catch(() => {
+        setMailchimpHasSavedConfig(false);
+        setMailchimpApiKey("");
+        setConnectorConfigDrawer("connector_mailchimp");
+      });
+  }, [workspaceId]);
+
+  const openActiveCampaignDrawer = useCallback(() => {
+    if (!workspaceId) return;
+    setActiveCampaignDrawerError(null);
+    followupApi
+      .getActiveCampaignConnectorConfig(workspaceId)
+      .then((r) => {
+        setActiveCampaignHasSavedConfig(!!r.config);
+        const pub = r.config?.config as { apiBaseUrl?: string } | undefined;
+        setActiveCampaignApiBaseUrl(pub?.apiBaseUrl?.trim() ?? "");
+        setActiveCampaignApiKey("");
+        setConnectorConfigDrawer("connector_activecampaign");
+      })
+      .catch(() => {
+        setActiveCampaignHasSavedConfig(false);
+        setActiveCampaignApiBaseUrl("");
+        setActiveCampaignApiKey("");
+        setConnectorConfigDrawer("connector_activecampaign");
+      });
+  }, [workspaceId]);
+
   useEffect(() => {
     if (!autoOpenTwilio || twilioAutoOpenDoneRef.current) return;
     if (!workspaceId) return;
@@ -399,7 +467,14 @@ export function ConnettoriTab({
   }, [filtered]);
 
   const openConnectorConfig = (
-    id: "connector_n8n" | "connector_outlook" | "connector_looker" | "connector_twilio" | "connector_meta_whatsapp"
+    id:
+      | "connector_n8n"
+      | "connector_outlook"
+      | "connector_looker"
+      | "connector_twilio"
+      | "connector_meta_whatsapp"
+      | "connector_mailchimp"
+      | "connector_activecampaign"
   ) => {
     if (id === "connector_twilio") {
       openTwilioDrawer();
@@ -407,6 +482,14 @@ export function ConnettoriTab({
     }
     if (id === "connector_meta_whatsapp") {
       openMetaDrawer();
+      return;
+    }
+    if (id === "connector_mailchimp") {
+      openMailchimpDrawer();
+      return;
+    }
+    if (id === "connector_activecampaign") {
+      openActiveCampaignDrawer();
       return;
     }
     const connectorId = id === "connector_n8n" ? "n8n" : id === "connector_outlook" ? "outlook" : null;
@@ -437,10 +520,50 @@ export function ConnettoriTab({
       id === "connector_outlook" ||
       id === "connector_looker" ||
       id === "connector_twilio" ||
-      id === "connector_meta_whatsapp"
+      id === "connector_meta_whatsapp" ||
+      id === "connector_mailchimp" ||
+      id === "connector_activecampaign"
     ) {
       const conn = connectors.find((c) => c.id === id);
       if (conn?.status === "configured") {
+        if (id === "connector_mailchimp") {
+          setTogglingId(id);
+          if (!workspaceId) {
+            setTogglingId(null);
+            return;
+          }
+          followupApi
+            .deleteMailchimpConnectorConfig(workspaceId)
+            .then(() => {
+              setConnectors((prev) => prev.map((c) => (c.id === id ? { ...c, status: "beta" } : c)));
+              reloadMailchimpStatus?.();
+              toastSuccess("Configurazione Mailchimp rimossa.");
+            })
+            .catch((err) => {
+              toastError(err?.message ?? "Errore rimozione Mailchimp");
+            })
+            .finally(() => setTogglingId(null));
+          return;
+        }
+        if (id === "connector_activecampaign") {
+          setTogglingId(id);
+          if (!workspaceId) {
+            setTogglingId(null);
+            return;
+          }
+          followupApi
+            .deleteActiveCampaignConnectorConfig(workspaceId)
+            .then(() => {
+              setConnectors((prev) => prev.map((c) => (c.id === id ? { ...c, status: "beta" } : c)));
+              reloadActiveCampaignStatus?.();
+              toastSuccess("Configurazione ActiveCampaign rimossa.");
+            })
+            .catch((err) => {
+              toastError(err?.message ?? "Errore rimozione ActiveCampaign");
+            })
+            .finally(() => setTogglingId(null));
+          return;
+        }
         if (id === "connector_meta_whatsapp") {
           setTogglingId(id);
           if (!workspaceId) {
@@ -519,7 +642,14 @@ export function ConnettoriTab({
         }
       } else {
         openConnectorConfig(
-          id as "connector_n8n" | "connector_outlook" | "connector_looker" | "connector_twilio" | "connector_meta_whatsapp"
+          id as
+            | "connector_n8n"
+            | "connector_outlook"
+            | "connector_looker"
+            | "connector_twilio"
+            | "connector_meta_whatsapp"
+            | "connector_mailchimp"
+            | "connector_activecampaign"
         );
       }
       return;
@@ -742,6 +872,113 @@ export function ConnettoriTab({
       .finally(() => setTwilioTestSending(false));
   };
 
+  const saveMailchimpConfig = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_mailchimp") return;
+    const key = mailchimpApiKey.trim();
+    if (!key) {
+      toastError(
+        mailchimpHasSavedConfig ? "Inserisci una nuova API key per aggiornare." : "Inserisci l’API key Mailchimp."
+      );
+      return;
+    }
+    setMailchimpSaving(true);
+    setMailchimpDrawerError(null);
+    followupApi
+      .saveMailchimpConnectorConfig(workspaceId, { apiKey: key })
+      .then(() => {
+        setMailchimpHasSavedConfig(true);
+        setMailchimpApiKey("");
+        setConnectors((prev) => prev.map((c) => (c.id === "connector_mailchimp" ? { ...c, status: "configured" } : c)));
+        reloadMailchimpStatus?.();
+        toastSuccess("API key Mailchimp salvata.");
+        setConnectorConfigDrawer(null);
+      })
+      .catch((err) => setMailchimpDrawerError(err?.message ?? "Salvataggio fallito"))
+      .finally(() => setMailchimpSaving(false));
+  };
+
+  const removeMailchimpConfig = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_mailchimp") return;
+    if (!window.confirm("Rimuovere la configurazione Mailchimp per questo workspace?")) return;
+    setMailchimpSaving(true);
+    setMailchimpDrawerError(null);
+    followupApi
+      .deleteMailchimpConnectorConfig(workspaceId)
+      .then(() => {
+        setMailchimpHasSavedConfig(false);
+        setMailchimpApiKey("");
+        setConnectors((prev) => prev.map((c) => (c.id === "connector_mailchimp" ? { ...c, status: "beta" } : c)));
+        reloadMailchimpStatus?.();
+        toastSuccess("Configurazione Mailchimp rimossa.");
+        setConnectorConfigDrawer(null);
+      })
+      .catch((err) => setMailchimpDrawerError(err?.message ?? "Rimozione fallita"))
+      .finally(() => setMailchimpSaving(false));
+  };
+
+  const saveActiveCampaignConfig = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_activecampaign") return;
+    const key = activeCampaignApiKey.trim();
+    const baseUrl = activeCampaignApiBaseUrl.trim().replace(/\/$/, "");
+    if (!key) {
+      toastError(
+        activeCampaignHasSavedConfig
+          ? "Inserisci una nuova API key per aggiornare."
+          : "Inserisci l’API key ActiveCampaign."
+      );
+      return;
+    }
+    if (!activeCampaignHasSavedConfig && !baseUrl) {
+      toastError("Inserisci l’URL API (Settings → Developer in ActiveCampaign, es. https://account.api-us1.com).");
+      return;
+    }
+    setActiveCampaignSaving(true);
+    setActiveCampaignDrawerError(null);
+    const body: { apiKey: string; apiBaseUrl?: string } = { apiKey: key };
+    if (!activeCampaignHasSavedConfig) {
+      body.apiBaseUrl = baseUrl;
+    } else if (baseUrl) {
+      body.apiBaseUrl = baseUrl;
+    }
+    followupApi
+      .saveActiveCampaignConnectorConfig(workspaceId, body)
+      .then(() => {
+        setActiveCampaignHasSavedConfig(true);
+        setActiveCampaignApiKey("");
+        if (body.apiBaseUrl) setActiveCampaignApiBaseUrl(body.apiBaseUrl);
+        setConnectors((prev) =>
+          prev.map((c) => (c.id === "connector_activecampaign" ? { ...c, status: "configured" } : c))
+        );
+        reloadActiveCampaignStatus?.();
+        toastSuccess("API key ActiveCampaign salvata.");
+        setConnectorConfigDrawer(null);
+      })
+      .catch((err) => setActiveCampaignDrawerError(err?.message ?? "Salvataggio fallito"))
+      .finally(() => setActiveCampaignSaving(false));
+  };
+
+  const removeActiveCampaignConfig = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_activecampaign") return;
+    if (!window.confirm("Rimuovere la configurazione ActiveCampaign per questo workspace?")) return;
+    setActiveCampaignSaving(true);
+    setActiveCampaignDrawerError(null);
+    followupApi
+      .deleteActiveCampaignConnectorConfig(workspaceId)
+      .then(() => {
+        setActiveCampaignHasSavedConfig(false);
+        setActiveCampaignApiKey("");
+        setActiveCampaignApiBaseUrl("");
+        setConnectors((prev) =>
+          prev.map((c) => (c.id === "connector_activecampaign" ? { ...c, status: "beta" } : c))
+        );
+        reloadActiveCampaignStatus?.();
+        toastSuccess("Configurazione ActiveCampaign rimossa.");
+        setConnectorConfigDrawer(null);
+      })
+      .catch((err) => setActiveCampaignDrawerError(err?.message ?? "Rimozione fallita"))
+      .finally(() => setActiveCampaignSaving(false));
+  };
+
   const saveMetaWhatsAppConfig = () => {
     if (!workspaceId || connectorConfigDrawer !== "connector_meta_whatsapp") return;
     if (!metaPhoneNumberId.trim() || !metaAccessToken.trim()) {
@@ -892,7 +1129,7 @@ export function ConnettoriTab({
                   toggleConnector={toggleConnector}
                   configureLabel={connector.id === "connector_meta_whatsapp" ? "Configura Meta API" : undefined}
                   readOnly={ro}
-                  entitlementFootnote={commercialActivationFootnote(workspaceEntitlements, connector.id)}
+                  entitlementFootnote={connectorEntitlementFootnote(workspaceEntitlements, connector.id)}
                 />
               ))}
             </div>
@@ -917,7 +1154,7 @@ export function ConnettoriTab({
                 onOpenTab={onOpenTab}
                 toggleConnector={toggleConnector}
                 readOnly={ro}
-                entitlementFootnote={commercialActivationFootnote(workspaceEntitlements, connector.id)}
+                entitlementFootnote={connectorEntitlementFootnote(workspaceEntitlements, connector.id)}
               />
             ))}
           </div>
@@ -940,6 +1177,8 @@ export function ConnettoriTab({
               {connectorConfigDrawer === "connector_looker" && "Configura Looker Studio"}
               {connectorConfigDrawer === "connector_twilio" && "Collega WhatsApp (Twilio)"}
               {connectorConfigDrawer === "connector_meta_whatsapp" && "Collega WhatsApp (Meta Cloud API)"}
+              {connectorConfigDrawer === "connector_mailchimp" && "Mailchimp — API key"}
+              {connectorConfigDrawer === "connector_activecampaign" && "ActiveCampaign — credenziali API"}
             </DrawerTitle>
           </DrawerHeader>
           <DrawerBody className="space-y-4">
@@ -1240,6 +1479,88 @@ export function ConnettoriTab({
                 )}
               </>
             )}
+            {connectorConfigDrawer === "connector_mailchimp" && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Inserisci l&apos;API key del tuo account Mailchimp (Account → Extras → API keys). La chiave viene conservata in modo cifrato lato
+                  infrastruttura; in questa schermata vedi solo un valore mascherato dopo il salvataggio.
+                </p>
+                {!mailchimpSaveOk && (
+                  <Alert variant="warning" title="Modulo Mailchimp o Integrazioni non attivo" className="mt-2 text-sm">
+                    Non puoi salvare una nuova API key senza Integrazioni e Mailchimp abilitati da Tecma. Puoi rimuovere una config esistente.
+                  </Alert>
+                )}
+                {mailchimpDrawerError && <p className="text-sm text-destructive">{mailchimpDrawerError}</p>}
+                <div>
+                  <label htmlFor="mailchimp-api-key" className="text-sm font-medium text-foreground">
+                    API key
+                  </label>
+                  <Input
+                    id="mailchimp-api-key"
+                    type="password"
+                    value={mailchimpApiKey}
+                    onChange={(e) => setMailchimpApiKey(e.target.value)}
+                    placeholder={
+                      mailchimpHasSavedConfig
+                        ? "•••• (inserisci nuova key per aggiornare)"
+                        : "Chiave Mailchimp"
+                    }
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+              </>
+            )}
+            {connectorConfigDrawer === "connector_activecampaign" && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  API key e URL base da <span className="font-medium text-foreground">Settings → Developer</span> in ActiveCampaign. La key è mascherata dopo
+                  il salvataggio; l&apos;URL viene mostrato in chiaro per verifica. Al primo collegamento servono entrambi; per ruotare solo la key puoi lasciare
+                  l&apos;URL com&apos;è.
+                </p>
+                {!activeCampaignSaveOk && (
+                  <Alert variant="warning" title="Modulo ActiveCampaign o Integrazioni non attivo" className="mt-2 text-sm">
+                    Non puoi salvare una nuova API key senza Integrazioni e ActiveCampaign abilitati da Tecma. Puoi rimuovere una config esistente.
+                  </Alert>
+                )}
+                {activeCampaignDrawerError && <p className="text-sm text-destructive">{activeCampaignDrawerError}</p>}
+                <div>
+                  <label htmlFor="activecampaign-api-url" className="text-sm font-medium text-foreground">
+                    URL API
+                  </label>
+                  <Input
+                    id="activecampaign-api-url"
+                    type="url"
+                    value={activeCampaignApiBaseUrl}
+                    onChange={(e) => setActiveCampaignApiBaseUrl(e.target.value)}
+                    placeholder="https://account.api-us1.com"
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                  {!activeCampaignHasSavedConfig && (
+                    <p className="mt-1 text-xs text-muted-foreground">Obbligatorio al primo salvataggio (stesso URL indicato nel pannello Developer).</p>
+                  )}
+                </div>
+                <div>
+                  <label htmlFor="activecampaign-api-key" className="text-sm font-medium text-foreground">
+                    API key
+                  </label>
+                  <Input
+                    id="activecampaign-api-key"
+                    type="password"
+                    value={activeCampaignApiKey}
+                    onChange={(e) => setActiveCampaignApiKey(e.target.value)}
+                    placeholder={
+                      activeCampaignHasSavedConfig
+                        ? "•••• (inserisci nuova key per aggiornare)"
+                        : "Chiave ActiveCampaign"
+                    }
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+              </>
+            )}
           </DrawerBody>
           {connectorConfigDrawer === "connector_n8n" && (
             <DrawerFooter className="flex flex-wrap gap-2">
@@ -1277,6 +1598,39 @@ export function ConnettoriTab({
               </Button>
               {metaHasSavedConfig && (
                 <Button variant="outline" className="min-h-11" onClick={removeMetaWhatsAppConfig} disabled={metaSaving || ro}>
+                  Rimuovi config
+                </Button>
+              )}
+            </DrawerFooter>
+          )}
+          {connectorConfigDrawer === "connector_mailchimp" && (
+            <DrawerFooter className="flex flex-wrap gap-2">
+              <Button className="min-h-11" onClick={saveMailchimpConfig} disabled={mailchimpSaving || ro || !mailchimpSaveOk}>
+                {mailchimpSaving ? "Salvataggio…" : "Salva"}
+              </Button>
+              {mailchimpHasSavedConfig && (
+                <Button variant="outline" className="min-h-11" onClick={removeMailchimpConfig} disabled={mailchimpSaving || ro}>
+                  Rimuovi config
+                </Button>
+              )}
+            </DrawerFooter>
+          )}
+          {connectorConfigDrawer === "connector_activecampaign" && (
+            <DrawerFooter className="flex flex-wrap gap-2">
+              <Button
+                className="min-h-11"
+                onClick={saveActiveCampaignConfig}
+                disabled={activeCampaignSaving || ro || !activeCampaignSaveOk}
+              >
+                {activeCampaignSaving ? "Salvataggio…" : "Salva"}
+              </Button>
+              {activeCampaignHasSavedConfig && (
+                <Button
+                  variant="outline"
+                  className="min-h-11"
+                  onClick={removeActiveCampaignConfig}
+                  disabled={activeCampaignSaving || ro}
+                >
                   Rimuovi config
                 </Button>
               )}

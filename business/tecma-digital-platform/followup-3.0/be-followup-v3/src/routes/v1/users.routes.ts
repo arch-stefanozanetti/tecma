@@ -3,10 +3,12 @@ import { z } from "zod";
 import { HttpError } from "../../types/http.js";
 import { PERMISSIONS, ALL_PERMISSION_IDS, hasPermission } from "../../core/rbac/permissions.js";
 import { writeAuditLog } from "../../core/audit/audit.service.js";
+import { recordSecurityEvent } from "../../core/compliance/security-audit.service.js";
 import { listUsersWithVisibility } from "../../core/users/users-admin.service.js";
 import { inviteUser, findUserById, updateUserById, deleteUserById } from "../../core/users/users-mutations.service.js";
 import { requirePermission, requireAnyPermission } from "../permissionMiddleware.js";
 import { handleAsync } from "../asyncHandler.js";
+import { getClientIp } from "../requestMeta.js";
 
 export const usersRoutes = Router();
 
@@ -43,6 +45,19 @@ usersRoutes.post(
       changes: { after: { email: body.email, projectId: body.projectId } },
       projectId: req.user!.projectId ?? body.projectId,
       workspaceId: body.workspaceId ?? (req.query.workspaceId as string) ?? (req.body as Record<string, unknown>).workspaceId as string
+    });
+    const workspaceId =
+      body.workspaceId ?? (typeof req.query.workspaceId === "string" ? req.query.workspaceId : undefined);
+    void recordSecurityEvent({
+      action: "users.invited",
+      entityType: "user",
+      entityId: result.userId,
+      userId: req.user!.sub,
+      projectId: body.projectId,
+      ...(workspaceId && { workspaceId }),
+      ip: getClientIp(req) ?? undefined,
+      userAgent: req.get("user-agent") ?? undefined,
+      ...(body.roleLabel && { metadata: { roleLabel: body.roleLabel } })
     });
     return result;
   })

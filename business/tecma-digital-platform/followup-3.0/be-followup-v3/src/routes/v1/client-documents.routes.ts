@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { handleAsync } from "../asyncHandler.js";
+import { getClientIp } from "../requestMeta.js";
 import { requireCanAccessWorkspace } from "../accessMiddleware.js";
 import { requirePermission } from "../permissionMiddleware.js";
 import { PERMISSIONS } from "../../core/rbac/permissions.js";
@@ -60,7 +61,12 @@ clientDocumentsRoutes.get(
     const workspaceId = req.params.workspaceId ?? "";
     const clientId = req.params.clientId ?? "";
     const docId = req.params.docId ?? "";
-    return getClientDocumentDownloadUrl(workspaceId, clientId, docId);
+    const uid = typeof req.user?.sub === "string" ? req.user.sub : undefined;
+    return getClientDocumentDownloadUrl(workspaceId, clientId, docId, undefined, {
+      actorUserId: uid,
+      ip: getClientIp(req),
+      userAgent: req.get("user-agent") ?? null
+    });
   })
 );
 

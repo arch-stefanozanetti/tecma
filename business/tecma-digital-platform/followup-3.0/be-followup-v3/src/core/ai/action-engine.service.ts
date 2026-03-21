@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getDb } from "../../config/db.js";
 import { escapeRegex } from "../../utils/escapeRegex.js";
 import { HttpError } from "../../types/http.js";
+import { isWorkspaceEntitledToFeature } from "../workspaces/workspace-entitlements.service.js";
 import { emitDomainEvent } from "../events/event-log.service.js";
 import { ListQuerySchema, buildPagination } from "../shared/list-query.js";
 
@@ -119,6 +120,12 @@ export const decideAiActionDraft = async (rawDraftId: unknown, rawInput: unknown
   const existing = await db.collection("tz_ai_action_drafts").findOne({ _id: draftId });
   if (!existing) {
     throw new HttpError("AI action draft not found", 404);
+  }
+  const draftWorkspaceId = String(existing.workspaceId ?? "");
+  if (!draftWorkspaceId) throw new HttpError("AI action draft invalid", 500);
+  const entitledAi = await isWorkspaceEntitledToFeature(draftWorkspaceId, "aiApprovals");
+  if (!entitledAi) {
+    throw new HttpError("Funzionalità non abilitata per questo workspace", 403, "FEATURE_NOT_ENTITLED");
   }
 
   const nextStatus = input.decision === "approved" ? "approved" : "rejected";

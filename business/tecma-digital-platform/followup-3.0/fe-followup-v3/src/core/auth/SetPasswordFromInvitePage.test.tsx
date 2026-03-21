@@ -14,6 +14,10 @@ vi.mock("../../api/followupApi", () => ({
 const setTokens = vi.fn();
 vi.mock("../../api/http", () => ({
   setTokens: (...a: unknown[]) => setTokens(...a),
+  HttpApiError: class HttpApiError extends Error {
+    code?: string;
+    hint?: string;
+  },
 }));
 
 function renderWithToken(token: string) {

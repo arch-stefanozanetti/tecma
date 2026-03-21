@@ -6,6 +6,11 @@ import { logger } from "../../observability/logger.js";
 import { isWorkspaceEntitledToFeature } from "../workspaces/workspace-entitlements.service.js";
 import { deliverWebhook } from "./webhook-delivery.service.js";
 import { sendGenericEmail } from "../email/email.service.js";
+import { resolveMarketingContactFromPayload } from "./marketing-contact-from-payload.service.js";
+import {
+  upsertActiveCampaignContact,
+  upsertMailchimpListMember,
+} from "./marketing-external-lists.service.js";
 
 const WORKFLOWS_COLLECTION = "tz_marketing_workflows";
 const ENROLLMENTS_COLLECTION = "tz_marketing_enrollments";
@@ -13,14 +18,50 @@ const EXECUTIONS_COLLECTION = "tz_marketing_step_executions";
 
 const nowIso = (): string => new Date().toISOString();
 
-const MarketingStepSchema = z.object({
-  order: z.number().int().min(1),
-  delayMinutes: z.number().int().min(0).default(0),
-  channel: z.enum(["email", "webhook"]),
-  templateSubject: z.string().optional(),
-      templateBody: z.string().min(1),
-      webhookUrl: z.string().url().optional(),
-});
+const MarketingStepSchema = z
+  .object({
+    order: z.number().int().min(1),
+    delayMinutes: z.number().int().min(0).default(0),
+    channel: z.enum(["email", "webhook", "mailchimp", "activecampaign"]),
+    templateSubject: z.string().optional(),
+    templateBody: z.string().optional(),
+    webhookUrl: z.string().url().optional(),
+    /** Audience / List ID Mailchimp (Marketing API). */
+    mailchimpListId: z.string().optional(),
+    mailchimpStatus: z.enum(["subscribed", "pending"]).optional(),
+    /** List ID ActiveCampaign (opzionale: solo sync contatto se assente). */
+    activecampaignListId: z.string().optional(),
+  })
+  .superRefine((val, ctx) => {
+    if (val.channel === "email") {
+      if (!val.templateBody?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "templateBody obbligatorio per channel email",
+          path: ["templateBody"],
+        });
+      }
+    }
+    if (val.channel === "webhook") {
+      if (!val.webhookUrl) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "webhookUrl obbligatorio", path: ["webhookUrl"] });
+      }
+      if (!val.templateBody?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "templateBody obbligatorio (corpo payload webhook)",
+          path: ["templateBody"],
+        });
+      }
+    }
+    if (val.channel === "mailchimp" && !val.mailchimpListId?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "mailchimpListId obbligatorio (ID audience Mailchimp)",
+        path: ["mailchimpListId"],
+      });
+    }
+  });
 
 const WorkflowSchema = z.object({
   workspaceId: z.string().min(1),
@@ -115,6 +156,7 @@ export const enqueueMarketingEvent = async (
 
 const runStep = async (workflow: Record<string, unknown>, step: Record<string, unknown>, payload: Record<string, unknown>): Promise<void> => {
   const channel = String(step.channel ?? "");
+  const wsId = String(workflow.workspaceId ?? "");
   if (channel === "email") {
     const to = typeof payload.clientEmail === "string" ? payload.clientEmail : "";
     if (!to) return;
@@ -131,7 +173,7 @@ const runStep = async (workflow: Record<string, unknown>, step: Record<string, u
     await deliverWebhook(
       {
         _id: "marketing-step",
-        workspaceId: String(workflow.workspaceId ?? ""),
+        workspaceId: wsId,
         connectorId: "marketing",
         url: webhookUrl,
         secret: undefined,
@@ -152,6 +194,36 @@ const runStep = async (workflow: Record<string, unknown>, step: Record<string, u
       String(workflow.triggerEventType ?? "marketing.step"),
       payload,
     );
+    return;
+  }
+  if (channel === "mailchimp") {
+    if (!(await isWorkspaceEntitledToFeature(wsId, "mailchimp"))) {
+      logger.warn({ wsId }, "[marketing-automation] skip mailchimp step: modulo non abilitato");
+      return;
+    }
+    const listId = String(step.mailchimpListId ?? "").trim();
+    if (!listId) return;
+    const contact = await resolveMarketingContactFromPayload(wsId, payload);
+    if (!contact) {
+      logger.info({ wsId, entityId: payload.entityId }, "[marketing-automation] skip mailchimp: nessun email risolvibile");
+      return;
+    }
+    const st = step.mailchimpStatus === "pending" ? "pending" : "subscribed";
+    await upsertMailchimpListMember(wsId, listId, contact, st);
+    return;
+  }
+  if (channel === "activecampaign") {
+    if (!(await isWorkspaceEntitledToFeature(wsId, "activecampaign"))) {
+      logger.warn({ wsId }, "[marketing-automation] skip activecampaign step: modulo non abilitato");
+      return;
+    }
+    const contact = await resolveMarketingContactFromPayload(wsId, payload);
+    if (!contact) {
+      logger.info({ wsId, entityId: payload.entityId }, "[marketing-automation] skip AC: nessun email risolvibile");
+      return;
+    }
+    const listOpt = String(step.activecampaignListId ?? "").trim() || undefined;
+    await upsertActiveCampaignContact(wsId, contact, listOpt);
   }
 };
 

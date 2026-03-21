@@ -30,6 +30,8 @@ describe("workspace-entitlements.service", () => {
   it("parseWorkspaceEntitlementFeature accetta solo feature note", () => {
     expect(parseWorkspaceEntitlementFeature("publicApi")).toBe("publicApi");
     expect(parseWorkspaceEntitlementFeature("twilio")).toBe("twilio");
+    expect(parseWorkspaceEntitlementFeature("reports")).toBe("reports");
+    expect(parseWorkspaceEntitlementFeature("integrations")).toBe("integrations");
     expect(parseWorkspaceEntitlementFeature("unknown")).toBe(null);
   });
 
@@ -50,14 +52,16 @@ describe("workspace-entitlements.service", () => {
 
   it("listEffectiveWorkspaceEntitlements unisce impliciti e righe", async () => {
     findToArray.mockResolvedValueOnce([
-      { _id: "x", workspaceId: "ws1", feature: "twilio", status: "suspended", notes: "", createdAt: "a", updatedAt: "b" },
+      { _id: "x", workspaceId: "ws1", feature: "twilio", status: "suspended", notes: "note commercio", createdAt: "a", updatedAt: "b" },
     ]);
     const list = await listEffectiveWorkspaceEntitlements("ws1");
     const twilio = list.find((e) => e.feature === "twilio");
     const pub = list.find((e) => e.feature === "publicApi");
     expect(twilio?.entitled).toBe(false);
     expect(twilio?.implicit).toBe(false);
+    expect(twilio?.recordedNotes).toBe("note commercio");
     expect(pub?.implicit).toBe(true);
+    expect(pub?.recordedNotes).toBeNull();
     expect(pub?.entitled).toBe(true);
   });
 

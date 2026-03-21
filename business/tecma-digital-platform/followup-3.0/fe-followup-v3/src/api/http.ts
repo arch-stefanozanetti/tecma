@@ -1,5 +1,27 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/v1";
 
+/** Errore API con status HTTP e opzionalmente `code` / `hint` dal JSON backend ({ error, code, hint }). */
+export class HttpApiError extends Error {
+  readonly status: number;
+  readonly code?: string;
+  readonly hint?: string;
+
+  constructor(
+    message: string,
+    opts: {
+      status: number;
+      code?: string;
+      hint?: string;
+    }
+  ) {
+    super(message);
+    this.name = "HttpApiError";
+    this.status = opts.status;
+    this.code = opts.code;
+    this.hint = opts.hint;
+  }
+}
+
 const STORAGE_ACCESS = "followup3.accessToken";
 const STORAGE_REFRESH = "followup3.refreshToken";
 
@@ -40,6 +62,7 @@ export const clearTokens = (): void => {
 
 const isPublicAuthPath = (path: string): boolean =>
   path === "/auth/login" ||
+  path === "/auth/mfa/verify" ||
   path === "/auth/sso-exchange" ||
   path === "/auth/refresh" ||
   path === "/auth/logout" ||
@@ -135,10 +158,12 @@ const requestJson = async <T>(path: string, options: RequestInit, isRetry = fals
     const text = await response.text();
     let message = text || `Errore API HTTP ${response.status} su ${path}`;
     let authCode: string | undefined;
+    let hint: string | undefined;
     try {
-      const j = JSON.parse(text) as { error?: string; code?: string };
+      const j = JSON.parse(text) as { error?: string; code?: string; hint?: string };
       if (typeof j?.error === "string" && j.error.length > 0) message = j.error;
       if (typeof j?.code === "string") authCode = j.code;
+      if (typeof j?.hint === "string" && j.hint.length > 0) hint = j.hint;
     } catch {
       /* testo non JSON */
     }
@@ -146,7 +171,7 @@ const requestJson = async <T>(path: string, options: RequestInit, isRetry = fals
       if (!isOnLoginPage()) redirectToLogin();
       throw new Error("Sessione non valida o scaduta. Reindirizzamento al login.");
     }
-    throw new Error(message);
+    throw new HttpApiError(message, { status: response.status, code: authCode, hint });
   }
 
   if (response.status === 204) {
@@ -199,13 +224,17 @@ export const postFormData = async <T>(path: string, form: FormData): Promise<T> 
   if (!response.ok) {
     const text = await response.text();
     let message = text || `Errore API HTTP ${response.status}`;
+    let code: string | undefined;
+    let hint: string | undefined;
     try {
-      const j = JSON.parse(text) as { error?: string };
+      const j = JSON.parse(text) as { error?: string; code?: string; hint?: string };
       if (typeof j?.error === "string" && j.error.length > 0) message = j.error;
+      if (typeof j?.code === "string") code = j.code;
+      if (typeof j?.hint === "string" && j.hint.length > 0) hint = j.hint;
     } catch {
       /* ignore */
     }
-    throw new Error(message);
+    throw new HttpApiError(message, { status: response.status, code, hint });
   }
   return response.json() as Promise<T>;
 };

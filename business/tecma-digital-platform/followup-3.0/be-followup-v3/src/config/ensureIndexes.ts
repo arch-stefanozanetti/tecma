@@ -61,6 +61,13 @@ const CORE_INDEXES: IndexDefinition[] = [
   { collection: "tz_operational_alerts", keys: { workspaceId: 1, acknowledgedAt: 1, createdAt: -1 } },
   { collection: "tz_operational_alerts", keys: { source: 1, severity: 1, createdAt: -1 } },
   { collection: "tz_portal_access_audit", keys: { at: -1 } },
+  { collection: "tz_security_audit", keys: { at: -1 } },
+  { collection: "tz_security_audit", keys: { workspaceId: 1, at: -1 } },
+  { collection: "tz_security_audit", keys: { userId: 1, at: -1 } },
+  { collection: "tz_account_lockout", keys: { lockedUntil: 1 } },
+  { collection: "tz_gdpr_requests", keys: { userId: 1, createdAt: -1 } },
+  { collection: "tz_user_consents", keys: { userId: 1, consentType: 1 }, options: { unique: true } },
+  { collection: "tz_legal_documents", keys: { kind: 1, effectiveAt: -1 } },
 ];
 
 function createIndexName(collection: string, keys: IndexDefinition["keys"]): string {

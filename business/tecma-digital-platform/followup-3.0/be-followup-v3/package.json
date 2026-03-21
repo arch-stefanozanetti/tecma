@@ -62,9 +62,10 @@
     "mongodb": "^6.16.0",
     "multer": "^2.1.1",
     "nodemailer": "^8.0.2",
+    "otplib": "^12.0.1",
     "pino": "^10.3.1",
+    "read-excel-file": "^7.0.2",
     "sanitize-html": "^2.17.1",
-    "xlsx": "^0.18.5",
     "zod": "^3.24.2"
   },
   "devDependencies": {
@@ -88,7 +89,8 @@
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.15.0",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "write-excel-file": "^2.3.10"
   },
   "engines": {
     "node": ">=18"

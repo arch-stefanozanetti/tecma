@@ -19,6 +19,10 @@ const mocks = vi.hoisted(() => {
 
   const users: Array<Record<string, unknown>> = [];
 
+  const securityAuditCollection = {
+    insertOne: vi.fn(async () => ({ acknowledged: true }))
+  };
+
   const usersCollection = {
     findOne: vi.fn(async (query: Record<string, unknown>) => {
       const queryId = query._id;
@@ -55,6 +59,7 @@ const mocks = vi.hoisted(() => {
     listCollections: listCollectionsMock,
     collection: vi.fn((name: string) => {
       if (["tz_users", "users", "backoffice_users"].includes(name)) return usersCollection;
+      if (name === "tz_security_audit") return securityAuditCollection;
       throw new Error("Unexpected collection: " + name);
     }),
   }));
@@ -123,6 +128,21 @@ vi.mock("./userAccessPayload.js", () => ({
   toAuthSessionUser: mocks.toAuthSessionUserMock,
 }));
 
+vi.mock("./accountLockout.service.js", () => ({
+  isEmailLocked: vi.fn().mockResolvedValue(null),
+  clearLockoutForEmail: vi.fn().mockResolvedValue(undefined),
+  recordFailedPasswordAttempt: vi.fn().mockResolvedValue(undefined)
+}));
+
+vi.mock("../workspaces/workspaceMfaPolicy.service.js", () => ({
+  emailRequiresMfaByWorkspacePolicy: vi.fn().mockResolvedValue(false)
+}));
+
+vi.mock("./mfa.service.js", () => ({
+  isMfaEnabledForUser: vi.fn().mockResolvedValue(false),
+  verifyMfaForLogin: vi.fn().mockResolvedValue(false)
+}));
+
 import {
   exchangeSsoJwt,
   loginWithCredentials,
@@ -165,8 +185,11 @@ describe("auth.service", () => {
     const result = await loginWithCredentials({ email: "agent@test.local", password: "x" });
 
     expect(mocks.compareMock).toHaveBeenCalledWith("x", "hash");
-    expect(result.accessToken).toBe("access-1");
-    expect(result.refreshToken).toBe("refresh-1");
+    expect(result).toMatchObject({
+      mfaRequired: false,
+      accessToken: "access-1",
+      refreshToken: "refresh-1"
+    });
   });
 
   it("loginWithCredentials failed user/password", async () => {
@@ -244,16 +267,16 @@ describe("auth.service", () => {
 
   it("resetPasswordWithToken invalid token, missing user, success", async () => {
     mocks.consumePasswordResetTokenMock.mockResolvedValueOnce(null);
-    await expect(resetPasswordWithToken({ token: "x", password: "12345678" })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(resetPasswordWithToken({ token: "x", password: "ValidPass12345" })).rejects.toMatchObject({ statusCode: 400 });
 
     const missingId = new ObjectId();
     mocks.consumePasswordResetTokenMock.mockResolvedValueOnce({ userId: missingId.toHexString(), email: "x@test.local" });
-    await expect(resetPasswordWithToken({ token: "x", password: "12345678" })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(resetPasswordWithToken({ token: "x", password: "ValidPass12345" })).rejects.toMatchObject({ statusCode: 400 });
 
     const id = new ObjectId();
     mocks.users.push({ _id: id, email: "ok@test.local", password: "old" });
     mocks.consumePasswordResetTokenMock.mockResolvedValueOnce({ userId: id.toHexString(), email: "ok@test.local" });
-    await expect(resetPasswordWithToken({ token: "x", password: "12345678" })).resolves.toEqual({ ok: true });
+    await expect(resetPasswordWithToken({ token: "x", password: "ValidPass12345" })).resolves.toEqual({ ok: true });
     expect(mocks.usersCollection.updateOne).toHaveBeenCalled();
     expect(mocks.deleteSessionsByUserMock).toHaveBeenCalledWith(id.toHexString());
   });

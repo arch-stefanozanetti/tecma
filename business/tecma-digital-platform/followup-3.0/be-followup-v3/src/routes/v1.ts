@@ -31,6 +31,8 @@ import { marketingAutomationRoutes } from "./v1/marketing-automation.routes.js";
 import { mlsFeedPublicRoutes, mlsFeedRoutes } from "./v1/mls-feed.routes.js";
 import { scaleOutRoutes } from "./v1/scale-out.routes.js";
 import { opsRoutes } from "./v1/ops.routes.js";
+import { complianceRoutes } from "./v1/compliance.routes.js";
+import { gdprUserRoutes } from "./v1/gdpr-user.routes.js";
 
 export const v1Router = Router();
 
@@ -73,3 +75,5 @@ v1Router.use("/", marketingAutomationRoutes);
 v1Router.use("/", mlsFeedRoutes);
 v1Router.use("/", scaleOutRoutes);
 v1Router.use("/", opsRoutes);
+v1Router.use("/", complianceRoutes);
+v1Router.use("/", gdprUserRoutes);

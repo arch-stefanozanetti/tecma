@@ -32,3 +32,23 @@ export function requireAnyPermission(...required: string[]) {
     next();
   };
 }
+
+/** Tecma admin (`system_role` / `isTecmaAdmin`) bypassa il controllo permessi. */
+export function requirePermissionOrTecmaAdmin(...required: string[]) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      sendError(res, new HttpError("Unauthorized", 401));
+      return;
+    }
+    if (req.user.system_role === "tecma_admin" || req.user.isTecmaAdmin === true) {
+      next();
+      return;
+    }
+    const granted = req.user.permissions ?? [];
+    if (!hasAllPermissions(granted, required)) {
+      sendError(res, new HttpError("Permesso negato", 403));
+      return;
+    }
+    next();
+  };
+}
