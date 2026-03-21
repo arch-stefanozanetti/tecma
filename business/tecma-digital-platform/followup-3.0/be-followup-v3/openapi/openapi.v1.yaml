@@ -4579,6 +4579,34 @@
           "contracts"
         ],
         "summary": "Webhook stato firma da provider",
+        "description": "Autenticazione con segreto condiviso (env SIGNATURE_WEBHOOK_SECRET): inviare lo stesso valore come Bearer in Authorization oppure nell'header x-signature-webhook-secret. Rate limit per IP.",
+        "security": [
+          {
+            "signatureWebhookAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "description": "Bearer seguito da SIGNATURE_WEBHOOK_SECRET (preferito)",
+            "schema": {
+              "type": "string"
+            },
+            "example": "Bearer your-signature-webhook-secret-min-16-chars"
+          },
+          {
+            "name": "x-signature-webhook-secret",
+            "in": "header",
+            "required": false,
+            "description": "Alternativa: stesso valore di SIGNATURE_WEBHOOK_SECRET",
+            "schema": {
+              "type": "string"
+            },
+            "example": "your-signature-webhook-secret-min-16-chars"
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -4612,6 +4640,12 @@
         "responses": {
           "200": {
             "description": "Status applicato"
+          },
+          "401": {
+            "description": "Segreto assente o non valido"
+          },
+          "503": {
+            "description": "SIGNATURE_WEBHOOK_SECRET non configurato sul server"
           }
         }
       }
@@ -4702,7 +4736,10 @@
         "responses": {
           "200": {
             "description": "Workflow creato"
-          }
+          },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Modulo marketing non abilitato (serve Mailchimp o ActiveCampaign sul workspace)" },
+          "500": { "description": "Errore server" }
         }
       }
     },
@@ -4956,6 +4993,12 @@
         "in": "header",
         "name": "x-api-key",
         "description": "Platform consumer API key (scoped by workspace/project)."
+      },
+      "signatureWebhookAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-signature-webhook-secret",
+        "description": "Segreto condiviso per webhook firme (stesso valore di SIGNATURE_WEBHOOK_SECRET). Equivalente: Authorization Bearer <secret>."
       }
     },
     "schemas": {

@@ -117,9 +117,20 @@ export const CONNECTOR_CATALOG: ConnectorCatalogItem[] = [
     group: "Marketing",
     status: "coming_soon",
     brandId: "mailchimp",
-    description: "Segmenti marketing da profili CRM e trigger campagne da eventi trattativa.",
+    description:
+      "Segmenti marketing da profili CRM e trigger campagne da eventi trattativa. L’attivazione è commerciale: nessuna auto-provisioning dal portale.",
     capabilities: ["Segment sync", "Campaign trigger", "Bounce feedback"],
-    prerequisites: ["Mailchimp API key"],
+    prerequisites: ["Mailchimp API key", "Modulo abilitato da Tecma"],
+  },
+  {
+    id: "connector_activecampaign",
+    name: "ActiveCampaign",
+    group: "Marketing",
+    status: "coming_soon",
+    description:
+      "Automazioni e liste collegate al CRM. Stesso modello di Mailchimp: attivazione solo dopo accordo commerciale con Tecma.",
+    capabilities: ["List sync", "Automation hooks", "Event triggers"],
+    prerequisites: ["Account ActiveCampaign", "Modulo abilitato da Tecma"],
   },
   {
     id: "connector_n8n",

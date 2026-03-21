@@ -18,6 +18,8 @@ const ProjectScopeSchema = z.object({
   selectedProjectIds: z.array(z.string()),
   /** Snapshot permessi JWT (allineare con refresh/login). */
   permissions: z.array(z.string()).optional(),
+  /** Amministratore globale Tecma (JWT system_role). */
+  isTecmaAdmin: z.boolean().optional(),
 });
 
 /** Override per workspace/progetti filtrati (da App/PageTemplate). Usato da ClientsPage, ApartmentsPage, ecc. */
@@ -44,6 +46,8 @@ export interface ProjectScopeState {
   selectedProjectIds: string[];
   /** Permessi effettivi (da JWT /me); usati per nav e CTA. */
   permissions?: string[];
+  /** True se l'utente è `tecma_admin` (console attivazioni commerciali). */
+  isTecmaAdmin?: boolean;
 }
 
 const STORAGE_KEY = "followup3.projectScope";
@@ -134,5 +138,6 @@ export const useWorkspace = () => {
     isAdmin,
     permissions,
     hasPermission,
+    isTecmaAdmin: scope?.isTecmaAdmin === true,
   };
 };

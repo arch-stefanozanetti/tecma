@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { CheckCircle2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { Alert } from "../../components/ui/alert";
 import { useWorkspace } from "../../auth/projectScope";
 import type { WebhookConfigRow } from "../../types/domain";
 import {
@@ -236,6 +237,9 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
   const integrationsReadOnly = !canMutateIntegrations;
   const publicApiEntitled = workspaceFeatureEntitled(workspaceEntitlements, "publicApi");
   const twilioEntitled = workspaceFeatureEntitled(workspaceEntitlements, "twilio");
+  const marketingAutomationEntitled =
+    workspaceFeatureEntitled(workspaceEntitlements, "mailchimp") ||
+    workspaceFeatureEntitled(workspaceEntitlements, "activecampaign");
 
   return (
     <div className="min-h-full bg-app font-body text-foreground">
@@ -248,6 +252,12 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
             <p className="mt-1 text-sm text-muted-foreground">
               Connettori, regole if/then, webhook e API per estendere il CRM.
             </p>
+            <Alert variant="info" title="Attivazioni commerciali (Tecma)" className="mt-4 max-w-3xl">
+              Moduli a consumo — Public API, Twilio, automazioni marketing collegate a Mailchimp/ActiveCampaign e altre capability in elenco — si attivano
+              solo dopo accordo con Tecma.{" "}
+              <strong className="font-medium text-foreground">Non è possibile auto-abilitarli dal portale.</strong>{" "}
+              Contatta il referente commerciale o il supporto per richiedere l’attivazione sul workspace.
+            </Alert>
             {integrationsReadOnly && (
               <p className="mt-2 text-sm font-medium text-amber-800 dark:text-amber-200">
                 Sola lettura: non puoi salvare o modificare configurazioni (manca integrations.update).
@@ -307,6 +317,7 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
               onMetaAutoOpenConsumed={consumeMetaWhatsappConnectorQuery}
               reloadMetaWhatsAppStatus={loadMetaWhatsAppStatus}
               twilioEntitled={twilioEntitled}
+              workspaceEntitlements={workspaceEntitlements}
             />
           </TabsContent>
           <TabsContent value="comunicazioni" className="mt-6" role="tabpanel">
@@ -319,7 +330,12 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
             <WebhookTab workspaceId={workspaceId} readOnly={integrationsReadOnly} />
           </TabsContent>
           <TabsContent value="api" className="mt-6" role="tabpanel">
-            <ApiTab workspaceId={workspaceId} isAdmin={isAdmin} publicApiEntitled={publicApiEntitled} />
+            <ApiTab
+              workspaceId={workspaceId}
+              isAdmin={isAdmin}
+              publicApiEntitled={publicApiEntitled}
+              marketingAutomationEntitled={marketingAutomationEntitled}
+            />
           </TabsContent>
         </Tabs>
       </div>

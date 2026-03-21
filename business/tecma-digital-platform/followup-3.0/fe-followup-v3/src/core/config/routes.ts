@@ -12,6 +12,7 @@ import {
   Layers,
   Mail,
   Plug,
+  ShieldCheck,
   UserCircle,
   Users,
 } from "lucide-react";
@@ -43,7 +44,8 @@ export type Section =
   | "priceAvailability"
   | "inbox"
   | "customer360"
-  | "productDiscovery";
+  | "productDiscovery"
+  | "tecmaEntitlements";
 
 export const SECTIONS: Section[] = [
   "cockpit",
@@ -72,6 +74,7 @@ export const SECTIONS: Section[] = [
   "integrations",
   "priceAvailability",
   "productDiscovery",
+  "tecmaEntitlements",
 ];
 
 /** Path puliti per le sezioni; le altre usano ?section=X */
@@ -94,6 +97,7 @@ export const SECTION_TO_PATH: Partial<Record<Section, string>> = {
   integrations: "/integrations",
   priceAvailability: "/prices",
   productDiscovery: "/product-discovery",
+  tecmaEntitlements: "/tecma/entitlements",
 };
 
 export const PATH_TO_SECTION: Record<string, Section> = Object.fromEntries(
@@ -118,6 +122,7 @@ export const SECTION_REQUIRED_PERMISSION: Partial<Record<Section, SectionPermiss
   integrations: "integrations.read",
   reports: "reports.read",
   audit: "settings.read",
+  tecmaEntitlements: "settings.read",
   emailFlows: "email_flows.manage",
   aiApprovals: "requests.read",
   createApartment: "apartments.create",
@@ -154,6 +159,8 @@ export interface NavItemConfig {
   icon: LucideIcon;
   compact?: boolean;
   adminOnly?: boolean;
+  /** Solo utenti con JWT `isTecmaAdmin` (system_role tecma_admin). */
+  tecmaAdminOnly?: boolean;
   group?: "tools" | "admin";
 }
 
@@ -174,5 +181,13 @@ export const NAV_ITEMS: NavItemConfig[] = [
   { id: "users", label: "User", icon: UserCircle, adminOnly: true, compact: true, group: "admin" },
   { id: "emailFlows", label: "Email", icon: Mail, adminOnly: true, compact: true, group: "admin" },
   { id: "productDiscovery", label: "Product Discovery", icon: Layers, adminOnly: true, compact: true, group: "admin" },
+  {
+    id: "tecmaEntitlements",
+    label: "Entitlement workspace",
+    icon: ShieldCheck,
+    tecmaAdminOnly: true,
+    compact: true,
+    group: "admin",
+  },
   { id: "reports", label: "Report", icon: BarChart2, compact: true, group: "tools" },
 ];

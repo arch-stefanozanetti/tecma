@@ -220,9 +220,11 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
           : "demo";
     if (typeof window !== "undefined") sessionStorage.removeItem("followup3.chosenWorkspaceId");
     let permissions: string[] = [];
+    let isTecmaAdmin = false;
     try {
       const u = await authMe();
       permissions = u.permissions ?? [];
+      isTecmaAdmin = u.isTecmaAdmin === true;
     } catch {
       permissions = [];
     }
@@ -234,7 +236,8 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
       apiEnvironment: apiEnv,
       projects: access.projects,
       selectedProjectIds: selected,
-      permissions
+      permissions,
+      isTecmaAdmin,
     };
     saveProjectScope(scope);
     void followupApi

@@ -31,6 +31,8 @@ interface ApiTabProps {
   isAdmin: boolean;
   /** false se il workspace non ha il modulo Public API (entitlement). Default true per compatibilità. */
   publicApiEntitled?: boolean;
+  /** Richiede almeno mailchimp o activecampaign (entitlement). Default true. */
+  marketingAutomationEntitled?: boolean;
 }
 
 type PlatformApiKeyRow = {
@@ -70,7 +72,12 @@ type OpsAlertRow = {
   createdAt: string;
 };
 
-export function ApiTab({ workspaceId, isAdmin, publicApiEntitled = true }: ApiTabProps) {
+export function ApiTab({
+  workspaceId,
+  isAdmin,
+  publicApiEntitled = true,
+  marketingAutomationEntitled = true,
+}: ApiTabProps) {
   const baseUrl = getPublicApiBaseUrl();
   const openApiUrl = baseUrl ? `${baseUrl}/openapi.json` : "";
   const [keys, setKeys] = useState<PlatformApiKeyRow[]>([]);
@@ -583,6 +590,16 @@ export function ApiTab({ workspaceId, isAdmin, publicApiEntitled = true }: ApiTa
               <Workflow className="h-4 w-4 text-muted-foreground" />
               <h4 className="text-sm font-medium text-foreground">Marketing automation nativa</h4>
             </div>
+            {!marketingAutomationEntitled && (
+              <div className="rounded-lg border border-amber-500/50 bg-amber-50/90 p-3 text-sm text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/25 dark:text-amber-50">
+                <p className="font-medium">Modulo marketing non attivo</p>
+                <p className="mt-1 text-xs opacity-90">
+                  Serve almeno un entitlement <strong className="font-medium">Mailchimp</strong> o{" "}
+                  <strong className="font-medium">ActiveCampaign</strong> sul workspace. Contatta Tecma per abilitare prima
+                  di creare workflow o eseguire le code.
+                </p>
+              </div>
+            )}
             <div className="grid gap-3 md:grid-cols-2">
               <Input value={workflowName} onChange={(e) => setWorkflowName(e.target.value)} placeholder="Nome workflow" />
               <Input value={workflowTrigger} onChange={(e) => setWorkflowTrigger(e.target.value)} placeholder="trigger eventType (es. request.status_changed)" />
@@ -596,8 +613,21 @@ export function ApiTab({ workspaceId, isAdmin, publicApiEntitled = true }: ApiTa
               />
             </label>
             <div className="flex flex-wrap gap-2">
-              <Button className="min-h-11" onClick={() => void createWorkflow()}>Crea workflow</Button>
-              <Button variant="outline" className="min-h-11" onClick={() => void runMarketing()}>Esegui due now</Button>
+              <Button
+                className="min-h-11"
+                onClick={() => void createWorkflow()}
+                disabled={!marketingAutomationEntitled}
+              >
+                Crea workflow
+              </Button>
+              <Button
+                variant="outline"
+                className="min-h-11"
+                onClick={() => void runMarketing()}
+                disabled={!marketingAutomationEntitled}
+              >
+                Esegui due now
+              </Button>
             </div>
             <ul className="space-y-2">
               {marketingWorkflows.map((wf) => (

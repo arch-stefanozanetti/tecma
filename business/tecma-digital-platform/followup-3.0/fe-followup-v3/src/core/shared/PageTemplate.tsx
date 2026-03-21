@@ -53,6 +53,8 @@ interface PageTemplateProps {
   navigate?: (path: string) => void;
   /** Gate voci di menu su permesso JWT (es. integrations.read). Admin/`*` ignorati dal chiamante. */
   hasPermission?: (permission: string) => boolean;
+  /** Mostra voci riservate a Tecma admin (es. console entitlement). */
+  isTecmaAdmin?: boolean;
   children: ReactNode;
 }
 
@@ -66,11 +68,13 @@ const mobileQuickNav: Array<{ id: Section; label: string; icon: React.ElementTyp
 const getMainNav = (
   isAdmin: boolean,
   enabledFeatures?: string[],
-  hasPermission?: (permission: string) => boolean
+  hasPermission?: (permission: string) => boolean,
+  isTecmaAdmin?: boolean
 ) =>
   mainNav.filter(
     (item) =>
       (!item.adminOnly || isAdmin) &&
+      (!item.tecmaAdminOnly || isTecmaAdmin) &&
       isSectionEnabledByFeature(item.id, enabledFeatures) &&
       sectionMeetsPermissionRequirements(item.id, hasPermission)
   );
@@ -78,10 +82,12 @@ const getSecondaryNav = (
   isAdmin: boolean,
   enabledFeatures?: string[],
   priceAvailabilityContext?: { projects: ProjectAccessProject[]; selectedProjectIds: string[] },
-  hasPermission?: (permission: string) => boolean
+  hasPermission?: (permission: string) => boolean,
+  isTecmaAdmin?: boolean
 ) =>
   NAV_ITEMS.filter((item) => {
     if (!item.compact || (item.adminOnly && !isAdmin)) return false;
+    if (item.tecmaAdminOnly && !isTecmaAdmin) return false;
     if (!isSectionEnabledByFeature(item.id, enabledFeatures)) return false;
     if (!sectionMeetsPermissionRequirements(item.id, hasPermission)) return false;
     if (item.id === "priceAvailability" && priceAvailabilityContext) {
@@ -103,6 +109,7 @@ const SideNav = ({
   touchFriendly = false,
   className,
   hasPermission,
+  isTecmaAdmin = false,
 }: {
   section: Section;
   onSectionChange: (section: Section, state?: object) => void;
@@ -115,12 +122,13 @@ const SideNav = ({
   touchFriendly?: boolean;
   className?: string;
   hasPermission?: (permission: string) => boolean;
+  isTecmaAdmin?: boolean;
 }) => {
   const [toolsOpen, setToolsOpen] = useState(false);
   const secondaryNav = getSecondaryNav(isAdmin, enabledFeatures, {
     projects,
     selectedProjectIds,
-  }, hasPermission);
+  }, hasPermission, isTecmaAdmin);
   const isSecondaryActive = useMemo(
     () => secondaryNav.some((item) => item.id === section),
     [section, secondaryNav]
@@ -169,7 +177,7 @@ const SideNav = ({
         )}
 
         <nav className={cn("space-y-4", collapsed && "space-y-2")}>
-          {getMainNav(isAdmin, enabledFeatures, hasPermission).map((item) => {
+          {getMainNav(isAdmin, enabledFeatures, hasPermission, isTecmaAdmin).map((item) => {
             const Icon = item.icon;
             const isActive = section === item.id;
             return (
@@ -516,6 +524,7 @@ export const PageTemplate = ({
   enabledFeatures,
   navigate,
   hasPermission,
+  isTecmaAdmin = false,
   children,
 }: PageTemplateProps) => {
   const sidebarStorageKey = `followup.sidebarCollapsed${workspaceId ? `.${workspaceId}` : ""}`;
@@ -598,6 +607,7 @@ export const PageTemplate = ({
           collapsed={sidebarCollapsed}
           onCollapseToggle={() => setSidebarCollapsed((v) => !v)}
           hasPermission={hasPermission}
+          isTecmaAdmin={isTecmaAdmin}
         />
       </div>
 
@@ -622,6 +632,7 @@ export const PageTemplate = ({
             touchFriendly
             className="h-full"
             hasPermission={hasPermission}
+            isTecmaAdmin={isTecmaAdmin}
           />
         </SheetContent>
       </Sheet>

@@ -1000,6 +1000,8 @@ export const followupApi = {
         isAdmin: boolean;
         permissions?: string[];
         projectId?: string | null;
+        system_role?: string;
+        isTecmaAdmin?: boolean;
       };
     }>("/auth/login", { email, password }),
   me: () =>
@@ -1010,6 +1012,8 @@ export const followupApi = {
       isAdmin: boolean;
       permissions?: string[];
       projectId?: string | null;
+      system_role?: string;
+      isTecmaAdmin?: boolean;
     }>("/auth/me"),
   ssoExchange: (ssoJwt: string) =>
     postJson<{

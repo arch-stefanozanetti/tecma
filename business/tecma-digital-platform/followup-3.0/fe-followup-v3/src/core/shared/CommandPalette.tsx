@@ -49,6 +49,12 @@ const SECTION_COMMANDS: CommandSectionItem[] = [
   { kind: "section", id: "emailFlows", label: "Email", hint: "Template mail transazionali (admin)" },
   { kind: "section", id: "audit", label: "Audit log", hint: "Tracciamento CRUD (admin)" },
   { kind: "section", id: "productDiscovery", label: "Product Discovery", hint: "Feedback clienti e opportunità (admin)" },
+  {
+    kind: "section",
+    id: "tecmaEntitlements",
+    label: "Entitlement workspace (Tecma)",
+    hint: "Moduli commerciali sul workspace corrente",
+  },
 ];
 
 const ENTITY_LIMIT = 5;
@@ -65,6 +71,8 @@ interface CommandPaletteProps {
   /** Feature abilitate per il workspace (undefined = tutte). Nasconde comandi non abilitati. */
   enabledFeatures?: string[];
   isAdmin?: boolean;
+  /** Console entitlement e comandi riservati Tecma. */
+  isTecmaAdmin?: boolean;
   projects?: ProjectAccessProject[];
   selectedProjectIds?: string[];
   hasPermission?: (permission: string) => boolean;
@@ -79,6 +87,7 @@ export const CommandPalette = ({
   projectIds,
   enabledFeatures,
   isAdmin = false,
+  isTecmaAdmin = false,
   projects = [],
   selectedProjectIds = [],
   hasPermission,
@@ -112,6 +121,7 @@ export const CommandPalette = ({
       if (item.id === "workspaces" || item.id === "users" || item.id === "emailFlows" || item.id === "audit" || item.id === "productDiscovery") {
         if (!isAdmin) return false;
       }
+      if (item.id === "tecmaEntitlements" && !isTecmaAdmin) return false;
       if (!isSectionEnabledByFeature(item.id, enabledFeatures)) return false;
       if (item.id === "priceAvailability" && projects.length > 0 && selectedProjectIds.length > 0) {
         if (!isPriceAvailabilityRelevant(projects, selectedProjectIds)) return false;

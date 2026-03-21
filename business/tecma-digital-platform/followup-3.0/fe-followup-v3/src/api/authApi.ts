@@ -16,6 +16,8 @@ export interface AuthUser {
   isAdmin: boolean;
   permissions?: string[];
   projectId?: string | null;
+  system_role?: string;
+  isTecmaAdmin?: boolean;
 }
 
 export interface LoginResult {

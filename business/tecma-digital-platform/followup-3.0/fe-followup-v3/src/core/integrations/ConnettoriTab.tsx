@@ -25,7 +25,8 @@ import {
 } from "../../components/ui/drawer";
 import { followupApi } from "../../api/followupApi";
 import { useToast } from "../../contexts/ToastContext";
-import type { WebhookConfigRow, AutomationEventType } from "../../types/domain";
+import type { WebhookConfigRow, AutomationEventType, WorkspaceEntitlementEffectiveRow } from "../../types/domain";
+import { commercialActivationFootnote } from "./workspaceEntitlementUi";
 import { cn } from "../../lib/utils";
 import {
   LOOKER_CONNECTOR_STORAGE_KEY,
@@ -57,6 +58,7 @@ function ConnectorCatalogCard({
   toggleConnector,
   configureLabel,
   readOnly = false,
+  entitlementFootnote,
 }: {
   connector: ConnectorCatalogItem;
   togglingId: string | null;
@@ -68,6 +70,8 @@ function ConnectorCatalogCard({
   /** Etichetta del pulsante primario quando il connettore non è ancora configurato (es. Meta API). */
   configureLabel?: string;
   readOnly?: boolean;
+  /** Vetrina: modulo commerciale non attivo (contatta Tecma). */
+  entitlementFootnote?: string;
 }) {
   const cfg = STATUS_CONFIG[connector.status];
   const StatusIcon = cfg.icon;
@@ -102,6 +106,11 @@ function ConnectorCatalogCard({
       </div>
 
       <p className="mt-2 flex-1 text-sm text-muted-foreground">{connector.description}</p>
+      {entitlementFootnote && (
+        <p className="mt-2 rounded-md border border-amber-500/40 bg-amber-50/90 px-2 py-1.5 text-xs text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/25 dark:text-amber-50">
+          {entitlementFootnote}
+        </p>
+      )}
 
       <div className="mt-3 flex flex-wrap gap-1">
         {connector.capabilities.map((cap) => (
@@ -218,6 +227,7 @@ export function ConnettoriTab({
   reloadMetaWhatsAppStatus,
   /** false se il modulo Twilio non è abilitato (entitlement). Default true. */
   twilioEntitled = true,
+  workspaceEntitlements,
 }: {
   connectors: ConnectorCatalogItem[];
   setConnectors: React.Dispatch<React.SetStateAction<ConnectorCatalogItem[]>>;
@@ -241,6 +251,8 @@ export function ConnettoriTab({
   onMetaAutoOpenConsumed?: () => void;
   reloadMetaWhatsAppStatus?: () => void;
   twilioEntitled?: boolean;
+  /** Per vetrina: stato commerciale per connettori mappati (Twilio, Mailchimp, Looker…). */
+  workspaceEntitlements?: WorkspaceEntitlementEffectiveRow[];
 }) {
   const { toastError, toastSuccess } = useToast();
   const ro = readOnly;
@@ -880,6 +892,7 @@ export function ConnettoriTab({
                   toggleConnector={toggleConnector}
                   configureLabel={connector.id === "connector_meta_whatsapp" ? "Configura Meta API" : undefined}
                   readOnly={ro}
+                  entitlementFootnote={commercialActivationFootnote(workspaceEntitlements, connector.id)}
                 />
               ))}
             </div>
@@ -904,6 +917,7 @@ export function ConnettoriTab({
                 onOpenTab={onOpenTab}
                 toggleConnector={toggleConnector}
                 readOnly={ro}
+                entitlementFootnote={commercialActivationFootnote(workspaceEntitlements, connector.id)}
               />
             ))}
           </div>

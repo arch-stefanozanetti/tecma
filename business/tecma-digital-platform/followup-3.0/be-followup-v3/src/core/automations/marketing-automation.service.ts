@@ -1,7 +1,9 @@
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
+import { HttpError } from "../../types/http.js";
 import { logger } from "../../observability/logger.js";
+import { isWorkspaceEntitledToFeature } from "../workspaces/workspace-entitlements.service.js";
 import { deliverWebhook } from "./webhook-delivery.service.js";
 import { sendGenericEmail } from "../email/email.service.js";
 
@@ -34,8 +36,26 @@ const interpolate = (template: string, payload: Record<string, unknown>): string
     return value == null ? "" : String(value);
   });
 
+async function isMarketingCommercialEntitled(workspaceId: string): Promise<boolean> {
+  const [m, a] = await Promise.all([
+    isWorkspaceEntitledToFeature(workspaceId, "mailchimp"),
+    isWorkspaceEntitledToFeature(workspaceId, "activecampaign"),
+  ]);
+  return m || a;
+}
+
+async function assertMarketingCommercialEntitled(workspaceId: string): Promise<void> {
+  if (!(await isMarketingCommercialEntitled(workspaceId))) {
+    throw new HttpError(
+      "Automazioni marketing non abilitate: serve almeno un modulo Mailchimp o ActiveCampaign attivo sul workspace. Contatta Tecma.",
+      403,
+    );
+  }
+}
+
 export const createMarketingWorkflow = async (rawInput: unknown): Promise<Record<string, unknown>> => {
   const input = WorkflowSchema.parse(rawInput);
+  await assertMarketingCommercialEntitled(input.workspaceId);
   const db = getDb();
   const createdAt = nowIso();
   const result = await db.collection(WORKFLOWS_COLLECTION).insertOne({
@@ -73,6 +93,7 @@ export const enqueueMarketingEvent = async (
   eventType: string,
   payload: Record<string, unknown>,
 ): Promise<number> => {
+  if (!(await isMarketingCommercialEntitled(workspaceId))) return 0;
   const db = getDb();
   const workflows = await db.collection(WORKFLOWS_COLLECTION).find({ workspaceId, enabled: true, triggerEventType: eventType }).toArray();
   if (workflows.length === 0) return 0;
@@ -147,6 +168,14 @@ export const runDueMarketingAutomations = async (): Promise<{ processed: number;
   let failed = 0;
   for (const enrollment of due) {
     try {
+      const wsId = String(enrollment.workspaceId ?? "");
+      if (!(await isMarketingCommercialEntitled(wsId))) {
+        await db.collection(ENROLLMENTS_COLLECTION).updateOne(
+          { _id: enrollment._id },
+          { $set: { status: "cancelled", updatedAt: nowIso() } },
+        );
+        continue;
+      }
       const workflow = await db.collection(WORKFLOWS_COLLECTION).findOne({ _id: enrollment.workflowId, enabled: true });
       if (!workflow) {
         await db.collection(ENROLLMENTS_COLLECTION).updateOne(

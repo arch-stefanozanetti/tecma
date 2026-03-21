@@ -35,6 +35,7 @@ import { ReportsPage } from "./core/reports/ReportsPage";
 import { PriceAvailabilityPage } from "./core/prices/PriceAvailabilityPage";
 import { ReleasesPage } from "./core/releases/ReleasesPage";
 import { IntegrationsPage } from "./core/integrations/IntegrationsPage";
+import { TecmaEntitlementsPage } from "./core/integrations/TecmaEntitlementsPage";
 import { ProductDiscoveryPage } from "./core/product-discovery/ProductDiscoveryPage";
 import { CustomerPortalPage } from "./core/customer-portal/CustomerPortalPage";
 import { ProjectsPage } from "./core/projects/ProjectsPage";
@@ -94,7 +95,8 @@ const renderSection = (
   location?: { state?: unknown },
   isAdmin?: boolean,
   navigate?: (path: string) => void,
-  hasPermission?: (perm: string) => boolean
+  hasPermission?: (perm: string) => boolean,
+  isTecmaAdmin?: boolean
 ): ReactNode => {
   if (!isSectionEnabledByFeature(section, enabledFeatures)) {
     return (
@@ -303,6 +305,29 @@ const renderSection = (
     return <IntegrationsPage workspaceId={workspaceId} />;
   }
 
+  if (section === "tecmaEntitlements") {
+    if (!isTecmaAdmin) {
+      return (
+        <PageSimple
+          title="Accesso riservato"
+          description="La console entitlement è riservata agli amministratori Tecma."
+        >
+          <p className="text-sm text-muted-foreground">
+            Se ritieni di dovervi accedere, verifica che il tuo utente abbia il ruolo di sistema corretto e ripeti il login.
+          </p>
+        </PageSimple>
+      );
+    }
+    return (
+      <PageSimple
+        title="Console Tecma — entitlement"
+        description="Attivazione e sospensione dei moduli commerciali per il workspace selezionato nell’header."
+      >
+        <TecmaEntitlementsPage workspaceId={workspaceId} />
+      </PageSimple>
+    );
+  }
+
   if (section === "inbox") {
     return (
       <InboxPage
@@ -368,7 +393,11 @@ export const App = () => {
         if (cancelled) return;
         const cur = loadProjectScope();
         if (cur?.email) {
-          saveProjectScope({ ...cur, permissions: u.permissions ?? [] });
+          saveProjectScope({
+            ...cur,
+            permissions: u.permissions ?? [],
+            isTecmaAdmin: u.isTecmaAdmin === true,
+          });
           setAccessVersion((v) => v + 1);
         }
         sessionStorage.setItem(SYNC_KEY, String(Date.now()));
@@ -534,6 +563,7 @@ export const App = () => {
         workspaceId: projectScope.workspaceId ?? "",
         apiEnvironment: projectScope.apiEnvironment,
         isAdmin: projectScope.isAdmin ?? false,
+        isTecmaAdmin: projectScope.isTecmaAdmin === true,
         enabledFeatures: workspaceFeatures,
         onChangeProjects: () => {
           clearProjectScope();
@@ -591,7 +621,8 @@ export const App = () => {
         location,
         projectScope.isAdmin ?? false,
         navigate,
-        templateProps.hasPermission
+        templateProps.hasPermission,
+        projectScope.isTecmaAdmin === true
       );
 
       appContent = (
@@ -616,6 +647,7 @@ export const App = () => {
               if (g.includes("*")) return true;
               return g.includes(perm);
             }}
+            isTecmaAdmin={projectScope.isTecmaAdmin === true}
           />
           <Routes>
             <Route

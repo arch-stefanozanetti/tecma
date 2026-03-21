@@ -15,7 +15,8 @@ const baseState = {
   isAdmin: false,
   workspaceId: "w1",
   projects: [{ id: "p1", name: "P1", displayName: "P1" }],
-  selectedProjectIds: ["p1"]
+  selectedProjectIds: ["p1"],
+  permissions: [] as string[],
 };
 
 describe("projectScope", () => {
@@ -111,6 +112,13 @@ describe("projectScope", () => {
     expect(result.current.selectedProjectIds).toEqual(["p1"]);
     expect(result.current.email).toBe("u@test.com");
     expect(result.current.isAdmin).toBe(false);
+    expect(result.current.isTecmaAdmin).toBe(false);
+  });
+
+  it("useWorkspace ritorna isTecmaAdmin true quando salvato", () => {
+    saveProjectScope({ ...baseState, isTecmaAdmin: true });
+    const { result } = renderHook(() => useWorkspace());
+    expect(result.current.isTecmaAdmin).toBe(true);
   });
 
   it("useWorkspace ritorna isAdmin true quando salvato", () => {
