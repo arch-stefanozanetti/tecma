@@ -1,6 +1,9 @@
 # Render Blueprint: FollowUp 3.0 (BE + FE)
 # Dashboard → New → Blueprint → collega repo tecma; imposta env (sync: false) prima del primo deploy.
 # Dopo deploy BE, imposta su FE: VITE_API_BASE_URL = URL del servizio BE (es. https://followup-3-be.onrender.com)
+#
+# Non sono definiti qui: il Web Service Docker manuale "tecma" (root + Dockerfile) — vedi docs/RENDER_DEPLOY.md §2b.
+# buildFilter: evita deploy BE/FE su ogni push (es. solo docs o Dockerfile root); allinea il Blueprint da Dashboard dopo modifica.
 version: "1"
 services:
   - type: web
@@ -9,6 +12,10 @@ services:
     region: frankfurt
     plan: starter
     rootDir: business/tecma-digital-platform/followup-3.0/be-followup-v3
+    buildFilter:
+      paths:
+        - business/tecma-digital-platform/followup-3.0/be-followup-v3/**
+        - scripts/render-build-be.sh
     # Stesso script usato in CI: single source of truth (scripts/render-build-be.sh)
     buildCommand: bash ../../../../scripts/render-build-be.sh
     startCommand: npm start
@@ -37,6 +44,11 @@ services:
     name: followup-3-fe
     runtime: static
     rootDir: business/tecma-digital-platform/followup-3.0/fe-followup-v3
+    buildFilter:
+      paths:
+        - business/tecma-digital-platform/followup-3.0/fe-followup-v3/**
+        - business/tecma-digital-platform/design-system/**
+        - scripts/render-build-fe.sh
     # Stesso script usato in CI: single source of truth (scripts/render-build-fe.sh)
     buildCommand: bash ../../../../scripts/render-build-fe.sh
     # Relativo a rootDir (non alla root del repo): altrimenti Render cerca un path inesistente.

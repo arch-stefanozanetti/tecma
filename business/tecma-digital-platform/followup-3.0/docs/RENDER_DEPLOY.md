@@ -21,16 +21,42 @@ Se su Render hai un **Web Service** di tipo **Docker** collegato alla root del r
 
 **Alternativa senza Dockerfile in root:** in Dashboard → servizio → **Settings** → **Build & Deploy** impostare **Root Directory** su `business/tecma-digital-platform/followup-3.0/be-followup-v3`. Render userà il Dockerfile in quella cartella.
 
+### 2b. Servizio Docker duplicato «tecma» (root) — pulizia deploy
+
+Se su Render esiste **un secondo Web Service** (es. nome `tecma`, URL tipo `tecma-*.onrender.com`) che builda dalla **root** con il [`Dockerfile`](../../../../Dockerfile) del repo, è **duplicato funzionale** rispetto a **`followup-3-be`** (stesso binario `be-followup-v3`). Due problemi tipici:
+
+1. **`update_failed` / container che esce con 1** — in log: `ZodError` all’avvio: mancano o sono invalide le stesse variabili obbligatorie del BE (`MONGO_URI`, `MONGO_DB_NAME`, `AUTH_JWT_SECRET` in prod ≥32 caratteri, `APP_PUBLIC_URL` URL valido, …). Spesso il servizio Docker è collegato a un **Environment group** diverso o incompleto rispetto a `followup-3-be`.
+2. **Doppio deploy ad ogni push** — rumore e possibili fallimenti inutili.
+
+**Setup consigliato (scegline uno):**
+
+| Opzione | Azione |
+|--------|--------|
+| **A — Consigliata** | Dashboard → servizio Docker → **Settings** → **Auto-Deploy** = **Off**. Usa solo **`followup-3-be`** per il BE in produzione. |
+| **B** | Stesso elenco di variabili (o stesso **Environment group**) di **`followup-3-be`**, poi un deploy manuale fino a **Live**. |
+| **C** | Eliminare il servizio Docker se non serve a nulla. |
+
+**Da terminale (API Render):** con `RENDER_API_KEY` da [API keys](https://dashboard.render.com/settings#api-keys):
+
+```bash
+export RENDER_API_KEY='rnd_...'
+bash scripts/render-disable-docker-duplicate-autodeploy.sh
+```
+
+(Lo script di default punta al service id storico `srv-d6srl7f5gffc738pmmvg`; se hai ricreato il servizio, imposta `RENDER_TECMA_DOCKER_SERVICE_ID`.)
+
 ---
 
 ## 3. Blueprint (`render.yaml` in root repo)
 
-Nel repo **tecma**, alla root, è presente [`render.yaml`](../../../../render.yaml) con due servizi:
+Nel repo **tecma**, alla root, è presente [`render.yaml`](../../../../render.yaml) con **due** servizi Blueprint (il Docker «tecma» alla root **non** è nel file — vedi §2b):
 
 | Servizio        | Tipo        | Root Directory |
 |-----------------|-------------|----------------|
 | `followup-3-be` | Web (Node)  | `business/tecma-digital-platform/followup-3.0/be-followup-v3` |
 | `followup-3-fe` | Static site | `business/tecma-digital-platform/followup-3.0/fe-followup-v3` |
+
+**Build filter (monorepo):** in `render.yaml`, `buildFilter.paths` limita gli **auto-deploy** ai file che impattano davvero BE o FE (più gli script di build). Dopo una modifica a `render.yaml`, in Dashboard → **Blueprint** / servizio → **Manual Sync** se Render lo richiede, così i filtri si applicano ai servizi esistenti.
 
 **Chi deve fare il Blueprint (non automatizzabile dall’agent):**  
 Collegare il repo e il primo deploy richiedono **login su render.com**, **autorizzazione GitHub** e **inserimento dei segreti** (`MONGO_URI`, `AUTH_JWT_SECRET`, …). Nessun tool può farlo al posto tuo senza esporre quei segreti. Con **Render MCP** (API key già in Cursor) puoi invece, *dopo* che i servizi esistono, chiedere in chat di aggiornare env (es. `VITE_API_BASE_URL`) o leggere log — non sostituisce il wizard Blueprint iniziale.
@@ -97,6 +123,7 @@ Opzionale: [Deploy Hook](https://render.com/docs/deploy-hooks) Render + `curl` d
 
 ## 7. Troubleshooting
 
+- **Servizio Docker `tecma`: `update_failed` + log `ZodError`:** variabili d’ambiente non valide o mancanti (stesso schema di §4). Allinea al `followup-3-be` oppure disattiva auto-deploy (§2b).
 - **“Il deploy fallisce sempre” — prima cosa:** in [Render Dashboard](https://dashboard.render.com) apri il servizio (`followup-3-be` / `followup-3-fe`) → **Events**: l’ultimo deploy deve essere **Live**. Se **Build failed**, apri i **Build logs** (non solo Runtime): di solito è `tsc` / `pnpm build` / path script. La CI GitHub sullo stesso commit deve essere verde (stessi script `scripts/render-build-*.sh`).
 - **BE: log pieni di `IndexOptionsConflict` / `DuplicateKey` / `CannotCreateIndex`:** il DB (es. Atlas condiviso) può avere **indici col vecchio nome auto-generato** o **dati duplicati** (es. più `null` su campo unique). Da versione recente, `ensureCoreIndexes` **registra warning e continua** per codici Mongo 85 / 67 / 11000 così il servizio resta **Live**; in parallelo conviene ripulire indici/dati (Atlas → Indexes / Query) o usare un `MONGO_DB_NAME` dedicato a staging.
 - **FE: warning `Failed to replace env in config: ${NPM_TECMA_TOKEN}`:** in build, se `.npmrc` referenzia il token ma la variabile non è settata su Render, pnpm avvisa; con `@tecma/design-system-tokens` via `file:../../design-system` l’install resta ok. Se in futuro aggiungi pacchetti **private** dal registry GitLab, imposta `NPM_TECMA_TOKEN` tra le **Environment** del servizio statico.
