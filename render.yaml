@@ -14,6 +14,7 @@ services:
     rootDir: business/tecma-digital-platform/followup-3.0/be-followup-v3
     buildFilter:
       paths:
+        - render.yaml
         - business/tecma-digital-platform/followup-3.0/be-followup-v3/**
         - scripts/render-build-be.sh
     # Stesso script usato in CI: single source of truth (scripts/render-build-be.sh)
@@ -46,6 +47,7 @@ services:
     rootDir: business/tecma-digital-platform/followup-3.0/fe-followup-v3
     buildFilter:
       paths:
+        - render.yaml
         - business/tecma-digital-platform/followup-3.0/fe-followup-v3/**
         - business/tecma-digital-platform/design-system/**
         - scripts/render-build-fe.sh
