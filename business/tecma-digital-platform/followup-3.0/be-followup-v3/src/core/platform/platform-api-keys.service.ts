@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
 import { HttpError } from "../../types/http.js";
+import { isWorkspaceEntitledToFeature } from "../workspaces/workspace-entitlements.service.js";
 
 const KEYS_COLLECTION = "tz_platform_api_keys";
 const USAGE_COLLECTION = "tz_platform_api_usage";
@@ -42,6 +43,15 @@ export interface ResolvedPlatformApiKey {
 
 const nowIso = (): string => new Date().toISOString();
 
+async function assertPublicApiEntitled(workspaceId: string): Promise<void> {
+  if (!(await isWorkspaceEntitledToFeature(workspaceId, "publicApi"))) {
+    throw new HttpError(
+      "Public API non abilitata per questo workspace. Contatta Tecma per attivare il modulo.",
+      403,
+    );
+  }
+}
+
 export const listPlatformApiKeys = async (workspaceId: string): Promise<{ data: PlatformApiKeyRow[] }> => {
   const db = getDb();
   const rows = await db.collection(KEYS_COLLECTION).find({ workspaceId }).sort({ createdAt: -1 }).toArray();
@@ -65,6 +75,7 @@ export const createPlatformApiKey = async (
   workspaceId: string,
   rawInput: unknown,
 ): Promise<{ key: PlatformApiKeyRow; apiKey: string; apiKeyMasked: string }> => {
+  await assertPublicApiEntitled(workspaceId);
   const input = PlatformKeyInputSchema.parse(rawInput);
   const apiKey = crypto.randomBytes(24).toString("hex");
   const createdAt = nowIso();
@@ -102,6 +113,7 @@ export const rotatePlatformApiKey = async (
   workspaceId: string,
   keyId: string,
 ): Promise<{ key: PlatformApiKeyRow; apiKey: string; apiKeyMasked: string }> => {
+  await assertPublicApiEntitled(workspaceId);
   if (!ObjectId.isValid(keyId)) throw new HttpError("Invalid key id", 400);
   const apiKey = crypto.randomBytes(24).toString("hex");
   const updatedAt = nowIso();

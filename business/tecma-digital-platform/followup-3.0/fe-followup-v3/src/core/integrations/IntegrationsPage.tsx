@@ -19,6 +19,8 @@ import { WebhookTab } from "./WebhookTab";
 import { ApiTab } from "./ApiTab";
 import { followupApi } from "../../api/followupApi";
 import { PageSimple } from "../shared/PageSimple";
+import type { WorkspaceEntitlementEffectiveRow } from "../../types/domain";
+import { workspaceFeatureEntitled } from "./workspaceEntitlementUi";
 
 interface IntegrationsPageProps {
   workspaceId: string;
@@ -36,6 +38,9 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
   const [metaWhatsAppConfigured, setMetaWhatsAppConfigured] = useState(false);
   const [autoOpenTwilio, setAutoOpenTwilio] = useState(false);
   const [autoOpenMetaWhatsapp, setAutoOpenMetaWhatsapp] = useState(false);
+  const [workspaceEntitlements, setWorkspaceEntitlements] = useState<
+    WorkspaceEntitlementEffectiveRow[] | undefined
+  >(undefined);
   const twilioQueryConsumedRef = useRef(false);
   const metaWhatsappQueryConsumedRef = useRef(false);
   const { selectedProjectIds: projectIds, isAdmin, hasPermission } = useWorkspace();
@@ -61,6 +66,14 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
   useEffect(() => {
     loadWebhooks();
   }, [loadWebhooks]);
+
+  useEffect(() => {
+    if (!workspaceId) return;
+    followupApi
+      .getWorkspaceEntitlements(workspaceId)
+      .then((r) => setWorkspaceEntitlements(r.data ?? []))
+      .catch(() => setWorkspaceEntitlements(undefined));
+  }, [workspaceId]);
 
   const loadOutlookStatus = useCallback(() => {
     followupApi
@@ -221,6 +234,8 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
   }
 
   const integrationsReadOnly = !canMutateIntegrations;
+  const publicApiEntitled = workspaceFeatureEntitled(workspaceEntitlements, "publicApi");
+  const twilioEntitled = workspaceFeatureEntitled(workspaceEntitlements, "twilio");
 
   return (
     <div className="min-h-full bg-app font-body text-foreground">
@@ -291,6 +306,7 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
               autoOpenMetaWhatsapp={autoOpenMetaWhatsapp}
               onMetaAutoOpenConsumed={consumeMetaWhatsappConnectorQuery}
               reloadMetaWhatsAppStatus={loadMetaWhatsAppStatus}
+              twilioEntitled={twilioEntitled}
             />
           </TabsContent>
           <TabsContent value="comunicazioni" className="mt-6" role="tabpanel">
@@ -303,7 +319,7 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
             <WebhookTab workspaceId={workspaceId} readOnly={integrationsReadOnly} />
           </TabsContent>
           <TabsContent value="api" className="mt-6" role="tabpanel">
-            <ApiTab workspaceId={workspaceId} isAdmin={isAdmin} />
+            <ApiTab workspaceId={workspaceId} isAdmin={isAdmin} publicApiEntitled={publicApiEntitled} />
           </TabsContent>
         </Tabs>
       </div>

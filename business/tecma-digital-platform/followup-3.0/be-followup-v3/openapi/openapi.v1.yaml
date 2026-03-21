@@ -2834,7 +2834,10 @@
         "responses": {
           "200": {
             "description": "API key creata (raw key restituita una sola volta)"
-          }
+          },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso negato o modulo Public API non abilitato per il workspace" },
+          "500": { "description": "Errore server" }
         }
       }
     },
@@ -2871,7 +2874,10 @@
         "responses": {
           "200": {
             "description": "Nuova raw key restituita una sola volta"
-          }
+          },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso negato o modulo Public API non abilitato per il workspace" },
+          "500": { "description": "Errore server" }
         }
       }
     },

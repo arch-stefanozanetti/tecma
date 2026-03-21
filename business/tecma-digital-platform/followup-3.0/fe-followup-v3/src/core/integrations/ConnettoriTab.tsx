@@ -216,6 +216,8 @@ export function ConnettoriTab({
   autoOpenMetaWhatsapp = false,
   onMetaAutoOpenConsumed,
   reloadMetaWhatsAppStatus,
+  /** false se il modulo Twilio non è abilitato (entitlement). Default true. */
+  twilioEntitled = true,
 }: {
   connectors: ConnectorCatalogItem[];
   setConnectors: React.Dispatch<React.SetStateAction<ConnectorCatalogItem[]>>;
@@ -238,6 +240,7 @@ export function ConnettoriTab({
   autoOpenMetaWhatsapp?: boolean;
   onMetaAutoOpenConsumed?: () => void;
   reloadMetaWhatsAppStatus?: () => void;
+  twilioEntitled?: boolean;
 }) {
   const { toastError, toastSuccess } = useToast();
   const ro = readOnly;
@@ -1066,6 +1069,15 @@ export function ConnettoriTab({
                   <span className="font-medium text-foreground">Comunicazioni</span>. Il backend aggiunge il prefisso{" "}
                   <code className="rounded bg-muted px-1 text-xs">whatsapp:</code> dove serve.
                 </p>
+                {!twilioEntitled && (
+                  <Alert
+                    variant="warning"
+                    title="Modulo Twilio non attivo"
+                    className="mt-2 text-sm"
+                  >
+                    Non puoi salvare una nuova configurazione né inviare prove finché Tecma non abilita il servizio. Puoi comunque rimuovere una config esistente.
+                  </Alert>
+                )}
                 {twilioDrawerError && <p className="text-sm text-destructive">{twilioDrawerError}</p>}
                 <div>
                   <label htmlFor="twilio-account-sid" className="text-sm font-medium text-foreground">Account SID</label>
@@ -1119,7 +1131,7 @@ export function ConnettoriTab({
                       variant="secondary"
                       className="min-h-11"
                       onClick={testTwilioWhatsApp}
-                      disabled={twilioTestSending || !twilioHasSavedConfig}
+                      disabled={twilioTestSending || !twilioHasSavedConfig || !twilioEntitled}
                     >
                       {twilioTestSending ? "Invio…" : "Invia prova WhatsApp"}
                     </Button>
@@ -1234,7 +1246,7 @@ export function ConnettoriTab({
           )}
           {connectorConfigDrawer === "connector_twilio" && (
             <DrawerFooter className="flex flex-wrap gap-2">
-              <Button className="min-h-11" onClick={saveTwilioConfig} disabled={twilioSaving || ro}>
+              <Button className="min-h-11" onClick={saveTwilioConfig} disabled={twilioSaving || ro || !twilioEntitled}>
                 {twilioSaving ? "Salvataggio…" : "Salva"}
               </Button>
               {twilioHasSavedConfig && (

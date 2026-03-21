@@ -29,6 +29,8 @@ function getPublicApiBaseUrl(): string {
 interface ApiTabProps {
   workspaceId: string;
   isAdmin: boolean;
+  /** false se il workspace non ha il modulo Public API (entitlement). Default true per compatibilità. */
+  publicApiEntitled?: boolean;
 }
 
 type PlatformApiKeyRow = {
@@ -68,7 +70,7 @@ type OpsAlertRow = {
   createdAt: string;
 };
 
-export function ApiTab({ workspaceId, isAdmin }: ApiTabProps) {
+export function ApiTab({ workspaceId, isAdmin, publicApiEntitled = true }: ApiTabProps) {
   const baseUrl = getPublicApiBaseUrl();
   const openApiUrl = baseUrl ? `${baseUrl}/openapi.json` : "";
   const [keys, setKeys] = useState<PlatformApiKeyRow[]>([]);
@@ -397,6 +399,14 @@ export function ApiTab({ workspaceId, isAdmin }: ApiTabProps) {
               Vista in sola lettura: richiedi ruolo admin per creare/ruotare/revocare le API key.
             </p>
           )}
+          {!publicApiEntitled && (
+            <div className="mt-3 rounded-lg border border-amber-500/50 bg-amber-50/90 p-3 text-sm text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/25 dark:text-amber-50">
+              <p className="font-medium">Modulo Public API non attivo su questo workspace</p>
+              <p className="mt-1 text-xs opacity-90">
+                Non è possibile creare né ruotare le platform API key finché Tecma non abilita il servizio. Le chiavi già emesse restano elencate; per revoche o supporto contatta Tecma.
+              </p>
+            </div>
+          )}
           {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
         </div>
         {canManageKeys && (
@@ -434,7 +444,11 @@ export function ApiTab({ workspaceId, isAdmin }: ApiTabProps) {
               </label>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Button className="min-h-11 gap-2" onClick={() => void createKey()} disabled={!formLabel.trim()}>
+              <Button
+                className="min-h-11 gap-2"
+                onClick={() => void createKey()}
+                disabled={!formLabel.trim() || !publicApiEntitled}
+              >
                 <KeyRound className="h-4 w-4" />
                 Crea API key
               </Button>
@@ -478,7 +492,13 @@ export function ApiTab({ workspaceId, isAdmin }: ApiTabProps) {
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm" className="min-h-11" onClick={() => void rotateKey(key._id)}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="min-h-11"
+                            onClick={() => void rotateKey(key._id)}
+                            disabled={!publicApiEntitled}
+                          >
                             Ruota
                           </Button>
                           <Button variant="destructive" size="sm" className="min-h-11 gap-1" onClick={() => void revokeKey(key._id)}>

@@ -11,6 +11,14 @@ vi.mock("../../api/followupApi", () => ({
     getOutlookStatus: vi.fn().mockResolvedValue({ connected: false }),
     getWhatsAppConfig: vi.fn().mockResolvedValue({ config: null }),
     getMetaWhatsAppConfig: vi.fn().mockResolvedValue({ config: null }),
+    getWorkspaceEntitlements: vi.fn().mockResolvedValue({
+      data: [
+        { feature: "publicApi", entitled: true, recordedStatus: null, implicit: true },
+        { feature: "twilio", entitled: true, recordedStatus: null, implicit: true },
+        { feature: "mailchimp", entitled: true, recordedStatus: null, implicit: true },
+        { feature: "activecampaign", entitled: true, recordedStatus: null, implicit: true },
+      ],
+    }),
     listCommunicationTemplates: vi.fn().mockResolvedValue({ data: [] }),
     listCommunicationRules: vi.fn().mockResolvedValue({ data: [] }),
     listCommunicationDeliveries: vi.fn().mockResolvedValue({ data: [] }),
@@ -23,6 +31,7 @@ vi.mock("../../auth/projectScope", () => ({
     isAdmin: false,
     selectedProjectIds: ["p1"],
     projects: [],
+    hasPermission: () => true,
   })),
 }));
 

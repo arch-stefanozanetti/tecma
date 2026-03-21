@@ -4,6 +4,8 @@
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
+import { HttpError } from "../../types/http.js";
+import { isWorkspaceEntitledToFeature } from "../workspaces/workspace-entitlements.service.js";
 
 const COLLECTION = "tz_connector_configs";
 const CONNECTOR_ID = "whatsapp";
@@ -65,6 +67,9 @@ export async function getWhatsAppConfig(workspaceId: string): Promise<WhatsAppCo
 }
 
 export async function saveWhatsAppConfig(workspaceId: string, input: WhatsAppConfigInput): Promise<WhatsAppConfigRow> {
+  if (!(await isWorkspaceEntitledToFeature(workspaceId, "twilio"))) {
+    throw new HttpError("Modulo Twilio non abilitato per questo workspace. Contatta Tecma.", 403);
+  }
   const parsed = ConfigSchema.parse({
     accountSid: input.accountSid.trim(),
     authToken: input.authToken.trim(),
