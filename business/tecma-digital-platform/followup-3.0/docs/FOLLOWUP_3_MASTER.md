@@ -1,6 +1,6 @@
 # Followup 3.0 — Documento maestro (prodotto e wave)
 
-**Ultimo aggiornamento:** 2026-03-20  
+**Ultimo aggiornamento:** 2026-03-21  
 **Piano globale unico (backlog, fasi, checklist):** [PIANO_GLOBALE_FOLLOWUP_3.md](PIANO_GLOBALE_FOLLOWUP_3.md).  
 **Uso di questo file:** visione, principi e wave; per priorità e implementazione aggiornare solo il piano globale.
 

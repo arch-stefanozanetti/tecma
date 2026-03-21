@@ -618,6 +618,28 @@ export interface WorkspaceAiConfig {
   apiKeyMasked?: string;
 }
 
+export type WorkspaceEntitlementFeature = "publicApi" | "twilio" | "mailchimp" | "activecampaign";
+
+export type WorkspaceEntitlementStatus = "inactive" | "pending_approval" | "active" | "suspended";
+
+export interface WorkspaceEntitlementEffectiveRow {
+  feature: WorkspaceEntitlementFeature;
+  entitled: boolean;
+  recordedStatus: WorkspaceEntitlementStatus | null;
+  implicit: boolean;
+}
+
+export interface WorkspaceEntitlementRow {
+  _id: string;
+  workspaceId: string;
+  feature: WorkspaceEntitlementFeature;
+  status: WorkspaceEntitlementStatus;
+  billingMode: "manual_invoice";
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** Elemento elencato dentro un suggerimento Cockpit aggregato (macro-card). */
 export interface AiSuggestionAggregatedItem {
   associationId?: string;

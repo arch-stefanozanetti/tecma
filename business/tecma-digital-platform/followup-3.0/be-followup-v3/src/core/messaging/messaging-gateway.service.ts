@@ -1,5 +1,6 @@
 import { logger } from "../../observability/logger.js";
 import { getRequestContext } from "../../observability/request-context.js";
+import { isWorkspaceEntitledToFeature } from "../workspaces/workspace-entitlements.service.js";
 import { normalizeProviderError } from "./messaging-errors.js";
 import type { ProviderAdapter } from "./provider-adapter.js";
 import { getRoutingDecision } from "./routing-policy-engine.js";
@@ -31,6 +32,20 @@ export async function sendWithMessagingGateway(request: DeliveryRequest): Promis
   const start = Date.now();
   const context = getRequestContext();
   const route = await resolveRouteForRequest(request);
+  const usesTwilio = route.primary === "twilio" || route.fallback === "twilio";
+  if (usesTwilio) {
+    const entitled = await isWorkspaceEntitledToFeature(request.workspaceId, "twilio");
+    if (!entitled) {
+      return {
+        ok: false,
+        provider: "twilio",
+        channel: request.channel,
+        status: "failed",
+        errorCode: "NotEntitled",
+        errorMessage: "Twilio non abilitato per questo workspace (entitlement).",
+      };
+    }
+  }
   const primary = providerFor(route.primary);
 
   try {

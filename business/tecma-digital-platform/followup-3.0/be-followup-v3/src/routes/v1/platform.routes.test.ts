@@ -46,6 +46,7 @@ vi.mock("../../config/db.js", () => ({
   getDb: () => ({
     collection: () => ({
       findOneAndUpdate: vi.fn().mockResolvedValue({ count: 1 }),
+      findOne: vi.fn().mockResolvedValue(null),
     }),
   }),
 }));

@@ -4,7 +4,12 @@ import { queryApartments } from "../../core/apartments/apartments.service.js";
 import { queryClientsLite } from "../../core/future/future.service.js";
 import { runKpiSummaryReport } from "../../core/reports/reports.service.js";
 import { HttpError } from "../../types/http.js";
-import { enforcePlatformQuota, platformApiKeyMiddleware, requirePlatformScope } from "../platformApiKeyMiddleware.js";
+import {
+  enforcePlatformPublicApiEntitlement,
+  enforcePlatformQuota,
+  platformApiKeyMiddleware,
+  requirePlatformScope,
+} from "../platformApiKeyMiddleware.js";
 import { platformApiKeyRateLimiter } from "../rateLimitMiddleware.js";
 import { handleAsync } from "../asyncHandler.js";
 
@@ -28,6 +33,9 @@ platformRoutes.use(platformApiKeyRateLimiter);
 platformRoutes.use(platformApiKeyMiddleware);
 platformRoutes.use((req, res, next) => {
   void enforcePlatformQuota(req, res, next);
+});
+platformRoutes.use((req, res, next) => {
+  void enforcePlatformPublicApiEntitlement(req, res, next);
 });
 
 platformRoutes.get("/capabilities", requirePlatformScope("platform.capabilities.read"), (req, res) => {

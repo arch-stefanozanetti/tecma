@@ -3031,6 +3031,153 @@
         }
       }
     },
+    "/workspaces/{id}/entitlements": {
+      "get": {
+        "tags": ["workspaces", "entitlements"],
+        "operationId": "listWorkspaceEntitlementsEffective",
+        "summary": "Elenco entitlement commerciali effettivi (Fase 0.2)",
+        "description": "Richiede settings.read e accesso al workspace. Senza riga in DB la capability è implicitamente attiva (compatibilità).",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": { "type": "string" },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista feature con flag entitled e stato persistito",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["data"],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": ["feature", "entitled", "implicit"],
+                        "properties": {
+                          "feature": {
+                            "type": "string",
+                            "enum": ["publicApi", "twilio", "mailchimp", "activecampaign"],
+                            "description": "Capability commerciale"
+                          },
+                          "entitled": { "type": "boolean", "description": "Se l'uso è consentito" },
+                          "recordedStatus": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": ["inactive", "pending_approval", "active", "suspended"],
+                            "description": "Stato su DB; null se nessuna riga"
+                          },
+                          "implicit": { "type": "boolean", "description": "true se non esiste riga dedicata" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso negato o workspace non accessibile" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
+    "/workspaces/{id}/entitlements/{feature}": {
+      "patch": {
+        "tags": ["workspaces", "entitlements"],
+        "operationId": "patchWorkspaceEntitlement",
+        "summary": "Aggiorna entitlement workspace (solo Tecma admin)",
+        "description": "Solo system_role tecma_admin o isTecmaAdmin. Audit workspace.entitlement.updated.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": { "type": "string" },
+            "example": "673abc12def4567890123456"
+          },
+          {
+            "name": "feature",
+            "in": "path",
+            "required": true,
+            "description": "Capability",
+            "schema": {
+              "type": "string",
+              "enum": ["publicApi", "twilio", "mailchimp", "activecampaign"]
+            },
+            "example": "publicApi"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["inactive", "pending_approval", "active", "suspended"],
+                    "description": "Stato commerciale della capability"
+                  },
+                  "notes": { "type": "string", "description": "Note interne / commercio" },
+                  "billingMode": {
+                    "type": "string",
+                    "enum": ["manual_invoice"],
+                    "default": "manual_invoice",
+                    "description": "Modalità fatturazione"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Entitlement aggiornato",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["entitlement"],
+                  "properties": {
+                    "entitlement": {
+                      "type": "object",
+                      "description": "Record persistito",
+                      "properties": {
+                        "_id": { "type": "string", "description": "ID documento" },
+                        "workspaceId": { "type": "string", "description": "Workspace" },
+                        "feature": { "type": "string", "description": "Capability" },
+                        "status": { "type": "string", "description": "Stato" },
+                        "billingMode": { "type": "string", "description": "Fatturazione" },
+                        "notes": { "type": "string", "description": "Note" },
+                        "createdAt": { "type": "string", "format": "date-time", "description": "Creazione UTC" },
+                        "updatedAt": { "type": "string", "format": "date-time", "description": "Aggiornamento UTC" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Feature o body non valido" },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Solo TECMA admin" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
     "/workspaces/{id}/ai-config": {
       "get": {
         "tags": ["workspaces", "ai"],

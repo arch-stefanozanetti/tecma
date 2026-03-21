@@ -45,11 +45,18 @@ import {
   getWorkspaceAiConfig,
   putWorkspaceAiConfig,
 } from "../../core/workspaces/workspace-ai-config.service.js";
+import {
+  listEffectiveWorkspaceEntitlements,
+  listWorkspaceEntitlements,
+  parseWorkspaceEntitlementFeature,
+  upsertWorkspaceEntitlement,
+} from "../../core/workspaces/workspace-entitlements.service.js";
 import { getPriceAvailabilityMatrix } from "../../core/price-availability-matrix/price-availability-matrix.service.js";
 import type { MembershipRole } from "../../types/models.js";
 import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
-import { requireAdmin } from "../authMiddleware.js";
+import { requireAdmin, requireTecmaAdmin } from "../authMiddleware.js";
+import { requireCanAccessWorkspace } from "../accessMiddleware.js";
 import { requireAnyPermission, requirePermission } from "../permissionMiddleware.js";
 import { PERMISSIONS } from "../../core/rbac/permissions.js";
 import { record as auditRecord } from "../../core/audit/audit-log.service.js";
@@ -500,6 +507,45 @@ workspacesRoutes.get(
     const dateFrom = typeof req.query.dateFrom === "string" ? req.query.dateFrom : undefined;
     const dateTo = typeof req.query.dateTo === "string" ? req.query.dateTo : undefined;
     return getPlatformUsageSummary(req.params.id, dateFrom, dateTo);
+  })
+);
+
+workspacesRoutes.get(
+  "/workspaces/:id/entitlements",
+  requirePermission(PERMISSIONS.SETTINGS_READ),
+  requireCanAccessWorkspace("id"),
+  handleAsync((req) =>
+    listEffectiveWorkspaceEntitlements(req.params.id).then((data) => ({ data }))
+  )
+);
+workspacesRoutes.patch(
+  "/workspaces/:id/entitlements/:feature",
+  requireTecmaAdmin,
+  requireCanAccessWorkspace("id"),
+  handleAsync(async (req) => {
+    const workspaceId = req.params.id;
+    const feature = parseWorkspaceEntitlementFeature(req.params.feature);
+    if (!feature) throw new HttpError("Unknown entitlement feature", 400);
+    const before = await listWorkspaceEntitlements(workspaceId);
+    const prev = before.find((r) => r.feature === feature) ?? null;
+    const row = await upsertWorkspaceEntitlement(workspaceId, feature, req.body);
+    safeAsync(
+      auditRecord({
+        action: "workspace.entitlement.updated",
+        workspaceId,
+        entityType: "workspace_entitlement",
+        entityId: `${workspaceId}:${feature}`,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+        payload: {
+          feature,
+          previousStatus: prev?.status ?? null,
+          status: row.status,
+          billingMode: row.billingMode,
+        },
+      }),
+      { operation: "audit.workspace.entitlement.updated", workspaceId, userId: req.user?.sub }
+    );
+    return { entitlement: row };
   })
 );
 

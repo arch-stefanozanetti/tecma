@@ -3,6 +3,7 @@ import { ENV } from "../config/env.js";
 import { getDb } from "../config/db.js";
 import { logger } from "../observability/logger.js";
 import { resolvePlatformApiKeyByRaw, trackPlatformApiKeyUsage } from "../core/platform/platform-api-keys.service.js";
+import { isWorkspaceEntitledToFeature } from "../core/workspaces/workspace-entitlements.service.js";
 
 interface RawPlatformAccessConfig {
   workspaceId: string;
@@ -124,6 +125,30 @@ export const platformApiKeyMiddleware = (req: Request, res: Response, next: Next
       logger.error({ err }, "[platform] failed to resolve API key");
       res.status(503).json({ error: "Platform auth service unavailable" });
     });
+};
+
+/** Dopo platformApiKeyMiddleware: blocca se capability publicApi non attiva per il workspace della key. */
+export const enforcePlatformPublicApiEntitlement = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const access = req.platformAccess;
+  if (!access) {
+    res.status(401).json({ error: "Missing platform access context" });
+    return;
+  }
+  try {
+    const ok = await isWorkspaceEntitledToFeature(access.workspaceId, "publicApi");
+    if (!ok) {
+      res.status(403).json({ error: "Public API non abilitata per questo workspace" });
+      return;
+    }
+    next();
+  } catch (err) {
+    logger.error({ err, workspaceId: access.workspaceId }, "[platform] entitlement check failed");
+    res.status(503).json({ error: "Platform entitlement check unavailable" });
+  }
 };
 
 export const requirePlatformScope = (scope: string) => (

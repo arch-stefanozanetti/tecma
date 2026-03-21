@@ -45,6 +45,10 @@ import type {
   WorkflowType,
   ApartmentLockType,
   WorkspaceAiConfig,
+  WorkspaceEntitlementEffectiveRow,
+  WorkspaceEntitlementFeature,
+  WorkspaceEntitlementRow,
+  WorkspaceEntitlementStatus,
   WorkspaceProjectRow,
   WorkspaceRow,
   WorkspaceUserRow,
@@ -476,6 +480,19 @@ export const followupApi = {
     getJson<WorkspaceAiConfig>(`/workspaces/${encodeURIComponent(workspaceId)}/ai-config`),
   putWorkspaceAiConfig: (workspaceId: string, payload: { provider: string; apiKey: string }) =>
     putJson<WorkspaceAiConfig>(`/workspaces/${encodeURIComponent(workspaceId)}/ai-config`, payload),
+  getWorkspaceEntitlements: (workspaceId: string) =>
+    getJson<{ data: WorkspaceEntitlementEffectiveRow[] }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/entitlements`
+    ),
+  patchWorkspaceEntitlement: (
+    workspaceId: string,
+    feature: WorkspaceEntitlementFeature,
+    payload: { status: WorkspaceEntitlementStatus; notes?: string; billingMode?: "manual_invoice" }
+  ) =>
+    patchJson<{ entitlement: WorkspaceEntitlementRow }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/entitlements/${encodeURIComponent(feature)}`,
+      payload
+    ),
   listPlatformApiKeys: (workspaceId: string) =>
     getJson<{ data: Array<{ _id: string; label: string; projectIds: string[]; scopes: string[]; quotaPerDay: number | null; active: boolean; lastUsedAt?: string; createdAt: string; updatedAt: string }> }>(
       `/workspaces/${encodeURIComponent(workspaceId)}/platform-api-keys`

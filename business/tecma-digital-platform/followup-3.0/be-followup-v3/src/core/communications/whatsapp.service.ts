@@ -5,6 +5,7 @@
  */
 import { getDb } from "../../config/db.js";
 import { logger } from "../../observability/logger.js";
+import { isWorkspaceEntitledToFeature } from "../workspaces/workspace-entitlements.service.js";
 
 const CONNECTOR_ID = "whatsapp";
 
@@ -47,6 +48,10 @@ async function getWhatsAppConfig(workspaceId: string): Promise<{ fromNumber: str
  * Se il workspace non ha config WhatsApp, logga e non invia (Fase 1 compat).
  */
 export async function sendWhatsAppMessage(workspaceId: string, to: string, bodyText: string): Promise<void> {
+  const entitled = await isWorkspaceEntitledToFeature(workspaceId, "twilio");
+  if (!entitled) {
+    throw new Error("Twilio non abilitato per questo workspace (entitlement).");
+  }
   const config = await getWhatsAppConfig(workspaceId);
   if (!config) {
     logger.warn({ workspaceId, to }, "[whatsapp] workspace has no config; skipping send");

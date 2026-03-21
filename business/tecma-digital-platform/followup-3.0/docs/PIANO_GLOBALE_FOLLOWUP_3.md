@@ -1,6 +1,6 @@
 # Followup 3.0 — piano globale (unico)
 
-**Ultimo aggiornamento:** 2026-03-20 (Fase 0.1 DoD baseline — wizard utenti, mount asset/documents, audit membership)  
+**Ultimo aggiornamento:** 2026-03-21 (Fase 0.2 avviata — modello entitlement + enforcement publicApi/twilio)  
 **Uso:** questo è l’**unico documento di piano** per Followup 3.0. Aggiornare solo questo file per priorità, fasi e checklist.  
 **Correlati (non sono “piani”):** visione e wave in [FOLLOWUP_3_MASTER.md](./FOLLOWUP_3_MASTER.md); deploy in [RENDER_DEPLOY.md](./RENDER_DEPLOY.md); runbook e design system negli altri file in `docs/`.
 
@@ -21,7 +21,7 @@
 |----|------|--------|
 | `close-phase0` | Workspace users, `tz_workspace_user_projects`, entity assignments, Wave 7 AI aggregata, auth API connettori | **Chiuso baseline repo (2026-03-20):** §3.1–§3.2 implementati; §3.3 FE accordion + BE aggregato presenti; §3.4 `POST /v1/platform/clients/lite/query` + scope `platform.clients.read`; §3.5 route matching registrate. Review integrazione continua in CI. |
 | `user-access-granularity` | Creazione utenza + RBAC granulare (modulo / azione / progetto) | **Chiuso baseline 0.1 (2026-03-20):** sweep JWT su route sensibili; mount **assets** + **client-documents**; session/realtime/contracts hardening; wizard **4 passi** Utenti + `GET /rbac/roles/:roleKey/effective-permissions` + preset override; matrice da **permission-catalog**; audit membership workspace + **user_project** add/remove; router `future`/`workflow` documentati come non montati. OpenAPI RBAC principale documentato; estensioni future: altre mutazioni in audit, allineamento BSS gateway. [FASE01](./deliverables/FASE01_USER_ACCESS_RBAC.md) |
-| `commercial-entitlements` | Entitlement commerciale vs RBAC; solo Tecma attiva connettori/API | Roadmap: [deliverables/FASE02_ENTITLEMENTS_AND_TECMA.md](./deliverables/FASE02_ENTITLEMENTS_AND_TECMA.md) |
+| `commercial-entitlements` | Entitlement commerciale vs RBAC; solo Tecma attiva connettori/API | **In corso (2026-03-21):** `tz_workspace_entitlements`, GET/PATCH API, enforcement Platform API (`publicApi`) e Twilio (`twilio`); assenza riga ⇒ attivo. Restano vetrina FE, console Tecma, enforcement completo chiavi/marketing. [FASE02](./deliverables/FASE02_ENTITLEMENTS_AND_TECMA.md) |
 | `connectors-showcase-ux` | Vetrina connettori/API per utenti non Tecma | Incluso in FASE02 (sezione UX vetrina) |
 | `tecma-activation-audit` | Console Tecma + audit attivazioni + fatturazione manuale | Incluso in FASE02 (milestone audit + console) |
 | `csv-mapping` | CSV legacy → mapping cliente / appartamento / quote → `tz_*` + API/UI | Template: [deliverables/FASE1_CSV_MAPPING.md](./deliverables/FASE1_CSV_MAPPING.md) — compilare quando disponibili i CSV |
@@ -134,11 +134,13 @@
 
 **Modello:** `tz_workspace_entitlements` (o blocco su workspace) per capability: `twilio`, `mailchimp`, `activecampaign`, `publicApi`, … con `status`: `inactive | pending_approval | active | suspended`, `billingMode: manual_invoice`, note e audit.
 
-**UX non Tecma:** vetrina (benefici, casi d’uso, CTA “Contatta Tecma / Richiedi attivazione”); niente attivazione autonoma; tab API senza operazioni tecniche (o nascoste).
+**Implementato (2026-03-21, slice 1):** collection + servizio + `GET/PATCH /workspaces/:id/entitlements`; default senza riga = capability consentita (non rompe deploy esistenti); enforcement su route **`/v1/platform`** (`publicApi`) e invii **Twilio** (`twilio`); audit su PATCH. Client FE: `getWorkspaceEntitlements` / `patchWorkspaceEntitlement`.
 
-**UX Tecma Admin:** console attivazione/disattivazione, note commerciali, audit.
+**UX non Tecma:** vetrina (benefici, casi d’uso, CTA “Contatta Tecma / Richiedi attivazione”); niente attivazione autonoma; tab API senza operazioni tecniche (o nascoste). *Da fare.*
 
-**Milestone:** (1) modello DB (2) policy engine (3) endpoint governance (4) vetrina FE (5) console Tecma (6) audit (7) rollout graduale (prima twilio + publicApi, poi email marketing).
+**UX Tecma Admin:** console attivazione/disattivazione, note commerciali, audit. *Da fare (PATCH già disponibile via API).*
+
+**Milestone:** ~~(1) modello DB~~ ~~(2) policy engine (minimo)~~ ~~(3) endpoint governance (minimo)~~ (4) vetrina FE (5) console Tecma ~~(6) audit (PATCH)~~ (7) rollout graduale (prima twilio + publicApi, poi email marketing).
 
 **DoD:** non-Tecma non attiva né vede strumenti API operativi; Tecma sì, con audit; ogni route sensibile verifica RBAC + entitlement.
 

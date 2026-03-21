@@ -7,6 +7,7 @@ export type MessagingErrorCode =
   | "InvalidDestination"
   | "ProviderUnavailable"
   | "AuthenticationFailed"
+  | "NotEntitled"
   | "UnknownFailure";
 
 /** Payload invio WhatsApp via Meta Cloud API (template approvato). */
