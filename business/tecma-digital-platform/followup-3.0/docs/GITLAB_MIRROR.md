@@ -58,6 +58,30 @@ git push gitlab --tags --force-with-lease
 
 `--force-with-lease` è più sicuro di `--force` perché rifiuta il push se qualcuno ha aggiornato GitLab nel frattempo.
 
+### Branch `main` protetto su GitLab
+
+Se GitLab risponde con *You are not allowed to force push code to a protected branch*, non puoi sostituire `main` da riga di comando senza cambiare le **Protected branches** del progetto (solo Maintainer/Owner).
+
+Pattern sicuro già usato sul progetto experimental:
+
+1. **Archivio** del vecchio `main` GitLab (nessuna perdita di history sul remoto):
+
+   ```bash
+   git fetch gitlab
+   git push gitlab refs/remotes/gitlab/main:refs/heads/archive/gitlab-pre-github-mirror-YYYY-MM-DD
+   ```
+
+2. **Copia** del `main` GitHub su un branch non protetto (stesso commit di `origin/main`):
+
+   ```bash
+   git fetch origin
+   git push gitlab origin/main:refs/heads/sync/main-from-github
+   ```
+
+3. **Allineare il nome `main` su GitLab** (una tantum, da Maintainer): in *Settings* → *Repository* → *Protected branches*, consentire temporaneamente il force push su `main`, oppure impostare come default branch `sync/main-from-github` e poi rinominare/merge secondo policy aziendale.
+
+Gli altri branch (non protetti) si possono aggiornare con il loop `origin/*` → `gitlab` e `--force-with-lease` come sopra.
+
 ### HTTPS senza prompt (token in variabile, solo da sessione locale)
 
 Esempio (non committare il token; non loggare l’URL con token):
@@ -89,7 +113,7 @@ git rev-parse origin/main
 git rev-parse gitlab/main
 ```
 
-Devono coincidere per `main` (e per ogni altro branch che specchi). Per i tag:
+Devono coincidere per `main` (e per ogni altro branch che specchi), salvo il caso in cui `main` sia **protetto** su GitLab: in quel caso confronta `origin/main` con `gitlab/sync/main-from-github`. Per i tag:
 
 ```bash
 git ls-remote origin 'refs/tags/*' | sort
