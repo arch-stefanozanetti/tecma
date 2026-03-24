@@ -25,6 +25,7 @@ import {
   executeImport,
   type OnDuplicate,
 } from "../../core/units-import/units-import.service.js";
+import { previewTecmaCatalogImport, executeTecmaCatalogImport } from "../../core/catalog/tecma-catalog-import.service.js";
 import { toEntityAssignmentListViewer } from "../helpers/listQueryViewer.js";
 export const apartmentsRoutes = Router();
 
@@ -251,6 +252,36 @@ apartmentsRoutes.post("/workspaces/:workspaceId/projects/:projectId/units/import
   const onDuplicate = (body.onDuplicate === "overwrite" || body.onDuplicate === "fail" ? body.onDuplicate : "skip") as OnDuplicate;
   return executeImport(workspaceId, projectId, validRows, onDuplicate);
 }));
+
+apartmentsRoutes.post(
+  "/workspaces/:workspaceId/projects/:projectId/catalog/tecma-import/preview",
+  requireCanAccessProject("workspaceId", "projectId"),
+  requireAdmin,
+  handleAsync(async (req) => {
+    const workspaceId = req.params.workspaceId;
+    const projectId = req.params.projectId;
+    const body = req.body as { fileBase64?: string };
+    const b64 = body.fileBase64;
+    if (typeof b64 !== "string" || !b64) throw new HttpError("fileBase64 obbligatorio", 400);
+    const buffer = Buffer.from(b64, "base64");
+    return previewTecmaCatalogImport(buffer, workspaceId, projectId);
+  })
+);
+
+apartmentsRoutes.post(
+  "/workspaces/:workspaceId/projects/:projectId/catalog/tecma-import/execute",
+  requireCanAccessProject("workspaceId", "projectId"),
+  requireAdmin,
+  handleAsync(async (req) => {
+    const workspaceId = req.params.workspaceId;
+    const projectId = req.params.projectId;
+    const body = req.body as { fileBase64?: string };
+    const b64 = body.fileBase64;
+    if (typeof b64 !== "string" || !b64) throw new HttpError("fileBase64 obbligatorio", 400);
+    const buffer = Buffer.from(b64, "base64");
+    return executeTecmaCatalogImport(buffer, workspaceId, projectId);
+  })
+);
 
 apartmentsRoutes.get(
   "/apartments/:id/requests",

@@ -89,6 +89,11 @@ const EnvSchema = z.object({
    * Vuoto = export schedulato disabilitato.
    */
   SECURITY_AUDIT_EXPORT_DIR: z.string().optional().default(""),
+
+  /**
+   * Se valorizzato, i rate limit HTTP usano Redis (condiviso tra repliche). Vuoto = store in-memory.
+   */
+  RATE_LIMIT_REDIS_URL: z.string().optional().default(""),
   DOCUSIGN_API_BASE_URL: z.string().url().optional(),
   DOCUSIGN_API_TOKEN: z.string().optional(),
   YOUSIGN_API_BASE_URL: z.string().url().optional(),

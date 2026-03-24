@@ -79,6 +79,14 @@ vi.mock("../events/event-log.service.js", () => ({
   emitDomainEvent: mocks.emitDomainEventMock,
 }));
 
+vi.mock("../catalog/catalog.service.js", () => ({
+  getCatalogBundleForUnit: vi.fn().mockResolvedValue({ profile: null, building: null, floorPlan: null }),
+  mergeCatalogIntoApartmentPayload: (apartment: Record<string, unknown>) => ({
+    ...apartment,
+    catalog: { profile: null, building: null, floorPlan: null },
+  }),
+}));
+
 import { createApartment, getApartmentById, queryApartments, updateApartment } from "./apartments.service.js";
 
 describe("apartments.service", () => {

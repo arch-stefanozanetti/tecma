@@ -3,6 +3,7 @@
  * Nessun update/delete via applicazione; export verso storage WORM è responsabilità ops/worker.
  */
 import { createHash } from "node:crypto";
+import { ObjectId } from "mongodb";
 import { getDb } from "../../config/db.js";
 import { logger } from "../../observability/logger.js";
 import { getRequestContext } from "../../observability/request-context.js";
@@ -143,4 +144,32 @@ export async function exportSecurityAuditJsonl(params: {
     .limit(max)
     .toArray();
   return docs.map((d) => JSON.stringify({ ...d, _id: String(d._id) })).join("\n");
+}
+
+/**
+ * Export per job incrementale: ordine `_id` crescente, opzionale filtro `_id` > afterObjectId.
+ * Restituisce il massimo `_id` del batch per aggiornare il watermark su disco.
+ */
+export async function exportSecurityAuditJsonlIncremental(params: {
+  afterObjectId?: string;
+  maxDocs?: number;
+}): Promise<{ jsonl: string; maxObjectIdInBatch: string | null }> {
+  const max = Math.min(params.maxDocs ?? 25_000, 50_000);
+  const match: Record<string, unknown> = {};
+  if (params.afterObjectId !== undefined && params.afterObjectId !== "") {
+    if (!ObjectId.isValid(params.afterObjectId)) {
+      throw new Error(`exportSecurityAuditJsonlIncremental: invalid afterObjectId ${params.afterObjectId}`);
+    }
+    match._id = { $gt: new ObjectId(params.afterObjectId) };
+  }
+  const docs = await getDb()
+    .collection(COLLECTION)
+    .find(match)
+    .sort({ _id: 1 })
+    .limit(max)
+    .toArray();
+  const jsonl = docs.map((d) => JSON.stringify({ ...d, _id: String(d._id) })).join("\n");
+  const last = docs.length > 0 ? docs[docs.length - 1] : undefined;
+  const maxObjectIdInBatch = last && last._id != null ? String(last._id) : null;
+  return { jsonl, maxObjectIdInBatch };
 }

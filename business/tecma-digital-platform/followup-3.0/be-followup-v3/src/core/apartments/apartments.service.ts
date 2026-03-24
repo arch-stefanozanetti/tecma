@@ -12,6 +12,7 @@ import {
   type EntityAssignmentListViewer,
 } from "../workspaces/entity-assignment-query.util.js";
 import { escapeForMongoRegexSubstring } from "../shared/searchTextRegex.js";
+import { getCatalogBundleForUnit, mergeCatalogIntoApartmentPayload } from "../catalog/catalog.service.js";
 
 const ObjectIdLikeSchema = z.string().min(1);
 
@@ -239,7 +240,7 @@ export const queryApartments = async (
 export const getApartmentById = async (
   rawApartmentId: unknown,
   viewer?: EntityAssignmentListViewer
-): Promise<{ apartment: ReturnType<typeof mapApartment> }> => {
+): Promise<{ apartment: ReturnType<typeof mapApartment> & Record<string, unknown> }> => {
   const apartmentId = toObjectId(z.string().parse(rawApartmentId));
   const db = getDb();
   const tzDoc = await db.collection<RawApartment>(TZ_APARTMENTS_COLLECTION).findOne({ _id: apartmentId });
@@ -251,7 +252,9 @@ export const getApartmentById = async (
         throw new HttpError("Apartment not found", 404);
       }
     }
-    return { apartment };
+    const bundle = await getCatalogBundleForUnit(apartment._id);
+    const merged = mergeCatalogIntoApartmentPayload(apartment as unknown as Record<string, unknown>, bundle);
+    return { apartment: merged as ReturnType<typeof mapApartment> & Record<string, unknown> };
   }
   throw new HttpError("Apartment not found", 404);
 };

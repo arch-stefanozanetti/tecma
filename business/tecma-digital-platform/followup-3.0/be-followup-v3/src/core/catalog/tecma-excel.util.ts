@@ -1,14 +1,8 @@
-import readXlsxFile from "read-excel-file/node";
+import readXlsxFile, { readSheetNames } from "read-excel-file/node";
 
 export type Matrix = unknown[][];
 
 export async function loadWorkbookSheets(buffer: Buffer): Promise<Record<string, Matrix>> {
-  const mod = await import("read-excel-file/node");
-  const readSheetNames = (mod as { readSheetNames?: (b: Buffer) => Promise<string[]> }).readSheetNames;
-  if (typeof readSheetNames !== "function") {
-    const rows = (await readXlsxFile(buffer)) as Matrix;
-    return { Sheet1: rows };
-  }
   const names = await readSheetNames(buffer);
   const out: Record<string, Matrix> = {};
   for (const name of names) {
@@ -51,22 +45,11 @@ export function rowGet(row: unknown[] | undefined, i: number): unknown {
 }
 
 /** Indice colonna il cui header (riga H) contiene il token (case-insensitive). */
-export function colIndexByToken(headerRow: unknown[], token: string): number {
+export function colIndexByToken(header: unknown[], token: string): number {
   const t = token.toLowerCase();
-  for (let i = 0; i < headerRow.length; i++) {
-    const h = cellStr(headerRow[i]).toLowerCase();
+  for (let i = 0; i < header.length; i++) {
+    const h = cellStr(header[i]).toLowerCase();
     if (h.includes(t)) return i;
   }
   return -1;
-}
-
-export function forwardFillHeaders(row: unknown[]): string[] {
-  const out: string[] = [];
-  let last = "";
-  for (let i = 0; i < row.length; i++) {
-    const c = cellStr(row[i]);
-    if (c) last = c;
-    out.push(last);
-  }
-  return out;
 }

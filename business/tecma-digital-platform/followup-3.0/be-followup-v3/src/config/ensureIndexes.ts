@@ -14,6 +14,11 @@ const CORE_INDEXES: IndexDefinition[] = [
   { collection: "tz_requests", keys: { workspaceId: 1, projectId: 1, updatedAt: -1 } },
   { collection: "tz_apartments", keys: { workspaceId: 1, projectId: 1, updatedAt: -1 } },
 
+  { collection: "tz_catalog_buildings", keys: { workspaceId: 1, projectId: 1, code: 1 }, options: { unique: true } },
+  { collection: "tz_catalog_floor_plans", keys: { workspaceId: 1, projectId: 1, planKey: 1 }, options: { unique: true } },
+  { collection: "tz_catalog_unit_profiles", keys: { unitId: 1 }, options: { unique: true } },
+  { collection: "tz_catalog_unit_profiles", keys: { workspaceId: 1, projectId: 1, apartmentCode: 1 } },
+
   { collection: "tz_workspace_ai_config", keys: { workspaceId: 1 }, options: { unique: true } },
   { collection: "tz_workspace_users", keys: { workspaceId: 1, userId: 1 }, options: { unique: true } },
   { collection: "tz_workspace_user_projects", keys: { workspaceId: 1, userId: 1, projectId: 1 }, options: { unique: true } },

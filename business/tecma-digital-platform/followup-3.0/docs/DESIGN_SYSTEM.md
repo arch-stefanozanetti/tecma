@@ -18,6 +18,40 @@ L’integrazione è **attiva**:
 
 Le variabili del design system sono disponibili sotto il prefisso `--tecma-*` (es. `--tecma-font-size-m`, `--tecma-primary`).
 
+## Visual operating system applicativo
+
+I token DS sono la base, ma in Followup 3.0 da soli non bastano: sopra il design system esiste un livello applicativo obbligatorio che allinea tutta l'esperienza, non solo i singoli componenti.
+
+### Fonte di verità
+
+- `src/styles.css`: definisce il linguaggio visivo applicativo condiviso.
+- `src/core/shared/PageSimple.tsx`: wrapper canonico per hero, gerarchia titolo/sottotitolo/azioni e ritmo verticale.
+- `src/core/shared/PageTemplate.tsx`: shell di prodotto, quindi sidebar, header, menu strumenti e transizione tra area operativa e area strumenti/admin.
+
+### Archetipi obbligatori
+
+Ogni pagina deve adottare uno di questi tre archetipi, senza creare layout neutrali ad hoc:
+
+- `operational`: lavoro quotidiano del broker, CTA primaria chiara, lettura rapida.
+- `workspace`: strumenti, viste aggregate, configurazioni operative, report e inbox.
+- `governance`: amministrazione, audit, workflow, sicurezza, entitlement.
+
+### Regole applicative minime
+
+- Ogni pagina deve avere una gerarchia introduttiva coerente: kicker, titolo, descrizione, eventuali azioni.
+- Le superfici principali devono usare i pattern condivisi (`page-section-card`, `page-toolbar`, `page-section-muted`, `page-stat-card`) invece di styling locale scollegato.
+- Il tono visuale deve essere ricco ma controllato: più profondità, contrasto e tipografia, senza rumore decorativo.
+- Filtri avanzati e azioni secondarie non devono dominare la prima schermata.
+- Le aree admin e tools non devono sembrare schermate “di un altro prodotto”: cambiano gerarchia e tono, non qualità visiva.
+
+### Checklist di parity prima del merge
+
+- La pagina usa uno degli archetipi condivisi.
+- Hero, CTA e contenuto seguono la stessa grammatica delle altre aree.
+- Toolbar, filtri, stati vuoti e card riusano le primitive applicative.
+- Mobile riduce la densità, ma mantiene identità e gerarchia.
+- Nessuna nuova schermata introduce CSS isolato se esiste già una primitive condivisa equivalente.
+
 ## Import delle componenti Figma (wave)
 
 L’ordine e le wave con cui importare in codice le **pagine/componenti** del file Figma DS (Button, Input, Card, ecc.) sono descritti in **[DESIGN_SYSTEM_COMPONENTS_WAVES.md](DESIGN_SYSTEM_COMPONENTS_WAVES.md)**. Per ogni componente il link/node-id Figma va fornito al momento dell’implementazione (richiesto di volta in volta).

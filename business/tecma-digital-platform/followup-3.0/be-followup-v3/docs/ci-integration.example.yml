@@ -1,5 +1,6 @@
 # Copia in .github/workflows/ (repo root) e adatta i path se la root del monorepo differisce.
-# Job: npm ci + npm run test:integration in be-followup-v3 (Vitest + MongoMemoryServer).
+# Job: npm ci + npm run test:integration in be-followup-v3.
+# I test in src/integration/ usano MONGO_URI / MONGO_DB_NAME (vedi singoli file di test).
 
 name: BE followup-v3 integration
 
