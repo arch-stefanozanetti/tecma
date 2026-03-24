@@ -7,6 +7,7 @@ import {
   exchangeKeycloakAuthorizationCode,
   isKeycloakOidcConfigured
 } from "../../auth/keycloakOidc";
+import { postAuthRedirectHref } from "../../lib/spaPath";
 
 /**
  * Callback OIDC Keycloak: scambia code → id_token, poi POST /v1/auth/sso-exchange.
@@ -36,17 +37,7 @@ export const KeycloakCallbackPage = () => {
         setTokens(tokens.accessToken, tokens.refreshToken);
         window.sessionStorage.setItem("followup3.lastEmail", tokens.user.email);
         const backTo = consumeStoredOidcBackTo();
-        try {
-          const resolved = new URL(backTo, window.location.origin);
-          if (resolved.origin === window.location.origin) {
-            const path = `${resolved.pathname}${resolved.search}${resolved.hash}` || "/";
-            window.location.replace(path.startsWith("/login") ? "/" : path);
-            return;
-          }
-        } catch {
-          /* fallthrough */
-        }
-        window.location.replace("/");
+        window.location.replace(postAuthRedirectHref(backTo));
       } catch (e) {
         if (!cancelled) {
           setMessage(e instanceof Error ? e.message : "Accesso SSO non consentito.");
