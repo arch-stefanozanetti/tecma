@@ -26,6 +26,10 @@ vi.mock("../../auth/itdLogin", () => ({
   getJwtFromCookie: vi.fn(() => null),
   buildItdLoginRedirectUrl: vi.fn((url: string) => `${url}?backTo=`),
 }));
+vi.mock("../../auth/keycloakOidc", () => ({
+  isKeycloakOidcConfigured: vi.fn(() => false),
+  startKeycloakOidcLogin: vi.fn(),
+}));
 
 describe("LoginPage", () => {
   beforeEach(() => {
