@@ -3,6 +3,8 @@
  * Il backend verifica l'id_token su POST /v1/auth/sso-exchange (JWKS Keycloak + issuer/audience).
  */
 
+import { spaAbsolutePath } from "../lib/spaPath";
+
 const STORAGE_STATE = "followup3.oidc_state";
 const STORAGE_VERIFIER = "followup3.oidc_code_verifier";
 const STORAGE_BACK_TO = "followup3.oidc_back_to";
@@ -66,7 +68,7 @@ export function startKeycloakOidcLogin(backTo: string): void {
   sessionStorage.setItem(STORAGE_BACK_TO, backTo);
 
   const origin = window.location.origin;
-  const redirectUri = `${origin}${callbackPath.startsWith("/") ? callbackPath : `/${callbackPath}`}`;
+  const redirectUri = `${origin}${spaAbsolutePath(callbackPath)}`;
 
   void sha256Base64Url(codeVerifier).then((codeChallenge) => {
     const authUrl = new URL(`${keycloakBasePath()}/protocol/openid-connect/auth`);
@@ -116,7 +118,7 @@ export async function exchangeKeycloakAuthorizationCode(searchParams: URLSearchP
 
   const clientId = envTrim("VITE_KEYCLOAK_CLIENT_ID");
   const callbackPath = getKeycloakCallbackPath();
-  const redirectUri = `${window.location.origin}${callbackPath.startsWith("/") ? callbackPath : `/${callbackPath}`}`;
+  const redirectUri = `${window.location.origin}${spaAbsolutePath(callbackPath)}`;
 
   const tokenUrl = `${keycloakBasePath()}/protocol/openid-connect/token`;
   const body = new URLSearchParams({

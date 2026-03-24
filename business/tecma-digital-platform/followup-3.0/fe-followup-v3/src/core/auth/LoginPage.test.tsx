@@ -30,6 +30,9 @@ vi.mock("../../auth/keycloakOidc", () => ({
   isKeycloakOidcConfigured: vi.fn(() => false),
   startKeycloakOidcLogin: vi.fn(),
 }));
+vi.mock("../../dev/DevChannelPicker", () => ({
+  DevChannelPicker: () => null,
+}));
 
 describe("LoginPage", () => {
   beforeEach(() => {

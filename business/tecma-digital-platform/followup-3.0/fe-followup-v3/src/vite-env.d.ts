@@ -10,6 +10,10 @@ declare module "virtual:pwa-register" {
 
 interface ImportMetaEnv {
   readonly VITE_APP_VERSION?: string;
+  /** Dev-1: mostra tendina canali che legge `/channels.json` (o `VITE_CHANNELS_MANIFEST_URL`). */
+  readonly VITE_SHOW_DEV_CHANNEL_PICKER?: string;
+  /** URL manifest canali (default `/channels.json`). */
+  readonly VITE_CHANNELS_MANIFEST_URL?: string;
   readonly VITE_API_BASE_URL?: string;
   readonly VITE_USE_BSS_AUTH?: string;
   readonly VITE_BUCKET_BASEURL?: string;
