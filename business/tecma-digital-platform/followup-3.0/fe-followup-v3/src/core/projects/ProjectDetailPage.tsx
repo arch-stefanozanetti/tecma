@@ -184,14 +184,14 @@ export const ProjectDetailPage = () => {
     setError(null);
     try {
       const [proj, pol, branding, mkt, cfg, etList, pdfList, accessRes] = await Promise.all([
-        followupApi.getProjectDetail(pid, wsId),
-        followupApi.getProjectPolicies(pid, wsId).catch(() => null),
-        followupApi.getProjectBranding(pid, wsId).catch(() => null),
-        followupApi.getProjectMarketingSettings(pid, wsId).catch(() => null),
-        followupApi.getProjectEmailConfig(pid, wsId).catch(() => null),
-        followupApi.listProjectEmailTemplates(pid, wsId).catch(() => []),
-        followupApi.listProjectPdfTemplates(pid, wsId).catch(() => []),
-        followupApi.listProjectAccess(pid, wsId).catch(() => ({ data: [] })),
+        followupApi.projects.getProjectDetail(pid, wsId),
+        followupApi.projects.getProjectPolicies(pid, wsId).catch(() => null),
+        followupApi.projects.getProjectBranding(pid, wsId).catch(() => null),
+        followupApi.projects.getProjectMarketingSettings(pid, wsId).catch(() => null),
+        followupApi.projects.getProjectEmailConfig(pid, wsId).catch(() => null),
+        followupApi.projects.listProjectEmailTemplates(pid, wsId).catch(() => []),
+        followupApi.projects.listProjectPdfTemplates(pid, wsId).catch(() => []),
+        followupApi.projects.listProjectAccess(pid, wsId).catch(() => ({ data: [] })),
       ]);
       setProject(proj);
       setIdentityDraft({
@@ -342,7 +342,7 @@ export const ProjectDetailPage = () => {
     if (!pid || !wsId) return;
     setSavingIdentity(true);
     try {
-      await followupApi.updateProject(pid, wsId, {
+      await followupApi.projects.updateProject(pid, wsId, {
         name: identityDraft.name,
         displayName: identityDraft.displayName,
         mode: identityDraft.mode,
@@ -374,7 +374,7 @@ export const ProjectDetailPage = () => {
     if (!pid || !wsId) return;
     setSavingPolicies(true);
     try {
-      await followupApi.putProjectPolicies(pid, wsId, {
+      await followupApi.projects.putProjectPolicies(pid, wsId, {
         privacyPolicyUrl: policiesDraft.privacyPolicyUrl || undefined,
         termsUrl: policiesDraft.termsUrl || undefined,
         content: policiesDraft.content || undefined,
@@ -395,7 +395,7 @@ export const ProjectDetailPage = () => {
     if (!pid || !wsId) return;
     setSavingBranding(true);
     try {
-      await followupApi.putProjectBranding(pid, wsId, {
+      await followupApi.projects.putProjectBranding(pid, wsId, {
         logoUrl: brandingDraft.logoUrl || undefined,
         primaryColor: brandingDraft.primaryColor || undefined,
         footerText: brandingDraft.footerText || undefined,
@@ -412,7 +412,7 @@ export const ProjectDetailPage = () => {
     if (!pid || !wsId) return;
     setSavingMarketing(true);
     try {
-      await followupApi.putProjectMarketingSettings(pid, wsId, {
+      await followupApi.projects.putProjectMarketingSettings(pid, wsId, {
         googleAdsCustomerId: marketingDraft.googleAdsCustomerId || null,
         googleAdsLoginCustomerId: marketingDraft.googleAdsLoginCustomerId || null,
         ga4PropertyId: marketingDraft.ga4PropertyId || null,
@@ -431,7 +431,7 @@ export const ProjectDetailPage = () => {
     if (!pid || !wsId) return;
     setSavingEmail(true);
     try {
-      await followupApi.putProjectEmailConfig(pid, wsId, {
+      await followupApi.projects.putProjectEmailConfig(pid, wsId, {
         smtpHost: emailConfigDraft.smtpHost || undefined,
         smtpPort: emailConfigDraft.smtpPort ? parseInt(emailConfigDraft.smtpPort, 10) : undefined,
         fromEmail: emailConfigDraft.fromEmail || undefined,
@@ -451,7 +451,7 @@ export const ProjectDetailPage = () => {
     if (!pid || !partnerWorkspaceId.trim()) return;
     setSavingAccess(true);
     try {
-      await followupApi.grantProjectAccess(pid, { workspaceId: partnerWorkspaceId.trim(), role: partnerRole }, wsId);
+      await followupApi.projects.grantProjectAccess(pid, { workspaceId: partnerWorkspaceId.trim(), role: partnerRole }, wsId);
       setPartnerWorkspaceId("");
       void loadAll();
     } catch (e) {
@@ -465,7 +465,7 @@ export const ProjectDetailPage = () => {
     if (!pid || !window.confirm("Rimuovere l'accesso di questo workspace al progetto?")) return;
     setSavingAccess(true);
     try {
-      await followupApi.revokeProjectAccess(pid, workspaceIdToRevoke, wsId);
+      await followupApi.projects.revokeProjectAccess(pid, workspaceIdToRevoke, wsId);
       void loadAll();
     } catch (e) {
       toastError(e instanceof Error ? e.message : "Errore rimozione accesso");

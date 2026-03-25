@@ -8,7 +8,7 @@ Obiettivo: **aggiungere una nuova funzionalità deve richiedere pochissimo sforz
 
 | Cartella | Uso |
 |----------|-----|
-| **api/** | Client HTTP (`http.ts`) e tutti gli endpoint (`followupApi.ts`). Le chiamate al backend passano **solo** da qui. Per client e appartamenti usa `followupApi.clients.*` e `followupApi.apartments.*`; i moduli in `api/domains/` sono implementazione interna. |
+| **api/** | Client HTTP (`http.ts`) e tutti gli endpoint (`followupApi.ts`). Le chiamate al backend passano **solo** da qui. Per client, appartamenti, richieste e progetti usa `followupApi.clients.*`, `followupApi.apartments.*`, `followupApi.requests.*` e `followupApi.projects.*`; i moduli in `api/domains/` sono implementazione interna. |
 | **auth/** | Login, scope workspace/progetti, salvataggio preferenze. |
 | **components/ui/** | Componenti UI riutilizzabili (Button, Input, Select, Dialog, …). Nuovi componenti DS vanno qui; ogni componente può avere `*.test.tsx`. |
 | **core/** | Feature per area: `auth/`, `calendar/`, `clients/`, `apartments/`, `workflows/`, `ai/`, `hc/`, `templates/`, ecc. Ogni area può contenere pagine, componenti specifici, hook locali. |
@@ -47,7 +47,7 @@ Obiettivo: **aggiungere una nuova funzionalità deve richiedere pochissimo sforz
    In `types/domain.ts` definisci i tipi per request/response (o riusa `ListQuery` / `PaginatedResponse<T>` se è una query paginata).
 
 2. **Metodo in followupApi**  
-   In `api/followupApi.ts` aggiungi un metodo che usa `getJson`, `postJson`, `putJson`, `patchJson` o `deleteJson` da `http.ts`. Per domini già strutturati (client, appartamenti) aggiungi il metodo in `api/domains/clientsApi.ts` o `api/domains/apartmentsApi.ts` e usa in pagina `followupApi.clients.*` / `followupApi.apartments.*`. Esempio per un nuovo dominio:
+   In `api/followupApi.ts` aggiungi un metodo che usa `getJson`, `postJson`, `putJson`, `patchJson` o `deleteJson` da `http.ts`. Per domini già strutturati (client, appartamenti, richieste, progetti) aggiungi il metodo in `api/domains/clientsApi.ts`, `apartmentsApi.ts`, `requestsApi.ts` o `projectsApi.ts` e usa in pagina `followupApi.clients.*` / `followupApi.apartments.*` / `followupApi.requests.*` / `followupApi.projects.*`. Esempio per un nuovo dominio:
    ```ts
    getSomething: (id: string) => getJson<Something>(`/something/${id}`),
    createSomething: (payload: SomethingCreate) => postJson<Something>("/something", payload),

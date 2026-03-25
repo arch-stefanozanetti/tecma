@@ -33,6 +33,8 @@ const BigDataQuerySchema = z.object({
 const CACHE_COLLECTION = "tz_bigdata_cache";
 const CACHE_TTL_MS = 60 * 60 * 1000;
 
+export const BIG_DATA_CACHE_SCHEMA_VERSION = 4;
+
 export interface BigDataChannelRow {
   key: string;
   utmSource: string;
@@ -117,6 +119,7 @@ function bigDataMarketingFingerprint(settings: ProjectMarketingSettingsRow | nul
 
 function cacheKey(input: z.infer<typeof BigDataQuerySchema>, marketingFp: string): string {
   const raw = JSON.stringify({
+    v: BIG_DATA_CACHE_SCHEMA_VERSION,
     w: input.workspaceId,
     p: input.projectId,
     f: input.dateFrom,
@@ -297,7 +300,8 @@ async function fetchMarketingForProject(
   workspaceId: string,
   projectId: string,
   dateFrom: string,
-  dateTo: string
+  dateTo: string,
+  opts?: { includeGa4Recommerce?: boolean; includeGa4Charts?: boolean }
 ): Promise<BigDataSnapshot["marketing"]> {
   const settings = (await getProjectMarketingSettingsRaw(projectId)) ?? undefined;
   const customerId = settings?.googleAdsCustomerId?.trim();
@@ -324,6 +328,8 @@ async function fetchMarketingForProject(
       dateTo,
       propertyId: ga4PropertyId,
       workspaceId,
+      includeRecommerceWeb: opts?.includeGa4Recommerce === true,
+      includeGa4Charts: opts?.includeGa4Charts === true,
     }),
   ]);
 
@@ -415,7 +421,10 @@ export async function getBigDataProjectSnapshot(rawInput: unknown): Promise<{ da
   let snapshot: BigDataSnapshot;
 
   if (section === "ads") {
-    const marketing = await fetchMarketingForProject(workspaceId, projectId, dateFrom, dateTo);
+    const marketing = await fetchMarketingForProject(workspaceId, projectId, dateFrom, dateTo, {
+      includeGa4Recommerce: false,
+      includeGa4Charts: false,
+    });
     const crm = await buildCrmBlock(db, workspaceId, projectId, dateFrom, dateTo, attributionModel, false);
     snapshot = {
       section: "ads",
@@ -431,7 +440,10 @@ export async function getBigDataProjectSnapshot(rawInput: unknown): Promise<{ da
       cacheExpiresAt: expiresAt,
     };
   } else if (section === "meta") {
-    const marketing = await fetchMarketingForProject(workspaceId, projectId, dateFrom, dateTo);
+    const marketing = await fetchMarketingForProject(workspaceId, projectId, dateFrom, dateTo, {
+      includeGa4Recommerce: false,
+      includeGa4Charts: false,
+    });
     const crm = await buildCrmBlock(db, workspaceId, projectId, dateFrom, dateTo, attributionModel, false);
     snapshot = {
       section: "meta",
@@ -447,7 +459,10 @@ export async function getBigDataProjectSnapshot(rawInput: unknown): Promise<{ da
       cacheExpiresAt: expiresAt,
     };
   } else if (section === "ga4") {
-    const marketing = await fetchMarketingForProject(workspaceId, projectId, dateFrom, dateTo);
+    const marketing = await fetchMarketingForProject(workspaceId, projectId, dateFrom, dateTo, {
+      includeGa4Recommerce: true,
+      includeGa4Charts: true,
+    });
     const crm = await buildCrmBlock(db, workspaceId, projectId, dateFrom, dateTo, attributionModel, false);
     snapshot = {
       section: "ga4",
@@ -488,11 +503,10 @@ export async function getBigDataProjectSnapshot(rawInput: unknown): Promise<{ da
     };
   } else if (section === "listings") {
     const crm = await buildCrmBlock(db, workspaceId, projectId, dateFrom, dateTo, attributionModel, false);
-    const marketing = {
-      googleAds: { configured: false, campaigns: [] },
-      meta: { configured: false, campaigns: [] },
-      ga4: { configured: false, summary: {} },
-    } as BigDataSnapshot["marketing"];
+    const marketing = await fetchMarketingForProject(workspaceId, projectId, dateFrom, dateTo, {
+      includeGa4Recommerce: true,
+      includeGa4Charts: true,
+    });
     snapshot = {
       section: "listings",
       projectId,
@@ -511,13 +525,17 @@ export async function getBigDataProjectSnapshot(rawInput: unknown): Promise<{ da
         ...baseReconciliationNotes(attributionModel, marketing),
         "Top trattative = tz_requests per apartmentId nel periodo.",
         "Top visualizzazioni = eventi tz_property_view_events nel periodo.",
+        "GA4 listino web: filtri e schede da URL quando OAuth e proprietà GA4 sono attivi.",
       ],
       cachedAt: nowIso,
       cacheExpiresAt: expiresAt,
     };
   } else if (section === "overview") {
     const crm = await buildCrmBlock(db, workspaceId, projectId, dateFrom, dateTo, attributionModel, false);
-    const marketing = await fetchMarketingForProject(workspaceId, projectId, dateFrom, dateTo);
+    const marketing = await fetchMarketingForProject(workspaceId, projectId, dateFrom, dateTo, {
+      includeGa4Recommerce: false,
+      includeGa4Charts: false,
+    });
     const funnelBridge = buildFunnelBridge(marketing, crm.funnelTotals);
     snapshot = {
       section: "overview",
@@ -540,7 +558,10 @@ export async function getBigDataProjectSnapshot(rawInput: unknown): Promise<{ da
     };
   } else {
     const crm = await buildCrmBlock(db, workspaceId, projectId, dateFrom, dateTo, attributionModel, true);
-    const marketing = await fetchMarketingForProject(workspaceId, projectId, dateFrom, dateTo);
+    const marketing = await fetchMarketingForProject(workspaceId, projectId, dateFrom, dateTo, {
+      includeGa4Recommerce: true,
+      includeGa4Charts: true,
+    });
     const reconciliationNotes = baseReconciliationNotes(attributionModel, marketing);
     snapshot = {
       section: "full",

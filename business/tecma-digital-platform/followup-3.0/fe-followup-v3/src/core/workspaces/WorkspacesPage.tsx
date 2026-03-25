@@ -452,7 +452,7 @@ export const WorkspacesPage = () => {
     if (!projForm.name.trim()) return;
     setSaving(true);
     try {
-      const res = await followupApi.createProject({
+      const res = await followupApi.projects.createProject({
         name: projForm.name.trim(),
         displayName: projForm.displayName.trim() || undefined,
         mode: projForm.mode,
