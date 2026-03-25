@@ -4,18 +4,18 @@ name: FollowUp 3.0 Security
 
 on:
   push:
-    branches: [develop, demo, main]
+    branches: [main]
     paths:
       - "business/tecma-digital-platform/followup-3.0/**"
       - ".github/workflows/followup-3.0-security.yml"
   pull_request:
-    branches: [develop, demo, main]
+    branches: [main]
     paths:
       - "business/tecma-digital-platform/followup-3.0/**"
       - ".github/workflows/followup-3.0-security.yml"
 
 concurrency:
-  group: followup-security-${{ github.ref }}
+  group: followup-security-gate-${{ github.ref }}
   cancel-in-progress: true
 
 env:

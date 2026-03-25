@@ -2,8 +2,9 @@
 
 - **Checklist comandi prima del merge** (BE test, FE build, E2E, parità CI): [README.md — Checklist prima del merge](../../README.md#checklist-prima-del-merge) nella root `followup-3.0`.
 - **CI/CD e secret E2E opzionali:** [docs/DOCS_CI_CD.md](../../docs/DOCS_CI_CD.md).
-- **Pipeline attiva (repo tecma):** [.github/workflows/followup-3.0-ci-cd.yml](../../../../.github/workflows/followup-3.0-ci-cd.yml) nella root del monorepo. Solo **build + test** FE e BE.
+- **Pipeline attiva (repo tecma):** [.github/workflows/followup-3.0-ci-cd.yml](../../../../.github/workflows/followup-3.0-ci-cd.yml) nella root del monorepo. Gate bloccanti FE/BE su PR verso `main`.
 - **Security modulare (Semgrep + OSV + Trivy + aggregatore + SBOM CycloneDX + dashboard HTML + SARIF):** [.github/workflows/followup-3.0-security.yml](../../../../.github/workflows/followup-3.0-security.yml) (artifact `security-unified-followup3` include `security-dashboard.html`; artifact **`followup-sbom`** con `sbom-be.cdx.json` / `sbom-fe.cdx.json`). Opzionale manuale: [followup-3.0-security-optional.yml](../../../../.github/workflows/followup-3.0-security-optional.yml) (ZAP staging, Trivy su immagine BE). Dettagli: [docs/SECURITY_RUNBOOK.md](../../docs/SECURITY_RUNBOOK.md) §8–§10; roadmap KPI: [docs/plans/2026-03-24-devsecops-enterprise-roadmap.md](../../docs/plans/2026-03-24-devsecops-enterprise-roadmap.md).
+- **Verifica produzione post-merge:** [.github/workflows/followup-3.0-production-verify.yml](../../../../.github/workflows/followup-3.0-production-verify.yml) (smoke BE/FE su Render dopo push su `main`).
 
 ## Workflow in questa cartella (`followup-3.0/.github/workflows`)
 
@@ -15,4 +16,10 @@
 
 Dettaglio policy audit: [docs/SECURITY_RUNBOOK.md](../../docs/SECURITY_RUNBOOK.md) (§3 e §7). Scope monorepo: [docs/CANONICAL_SCOPE.md](../../docs/CANONICAL_SCOPE.md).
 
-- **Deploy:** [docs/RENDER_DEPLOY.md](../../docs/RENDER_DEPLOY.md) (Render + `render.yaml`). Il push su `main` che passa la CI attiva di solito il deploy automatico sui servizi collegati.
+- **Deploy:** [docs/RENDER_DEPLOY.md](../../docs/RENDER_DEPLOY.md) (Render + `render.yaml`). Il push su `main` attiva il deploy automatico sui servizi collegati.
+
+## Required checks consigliati su `main`
+
+- `FE Quality Gate`
+- `BE Quality Gate`
+- `Aggregate + gate`

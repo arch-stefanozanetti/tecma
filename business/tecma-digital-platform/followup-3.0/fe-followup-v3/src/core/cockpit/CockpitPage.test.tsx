@@ -205,4 +205,21 @@ describe("CockpitPage", () => {
     });
     expect(screen.queryByRole("button", { name: /Vai a Workspaces per configurare l'AI/i })).not.toBeInTheDocument();
   });
+
+  it("mostra stato provider assente con CTA verso Workspaces", async () => {
+    vi.mocked(followupApi.getAiSuggestions).mockResolvedValue({
+      data: [],
+      generatedAt: new Date().toISOString(),
+      aiConfigured: false,
+      llmUsed: null,
+      fromCache: true,
+    });
+
+    renderCockpit(<CockpitPage workspaceId="w1" projectIds={["p1"]} isAdmin />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Nessun provider AI collegato/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /Vai a Workspaces per collegare un provider AI/i })).toBeInTheDocument();
+  });
 });
