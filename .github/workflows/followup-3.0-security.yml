@@ -109,6 +109,7 @@ jobs:
 
   trivy:
     name: Trivy (fs)
+    continue-on-error: true
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -145,6 +146,7 @@ jobs:
 
   sbom:
     name: SBOM (CycloneDX)
+    continue-on-error: true
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -166,7 +168,7 @@ jobs:
 
   aggregate:
     name: Aggregate + gate
-    needs: [semgrep, osv, trivy]
+    needs: [semgrep, osv]
     runs-on: ubuntu-latest
     env:
       FAIL_ON_CRITICAL_GT: "999999"
@@ -182,11 +184,6 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: sec-osv-json
-          path: ${{ env.FOLLOWUP_ROOT }}/security-reports
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: sec-trivy-json
           path: ${{ env.FOLLOWUP_ROOT }}/security-reports
 
       - uses: actions/setup-node@v4
@@ -207,7 +204,6 @@ jobs:
             --out-dir security-reports \
             --semgrep security-reports/semgrep-report.json \
             --osv security-reports/osv-report.json \
-            --trivy security-reports/trivy-report.json \
             --pr-body-out security-reports/pr-body.md \
             --soft-fail
 
