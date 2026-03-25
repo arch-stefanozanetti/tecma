@@ -86,7 +86,7 @@ jobs:
 
       - name: Run core coverage gate (BE)
         working-directory: ${{ env.FOLLOWUP_BE_DIR }}
-        run: npm run test:coverage:core -- --testTimeout=20000
+        run: npx vitest run -c vitest.core.config.ts --coverage --testTimeout=20000
 
       - name: Verify core coverage thresholds (BE)
         working-directory: ${{ env.FOLLOWUP_BE_DIR }}
