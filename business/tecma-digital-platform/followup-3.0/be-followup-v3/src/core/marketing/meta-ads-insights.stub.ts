@@ -1,4 +1,5 @@
 import { ENV } from "../../config/env.js";
+import { getMarketingMetaAdsAccessToken } from "../connectors/marketing-analytics-config.service.js";
 
 export interface MetaCampaignMetrics {
   campaignId: string;
@@ -20,9 +21,14 @@ export async function fetchMetaCampaignInsights(_input: {
   dateFrom: string;
   dateTo: string;
   adAccountId?: string;
+  workspaceId?: string;
 }): Promise<MetaAdsInsightsResult> {
-  const token = ENV.META_ACCESS_TOKEN?.trim();
-  const act = (ENV.META_AD_ACCOUNT_ID?.trim() || _input.adAccountId?.trim()) ?? "";
+  let token = ENV.META_ACCESS_TOKEN?.trim();
+  if (_input.workspaceId) {
+    const t = await getMarketingMetaAdsAccessToken(_input.workspaceId);
+    if (t) token = t;
+  }
+  const act = (_input.adAccountId?.trim() || ENV.META_AD_ACCOUNT_ID?.trim()) ?? "";
   if (!token || !act) {
     return { configured: false, campaigns: [] };
   }

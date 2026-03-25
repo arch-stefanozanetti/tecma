@@ -12,6 +12,8 @@ import {
 } from "../../core/auth/auth.service.js";
 import { setPasswordFromInvite } from "../../core/users/users-mutations.service.js";
 import { exchangeCodeForTokens } from "../../core/connectors/outlook.service.js";
+import { completeGoogleMarketingOAuth } from "../../core/connectors/marketing-google-oauth.service.js";
+import { completeMetaMarketingOAuth } from "../../core/connectors/marketing-meta-oauth.service.js";
 import { openApiV1 } from "../../docs/openapi.js";
 import { getCurrentPrivacyPolicy } from "../../core/gdpr/legal-documents.service.js";
 import { HttpError } from "../../types/http.js";
@@ -126,6 +128,37 @@ publicRoutes.get("/public/listings", publicApiRateLimiter, handleAsync((req) => 
   };
   return queryApartments(body);
 }));
+
+function marketingIntegrationsRedirect(extra: string): string {
+  const base = (ENV.MARKETING_FRONTEND_REDIRECT_BASE ?? "").trim().replace(/\/$/, "") || ENV.APP_PUBLIC_URL.replace(/\/$/, "");
+  return `${base}/?section=integrations&tab=connettori&${extra}`;
+}
+
+publicRoutes.get("/connectors/marketing-google/callback", (req, res) => {
+  const err = typeof req.query.error === "string" ? req.query.error : "";
+  const code = typeof req.query.code === "string" ? req.query.code : "";
+  const stateRaw = typeof req.query.state === "string" ? req.query.state : "";
+  if (err || !code || !stateRaw) {
+    res.redirect(302, marketingIntegrationsRedirect("marketing_google=error"));
+    return;
+  }
+  completeGoogleMarketingOAuth(code, stateRaw)
+    .then(() => res.redirect(302, marketingIntegrationsRedirect("marketing_google=connected")))
+    .catch(() => res.redirect(302, marketingIntegrationsRedirect("marketing_google=error")));
+});
+
+publicRoutes.get("/connectors/marketing-meta/callback", (req, res) => {
+  const err = typeof req.query.error === "string" ? req.query.error : "";
+  const code = typeof req.query.code === "string" ? req.query.code : "";
+  const stateRaw = typeof req.query.state === "string" ? req.query.state : "";
+  if (err || !code || !stateRaw) {
+    res.redirect(302, marketingIntegrationsRedirect("marketing_meta=error"));
+    return;
+  }
+  completeMetaMarketingOAuth(code, stateRaw)
+    .then(() => res.redirect(302, marketingIntegrationsRedirect("marketing_meta=connected")))
+    .catch(() => res.redirect(302, marketingIntegrationsRedirect("marketing_meta=error")));
+});
 
 publicRoutes.get("/connectors/outlook/callback", (req, res) => {
   const code = typeof req.query.code === "string" ? req.query.code : "";

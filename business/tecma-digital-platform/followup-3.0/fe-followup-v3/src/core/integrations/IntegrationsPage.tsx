@@ -19,17 +19,21 @@ import { RegoleTab } from "./RegoleTab";
 import { WebhookTab } from "./WebhookTab";
 import { ApiTab } from "./ApiTab";
 import { followupApi } from "../../api/followupApi";
+import { useToast } from "../../contexts/ToastContext";
 import { PageSimple } from "../shared/PageSimple";
 import type { WorkspaceEntitlementEffectiveRow } from "../../types/domain";
 import { workspaceFeatureEntitled } from "./workspaceEntitlementUi";
 import { commercialContactInlineNode } from "./tecmaCommercialContact";
+import { MarketingBigDataConnectorsPanel } from "./MarketingBigDataConnectorsPanel";
 
 interface IntegrationsPageProps {
   workspaceId: string;
 }
 
 export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
+  const { toastSuccess, toastError } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [marketingConnectorRefreshKey, setMarketingConnectorRefreshKey] = useState(0);
   const tabParam = searchParams.get("tab");
   const activeTab = isValidTab(tabParam) ? tabParam : "connettori";
   const [connectors, setConnectors] = useState<ConnectorCatalogItem[]>(CONNECTOR_CATALOG);
@@ -153,6 +157,34 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
       });
     }
   }, [searchParams, loadOutlookStatus, setSearchParams]);
+
+  useEffect(() => {
+    const mg = searchParams.get("marketing_google");
+    const mm = searchParams.get("marketing_meta");
+    if (!mg && !mm) return;
+    if (mg === "connected") {
+      toastSuccess("Google (Ads / Analytics) collegato al workspace.");
+      setMarketingConnectorRefreshKey((k) => k + 1);
+    } else if (mg === "error") {
+      toastError(
+        "Collegamento Google non completato. Verifica GOOGLE_MARKETING_REDIRECT_URI e client OAuth sul server."
+      );
+    }
+    if (mm === "connected") {
+      toastSuccess("Meta Ads collegato al workspace.");
+      setMarketingConnectorRefreshKey((k) => k + 1);
+    } else if (mm === "error") {
+      toastError("Collegamento Meta non completato. Verifica META_MARKETING_REDIRECT_URI e app Meta.");
+    }
+    if (mg || mm) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("marketing_google");
+        next.delete("marketing_meta");
+        return next;
+      });
+    }
+  }, [searchParams, setSearchParams, toastSuccess, toastError]);
 
   useEffect(() => {
     if (activeTab !== "connettori") {
@@ -369,6 +401,11 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
               reloadMailchimpStatus={loadMailchimpStatus}
               reloadActiveCampaignStatus={loadActiveCampaignStatus}
               workspaceEntitlements={workspaceEntitlements}
+            />
+            <MarketingBigDataConnectorsPanel
+              workspaceId={workspaceId}
+              readOnly={integrationsReadOnly}
+              refreshKey={marketingConnectorRefreshKey}
             />
           </TabsContent>
           <TabsContent value="comunicazioni" className="mt-6" role="tabpanel">

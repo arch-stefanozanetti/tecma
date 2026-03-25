@@ -6729,7 +6729,7 @@
           "bigdata"
         ],
         "summary": "Big Data: funnel CRM per canale (attribuzione) + marketing (stub)",
-        "description": "Richiede workspace con entitlement reports. Query: workspaceId, dateFrom, dateTo, attributionModel opzionale (last_touch|first_touch).",
+        "description": "Richiede workspace con entitlement reports. Query: workspaceId, dateFrom, dateTo, attributionModel opzionale (last_touch|first_touch), section opzionale (full|overview|ads|meta|ga4|funnel|listings) per payload parziale e cache per tab.",
         "security": [
           {
             "bearerAuth": []
@@ -6780,7 +6780,28 @@
                 "last_touch",
                 "first_touch"
               ]
-            }
+            },
+            "description": "Modello di attribuzione canale sui lead CRM.",
+            "example": "last_touch"
+          },
+          {
+            "name": "section",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "full",
+                "overview",
+                "ads",
+                "meta",
+                "ga4",
+                "funnel",
+                "listings"
+              ]
+            },
+            "description": "Sotto-report nativo (default full se omesso).",
+            "example": "overview"
           }
         ],
         "responses": {
@@ -7074,6 +7095,68 @@
           },
           "409": {
             "description": "Email già presente nel workspace"
+          }
+        }
+      }
+    },
+    "/platform/property-views": {
+      "post": {
+        "tags": [
+          "platform",
+          "Riusabili"
+        ],
+        "summary": "Registra visualizzazione listing/appartamento (Big Data first-party)",
+        "description": "Scope platform.propertyViews.create. projectId deve essere tra quelli consentiti dalla API key.",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "projectId"
+                ],
+                "properties": {
+                  "projectId": {
+                    "type": "string",
+                    "description": "Progetto CRM target"
+                  },
+                  "listingId": {
+                    "type": "string",
+                    "description": "Identificativo listing CMS/slug"
+                  },
+                  "apartmentId": {
+                    "type": "string",
+                    "description": "ID appartamento CRM se noto"
+                  },
+                  "path": {
+                    "type": "string",
+                    "description": "Pathname pagina vista"
+                  },
+                  "occurredAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Istante evento (default server)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Evento inserito (ok, id Mongo)"
+          },
+          "401": {
+            "description": "Missing/invalid API key"
+          },
+          "403": {
+            "description": "Scope o projectId non consentito"
           }
         }
       }

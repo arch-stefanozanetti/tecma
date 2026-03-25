@@ -14,6 +14,8 @@ vi.mock("../../api/followupApi", () => ({
     }),
     getProjectPolicies: vi.fn().mockResolvedValue({ projectId: "p1", updatedAt: "" }),
     getProjectBranding: vi.fn().mockResolvedValue({ projectId: "p1", updatedAt: "" }),
+    getProjectMarketingSettings: vi.fn().mockResolvedValue({ projectId: "p1", updatedAt: "" }),
+    putProjectMarketingSettings: vi.fn().mockResolvedValue({ projectId: "p1", updatedAt: "" }),
     getProjectEmailConfig: vi.fn().mockResolvedValue({ projectId: "p1", updatedAt: "" }),
     listProjectEmailTemplates: vi.fn().mockResolvedValue([]),
     listProjectPdfTemplates: vi.fn().mockResolvedValue([]),

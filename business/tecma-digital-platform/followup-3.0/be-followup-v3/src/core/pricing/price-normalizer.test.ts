@@ -70,4 +70,10 @@ describe("normalizePrice", () => {
     expect(result.amountCents).toBe(0);
     expect(result.mode).toBe("SELL");
   });
+
+  it("currency non ISO o invalida non lancia: usa EUR e produce display", () => {
+    const result = normalizePrice({ mode: "SELL", amount: 100, currency: "NOT_A_CURRENCY" });
+    expect(result.currency).toBe("EUR");
+    expect(result.display.length).toBeGreaterThan(0);
+  });
 });

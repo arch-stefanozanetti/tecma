@@ -124,6 +124,22 @@ const EnvSchema = z.object({
   META_APP_SECRET: z.string().optional().default(""),
   META_ACCESS_TOKEN: z.string().optional().default(""),
   META_AD_ACCOUNT_ID: z.string().optional().default(""),
+
+  /** OAuth Big Data marketing — redirect deve coincidere con Google Cloud (es. …/v1/connectors/marketing-google/callback) */
+  GOOGLE_MARKETING_REDIRECT_URI: z.string().optional().default(""),
+  /** Se vuoti si usano GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET */
+  GOOGLE_MARKETING_CLIENT_ID: z.string().optional().default(""),
+  GOOGLE_MARKETING_CLIENT_SECRET: z.string().optional().default(""),
+
+  /** Meta Marketing OAuth — redirect es. …/v1/connectors/marketing-meta/callback */
+  META_MARKETING_REDIRECT_URI: z.string().optional().default(""),
+  META_MARKETING_APP_ID: z.string().optional().default(""),
+  META_MARKETING_APP_SECRET: z.string().optional().default(""),
+
+  /** Base URL FE per redirect post-OAuth (es. http://localhost:5173). Default: APP_PUBLIC_URL */
+  MARKETING_FRONTEND_REDIRECT_BASE: z.string().optional().default(""),
+  /** HMAC per firmare state OAuth marketing; default AUTH_JWT_SECRET */
+  MARKETING_OAUTH_STATE_SECRET: z.string().optional().default(""),
 });
 
 const parsed = EnvSchema.parse({

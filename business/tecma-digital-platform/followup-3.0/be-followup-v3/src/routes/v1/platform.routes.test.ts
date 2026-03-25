@@ -21,7 +21,14 @@ vi.mock("../../config/env.js", async (importOriginal) => {
             "platform.reports.read",
             "platform.clients.read",
             "platform.leads.create",
+            "platform.propertyViews.create",
           ],
+        },
+        "k-no-pv": {
+          workspaceId: "ws-1",
+          projectIds: ["p1"],
+          label: "no-pv",
+          scopes: ["platform.capabilities.read", "platform.leads.create"],
         },
       }),
     },
@@ -32,9 +39,14 @@ const queryApartmentsMock = vi.fn();
 const queryClientsLiteMock = vi.fn();
 const runKpiSummaryReportMock = vi.fn();
 const createPublicLeadFromPlatformMock = vi.fn();
+const ingestPropertyViewFromPlatformMock = vi.fn();
 
 vi.mock("../../core/platform/platform-public-lead.service.js", () => ({
   createPublicLeadFromPlatform: (...args: unknown[]) => createPublicLeadFromPlatformMock(...args),
+}));
+
+vi.mock("../../core/platform/property-views.service.js", () => ({
+  ingestPropertyViewFromPlatform: (...args: unknown[]) => ingestPropertyViewFromPlatformMock(...args),
 }));
 
 vi.mock("../../core/apartments/apartments.service.js", () => ({
@@ -84,6 +96,7 @@ describe("platform.routes", () => {
     queryClientsLiteMock.mockResolvedValue([{ id: "c1" }]);
     runKpiSummaryReportMock.mockResolvedValue({ ok: true });
     createPublicLeadFromPlatformMock.mockResolvedValue({ data: { clientId: "cid1" } });
+    ingestPropertyViewFromPlatformMock.mockResolvedValue({ ok: true, id: "507f1f77bcf86cd799439011" });
   });
 
   it("POST /clients/lite/query usa workspace della chiave e interseca projectIds", async () => {
@@ -121,5 +134,29 @@ describe("platform.routes", () => {
     expect(res.status).toBe(200);
     expect(createPublicLeadFromPlatformMock).toHaveBeenCalled();
     expect(res.body).toEqual({ data: { clientId: "cid1" } });
+  });
+
+  it("POST /property-views inoltra al servizio con workspace e projectIds", async () => {
+    const res = await st()
+      .post("/v1/platform/property-views")
+      .set("x-api-key", "k-test")
+      .send({ projectId: "p1", listingId: "apt-a", path: "/listing/apt-a" });
+
+    expect(res.status).toBe(200);
+    expect(ingestPropertyViewFromPlatformMock).toHaveBeenCalledWith(
+      { workspaceId: "ws-1", projectIds: ["p1", "p2"] },
+      { projectId: "p1", listingId: "apt-a", path: "/listing/apt-a" }
+    );
+    expect(res.body).toEqual({ ok: true, id: "507f1f77bcf86cd799439011" });
+  });
+
+  it("POST /property-views 403 senza scope platform.propertyViews.create", async () => {
+    const res = await st()
+      .post("/v1/platform/property-views")
+      .set("x-api-key", "k-no-pv")
+      .send({ projectId: "p1", listingId: "x" });
+
+    expect(res.status).toBe(403);
+    expect(ingestPropertyViewFromPlatformMock).not.toHaveBeenCalled();
   });
 });

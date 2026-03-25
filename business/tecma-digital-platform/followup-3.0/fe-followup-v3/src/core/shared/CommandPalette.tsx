@@ -52,6 +52,12 @@ const SECTION_COMMANDS: CommandSectionItem[] = [
   { kind: "section", id: "productDiscovery", label: "Product Discovery", hint: "Feedback clienti e opportunità (admin)" },
   {
     kind: "section",
+    id: "executiveOverview",
+    label: "Panoramica strategica",
+    hint: "CTO / CEO — maturità domini e architettura (admin)",
+  },
+  {
+    kind: "section",
     id: "tecmaEntitlements",
     label: "Entitlement workspace (Tecma)",
     hint: "Moduli commerciali sul workspace corrente",
@@ -119,7 +125,14 @@ export const CommandPalette = ({
 
   const visibleSectionCommands = useMemo(() => {
     return SECTION_COMMANDS.filter((item) => {
-      if (item.id === "workspaces" || item.id === "users" || item.id === "emailFlows" || item.id === "audit" || item.id === "productDiscovery") {
+      if (
+        item.id === "workspaces" ||
+        item.id === "users" ||
+        item.id === "emailFlows" ||
+        item.id === "audit" ||
+        item.id === "productDiscovery" ||
+        item.id === "executiveOverview"
+      ) {
         if (!isAdmin) return false;
       }
       if (item.id === "tecmaEntitlements" && !isTecmaAdmin) return false;
@@ -130,7 +143,7 @@ export const CommandPalette = ({
       if (hasPermission && !sectionMeetsPermissionRequirements(item.id, hasPermission)) return false;
       return true;
     });
-  }, [enabledFeatures, isAdmin, projects, selectedProjectIds, hasPermission]);
+  }, [enabledFeatures, isAdmin, isTecmaAdmin, projects, selectedProjectIds, hasPermission]);
 
   const filteredSectionCommands = useMemo(() => {
     const needle = query.trim().toLowerCase();

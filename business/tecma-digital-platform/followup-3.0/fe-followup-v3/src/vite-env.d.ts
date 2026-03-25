@@ -1,5 +1,10 @@
 /// <reference types="vite/client" />
 
+declare module "*.md?raw" {
+  const content: string;
+  export default content;
+}
+
 declare module "virtual:pwa-register" {
   export function registerSW(options?: {
     onNeedRefresh?: () => void;
@@ -29,6 +34,11 @@ interface ImportMetaEnv {
   readonly VITE_FORGOT_CREDENTIALS_URL?: string;
   readonly VITE_DATA_MODE?: string;
   readonly VITE_GITHUB_RELEASES_REPO?: string;
+  /**
+   * URL Git (senza slash finale) fino alla root monorepo followup-3.0, es.
+   * `https://github.com/org/repo/blob/main/path/followup-3.0` — per aprire i link .md dalla Panoramica strategica.
+   */
+  readonly VITE_FOLLOWUP_DOCS_BASE_URL?: string;
 }
 
 interface ImportMeta {

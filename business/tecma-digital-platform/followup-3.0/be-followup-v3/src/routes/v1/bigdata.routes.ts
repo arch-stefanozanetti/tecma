@@ -21,6 +21,9 @@ bigdataRoutes.get(
     const dateTo = typeof req.query.dateTo === "string" ? req.query.dateTo.trim() : "";
     const attributionModel =
       req.query.attributionModel === "first_touch" ? "first_touch" : "last_touch";
+    const sectionRaw = typeof req.query.section === "string" ? req.query.section.trim().toLowerCase() : "";
+    const allowed = new Set(["full", "overview", "ads", "meta", "ga4", "funnel", "listings"]);
+    const section = allowed.has(sectionRaw) ? (sectionRaw as "full" | "overview" | "ads" | "meta" | "ga4" | "funnel" | "listings") : "full";
     if (!workspaceId) throw new HttpError("workspaceId query richiesto", 400);
     if (!projectId) throw new HttpError("projectId richiesto", 400);
     if (!dateFrom || !dateTo) throw new HttpError("dateFrom e dateTo query richiesti (ISO 8601)", 400);
@@ -30,6 +33,7 @@ bigdataRoutes.get(
       dateFrom,
       dateTo,
       attributionModel,
+      section,
     });
   })
 );

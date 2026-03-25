@@ -1,4 +1,5 @@
 import { ENV } from "../../config/env.js";
+import { getMarketingGoogleAdsOAuthSecrets } from "../connectors/marketing-analytics-config.service.js";
 
 export interface GoogleAdsCampaignMetrics {
   campaignId: string;
@@ -18,21 +19,29 @@ export interface GoogleAdsInsightsResult {
 
 /**
  * Placeholder: richiede Google Ads API + OAuth (vedi docs/MARKETING_APIS_RUNBOOK.md).
- * Quando le env sono assenti, ritorna lista vuota senza fallire la dashboard.
+ * Credenziali OAuth: workspace (connector marketing_google_ads) o env globali.
  */
 export async function fetchGoogleAdsCampaignInsights(_input: {
   dateFrom: string;
   dateTo: string;
   customerId?: string;
+  loginCustomerId?: string;
+  workspaceId?: string;
 }): Promise<GoogleAdsInsightsResult> {
   const token = ENV.GOOGLE_ADS_DEVELOPER_TOKEN?.trim();
-  const refresh = ENV.GOOGLE_OAUTH_REFRESH_TOKEN?.trim();
+  let refresh = ENV.GOOGLE_OAUTH_REFRESH_TOKEN?.trim();
+  if (_input.workspaceId) {
+    const oauth = await getMarketingGoogleAdsOAuthSecrets(_input.workspaceId);
+    if (oauth?.refreshToken) refresh = oauth.refreshToken;
+  }
   if (!token || !refresh) {
     return { configured: false, campaigns: [] };
   }
+  const customerId =
+    (_input.customerId?.trim() || ENV.GOOGLE_ADS_CUSTOMER_ID?.trim()) || undefined;
   return {
     configured: true,
-    customerId: ENV.GOOGLE_ADS_CUSTOMER_ID?.trim(),
+    customerId,
     campaigns: [],
     error: "Google Ads API non ancora cablata: configurare client ufficiale e GAQL in questo modulo.",
   };

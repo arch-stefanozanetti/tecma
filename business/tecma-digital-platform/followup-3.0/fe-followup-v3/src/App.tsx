@@ -67,6 +67,9 @@ const ClientDetailPage = lazy(() =>
 const ApartmentDetailPage = lazy(() =>
   import("./core/apartments/ApartmentDetailPage").then((module) => ({ default: module.ApartmentDetailPage }))
 );
+const ExecutiveOverviewPage = lazy(() =>
+  import("./core/executive/ExecutiveOverviewPage").then((module) => ({ default: module.ExecutiveOverviewPage }))
+);
 
 function PermissionGated({
   permission,
@@ -273,6 +276,29 @@ const renderSection = (
     return (
       <PageSimple title="Product Discovery" description="Feedback clienti, opportunità, iniziative e feature (solo admin).">
         <ProductDiscoveryPage />
+      </PageSimple>
+    );
+  }
+
+  if (section === "executiveOverview") {
+    if (!isAdmin) {
+      return (
+        <PageSimple
+          title="Accesso negato"
+          description="Solo amministratori workspace possono aprire la panoramica strategica per CTO e CEO."
+        >
+          <p className="text-sm text-muted-foreground">Verifica il ruolo sull’account o contatta un amministratore.</p>
+        </PageSimple>
+      );
+    }
+    return (
+      <PageSimple
+        title="Panoramica strategica (CTO / CEO)"
+        description="POC/MVP, maturità per dominio, architettura, privacy e rischi — allineata alla documentazione in repository."
+      >
+        <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Caricamento panoramica strategica…</div>}>
+          <ExecutiveOverviewPage />
+        </Suspense>
       </PageSimple>
     );
   }

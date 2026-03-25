@@ -11,7 +11,16 @@ const USAGE_COLLECTION = "tz_platform_api_usage";
 const PlatformKeyInputSchema = z.object({
   label: z.string().min(1),
   projectIds: z.array(z.string().min(1)).default([]),
-  scopes: z.array(z.string().min(1)).default(["platform.capabilities.read", "platform.listings.read", "platform.reports.read"]),
+  scopes: z
+    .array(z.string().min(1))
+    .default([
+      "platform.capabilities.read",
+      "platform.listings.read",
+      "platform.reports.read",
+      "platform.clients.read",
+      "platform.leads.create",
+      "platform.propertyViews.create",
+    ]),
   quotaPerDay: z.number().int().min(1).max(1_000_000).optional().nullable(),
 });
 
