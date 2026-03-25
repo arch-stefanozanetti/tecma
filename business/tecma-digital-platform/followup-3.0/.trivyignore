@@ -1,0 +1,10 @@
+# Trivy fs — escludi artefatti pesanti e cache (riduce rumore e tempo)
+**/node_modules/**
+**/.git/**
+**/dist/**
+**/build/**
+**/.yarn/**
+**/coverage/**
+**/playwright-report/**
+**/.yarn-cache-*/**
+**/security-reports/**

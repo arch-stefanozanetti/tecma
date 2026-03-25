@@ -18,6 +18,8 @@ PR mergeabile solo con:
 2. CI FE verde (`ci-fe.yml`).
 3. Nessun check required in stato pending/fail.
 
+**Security modulare (monorepo `tecma`):** su push/PR che toccano `business/tecma-digital-platform/followup-3.0/**` gira anche [.github/workflows/followup-3.0-security.yml](../../../.github/workflows/followup-3.0-security.yml) (Semgrep, OSV, Trivy, aggregatore JSON, **SBOM CycloneDX** artifact `followup-sbom`, **dashboard HTML** navigabile, upload SARIF su GitHub Code scanning, commento PR). Se il team lo rende **required** in branch protection, aggiungere lo status check del job `Aggregate + gate` (nome workflow: *FollowUp 3.0 Security*). Dettagli: [docs/SECURITY_RUNBOOK.md](docs/SECURITY_RUNBOOK.md) §8–§10; roadmap KPI/enterprise: [docs/plans/2026-03-24-devsecops-enterprise-roadmap.md](docs/plans/2026-03-24-devsecops-enterprise-roadmap.md).
+
 ## Checklist PR
 
 1. Scope e rischio descritti.
@@ -36,6 +38,7 @@ Impostare su `main`:
 5. Status checks required:
    - `CI BE Core Strict / be-core-strict`
    - `CI FE Core Strict / fe-core-strict`
+   - (Opzionale) `FollowUp 3.0 Security / Aggregate + gate` — se abilitato in repo settings, allinea la PR alla pipeline DevSecOps modulare.
 6. `Require branches to be up to date before merging`.
 7. `Restrict who can push to matching branches` (opzionale ma raccomandato).
 

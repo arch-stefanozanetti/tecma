@@ -1,0 +1,66 @@
+# Opzionale: ZAP baseline su URL staging e/o scan immagine Docker BE con Trivy.
+# Avvio manuale da Actions → Run workflow.
+name: FollowUp 3.0 Security (optional)
+
+on:
+  workflow_dispatch:
+    inputs:
+      zap_target_url:
+        description: "URL completo per OWASP ZAP baseline (es. https://staging.example.com)"
+        required: false
+        default: ""
+        type: string
+      scan_docker_be:
+        description: "Build immagine da be-followup-v3/Dockerfile e Trivy image scan (JSON)"
+        required: false
+        default: false
+        type: boolean
+
+env:
+  FOLLOWUP_ROOT: business/tecma-digital-platform/followup-3.0
+
+jobs:
+  zap-baseline:
+    if: ${{ github.event.inputs.zap_target_url != '' }}
+    name: ZAP baseline
+    runs-on: ubuntu-latest
+    env:
+      ZAP_TARGET: ${{ github.event.inputs.zap_target_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run ZAP baseline scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: ${{ env.ZAP_TARGET }}
+          allow_issue_writing: false
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-baseline-report
+          path: report_html_file.html
+        continue-on-error: true
+
+  trivy-docker-be:
+    if: ${{ github.event.inputs.scan_docker_be == 'true' }}
+    name: Trivy image (BE)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: aquasecurity/setup-trivy@v0.2.1
+        with:
+          version: v0.55.2
+          cache: true
+      - name: Build + scan
+        env:
+          FOLLOWUP_BE: ${{ env.FOLLOWUP_ROOT }}/be-followup-v3
+          OUT_JSON: ${{ env.FOLLOWUP_ROOT }}/security-reports/trivy-image-be.json
+        run: |
+          docker build -t followup-be:ci "$FOLLOWUP_BE"
+          mkdir -p "$(dirname "$OUT_JSON")"
+          trivy image --exit-code 0 --format json -o "$OUT_JSON" followup-be:ci
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trivy-docker-be-json
+          path: ${{ env.FOLLOWUP_ROOT }}/security-reports/trivy-image-be.json

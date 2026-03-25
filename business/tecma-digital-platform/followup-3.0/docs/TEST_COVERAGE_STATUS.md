@@ -90,6 +90,7 @@ Ultimo aggiornamento: in base a `npm run test -- --coverage` (BE) e `npm run tes
 - **test:e2e**, **test:visual**, **test:a11y**: Playwright (FE).
 - **test:performance**, **test:load**, **test:stress**: k6 (dalla root; richiede k6 installato e BE avviato per performance).
 - **test:lint**, **test:security**: vedi README.
+- **test:security-aggregator**: Vitest sul package `security-aggregator/` (parser, aggregatore, **dashboard HTML**); dalla root `followup-3.0`. Pipeline scanner completa: `npm run security:modular` — vedi [SECURITY_RUNBOOK.md](SECURITY_RUNBOOK.md) §8–§9.
 
 ---
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import { waitFor } from "@testing-library/react";
-import { render, screen } from "../../test-utils";
+import { render, screen, mockUseWorkspace } from "../../test-utils";
 import { ReportsPage } from "./ReportsPage";
 
 vi.mock("../../api/followupApi", () => ({
@@ -11,7 +11,7 @@ vi.mock("../../api/followupApi", () => ({
 }));
 
 vi.mock("../../auth/projectScope", () => ({
-  useWorkspace: () => ({ workspaceId: "ws-1", selectedProjectIds: ["p1"] }),
+  useWorkspace: () => mockUseWorkspace({ workspaceId: "ws-1", selectedProjectIds: ["p1"] }),
 }));
 
 import { followupApi } from "../../api/followupApi";

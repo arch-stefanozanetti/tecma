@@ -22,3 +22,40 @@ export function render(
 ) {
   return rtlRender(ui, { wrapper: Wrapper, ...options });
 }
+
+type MockWorkspaceProject = { id: string; name: string; displayName?: string };
+
+/** Default allineato a `useWorkspace()` in projectScope — usa nei `vi.mock("../../auth/projectScope")`. */
+export function mockUseWorkspace(overrides: {
+  workspaceId?: string;
+  selectedProjectIds?: string[];
+  projects?: MockWorkspaceProject[];
+  email?: string;
+  isAdmin?: boolean;
+  permissions?: string[];
+  hasPermission?: (perm: string) => boolean;
+  isTecmaAdmin?: boolean;
+} = {}) {
+  const { hasPermission: hasPermissionOverride, ...rest } = overrides;
+  const permissionsExplicit = Object.prototype.hasOwnProperty.call(overrides, "permissions");
+  const defaults = {
+    workspaceId: "",
+    selectedProjectIds: [] as string[],
+    projects: [] as MockWorkspaceProject[],
+    email: "",
+    isAdmin: false,
+    permissions: [] as string[],
+    isTecmaAdmin: false,
+  };
+  const merged = { ...defaults, ...rest };
+  const hasPermission =
+    typeof hasPermissionOverride === "function"
+      ? hasPermissionOverride
+      : (perm: string): boolean => {
+          if (merged.isAdmin) return true;
+          if (!permissionsExplicit) return true;
+          if (merged.permissions.includes("*")) return true;
+          return merged.permissions.includes(perm);
+        };
+  return { ...merged, hasPermission };
+}

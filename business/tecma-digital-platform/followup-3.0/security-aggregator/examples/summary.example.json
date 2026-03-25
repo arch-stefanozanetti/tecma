@@ -1,0 +1,17 @@
+{
+  "bySeverity": {
+    "critical": 1,
+    "high": 2,
+    "low": 1,
+    "medium": 3
+  },
+  "byType": {
+    "CONTAINER": 0,
+    "IAC": 1,
+    "SAST": 2,
+    "SCA": 4
+  },
+  "critical": 1,
+  "high": 2,
+  "total": 7
+}

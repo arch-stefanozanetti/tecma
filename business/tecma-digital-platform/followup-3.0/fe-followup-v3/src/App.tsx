@@ -5,6 +5,8 @@ import { clearProjectScope, loadProjectScope, saveProjectScope, updateSelectedPr
 import { followupApi } from "./api/followupApi";
 import { getRefreshToken, setTokens } from "./api/http";
 import { isBssAuth } from "./api/authApi";
+import { getKeycloakCallbackPath } from "./auth/keycloakOidc";
+import { spaAbsolutePath } from "./lib/spaPath";
 import { PageTemplate } from "./core/shared/PageTemplate";
 import { PageSimple } from "./core/shared/PageSimple";
 import { CalendarPage } from "./core/calendar/CalendarPage";
@@ -20,6 +22,7 @@ import { WorkflowConfigPage } from "./core/workflows/WorkflowConfigPage";
 import { HCMasterCatalogPage } from "./core/hc/HCMasterCatalogPage";
 import { TemplateConfigPage } from "./core/templates/TemplateConfigPage";
 import { LoginPage } from "./core/auth/LoginPage";
+import { KeycloakCallbackPage } from "./core/auth/KeycloakCallbackPage";
 import { AccountSecurityPage } from "./core/auth/AccountSecurityPage";
 import { SetPasswordFromInvitePage } from "./core/auth/SetPasswordFromInvitePage";
 import { ResetPasswordPage } from "./core/auth/ResetPasswordPage";
@@ -534,6 +537,8 @@ export const App = () => {
     appContent = <ResetPasswordPage />;
   } else if (pathname.startsWith("/forgot-password")) {
     appContent = <ForgotPasswordPage />;
+  } else if (pathname === getKeycloakCallbackPath() || pathname.startsWith(`${getKeycloakCallbackPath()}/`)) {
+    appContent = <KeycloakCallbackPage />;
   } else if (pathname.includes("/login")) {
     appContent = <LoginPage />;
   } else {
@@ -545,7 +550,8 @@ export const App = () => {
         typeof window !== "undefined"
           ? `${window.location.pathname}${window.location.search}${window.location.hash}`
           : "/";
-      window.location.replace(`/login?backTo=${encodeURIComponent(currentPath)}`);
+      const loginHref = `${spaAbsolutePath("/login")}?backTo=${encodeURIComponent(currentPath)}`;
+      window.location.replace(loginHref);
       appContent = null;
     } else if (!projectScope || projectScope.selectedProjectIds.length === 0) {
       appContent = <ProjectAccessPage onCompleted={() => setAccessVersion((v) => v + 1)} />;

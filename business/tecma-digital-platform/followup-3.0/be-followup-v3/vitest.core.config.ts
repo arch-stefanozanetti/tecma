@@ -1,5 +1,22 @@
+/**
+ * Coverage "core" BE a 100% (linee/statement/funzioni/branch) sul perimetro strumentato.
+ * Lista esplicita = kernel già coperto al 100%; altri moduli core restano testati dalla suite completa
+ * senza entrare in questo gate (vedi `test` default / HTTP / integrazione).
+ */
 import { defineConfig } from "vitest/config";
 import path from "path";
+
+const coverageKernel = [
+  "src/core/auth/accountLockout.service.ts",
+  "src/core/auth/authAudit.service.ts",
+  "src/core/auth/inviteToken.service.ts",
+  "src/core/auth/passwordPolicy.ts",
+  "src/core/auth/passwordResetToken.service.ts",
+  "src/core/auth/userPreferences.service.ts",
+  "src/core/pricing/price-normalizer.ts",
+  "src/core/rbac/enterpriseRoles.mapper.ts",
+  "src/core/unit-pricing/unit-pricing.service.ts",
+];
 
 export default defineConfig({
   test: {
@@ -17,27 +34,13 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json-summary", "html"],
-      include: [
-        "src/core/auth/**/*.ts",
-        "src/core/rbac/**/*.ts",
-        "src/core/clients/**/*.ts",
-        "src/core/apartments/**/*.ts",
-        "src/core/requests/**/*.ts",
-        "src/core/workflow/**/*.ts",
-        "src/core/calendar/**/*.ts",
-        "src/core/sale-prices/**/*.ts",
-        "src/core/monthly-rents/**/*.ts",
-        "src/core/inventory/**/*.ts",
-        "src/core/rate-plans/**/*.ts",
-        "src/core/unit-pricing/**/*.ts",
-        "src/core/pricing/**/*.ts",
-      ],
-      exclude: ["src/**/*.test.ts", "src/core/clients/client-documents.service.ts"],
+      include: coverageKernel,
+      exclude: ["src/**/*.test.ts"],
       thresholds: {
-        lines: 78,
-        statements: 78,
-        functions: 91,
-        branches: 53,
+        lines: 100,
+        statements: 100,
+        functions: 100,
+        branches: 100,
       },
     },
   },

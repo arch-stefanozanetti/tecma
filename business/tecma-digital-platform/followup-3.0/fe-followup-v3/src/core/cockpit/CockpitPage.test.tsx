@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { CockpitPage } from "./CockpitPage";
 import { followupApi } from "../../api/followupApi";
 import { ToastProvider } from "../../contexts/ToastContext";
+import { HttpApiError } from "../../api/http";
 
 const sampleSuggestion = {
   _id: "sugg-1",
@@ -168,5 +169,57 @@ describe("CockpitPage", () => {
     await waitFor(() => {
       expect(followupApi.generateAiSuggestions).toHaveBeenCalledWith("w1", ["p1"], 8);
     });
+  });
+
+  it("mostra errore entitlement senza CTA configura AI", async () => {
+    vi.mocked(followupApi.getAiSuggestions).mockRejectedValue(
+      new HttpApiError("Funzionalità non abilitata per questo workspace", {
+        status: 403,
+        code: "FEATURE_NOT_ENTITLED",
+      })
+    );
+
+    renderCockpit(<CockpitPage workspaceId="w1" projectIds={["p1"]} isAdmin />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Suggerimenti AI non disponibili: il modulo AI Approvals non è attivo su questo workspace/i)
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: /Vai a Workspaces per configurare l'AI/i })).not.toBeInTheDocument();
+  });
+
+  it("mostra errore permessi 403 senza CTA configura AI", async () => {
+    vi.mocked(followupApi.getAiSuggestions).mockRejectedValue(
+      new HttpApiError("Accesso al workspace non consentito", {
+        status: 403,
+      })
+    );
+
+    renderCockpit(<CockpitPage workspaceId="w1" projectIds={["p1"]} isAdmin />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Non hai i permessi necessari per leggere i suggerimenti AI in questo workspace/i)
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: /Vai a Workspaces per configurare l'AI/i })).not.toBeInTheDocument();
+  });
+
+  it("mostra stato provider assente con CTA verso Workspaces", async () => {
+    vi.mocked(followupApi.getAiSuggestions).mockResolvedValue({
+      data: [],
+      generatedAt: new Date().toISOString(),
+      aiConfigured: false,
+      llmUsed: null,
+      fromCache: true,
+    });
+
+    renderCockpit(<CockpitPage workspaceId="w1" projectIds={["p1"]} isAdmin />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Nessun provider AI collegato/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /Vai a Workspaces per collegare un provider AI/i })).toBeInTheDocument();
   });
 });

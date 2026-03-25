@@ -2,7 +2,7 @@ import {
   deleteJson,
   getJson,
   getAccessToken,
-  API_BASE_URL,
+  resolveApiBaseUrl,
   HttpApiError,
   patchJson,
   postJson,
@@ -35,7 +35,7 @@ export type FollowupLoginResponse =
     };
 
 async function postAuthLogin(email: string, password: string): Promise<FollowupLoginResponse> {
-  const res = await fetch(`${API_BASE_URL}/auth/login`, {
+  const res = await fetch(`${resolveApiBaseUrl()}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email: email.trim(), password })
@@ -815,7 +815,7 @@ export const followupApi = {
     }
     const token = getAccessToken();
     if (token) params.set("accessToken", token);
-    const source = new EventSource(`${API_BASE_URL}/realtime/stream?${params.toString()}`);
+    const source = new EventSource(`${resolveApiBaseUrl()}/realtime/stream?${params.toString()}`);
     source.addEventListener("domain-event", (evt) => {
       try {
         onEvent(JSON.parse((evt as MessageEvent).data) as { eventType: string; payload: Record<string, unknown> });
@@ -860,7 +860,7 @@ export const followupApi = {
     const token = getAccessToken();
     if (!token) throw new Error("Non autenticato");
     const q = workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : "";
-    const res = await fetch(`${API_BASE_URL}/connectors/outlook/auth${q}`, {
+    const res = await fetch(`${resolveApiBaseUrl()}/connectors/outlook/auth${q}`, {
       method: "GET",
       redirect: "manual",
       headers: { Authorization: `Bearer ${token}` },
