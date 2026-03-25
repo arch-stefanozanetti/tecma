@@ -6,6 +6,7 @@ import { followupApi } from "./api/followupApi";
 import { getRefreshToken, setTokens } from "./api/http";
 import { isBssAuth } from "./api/authApi";
 import { getKeycloakCallbackPath } from "./auth/keycloakOidc";
+import { spaAbsolutePath } from "./lib/spaPath";
 import { PageTemplate } from "./core/shared/PageTemplate";
 import { PageSimple } from "./core/shared/PageSimple";
 import { CalendarPage } from "./core/calendar/CalendarPage";
@@ -549,7 +550,8 @@ export const App = () => {
         typeof window !== "undefined"
           ? `${window.location.pathname}${window.location.search}${window.location.hash}`
           : "/";
-      window.location.replace(`/login?backTo=${encodeURIComponent(currentPath)}`);
+      const loginHref = `${spaAbsolutePath("/login")}?backTo=${encodeURIComponent(currentPath)}`;
+      window.location.replace(loginHref);
       appContent = null;
     } else if (!projectScope || projectScope.selectedProjectIds.length === 0) {
       appContent = <ProjectAccessPage onCompleted={() => setAccessVersion((v) => v + 1)} />;
