@@ -98,10 +98,10 @@ Connector_config,Altri_vendor,1`,
   },
   {
     id: "domain-maturity",
-    title: "Cluster di maturità domini",
-    description: "Barre indicative per area (scala 1–5 qualitativa).",
+    title: "Cluster — stadio operativo",
+    description: "Avanzamento indicativo per macro-area (scala 1–5 qualitativa; vedi tab Stadio in doc 03).",
     chart: `xychart-beta
-    title "Maturità indicativa per cluster"
+    title "Avanzamento indicativo per cluster"
     x-axis [Fondamenta, Prodotto, Integrazioni, Ops, Roadmap]
     y-axis "Livello" 0 --> 5
     bar [4, 4, 3, 4, 2]`,

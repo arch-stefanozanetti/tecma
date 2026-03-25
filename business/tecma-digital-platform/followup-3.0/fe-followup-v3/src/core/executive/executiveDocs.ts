@@ -21,7 +21,7 @@ export const EXECUTIVE_DOC_TABS: ExecutiveDocTab[] = [
   { id: "readme", label: "Indice", markdown: readme },
   { id: "01", label: "Executive summary", markdown: doc01 },
   { id: "02", label: "Perché greenfield", markdown: doc02 },
-  { id: "03", label: "Maturità domini", markdown: doc03 },
+  { id: "03", label: "Stadio domini", markdown: doc03 },
   { id: "04", label: "Architettura", markdown: doc04 },
   { id: "05", label: "Privacy e GDPR", markdown: doc05 },
   { id: "06", label: "Rischi e decisioni", markdown: doc06 },

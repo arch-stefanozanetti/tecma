@@ -54,7 +54,7 @@ const SECTION_COMMANDS: CommandSectionItem[] = [
     kind: "section",
     id: "executiveOverview",
     label: "Panoramica strategica",
-    hint: "CTO / CEO — maturità domini e architettura (admin)",
+    hint: "CTO / CEO — stadio domini e architettura (admin)",
   },
   {
     kind: "section",

@@ -52,4 +52,4 @@ Nessun ROI quantitativo inventato; nessuna tesi “legacy da buttare” — tesi
 
 ## Collegamenti
 
-[03 — Maturità](03-domain-maturity-matrix.md) · [06 — Rischi](06-risks-open-decisions.md) · [FOLLOWUP_3_MASTER.md](../FOLLOWUP_3_MASTER.md)
+[03 — Stadio operativo](03-domain-maturity-matrix.md) · [06 — Rischi](06-risks-open-decisions.md) · [FOLLOWUP_3_MASTER.md](../FOLLOWUP_3_MASTER.md)

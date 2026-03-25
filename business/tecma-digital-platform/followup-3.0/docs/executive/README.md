@@ -19,7 +19,7 @@ journey
     section CTO_completo
       01_executive: 5: CTO
       02_greenfield: 4: CTO
-      03_maturita_domini: 4: CTO
+      03_stadio_domini: 4: CTO
       04_architettura: 4: CTO
       05_privacy: 3: CTO
       06_rischi: 4: CTO
@@ -34,9 +34,9 @@ journey
 
 | Doc | Pubblico | Contenuto |
 |-----|----------|-----------|
-| [01](01-executive-summary.md) | CEO, board | POC/MVP: cosa dimostra / cosa non è. |
+| [01](01-executive-summary.md) | CEO, board | Baseline operativa vs narrativa commerciale; cosa non promettiamo. |
 | [02](02-why-greenfield-vs-legacy.md) | CEO + CTO | Perché rebuild perimetrato oggi. |
-| [03](03-domain-maturity-matrix.md) | CTO | Maturità per area + link tecnici. |
+| [03](03-domain-maturity-matrix.md) | CTO | Stadio operativo per area + link tecnici. |
 | [04](04-architecture-at-a-glance.md) | CTO | Stack, deploy, integrazioni. |
 | [05](05-privacy-gdpr-and-tenant-model.md) | CTO, DPO | Tenant, PII, disclaimer. |
 | [06](06-risks-open-decisions.md) | CEO + CTO | Rischi e decisioni aperte. |
@@ -45,4 +45,4 @@ journey
 
 ## In 30 secondi
 
-FollowUp 3.0 è un **CRM immobiliare** come **POC/MVP intenzionale**: base tecnica pulita, dominio da anni di operatività, legacy come **riferimento funzionale**. La leadership allinea **direzione**, **maturità** e **rischi**; il dettaglio resta nel piano globale.
+FollowUp 3.0 è un **CRM immobiliare** su stack nuovo: su **perimetro scelto** la baseline è **in produzione controllata**, non solo prototipo. La leadership allinea **direzione**, **stadio operativo** e **rischi**; il dettaglio resta nel [piano globale](../PIANO_GLOBALE_FOLLOWUP_3.md). Go-live cliente: [RELEASE_READINESS_CHECKLIST.md](../RELEASE_READINESS_CHECKLIST.md).
