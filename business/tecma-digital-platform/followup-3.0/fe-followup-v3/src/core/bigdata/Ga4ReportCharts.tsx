@@ -28,6 +28,8 @@ const axisStroke = "hsl(var(--muted-foreground))";
 const gridStroke = "hsl(var(--border))";
 const linePrimary = "hsl(var(--primary))";
 const lineMuted = "hsl(var(--foreground) / 0.45)";
+
+type TooltipPayloadEntry = { payload?: { fullLabel?: string } };
 const lineAccent = "hsl(var(--primary) / 0.55)";
 
 export type Ga4ChartsTrendPoint = { date: string; sessions: number; activeUsers: number };
@@ -225,8 +227,8 @@ export function Ga4ChartsSection({
                 />
                 <Tooltip
                   contentStyle={tooltipBox}
-                  labelFormatter={(_, payload) => {
-                    const p = payload?.[0]?.payload as { fullLabel?: string } | undefined;
+                  labelFormatter={(_label: unknown, payload: ReadonlyArray<TooltipPayloadEntry>) => {
+                    const p = payload?.[0]?.payload;
                     return p?.fullLabel ?? "";
                   }}
                   formatter={(value: number) => [value.toLocaleString("it-IT"), "Utenti attivi"]}
@@ -258,8 +260,8 @@ export function Ga4ChartsSection({
                 />
                 <Tooltip
                   contentStyle={tooltipBox}
-                  labelFormatter={(_, payload) => {
-                    const p = payload?.[0]?.payload as { fullLabel?: string } | undefined;
+                  labelFormatter={(_label: unknown, payload: ReadonlyArray<TooltipPayloadEntry>) => {
+                    const p = payload?.[0]?.payload;
                     return p?.fullLabel ?? "";
                   }}
                   formatter={(value: number) => [value.toLocaleString("it-IT"), "Sessioni"]}
@@ -294,8 +296,8 @@ export function Ga4ChartsSection({
                 />
                 <Tooltip
                   contentStyle={tooltipBox}
-                  labelFormatter={(_, payload) => {
-                    const p = payload?.[0]?.payload as { fullLabel?: string } | undefined;
+                  labelFormatter={(_label: unknown, payload: ReadonlyArray<TooltipPayloadEntry>) => {
+                    const p = payload?.[0]?.payload;
                     return p?.fullLabel ?? "";
                   }}
                   formatter={(value: number, name: string) => [
@@ -331,8 +333,8 @@ export function Ga4ChartsSection({
                 />
                 <Tooltip
                   contentStyle={tooltipBox}
-                  labelFormatter={(_, payload) => {
-                    const p = payload?.[0]?.payload as { fullLabel?: string } | undefined;
+                  labelFormatter={(_label: unknown, payload: ReadonlyArray<TooltipPayloadEntry>) => {
+                    const p = payload?.[0]?.payload;
                     return p?.fullLabel ?? "";
                   }}
                   formatter={(value: number) => [value.toLocaleString("it-IT"), "Sessioni"]}
