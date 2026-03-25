@@ -226,6 +226,24 @@ export async function listGa4PropertiesForWorkspaceWithOutcome(workspaceId: stri
   }
 }
 
+/** Etichetta leggibile per una property GA4 già nota per ID (stesso elenco Admin API dei picker). */
+export async function lookupGa4PropertyDisplayLabel(
+  workspaceId: string,
+  propertyId: string
+): Promise<string | undefined> {
+  const id = propertyId.trim();
+  if (!id) return undefined;
+  const outcome = await listGa4PropertiesForWorkspaceWithOutcome(workspaceId);
+  if (!outcome.ok) return undefined;
+  const hit = outcome.properties.find((p) => p.propertyId === id);
+  if (!hit) return undefined;
+  const acc = hit.accountDisplayName?.trim();
+  const name = hit.displayName?.trim();
+  if (acc && name) return `${acc} — ${name}`;
+  return name || acc;
+}
+
+
 /**
  * Elenco customer Google Ads accessibili all’utente OAuth (`customers:listAccessibleCustomers`).
  * Richiede `GOOGLE_ADS_DEVELOPER_TOKEN` sul server e API Google Ads abilitata sul progetto GCP dell’OAuth.
