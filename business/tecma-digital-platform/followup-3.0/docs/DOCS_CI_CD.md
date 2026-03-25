@@ -3,6 +3,8 @@
 - **Repo monorepo (root = tecma):** workflow [.github/workflows/followup-3.0-ci-cd.yml](../../../../.github/workflows/followup-3.0-ci-cd.yml).  
   Path che scatenano la pipeline: `fe-followup-v3/**`, `be-followup-v3/**`, `design-system/**`, `render.yaml`, il file workflow stesso.
 
+- **Security modulare (Semgrep, OSV, Trivy, aggregatore JSON):** [.github/workflows/followup-3.0-security.yml](../../../../.github/workflows/followup-3.0-security.yml) — si attiva su modifiche sotto `business/tecma-digital-platform/followup-3.0/**`. Job parallelo **SBOM (CycloneDX)** genera `sbom-be.cdx.json` / `sbom-fe.cdx.json` (artifact **`followup-sbom`**). Opzionale manuale (ZAP staging, Trivy su immagine BE): [followup-3.0-security-optional.yml](../../../../.github/workflows/followup-3.0-security-optional.yml). Policy, KPI enterprise e comandi: [SECURITY_RUNBOOK.md](SECURITY_RUNBOOK.md) §8–§11; roadmap: [plans/2026-03-24-devsecops-enterprise-roadmap.md](plans/2026-03-24-devsecops-enterprise-roadmap.md); playbook pentest: [PENTEST_EXECUTION.md](PENTEST_EXECUTION.md).
+
 - **Checklist comandi prima del merge** (locale, allineata a BE/FE/E2E): [README.md § Checklist prima del merge](../README.md#checklist-prima-del-merge).
 
 - **CI nel package `followup-3.0`** (path-filter su cartelle):  
@@ -14,7 +16,8 @@
 
 ## Cosa fa la pipeline
 
-Solo **integrazione continua**: build + test **frontend** (pnpm) e **backend** (npm). **Nessun deploy** da GitHub Actions.
+- **followup-3.0-ci-cd.yml:** integrazione continua — build + test **frontend** (pnpm) e **backend** (npm). **Nessun deploy** da GitHub Actions.
+- **followup-3.0-security.yml:** scan SAST/SCA/IaC, report unificato, **dashboard HTML** navigabile (`security-dashboard.html` nell’artifact), **SBOM CycloneDX** (artifact `followup-sbom`), gate su severità, commento PR, upload **SARIF** verso **GitHub Code scanning** (tab **Security**). Permessi workflow: `security-events: write`, `pull-requests: write`. Pentest: vedi [SECURITY_RUNBOOK.md](SECURITY_RUNBOOK.md) §9.
 
 ## Deploy in produzione / staging
 

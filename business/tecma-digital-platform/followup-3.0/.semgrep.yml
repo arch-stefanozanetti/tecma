@@ -1,0 +1,5 @@
+# Semgrep — FollowUp 3.0 (monorepo)
+# La CI usa `semgrep scan --config p/ci` (set relativamente contenuto).
+# Aggiungi qui regole custom o `rules:` quando servono controlli dedicati.
+
+rules: []

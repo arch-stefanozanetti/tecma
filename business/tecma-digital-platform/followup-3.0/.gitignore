@@ -1,3 +1,6 @@
 .env
 .env.local
 .env.*.local
+
+# Report pipeline DevSecOps (generati in CI o in locale)
+security-reports/

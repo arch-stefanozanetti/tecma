@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen } from "../../test-utils";
+import { fireEvent, render, screen, mockUseWorkspace } from "../../test-utils";
 import { ApartmentsPage } from "./ApartmentsPage";
 
 const mocks = vi.hoisted(() => ({
@@ -22,11 +22,12 @@ vi.mock("../../api/domains/apartmentsApi", () => ({
 }));
 
 vi.mock("../../auth/projectScope", () => ({
-  useWorkspace: () => ({
-    workspaceId: "ws-1",
-    selectedProjectIds: ["proj-1"],
-    projects: [],
-  }),
+  useWorkspace: () =>
+    mockUseWorkspace({
+      workspaceId: "ws-1",
+      selectedProjectIds: ["proj-1"],
+      projects: [],
+    }),
 }));
 
 describe("ApartmentsPage", () => {

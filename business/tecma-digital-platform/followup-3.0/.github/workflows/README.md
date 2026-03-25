@@ -3,6 +3,7 @@
 - **Checklist comandi prima del merge** (BE test, FE build, E2E, parità CI): [README.md — Checklist prima del merge](../../README.md#checklist-prima-del-merge) nella root `followup-3.0`.
 - **CI/CD e secret E2E opzionali:** [docs/DOCS_CI_CD.md](../../docs/DOCS_CI_CD.md).
 - **Pipeline attiva (repo tecma):** [.github/workflows/followup-3.0-ci-cd.yml](../../../../.github/workflows/followup-3.0-ci-cd.yml) nella root del monorepo. Solo **build + test** FE e BE.
+- **Security modulare (Semgrep + OSV + Trivy + aggregatore + SBOM CycloneDX + dashboard HTML + SARIF):** [.github/workflows/followup-3.0-security.yml](../../../../.github/workflows/followup-3.0-security.yml) (artifact `security-unified-followup3` include `security-dashboard.html`; artifact **`followup-sbom`** con `sbom-be.cdx.json` / `sbom-fe.cdx.json`). Opzionale manuale: [followup-3.0-security-optional.yml](../../../../.github/workflows/followup-3.0-security-optional.yml) (ZAP staging, Trivy su immagine BE). Dettagli: [docs/SECURITY_RUNBOOK.md](../../docs/SECURITY_RUNBOOK.md) §8–§10; roadmap KPI: [docs/plans/2026-03-24-devsecops-enterprise-roadmap.md](../../docs/plans/2026-03-24-devsecops-enterprise-roadmap.md).
 
 ## Workflow in questa cartella (`followup-3.0/.github/workflows`)
 
