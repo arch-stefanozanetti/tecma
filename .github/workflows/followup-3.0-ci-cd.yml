@@ -55,10 +55,6 @@ jobs:
         working-directory: ${{ env.FOLLOWUP_FE_DIR }}
         run: pnpm install --frozen-lockfile
 
-      - name: Run tests (FE)
-        working-directory: ${{ env.FOLLOWUP_FE_DIR }}
-        run: pnpm run test:run
-
       - name: Run core coverage gate (FE)
         working-directory: ${{ env.FOLLOWUP_FE_DIR }}
         run: pnpm run test:coverage:core
