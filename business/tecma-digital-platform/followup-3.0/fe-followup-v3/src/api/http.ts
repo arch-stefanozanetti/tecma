@@ -1,4 +1,22 @@
+import { DEV_CHANNEL_API_OVERRIDE_KEY } from "../dev/devChannelStorage";
+import { spaAbsolutePath } from "../lib/spaPath";
+
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/v1";
+
+export function resolveApiBaseUrl(): string {
+  const devPickerOn =
+    (typeof process === "undefined" || !process.env.VITEST) &&
+    typeof import.meta.env.VITE_SHOW_DEV_CHANNEL_PICKER === "string" &&
+    import.meta.env.VITE_SHOW_DEV_CHANNEL_PICKER === "true";
+  if (!devPickerOn || typeof window === "undefined") return API_BASE_URL;
+  try {
+    const o = window.sessionStorage.getItem(DEV_CHANNEL_API_OVERRIDE_KEY);
+    if (o && o.trim() !== "") return o.trim();
+  } catch {
+    /* ignore */
+  }
+  return API_BASE_URL;
+}
 
 /** Errore API con status HTTP e opzionalmente `code` / `hint` dal JSON backend ({ error, code, hint }). */
 export class HttpApiError extends Error {
@@ -87,7 +105,7 @@ const callRefresh = async (): Promise<RefreshResponse> => {
     const { refreshBss } = await import("./bssAuthAdapter");
     return refreshBss(refreshToken);
   }
-  const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+  const res = await fetch(`${resolveApiBaseUrl()}/auth/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refreshToken })
@@ -99,8 +117,11 @@ const callRefresh = async (): Promise<RefreshResponse> => {
   return res.json() as Promise<RefreshResponse>;
 };
 
-const isOnLoginPage = (): boolean =>
-  typeof window !== "undefined" && (window.location.pathname ?? "").includes("/login");
+const isOnLoginPage = (): boolean => {
+  if (typeof window === "undefined") return false;
+  const path = window.location.pathname ?? "";
+  return path.endsWith("/login") || path.includes("/login/");
+};
 
 const redirectToLogin = (): void => {
   clearTokens();
@@ -108,7 +129,8 @@ const redirectToLogin = (): void => {
   if (isOnLoginPage()) return;
   const href = window.location.href;
   const backTo = encodeURIComponent(href);
-  window.location.replace(`/login${backTo ? `?backTo=${backTo}` : ""}`);
+  const loginQs = backTo ? `?backTo=${backTo}` : "";
+  window.location.replace(`${spaAbsolutePath("/login")}${loginQs}`);
 };
 
 const requestJson = async <T>(path: string, options: RequestInit, isRetry = false): Promise<T> => {
@@ -128,19 +150,19 @@ const requestJson = async <T>(path: string, options: RequestInit, isRetry = fals
 
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    const base = resolveApiBaseUrl();
+    response = await fetch(`${base}${path}`, {
       ...options,
       headers
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "network error";
+    const base = resolveApiBaseUrl();
     const hint =
-      API_BASE_URL.startsWith("http://localhost") || API_BASE_URL.startsWith("/")
+      base.startsWith("http://localhost") || base.startsWith("/")
         ? " Verifica che il backend sia avviato (es. porta 8080)."
         : " Verifica che VITE_API_BASE_URL sia corretto per l'ambiente (gateway o backend).";
-    throw new Error(
-      `Impossibile raggiungere le API (${API_BASE_URL}).${hint} Dettaglio: ${message}`
-    );
+    throw new Error(`Impossibile raggiungere le API (${base}).${hint} Dettaglio: ${message}`);
   }
 
   if (response.status === 401 && !isPublicAuthPath(path) && getRefreshToken() && !isRetry) {
@@ -203,7 +225,7 @@ export const postFormData = async <T>(path: string, form: FormData): Promise<T> 
   }
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, { method: "POST", headers, body: form });
+    response = await fetch(`${resolveApiBaseUrl()}${path}`, { method: "POST", headers, body: form });
   } catch (error) {
     const message = error instanceof Error ? error.message : "network error";
     throw new Error(`Impossibile raggiungere le API. Dettaglio: ${message}`);
@@ -215,7 +237,7 @@ export const postFormData = async <T>(path: string, form: FormData): Promise<T> 
       const h2 = new Headers();
       const t2 = getAccessToken();
       if (t2) h2.set("Authorization", `Bearer ${t2}`);
-      response = await fetch(`${API_BASE_URL}${path}`, { method: "POST", headers: h2, body: form });
+      response = await fetch(`${resolveApiBaseUrl()}${path}`, { method: "POST", headers: h2, body: form });
     } catch {
       if (!isOnLoginPage()) redirectToLogin();
       throw new Error("Sessione scaduta. Effettua di nuovo l'accesso.");

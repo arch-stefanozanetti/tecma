@@ -1,10 +1,10 @@
-# FollowUp 3.0: CI — build e test FE + BE (nessun deploy da Actions).
-# Deploy: Render — vedi business/tecma-digital-platform/followup-3.0/docs/RENDER_DEPLOY.md e render.yaml in root.
-name: Followup 3.0 CI
+# FollowUp 3.0: CI quality gate su main (nessun deploy da Actions).
+# Deploy: Render auto-deploy da main (commit) dopo merge PR.
+name: FollowUp 3.0 CI Gate
 
 on:
   push:
-    branches: [develop, demo, main]
+    branches: [main]
     paths:
       - "business/tecma-digital-platform/followup-3.0/fe-followup-v3/**"
       - "business/tecma-digital-platform/followup-3.0/be-followup-v3/**"
@@ -14,7 +14,7 @@ on:
       - "scripts/render-build-fe.sh"
       - "scripts/render-build-be.sh"
   pull_request:
-    branches: [develop, demo, main]
+    branches: [main]
     paths:
       - "business/tecma-digital-platform/followup-3.0/fe-followup-v3/**"
       - "business/tecma-digital-platform/followup-3.0/be-followup-v3/**"
@@ -25,7 +25,7 @@ on:
       - "scripts/render-build-be.sh"
 
 concurrency:
-  group: followup-3.0-ci-${{ github.ref }}
+  group: followup-3.0-ci-gate-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -33,8 +33,8 @@ env:
   FOLLOWUP_BE_DIR: business/tecma-digital-platform/followup-3.0/be-followup-v3
 
 jobs:
-  ci:
-    name: Build & Test FE + BE
+  fe-quality-gate:
+    name: FE Quality Gate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -55,12 +55,19 @@ jobs:
         working-directory: ${{ env.FOLLOWUP_FE_DIR }}
         run: pnpm install --frozen-lockfile
 
-      - name: Run tests (FE)
+      - name: Run core coverage gate (FE)
         working-directory: ${{ env.FOLLOWUP_FE_DIR }}
-        run: pnpm run test:run
+        run: pnpm run test:coverage:core
 
       - name: Run deploy build (FE)
         run: bash scripts/render-build-fe.sh
+
+  be-quality-gate:
+    name: BE Quality Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Install dependencies (BE)
         working-directory: ${{ env.FOLLOWUP_BE_DIR }}
@@ -72,6 +79,16 @@ jobs:
           MONGO_URI: mongodb://localhost:27017
           MONGO_DB_NAME: followup_ci_test
         run: npm run test
+
+      - name: Run core coverage gate (BE)
+        working-directory: ${{ env.FOLLOWUP_BE_DIR }}
+        run: npx vitest run -c vitest.core.config.ts --coverage --testTimeout=20000
+
+      - name: Verify core coverage thresholds (BE)
+        working-directory: ${{ env.FOLLOWUP_BE_DIR }}
+        run: |
+          node ./scripts/check-core-coverage.mjs floor
+          node ./scripts/check-core-coverage.mjs target
 
       - name: Run deploy build (BE)
         run: bash scripts/render-build-be.sh

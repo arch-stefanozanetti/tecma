@@ -2,7 +2,7 @@ import {
   deleteJson,
   getJson,
   getAccessToken,
-  API_BASE_URL,
+  resolveApiBaseUrl,
   HttpApiError,
   patchJson,
   postJson,
@@ -35,7 +35,7 @@ export type FollowupLoginResponse =
     };
 
 async function postAuthLogin(email: string, password: string): Promise<FollowupLoginResponse> {
-  const res = await fetch(`${API_BASE_URL}/auth/login`, {
+  const res = await fetch(`${resolveApiBaseUrl()}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email: email.trim(), password })
@@ -341,6 +341,125 @@ export const followupApi = {
     ),
   deleteProjectPdfTemplate: (projectId: string, templateId: string, workspaceId: string) =>
     deleteJson<{ deleted: boolean }>(`/projects/${projectId}/pdf-templates/${templateId}?workspaceId=${encodeURIComponent(workspaceId)}`),
+  getProjectMarketingSettings: (projectId: string, workspaceId: string) =>
+    getJson<{
+      projectId: string;
+      googleAdsCustomerId?: string;
+      googleAdsLoginCustomerId?: string;
+      ga4PropertyId?: string;
+      metaAdAccountId?: string;
+      siteHostname?: string;
+      updatedAt: string;
+    }>(`/projects/${projectId}/marketing-settings?workspaceId=${encodeURIComponent(workspaceId)}`),
+  putProjectMarketingSettings: (
+    projectId: string,
+    workspaceId: string,
+    payload: {
+      googleAdsCustomerId?: string | null;
+      googleAdsLoginCustomerId?: string | null;
+      ga4PropertyId?: string | null;
+      metaAdAccountId?: string | null;
+      siteHostname?: string | null;
+    }
+  ) =>
+    putJson<{
+      projectId: string;
+      googleAdsCustomerId?: string;
+      googleAdsLoginCustomerId?: string;
+      ga4PropertyId?: string;
+      metaAdAccountId?: string;
+      siteHostname?: string;
+      updatedAt: string;
+    }>(`/projects/${projectId}/marketing-settings?workspaceId=${encodeURIComponent(workspaceId)}`, payload),
+  getMarketingMetaAdsConnectorConfig: (workspaceId: string) =>
+    getJson<{
+      config: {
+        workspaceId: string;
+        connectorId: string;
+        accessTokenMasked?: string;
+        updatedAt: string;
+      } | null;
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/marketing-meta-ads/config`),
+  saveMarketingMetaAdsConnectorConfig: (workspaceId: string, payload: { accessToken: string }) =>
+    postJson<{
+      config: {
+        workspaceId: string;
+        connectorId: string;
+        accessTokenMasked?: string;
+        updatedAt: string;
+      };
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/marketing-meta-ads/config`, payload),
+  deleteMarketingMetaAdsConnectorConfig: (workspaceId: string) =>
+    deleteJson<{ deleted: boolean }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/connectors/marketing-meta-ads/config`
+    ),
+  getMarketingGa4ConnectorConfig: (workspaceId: string) =>
+    getJson<{
+      config: {
+        workspaceId: string;
+        connectorId: string;
+        serviceAccountJsonMasked?: string;
+        updatedAt: string;
+      } | null;
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/marketing-ga4/config`),
+  saveMarketingGa4ConnectorConfig: (workspaceId: string, payload: { serviceAccountJson: string }) =>
+    postJson<{
+      config: {
+        workspaceId: string;
+        connectorId: string;
+        serviceAccountJsonMasked?: string;
+        updatedAt: string;
+      };
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/marketing-ga4/config`, payload),
+  deleteMarketingGa4ConnectorConfig: (workspaceId: string) =>
+    deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/marketing-ga4/config`),
+  getMarketingGoogleAdsConnectorConfig: (workspaceId: string) =>
+    getJson<{
+      config: {
+        workspaceId: string;
+        connectorId: string;
+        refreshTokenMasked?: string;
+        hasClientId: boolean;
+        hasClientSecret: boolean;
+        updatedAt: string;
+      } | null;
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/marketing-google-ads/config`),
+  saveMarketingGoogleAdsConnectorConfig: (
+    workspaceId: string,
+    payload: { refreshToken: string; clientId?: string; clientSecret?: string }
+  ) =>
+    postJson<{
+      config: {
+        workspaceId: string;
+        connectorId: string;
+        refreshTokenMasked?: string;
+        hasClientId: boolean;
+        hasClientSecret: boolean;
+        updatedAt: string;
+      };
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/marketing-google-ads/config`, payload),
+  deleteMarketingGoogleAdsConnectorConfig: (workspaceId: string) =>
+    deleteJson<{ deleted: boolean }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/connectors/marketing-google-ads/config`
+    ),
+  getMarketingGoogleOAuthUrl: (workspaceId: string) =>
+    getJson<{ url: string }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/connectors/marketing-google/oauth-url`
+    ),
+  getMarketingMetaOAuthUrl: (workspaceId: string) =>
+    getJson<{ url: string }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/marketing-meta/oauth-url`),
+  getMarketingGoogleAdsCustomers: (workspaceId: string) =>
+    getJson<{ customers: Array<{ customerId: string; resourceName: string }> }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/connectors/marketing-google/ads-customers`
+    ),
+  getMarketingGoogleGa4Properties: (workspaceId: string) =>
+    getJson<{
+      properties: Array<{ propertyId: string; displayName: string; accountDisplayName?: string }>;
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/marketing-google/ga4-properties`),
+  getMarketingMetaAdAccounts: (workspaceId: string) =>
+    getJson<{ adAccounts: Array<{ id: string; name?: string; accountId: string }> }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/connectors/marketing-meta/ad-accounts`
+    ),
   runReport: (
     reportType:
       | "pipeline"
@@ -353,6 +472,27 @@ export const followupApi = {
     body: { workspaceId: string; projectIds: string[]; dateFrom?: string; dateTo?: string }
   ) =>
     postJson<{ data: Array<Record<string, unknown>> }>(`/reports/${reportType}`, body),
+  getBigDataProject: (
+    projectId: string,
+    query: {
+      workspaceId: string;
+      dateFrom: string;
+      dateTo: string;
+      attributionModel?: "last_touch" | "first_touch";
+      section?: "full" | "overview" | "ads" | "meta" | "ga4" | "funnel" | "listings";
+    }
+  ) => {
+    const params = new URLSearchParams({
+      workspaceId: query.workspaceId,
+      dateFrom: query.dateFrom,
+      dateTo: query.dateTo,
+    });
+    if (query.attributionModel) params.set("attributionModel", query.attributionModel);
+    if (query.section && query.section !== "full") params.set("section", query.section);
+    return getJson<{ data: Record<string, unknown> }>(
+      `/bigdata/projects/${encodeURIComponent(projectId)}?${params.toString()}`
+    );
+  },
   getAuditForEntity: (
     entityType: string,
     entityId: string,
@@ -815,7 +955,7 @@ export const followupApi = {
     }
     const token = getAccessToken();
     if (token) params.set("accessToken", token);
-    const source = new EventSource(`${API_BASE_URL}/realtime/stream?${params.toString()}`);
+    const source = new EventSource(`${resolveApiBaseUrl()}/realtime/stream?${params.toString()}`);
     source.addEventListener("domain-event", (evt) => {
       try {
         onEvent(JSON.parse((evt as MessageEvent).data) as { eventType: string; payload: Record<string, unknown> });
@@ -860,7 +1000,7 @@ export const followupApi = {
     const token = getAccessToken();
     if (!token) throw new Error("Non autenticato");
     const q = workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : "";
-    const res = await fetch(`${API_BASE_URL}/connectors/outlook/auth${q}`, {
+    const res = await fetch(`${resolveApiBaseUrl()}/connectors/outlook/auth${q}`, {
       method: "GET",
       redirect: "manual",
       headers: { Authorization: `Bearer ${token}` },

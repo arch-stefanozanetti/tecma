@@ -34,6 +34,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.14.0",
+    date: "2026-03-25",
+    title: "Big Data: funnel CRM per attribuzione + lead Webflow (platform API)",
+    releaseType: "minor",
+    changes: [
+      {
+        type: "feature",
+        text: "Pagina Big Data (report) con funnel per canale UTM/click id, top appartamenti e stato connettori marketing (stub).",
+      },
+      {
+        type: "feature",
+        text: "POST /v1/platform/leads per creare cliente (e trattativa opzionale) da Recommerce con marketingAttribution.",
+      },
+      {
+        type: "improvement",
+        text: "Clienti: persistenza marketingAttribution (first/last touch) su create/update.",
+      },
+    ],
+  },
+  {
     version: "0.13.16",
     date: "2026-03-20",
     title: "BE: enforcement RBAC su route CRM + allineamento ruoli",

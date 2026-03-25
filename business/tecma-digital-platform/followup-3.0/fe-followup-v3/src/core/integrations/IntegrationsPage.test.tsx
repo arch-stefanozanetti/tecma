@@ -13,6 +13,15 @@ vi.mock("../../api/followupApi", () => ({
     getMetaWhatsAppConfig: vi.fn().mockResolvedValue({ config: null }),
     getMailchimpConnectorConfig: vi.fn().mockResolvedValue({ config: null }),
     getActiveCampaignConnectorConfig: vi.fn().mockResolvedValue({ config: null }),
+    getMarketingMetaAdsConnectorConfig: vi.fn().mockResolvedValue({ config: null }),
+    getMarketingGa4ConnectorConfig: vi.fn().mockResolvedValue({ config: null }),
+    getMarketingGoogleAdsConnectorConfig: vi.fn().mockResolvedValue({ config: null }),
+    saveMarketingMetaAdsConnectorConfig: vi.fn().mockResolvedValue({ config: {} }),
+    saveMarketingGa4ConnectorConfig: vi.fn().mockResolvedValue({ config: {} }),
+    saveMarketingGoogleAdsConnectorConfig: vi.fn().mockResolvedValue({ config: {} }),
+    deleteMarketingMetaAdsConnectorConfig: vi.fn().mockResolvedValue({ deleted: true }),
+    deleteMarketingGa4ConnectorConfig: vi.fn().mockResolvedValue({ deleted: true }),
+    deleteMarketingGoogleAdsConnectorConfig: vi.fn().mockResolvedValue({ deleted: true }),
     getWorkspaceEntitlements: vi.fn().mockResolvedValue({
       data: [
         { feature: "publicApi", entitled: true, recordedStatus: null, implicit: true, recordedNotes: null },

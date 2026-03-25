@@ -2,7 +2,9 @@
  * Assegnazioni entità (cliente/appartamento) a utente nel workspace (tz_entity_assignments).
  * Un'entità può essere assegnata a un solo utente per workspace (upsert su assegnazione).
  */
+import { MongoServerError } from "mongodb";
 import { getDb } from "../../config/db.js";
+import { logger } from "../../observability/logger.js";
 import { HttpError } from "../../types/http.js";
 
 const COLLECTION = "tz_entity_assignments";
@@ -12,11 +14,19 @@ let indexEnsured = false;
 async function ensureIndex(): Promise<void> {
   if (indexEnsured) return;
   const db = getDb();
-  await db.collection(COLLECTION).createIndex(
-    { workspaceId: 1, entityType: 1, entityId: 1 },
-    { unique: true }
-  );
-  await db.collection(COLLECTION).createIndex({ workspaceId: 1, userId: 1 });
+  try {
+    await db.collection(COLLECTION).createIndex(
+      { workspaceId: 1, entityType: 1, entityId: 1 },
+      { unique: true }
+    );
+    await db.collection(COLLECTION).createIndex({ workspaceId: 1, userId: 1 });
+  } catch (err) {
+    if (err instanceof MongoServerError && (err.code === 85 || err.code === 86)) {
+      logger.warn({ err, code: err.code }, "[entity-assignments] createIndex conflict, continuing");
+    } else {
+      throw err;
+    }
+  }
   indexEnsured = true;
 }
 

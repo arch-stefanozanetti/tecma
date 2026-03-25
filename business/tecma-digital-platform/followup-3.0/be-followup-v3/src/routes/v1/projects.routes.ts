@@ -23,6 +23,8 @@ import {
   getProjectPdfTemplate,
   patchProjectPdfTemplate,
   deleteProjectPdfTemplate,
+  getProjectMarketingSettings,
+  putProjectMarketingSettings,
 } from "../../core/projects/project-config.service.js";
 import { handleAsync } from "../asyncHandler.js";
 import { getProjectContext } from "../requestContext.js";
@@ -125,4 +127,13 @@ projectsRoutes.delete("/projects/:projectId/pdf-templates/:templateId", requireP
   const { projectId, workspaceId, isAdmin } = getProjectContext(req);
   const templateId = req.params.templateId ?? "";
   return deleteProjectPdfTemplate(projectId, templateId, workspaceId, isAdmin);
+}));
+
+projectsRoutes.get("/projects/:projectId/marketing-settings", requirePermission(PERMISSIONS.SETTINGS_READ), handleAsync(async (req) => {
+  const { projectId, workspaceId, isAdmin } = getProjectContext(req);
+  return getProjectMarketingSettings(projectId, workspaceId, isAdmin);
+}));
+projectsRoutes.put("/projects/:projectId/marketing-settings", requirePermission(PERMISSIONS.SETTINGS_UPDATE), handleAsync(async (req) => {
+  const { projectId, workspaceId, isAdmin } = getProjectContext(req);
+  return putProjectMarketingSettings(projectId, workspaceId, isAdmin, req.body);
 }));

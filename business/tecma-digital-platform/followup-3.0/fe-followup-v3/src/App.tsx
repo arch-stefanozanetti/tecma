@@ -5,6 +5,8 @@ import { clearProjectScope, loadProjectScope, saveProjectScope, updateSelectedPr
 import { followupApi } from "./api/followupApi";
 import { getRefreshToken, setTokens } from "./api/http";
 import { isBssAuth } from "./api/authApi";
+import { getKeycloakCallbackPath } from "./auth/keycloakOidc";
+import { spaAbsolutePath } from "./lib/spaPath";
 import { PageTemplate } from "./core/shared/PageTemplate";
 import { PageSimple } from "./core/shared/PageSimple";
 import { CalendarPage } from "./core/calendar/CalendarPage";
@@ -20,6 +22,7 @@ import { WorkflowConfigPage } from "./core/workflows/WorkflowConfigPage";
 import { HCMasterCatalogPage } from "./core/hc/HCMasterCatalogPage";
 import { TemplateConfigPage } from "./core/templates/TemplateConfigPage";
 import { LoginPage } from "./core/auth/LoginPage";
+import { KeycloakCallbackPage } from "./core/auth/KeycloakCallbackPage";
 import { AccountSecurityPage } from "./core/auth/AccountSecurityPage";
 import { SetPasswordFromInvitePage } from "./core/auth/SetPasswordFromInvitePage";
 import { ResetPasswordPage } from "./core/auth/ResetPasswordPage";
@@ -33,6 +36,7 @@ import { EmailFlowsPage } from "./core/settings/EmailFlowsPage";
 import { ProjectDetailPage } from "./core/projects/ProjectDetailPage";
 import { AuditLogPage } from "./core/audit/AuditLogPage";
 import { ReportsPage } from "./core/reports/ReportsPage";
+import { BigDataPage } from "./core/bigdata/BigDataPage";
 import { PriceAvailabilityPage } from "./core/prices/PriceAvailabilityPage";
 import { ReleasesPage } from "./core/releases/ReleasesPage";
 import { IntegrationsPage } from "./core/integrations/IntegrationsPage";
@@ -62,6 +66,9 @@ const ClientDetailPage = lazy(() =>
 );
 const ApartmentDetailPage = lazy(() =>
   import("./core/apartments/ApartmentDetailPage").then((module) => ({ default: module.ApartmentDetailPage }))
+);
+const ExecutiveOverviewPage = lazy(() =>
+  import("./core/executive/ExecutiveOverviewPage").then((module) => ({ default: module.ExecutiveOverviewPage }))
 );
 
 function PermissionGated({
@@ -273,6 +280,29 @@ const renderSection = (
     );
   }
 
+  if (section === "executiveOverview") {
+    if (!isAdmin) {
+      return (
+        <PageSimple
+          title="Accesso negato"
+          description="Solo amministratori workspace possono aprire la panoramica strategica per CTO e CEO."
+        >
+          <p className="text-sm text-muted-foreground">Verifica il ruolo sull’account o contatta un amministratore.</p>
+        </PageSimple>
+      );
+    }
+    return (
+      <PageSimple
+        title="Panoramica strategica (CTO / CEO)"
+        description="POC/MVP, maturità per dominio, architettura, privacy e rischi — allineata alla documentazione in repository."
+      >
+        <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Caricamento panoramica strategica…</div>}>
+          <ExecutiveOverviewPage />
+        </Suspense>
+      </PageSimple>
+    );
+  }
+
   if (section === "audit") {
     return (
       <PageSimple title="Audit log" description="Tracciamento CRUD su clienti, appartamenti, richieste, associazioni.">
@@ -285,6 +315,14 @@ const renderSection = (
     return (
       <PageSimple title="Report" description="Pipeline, clienti per stato, appartamenti per disponibilità.">
         <ReportsPage />
+      </PageSimple>
+    );
+  }
+
+  if (section === "bigData") {
+    return (
+      <PageSimple title="Big Data" description="Funnel marketing + CRM e stato connettori Ads / GA4 / Meta.">
+        <BigDataPage />
       </PageSimple>
     );
   }
@@ -534,6 +572,8 @@ export const App = () => {
     appContent = <ResetPasswordPage />;
   } else if (pathname.startsWith("/forgot-password")) {
     appContent = <ForgotPasswordPage />;
+  } else if (pathname === getKeycloakCallbackPath() || pathname.startsWith(`${getKeycloakCallbackPath()}/`)) {
+    appContent = <KeycloakCallbackPage />;
   } else if (pathname.includes("/login")) {
     appContent = <LoginPage />;
   } else {
@@ -545,7 +585,8 @@ export const App = () => {
         typeof window !== "undefined"
           ? `${window.location.pathname}${window.location.search}${window.location.hash}`
           : "/";
-      window.location.replace(`/login?backTo=${encodeURIComponent(currentPath)}`);
+      const loginHref = `${spaAbsolutePath("/login")}?backTo=${encodeURIComponent(currentPath)}`;
+      window.location.replace(loginHref);
       appContent = null;
     } else if (!projectScope || projectScope.selectedProjectIds.length === 0) {
       appContent = <ProjectAccessPage onCompleted={() => setAccessVersion((v) => v + 1)} />;

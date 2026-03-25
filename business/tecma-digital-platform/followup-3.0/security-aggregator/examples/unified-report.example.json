@@ -1,0 +1,60 @@
+{
+  "generatedAt": "2025-03-24T12:00:00.000Z",
+  "issues": [
+    {
+      "cveId": "GHSA-example-0001",
+      "dedupeKey": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "file": "be-followup-v3/package-lock.json",
+      "fix": "",
+      "message": "Esempio advisory su dipendenza runtime",
+      "ruleId": "GHSA-example-0001",
+      "severity": "high",
+      "tool": "osv",
+      "type": "SCA"
+    },
+    {
+      "dedupeKey": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "file": "src/api/users.ts",
+      "fix": "Usa query parametrizzate",
+      "message": "Possibile SQL injection",
+      "ruleId": "javascript.lang.security.audit.example",
+      "severity": "high",
+      "tool": "semgrep",
+      "type": "SAST",
+      "locations": [
+        {
+          "endLine": 42,
+          "file": "src/api/users.ts",
+          "startLine": 40
+        }
+      ]
+    },
+    {
+      "dedupeKey": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "file": "Dockerfile",
+      "fix": "Risorsa: USER",
+      "message": "Esempio misconfiguration container",
+      "ruleId": "DS002",
+      "severity": "medium",
+      "tool": "trivy",
+      "type": "IAC"
+    }
+  ],
+  "summary": {
+    "bySeverity": {
+      "critical": 0,
+      "high": 2,
+      "low": 0,
+      "medium": 1
+    },
+    "byType": {
+      "CONTAINER": 0,
+      "IAC": 1,
+      "SAST": 1,
+      "SCA": 1
+    },
+    "critical": 0,
+    "high": 2,
+    "total": 3
+  }
+}

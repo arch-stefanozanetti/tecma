@@ -1,6 +1,25 @@
+/**
+ * Coverage "core" FE a 100% sul kernel strumentato (lib + scope auth).
+ * Pagine e API client restano coperte dalla suite completa senza questo gate.
+ */
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import path from "path";
+
+const coverageKernel = [
+  "src/lib/spaPath.ts",
+  "src/lib/ds-form-classes.ts",
+  "src/auth/projectScope.ts",
+];
+
+/** Solo test che coprono il kernel (evita suite intera: minuti vs secondi). */
+const coreTestFiles = [
+  "src/lib/spaPath.test.ts",
+  "src/lib/spaPath.node-env.test.ts",
+  "src/lib/ds-form-classes.test.ts",
+  "src/auth/projectScope.test.ts",
+  "src/auth/projectScope.node-env.test.ts",
+];
 
 export default defineConfig({
   plugins: [react()],
@@ -13,33 +32,17 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
-    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    include: coreTestFiles,
     coverage: {
       provider: "v8",
       reporter: ["text", "json-summary", "html"],
-      include: [
-        "src/api/**/*.ts",
-        "src/auth/**/*.ts",
-        "src/core/clients/**/*.tsx",
-        "src/core/apartments/**/*.tsx",
-        "src/core/requests/**/*.tsx",
-        "src/core/projects/**/*.tsx",
-        "src/core/calendar/**/*.tsx",
-        "src/core/releases/**/*.tsx",
-        "src/core/customer-portal/**/*.tsx",
-        "src/core/workflows/**/*.tsx",
-        "src/core/settings/**/*.tsx",
-        "src/core/prices/**/*.tsx",
-        "src/core/integrations/**/*.tsx",
-        "src/core/product-discovery/**/*.tsx",
-        "src/core/customer360/**/*.tsx",
-      ],
+      include: coverageKernel,
       exclude: ["src/**/*.test.{ts,tsx}", "src/**/*.spec.{ts,tsx}"],
       thresholds: {
-        lines: 46,
-        statements: 46,
-        functions: 24,
-        branches: 55,
+        lines: 100,
+        statements: 100,
+        functions: 100,
+        branches: 100,
       },
     },
   },

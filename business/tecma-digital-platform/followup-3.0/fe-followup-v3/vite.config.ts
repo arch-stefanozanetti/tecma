@@ -14,7 +14,23 @@ const proxyTarget =
     ? process.env.VITE_PROXY_TARGET
     : "http://localhost:8080";
 
+/** Deploy sotto path (dev-1 multi-canale). Es. `/app/main/` — deve coincidere con rewrite CDN/Render. */
+const viteBaseRaw = (process.env.VITE_BASE_PATH ?? "").trim();
+const viteBase =
+  !viteBaseRaw || viteBaseRaw === "/"
+    ? "/"
+    : viteBaseRaw.endsWith("/")
+      ? viteBaseRaw
+      : `${viteBaseRaw}/`;
+
+const manifestIcon = (name: string) =>
+  viteBase === "/" ? `/${name}` : `${viteBase.replace(/\/+$/, "")}/${name}`;
+
+const navigateFallback =
+  viteBase === "/" ? "/index.html" : `${viteBase.replace(/\/+$/, "")}/index.html`;
+
 export default defineConfig({
+  base: viteBase,
   plugins: [
     react(),
     VitePWA({
@@ -28,22 +44,22 @@ export default defineConfig({
         theme_color: "#0f172a",
         background_color: "#f8fafc",
         display: "standalone",
-        start_url: "/",
-        scope: "/",
+        start_url: viteBase,
+        scope: viteBase,
         categories: ["business", "productivity"],
         icons: [
           {
-            src: "/icon-192.png",
+            src: manifestIcon("icon-192.png"),
             sizes: "192x192",
             type: "image/png",
           },
           {
-            src: "/icon-512.png",
+            src: manifestIcon("icon-512.png"),
             sizes: "512x512",
             type: "image/png",
           },
           {
-            src: "/icon-512.png",
+            src: manifestIcon("icon-512.png"),
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable",
@@ -51,7 +67,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        navigateFallback: "/index.html",
+        navigateFallback,
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.startsWith("/v1/"),
@@ -90,6 +106,9 @@ export default defineConfig({
   },
   server: {
     port: 5177,
+    fs: {
+      allow: [path.resolve(__dirname, "..")],
+    },
     proxy: {
       "/v1": {
         target: proxyTarget,

@@ -2,11 +2,13 @@
  * Pagina dettaglio e configurazione progetto.
  * Sezioni: Identità, Contatti, Tecnica, Note legali e privacy, Email, PDF templates, Altri strumenti.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { followupApi } from "../../api/followupApi";
+import { HttpApiError } from "../../api/http";
 import { useWorkspace } from "../../auth/projectScope";
 import { useToast } from "../../contexts/ToastContext";
+import { Alert } from "../../components/ui/alert";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
@@ -29,6 +31,8 @@ import {
   UserPlus,
   LayoutDashboard,
   SlidersHorizontal,
+  BarChart2,
+  RefreshCw,
 } from "lucide-react";
 import { ProjectOverviewTab } from "./ProjectOverviewTab";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
@@ -41,6 +45,16 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import { Checkbox } from "../../components/ui/checkbox";
+import {
+  mergeAdsCustomers,
+  mergeGa4Properties,
+  mergeMetaAdAccounts,
+} from "../marketing/mergeDiscoveryWithSaved";
+import {
+  MarketingAdsPicker,
+  MarketingGa4TwoPanePicker,
+  MarketingMetaPicker,
+} from "../marketing/MarketingResourcePickers";
 
 const SectionTitle = ({
   label,
@@ -119,17 +133,26 @@ export const ProjectDetailPage = () => {
   const [identityDraft, setIdentityDraft] = useState(emptyProject());
   const [policiesDraft, setPoliciesDraft] = useState(emptyPolicies());
   const [brandingDraft, setBrandingDraft] = useState({ logoUrl: "", primaryColor: "", footerText: "" });
+  const [marketingDraft, setMarketingDraft] = useState({
+    googleAdsCustomerId: "",
+    googleAdsLoginCustomerId: "",
+    ga4PropertyId: "",
+    metaAdAccountId: "",
+    siteHostname: "",
+  });
   const [emailConfigDraft, setEmailConfigDraft] = useState({ smtpHost: "", smtpPort: "", fromEmail: "", defaultTemplateId: "" });
 
   const [savingIdentity, setSavingIdentity] = useState(false);
   const [savingPolicies, setSavingPolicies] = useState(false);
   const [savingBranding, setSavingBranding] = useState(false);
+  const [savingMarketing, setSavingMarketing] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
 
   const [secIdentity, setSecIdentity] = useState(true);
   const [secContacts, setSecContacts] = useState(true);
   const [secLegal, setSecLegal] = useState(true);
   const [secBranding, setSecBranding] = useState(false);
+  const [secMarketing, setSecMarketing] = useState(false);
   const [secEmail, setSecEmail] = useState(false);
   const [secTechnica, setSecTechnica] = useState(false);
   const [secPdf, setSecPdf] = useState(false);
@@ -140,6 +163,18 @@ export const ProjectDetailPage = () => {
   const [partnerRole, setPartnerRole] = useState<"collaborator" | "viewer">("viewer");
   const [savingAccess, setSavingAccess] = useState(false);
 
+  const [mktAdsCustomers, setMktAdsCustomers] = useState<Array<{ customerId: string; resourceName: string }>>([]);
+  const [mktGa4Props, setMktGa4Props] = useState<
+    Array<{ propertyId: string; displayName: string; accountDisplayName?: string }>
+  >([]);
+  const [mktMetaAccounts, setMktMetaAccounts] = useState<Array<{ id: string; name?: string; accountId: string }>>([]);
+  const [mktPickersLoading, setMktPickersLoading] = useState(false);
+  const [mktPickerRefresh, setMktPickerRefresh] = useState(0);
+  const [mktGa4LoadError, setMktGa4LoadError] = useState<string | null>(null);
+  const [mktGa4LoadHint, setMktGa4LoadHint] = useState<string | null>(null);
+  const [mktAdsLoadError, setMktAdsLoadError] = useState<string | null>(null);
+  const [mktAdsLoadHint, setMktAdsLoadHint] = useState<string | null>(null);
+
   const wsId = workspaceId || "";
   const pid = projectId || "";
 
@@ -148,10 +183,11 @@ export const ProjectDetailPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const [proj, pol, branding, cfg, etList, pdfList, accessRes] = await Promise.all([
+      const [proj, pol, branding, mkt, cfg, etList, pdfList, accessRes] = await Promise.all([
         followupApi.getProjectDetail(pid, wsId),
         followupApi.getProjectPolicies(pid, wsId).catch(() => null),
         followupApi.getProjectBranding(pid, wsId).catch(() => null),
+        followupApi.getProjectMarketingSettings(pid, wsId).catch(() => null),
         followupApi.getProjectEmailConfig(pid, wsId).catch(() => null),
         followupApi.listProjectEmailTemplates(pid, wsId).catch(() => []),
         followupApi.listProjectPdfTemplates(pid, wsId).catch(() => []),
@@ -189,6 +225,13 @@ export const ProjectDetailPage = () => {
         primaryColor: (branding as { primaryColor?: string })?.primaryColor ?? "",
         footerText: (branding as { footerText?: string })?.footerText ?? "",
       });
+      setMarketingDraft({
+        googleAdsCustomerId: mkt?.googleAdsCustomerId ?? "",
+        googleAdsLoginCustomerId: mkt?.googleAdsLoginCustomerId ?? "",
+        ga4PropertyId: mkt?.ga4PropertyId ?? "",
+        metaAdAccountId: mkt?.metaAdAccountId ?? "",
+        siteHostname: mkt?.siteHostname ?? "",
+      });
       setEmailConfigDraft({
         smtpHost: (cfg as Record<string, unknown>)?.smtpHost as string ?? "",
         smtpPort: String((cfg as Record<string, unknown>)?.smtpPort ?? ""),
@@ -206,6 +249,94 @@ export const ProjectDetailPage = () => {
   }, [pid, wsId]);
 
   useEffect(() => { void loadAll(); }, [loadAll]);
+
+  useEffect(() => {
+    const openMarketingFromHash = (): void => {
+      if (typeof window === "undefined") return;
+      if (window.location.hash !== "#project-marketing-bigdata") return;
+      setSecMarketing(true);
+      requestAnimationFrame(() => {
+        document.getElementById("project-marketing-bigdata")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    };
+    openMarketingFromHash();
+    window.addEventListener("hashchange", openMarketingFromHash);
+    return () => window.removeEventListener("hashchange", openMarketingFromHash);
+  }, [pid]);
+
+  useEffect(() => {
+    if (!secMarketing || !wsId) return;
+    let cancelled = false;
+    setMktPickersLoading(true);
+    setMktGa4LoadError(null);
+    setMktGa4LoadHint(null);
+    setMktAdsLoadError(null);
+    setMktAdsLoadHint(null);
+    void Promise.all([
+      followupApi
+        .getMarketingGoogleAdsCustomers(wsId)
+        .then((r) => ({ adsOk: true as const, customers: r.customers ?? [] }))
+        .catch((err: unknown) => ({ adsOk: false as const, err })),
+      followupApi
+        .getMarketingGoogleGa4Properties(wsId)
+        .then((r) => ({ ga4Ok: true as const, properties: r.properties ?? [] }))
+        .catch((err: unknown) => ({ ga4Ok: false as const, err })),
+      followupApi.getMarketingMetaAdAccounts(wsId).catch(() => ({ adAccounts: [] as { id: string; name?: string; accountId: string }[] })),
+    ])
+      .then(([ads, ga4, m]) => {
+        if (cancelled) return;
+        setMktMetaAccounts(m.adAccounts ?? []);
+        if (ads.adsOk) {
+          setMktAdsCustomers(ads.customers);
+          setMktAdsLoadError(null);
+          setMktAdsLoadHint(null);
+        } else {
+          setMktAdsCustomers([]);
+          const e = ads.err;
+          if (e instanceof HttpApiError) {
+            setMktAdsLoadError(e.message);
+            setMktAdsLoadHint(e.hint ?? null);
+          } else {
+            setMktAdsLoadError(e instanceof Error ? e.message : "Errore durante il caricamento degli account Google Ads.");
+            setMktAdsLoadHint(null);
+          }
+        }
+        if (ga4.ga4Ok) {
+          setMktGa4Props(ga4.properties);
+          setMktGa4LoadError(null);
+          setMktGa4LoadHint(null);
+        } else {
+          setMktGa4Props([]);
+          const e = ga4.err;
+          if (e instanceof HttpApiError) {
+            setMktGa4LoadError(e.message);
+            setMktGa4LoadHint(e.hint ?? null);
+          } else {
+            setMktGa4LoadError(e instanceof Error ? e.message : "Errore durante il caricamento delle proprietà GA4.");
+            setMktGa4LoadHint(null);
+          }
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setMktPickersLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [secMarketing, wsId, mktPickerRefresh]);
+
+  const adsPickOptions = useMemo(
+    () => mergeAdsCustomers(mktAdsCustomers, marketingDraft.googleAdsCustomerId),
+    [mktAdsCustomers, marketingDraft.googleAdsCustomerId]
+  );
+  const ga4PickOptions = useMemo(
+    () => mergeGa4Properties(mktGa4Props, marketingDraft.ga4PropertyId),
+    [mktGa4Props, marketingDraft.ga4PropertyId]
+  );
+  const metaPickOptions = useMemo(
+    () => mergeMetaAdAccounts(mktMetaAccounts, marketingDraft.metaAdAccountId),
+    [mktMetaAccounts, marketingDraft.metaAdAccountId]
+  );
 
   const handleSaveIdentity = async () => {
     if (!pid || !wsId) return;
@@ -274,6 +405,25 @@ export const ProjectDetailPage = () => {
       toastError(e instanceof Error ? e.message : "Errore salvataggio");
     } finally {
       setSavingBranding(false);
+    }
+  };
+
+  const handleSaveMarketing = async () => {
+    if (!pid || !wsId) return;
+    setSavingMarketing(true);
+    try {
+      await followupApi.putProjectMarketingSettings(pid, wsId, {
+        googleAdsCustomerId: marketingDraft.googleAdsCustomerId || null,
+        googleAdsLoginCustomerId: marketingDraft.googleAdsLoginCustomerId || null,
+        ga4PropertyId: marketingDraft.ga4PropertyId || null,
+        metaAdAccountId: marketingDraft.metaAdAccountId || null,
+        siteHostname: marketingDraft.siteHostname || null,
+      });
+      void loadAll();
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : "Errore salvataggio marketing");
+    } finally {
+      setSavingMarketing(false);
     }
   };
 
@@ -635,6 +785,174 @@ export const ProjectDetailPage = () => {
                   <Save className="h-3.5 w-3.5" />
                   {savingBranding ? "Salvataggio…" : "Salva branding"}
                 </Button>
+              </div>
+            )}
+          </section>
+
+          {/* ── Marketing / Big Data (ID non sensibili) ─── */}
+          <section id="project-marketing-bigdata">
+            <SectionTitle
+              label="Marketing / Big Data"
+              icon={<BarChart2 className="h-4 w-4 text-muted-foreground" />}
+              open={secMarketing}
+              onToggle={() => setSecMarketing(!secMarketing)}
+            />
+            {secMarketing && (
+              <div className="mt-4 space-y-5">
+                <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-sm font-medium text-foreground">Account marketing per questo progetto</p>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      <span className="font-medium text-foreground">Tutto dentro Followup:</span> in{" "}
+                      <span className="font-medium text-foreground">Integrazioni → Big Data</span> collega{" "}
+                      <span className="font-medium text-foreground">solo i provider che ti servono</span> (Google per Ads e GA4, Meta
+                      per le ads Meta — non sono obbligatori entrambi). Poi <span className="font-medium text-foreground">qui</span>{" "}
+                      scegli gli account per <span className="font-medium text-foreground">questo</span> progetto.
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      disabled={mktPickersLoading}
+                      onClick={() => setMktPickerRefresh((n) => n + 1)}
+                    >
+                      <RefreshCw className={cn("h-3.5 w-3.5", mktPickersLoading && "animate-spin")} />
+                      Ricarica elenchi
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      onClick={() => navigate(`/?section=integrations&tab=connettori`)}
+                    >
+                      <Link2 className="h-3.5 w-3.5" />
+                      Integrazioni Big Data
+                    </Button>
+                  </div>
+                </div>
+
+                {mktPickersLoading ? (
+                  <p className="text-xs text-muted-foreground">Lettura account dai collegamenti del workspace…</p>
+                ) : adsPickOptions.length === 0 && ga4PickOptions.length === 0 && metaPickOptions.length === 0 ? (
+                  mktGa4LoadError || mktAdsLoadError ? null : (
+                    <Alert
+                      variant="info"
+                      title="Nessun elenco ancora disponibile"
+                      action={
+                        <Button type="button" size="sm" variant="default" onClick={() => navigate(`/?section=integrations&tab=connettori`)}>
+                          Apri Integrazioni Big Data
+                        </Button>
+                      }
+                    >
+                      Collega <strong>solo</strong> ciò che ti serve: <strong>Collega Google</strong> se usi Ads o GA4;{" "}
+                      <strong>Collega Meta</strong> se usi le ads Meta. Non devi configurarli tutti. Dopo OAuth torna qui e premi{" "}
+                      <strong>Ricarica elenchi</strong>. Se un account non compare, l&apos;utente del login deve avere accesso a
+                      quell&apos;account lato Google o Meta.
+                    </Alert>
+                  )
+                ) : (
+                  <Alert variant="success" title="Elenchi pronti per i canali collegati">
+                    Scegli sotto per ogni canale che usi. I valori già salvati sul progetto restano in elenco anche se l&apos;API non
+                    li restituisce più.
+                  </Alert>
+                )}
+
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                    <div className="mb-3">
+                      <p className="text-sm font-semibold text-foreground">Google Ads</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Account pubblicitario collegato al workspace dopo il login in Integrazioni. Scegli quello da usare per questo
+                        progetto Followup.
+                      </p>
+                    </div>
+                    <MarketingAdsPicker
+                      className="mt-2"
+                      options={adsPickOptions}
+                      value={marketingDraft.googleAdsCustomerId}
+                      onChange={(googleAdsCustomerId) =>
+                        setMarketingDraft((p) => ({ ...p, googleAdsCustomerId }))
+                      }
+                      loadError={mktAdsLoadError}
+                      loadErrorHint={mktAdsLoadHint}
+                      emptyHint="Google è collegato ma non risultano customer accessibili da API. Verifica in ads.google.com che l’utente dell’OAuth abbia accesso a un account pubblicitario; se usi un MCC, assicurati che sia collegato. Poi premi Ricarica elenchi."
+                    />
+                  </div>
+
+                  <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                    <div className="mb-3">
+                      <p className="text-sm font-semibold text-foreground">Google Analytics 4</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Proprietà GA4 visibili con le stesse credenziali Google del workspace. Scegli la proprietà per questo
+                        progetto Followup.
+                      </p>
+                    </div>
+                    <MarketingGa4TwoPanePicker
+                      className="mt-2"
+                      properties={ga4PickOptions}
+                      value={marketingDraft.ga4PropertyId}
+                      onChange={(ga4PropertyId) => setMarketingDraft((p) => ({ ...p, ga4PropertyId }))}
+                      loadError={mktGa4LoadError}
+                      loadErrorHint={mktGa4LoadHint}
+                      emptyHintAccounts="Google risulta collegato ma non risultano proprietà GA4 da elencare. Verifica su analytics.google.com che l’utente usato in OAuth abbia accesso ad almeno una proprietà GA4, poi premi Ricarica elenchi."
+                      emptyHintProperties="Se l’accesso GA4 è corretto, controlla nel progetto Google Cloud dell’OAuth marketing che sia abilitata l’API «Google Analytics Admin». In caso di dubbio, disconnetti e ricollega Google in Integrazioni."
+                    />
+                  </div>
+
+                  <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                    <div className="mb-3">
+                      <p className="text-sm font-semibold text-foreground">Meta (Facebook / Instagram Ads)</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Account pubblicitario dopo il login Meta in Integrazioni. Scegli quello per questo progetto Followup.
+                      </p>
+                    </div>
+                    <MarketingMetaPicker
+                      className="mt-2"
+                      options={metaPickOptions}
+                      value={marketingDraft.metaAdAccountId}
+                      onChange={(metaAdAccountId) => setMarketingDraft((p) => ({ ...p, metaAdAccountId }))}
+                      emptyHint="Nessun account Meta dall'API. Collega Meta in Integrazioni e ricarica."
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button size="sm" onClick={() => void handleSaveMarketing()} disabled={savingMarketing} className="gap-2">
+                    <Save className="h-3.5 w-3.5" />
+                    {savingMarketing ? "Salvataggio…" : "Applica a questo progetto"}
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    Salva le scelte; OAuth e token restano in Integrazioni.
+                  </span>
+                </div>
+
+                <details className="rounded-lg border border-border bg-muted/15 p-3 text-xs text-muted-foreground">
+                  <summary className="cursor-pointer select-none font-medium text-foreground">
+                    Note per chi configura le API (Google Cloud, developer token, app Meta…)
+                  </summary>
+                  <div className="mt-3 space-y-2 border-t border-border pt-3 leading-relaxed">
+                    <p>
+                      <span className="font-medium text-foreground">Qui non si creano app né utenti.</span> Si collegano solo account
+                      già esistenti. Progetto Google Cloud, OAuth, developer token Ads e app Meta si gestiscono in{" "}
+                      <button
+                        type="button"
+                        className="font-medium text-primary underline-offset-2 hover:underline"
+                        onClick={() => navigate(`/?section=integrations&tab=connettori`)}
+                      >
+                        Integrazioni → Big Data
+                      </button>
+                      .
+                    </p>
+                    <p>
+                      OAuth guidato è in Integrazioni; per GA4 senza login utente resta il service account in Avanzato. Senza
+                      credenziali workspace le API non leggono dati anche se gli ID qui sono compilati.
+                    </p>
+                  </div>
+                </details>
               </div>
             )}
           </section>

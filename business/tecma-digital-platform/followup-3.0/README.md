@@ -2,11 +2,12 @@
 
 Nuovo CRM multi-progetto creato da zero.
 
-**Documentazione:** [docs/README.md](docs/README.md) (indice) · **Piano di riferimento unico (visione e wave):** [docs/FOLLOWUP_3_MASTER.md](docs/FOLLOWUP_3_MASTER.md) · **Modello Request/Deal (Wave 4):** [docs/REQUESTS_MODEL.md](docs/REQUESTS_MODEL.md)
+**Documentazione:** [docs/README.md](docs/README.md) (indice) · **Leadership (CTO/CEO):** [docs/executive/README.md](docs/executive/README.md) · **Piano di riferimento unico (visione e wave):** [docs/FOLLOWUP_3_MASTER.md](docs/FOLLOWUP_3_MASTER.md) · **Modello Request/Deal (Wave 4):** [docs/REQUESTS_MODEL.md](docs/REQUESTS_MODEL.md)
 
 ## Componenti
 - `be-followup-v3` REST API modulare (solo MongoDB; Supabase rimosso)
 - `fe-followup-v3` frontend React/TypeScript
+- **DevSecOps (pipeline modulare):** [security-aggregator/README.md](security-aggregator/README.md) — normalizzazione JSON Semgrep + OSV + Trivy; config `.semgrep.yml` / `.trivyignore`; script `npm run security:modular`; **SBOM** CycloneDX: `npm run security:sbom` (Trivy). CI in root monorepo: [followup-3.0-security.yml](../../../.github/workflows/followup-3.0-security.yml). Dettagli: [docs/SECURITY_RUNBOOK.md](docs/SECURITY_RUNBOOK.md) §8–§10 e [docs/DOCS_CI_CD.md](docs/DOCS_CI_CD.md). Roadmap enterprise: [docs/plans/2026-03-24-devsecops-enterprise-roadmap.md](docs/plans/2026-03-24-devsecops-enterprise-roadmap.md).
 
 ## Design system (Wave 2)
 - **Token condivisi (riusabili da più app):** [tecma-digital-platform/design-system](../design-system) — `@tecma/design-system-tokens` con typography, color, radius da DS Figma (Tecma Software Suite).
@@ -137,6 +138,10 @@ CI= PLAYWRIGHT_USE_WEBSERVER=true pnpm run test:e2e:ci
 ```
 
 `CI=` evita che un `CI=true` ereditato dalla shell impedisca l’uso del web server integrato dei test. Dettagli env e smoke opzionale su API reale: [fe-followup-v3/e2e/README.md](fe-followup-v3/e2e/README.md). Per abilitare lo smoke API anche in GitHub Actions vedi [docs/DOCS_CI_CD.md](docs/DOCS_CI_CD.md) (secret opzionali).
+
+### Security modulare (opzionale in locale)
+
+Richiede **semgrep**, **osv-scanner** e **trivy** installati. Dalla root `followup-3.0`: `npm run security:modular` oppure `bash scripts/security/run-scans.sh`. **Solo SBOM:** `npm run security:sbom` → `security-reports/sbom-*.cdx.json`. **ZAP baseline locale:** `TARGET_URL=\"https://staging.example.com\" npm run security:zap:baseline`. Per i **solo test unit** dell’aggregatore (senza scanner): `npm run test:security-aggregator`. In CI (monorepo): [.github/workflows/followup-3.0-security.yml](../../../.github/workflows/followup-3.0-security.yml). **Dashboard:** artifact `security-dashboard.html` (navigabile, condivisibile come file). **SBOM:** artifact `followup-sbom`. Runbook: [docs/SECURITY_RUNBOOK.md](docs/SECURITY_RUNBOOK.md) §8–§11 (incluso **pentest** vs DAST e playbook operativo).
 
 **Dopo deploy su staging:** checklist manuale entitlement/Tecma in [docs/STAGING_ENTITLEMENTS_SMOKE.md](docs/STAGING_ENTITLEMENTS_SMOKE.md). Indice CI/CD: [docs/DOCS_CI_CD.md](docs/DOCS_CI_CD.md).
 

@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { buildItdLoginRedirectUrl, getJwtFromCookie } from "../../auth/itdLogin";
+import { isKeycloakOidcConfigured, startKeycloakOidcLogin } from "../../auth/keycloakOidc";
 import { followupApi } from "../../api/followupApi";
 import { login as authLogin, completeMfaLogin, isBssAuth } from "../../api/authApi";
 import { HttpApiError, setTokens } from "../../api/http";
@@ -16,6 +17,7 @@ import {
   SelectValue
 } from "../../components/ui/select";
 import { LogoTecma } from "../../components/LogoTecma";
+import { DevChannelPicker } from "../../dev/DevChannelPicker";
 
 const BUSINESS_PLATFORM_LOGIN_URL =
   import.meta.env.VITE_BUSINESSPLATFORM_LOGIN ?? "https://businessplatform-biz-tecma-dev1.tecmasolutions.com/login";
@@ -114,7 +116,11 @@ export const LoginPage = () => {
         }
       })
       .catch(() => {
-        window.location.replace(buildItdLoginRedirectUrl(BUSINESS_PLATFORM_LOGIN_URL));
+        if (isKeycloakOidcConfigured()) {
+          startKeycloakOidcLogin(backTo);
+        } else {
+          window.location.replace(buildItdLoginRedirectUrl(BUSINESS_PLATFORM_LOGIN_URL));
+        }
       });
   }, []);
 
@@ -207,7 +213,10 @@ export const LoginPage = () => {
 
   if (loginStep === 2) {
     return (
-      <div className="min-h-screen flex bg-auth-page text-foreground font-body">
+      <div className="relative min-h-screen flex bg-auth-page text-foreground font-body">
+      <div className="absolute right-4 top-4 z-10 max-w-[min(100vw-2rem,280px)] md:right-6 md:top-6">
+        <DevChannelPicker />
+      </div>
       <div className="hidden md:flex w-5/12 flex-col justify-between border-r border-border/60 bg-auth-sidebar px-12 py-12 lg:px-10">
         <div>
           <LogoTecma className="h-12 w-12 opacity-90" />
@@ -262,14 +271,20 @@ export const LoginPage = () => {
 
   if (ssoPending) {
     return (
-      <div className="min-h-screen flex bg-auth-page items-center justify-center">
+      <div className="relative min-h-screen flex bg-auth-page items-center justify-center">
+        <div className="absolute right-4 top-4 z-10 max-w-[min(100vw-2rem,280px)] md:right-6 md:top-6">
+          <DevChannelPicker />
+        </div>
         <p className="text-sm text-muted-foreground">Accesso SSO in corso…</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex bg-auth-page text-foreground font-body">
+    <div className="relative min-h-screen flex bg-auth-page text-foreground font-body">
+      <div className="absolute right-4 top-4 z-10 max-w-[min(100vw-2rem,280px)] md:right-6 md:top-6">
+        <DevChannelPicker />
+      </div>
       <div className="hidden md:flex w-5/12 flex-col justify-between border-r border-border/60 bg-auth-sidebar px-12 py-12 lg:px-10">
         <div>
           <LogoTecma className="h-12 w-12 opacity-90" />
@@ -280,8 +295,9 @@ export const LoginPage = () => {
             in un unico cockpit operativo.
           </h1>
           <p className="mt-4 max-w-sm text-sm text-muted-foreground">
-            Accedi con le stesse credenziali della BusinessPlatform. Tutti i tuoi progetti e iniziative vengono
-            caricati automaticamente.
+            {isKeycloakOidcConfigured()
+              ? "Accedi con il tuo account aziendale tramite Keycloak. Dopo il login potrai scegliere ambiente e progetti."
+              : "Accedi con le stesse credenziali della BusinessPlatform. Tutti i tuoi progetti e iniziative vengono caricati automaticamente."}
           </p>
         </div>
         <div className="space-y-3 text-xs text-muted-foreground">
@@ -416,17 +432,23 @@ export const LoginPage = () => {
               <div className="mt-6 border-t border-border pt-5 text-center">
                 <button
                   type="button"
-                  onClick={() => window.location.replace(buildItdLoginRedirectUrl(BUSINESS_PLATFORM_LOGIN_URL))}
+                  onClick={() =>
+                    isKeycloakOidcConfigured()
+                      ? startKeycloakOidcLogin(backTo)
+                      : window.location.replace(buildItdLoginRedirectUrl(BUSINESS_PLATFORM_LOGIN_URL))
+                  }
                   className="text-sm text-muted-foreground hover:text-foreground hover:underline"
                 >
-                  Accedi con SSO aziendale
+                  {isKeycloakOidcConfigured() ? "Accedi con Keycloak" : "Accedi con SSO aziendale"}
                 </button>
               </div>
             )}
           </div>
 
           <p className="mt-4 text-center text-[11px] text-muted-foreground">
-            Problemi di accesso? Contatta l’amministratore di BusinessPlatform o il team Tecma.
+            {isKeycloakOidcConfigured()
+              ? "Problemi di accesso? Contatta l’amministratore Keycloak o il team Tecma."
+              : "Problemi di accesso? Contatta l’amministratore di BusinessPlatform o il team Tecma."}
           </p>
         </div>
       </div>

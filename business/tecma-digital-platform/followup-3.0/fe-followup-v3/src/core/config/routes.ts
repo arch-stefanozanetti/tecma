@@ -1,6 +1,8 @@
 import type { LucideIcon } from "lucide-react";
 import {
   BarChart2,
+  BookOpen,
+  Database,
   Building2,
   CalendarDays,
   Euro,
@@ -39,6 +41,7 @@ export type Section =
   | "emailFlows"
   | "audit"
   | "reports"
+  | "bigData"
   | "releases"
   | "integrations"
   | "priceAvailability"
@@ -46,7 +49,8 @@ export type Section =
   | "customer360"
   | "productDiscovery"
   | "tecmaEntitlements"
-  | "accountSecurity";
+  | "accountSecurity"
+  | "executiveOverview";
 
 export const SECTIONS: Section[] = [
   "cockpit",
@@ -71,12 +75,14 @@ export const SECTIONS: Section[] = [
   "emailFlows",
   "audit",
   "reports",
+  "bigData",
   "releases",
   "integrations",
   "priceAvailability",
   "productDiscovery",
   "tecmaEntitlements",
   "accountSecurity",
+  "executiveOverview",
 ];
 
 /** Path puliti per le sezioni; le altre usano ?section=X */
@@ -95,12 +101,14 @@ export const SECTION_TO_PATH: Partial<Record<Section, string>> = {
   emailFlows: "/email-flows",
   audit: "/audit",
   reports: "/reports",
+  bigData: "/big-data",
   releases: "/releases",
   integrations: "/integrations",
   priceAvailability: "/prices",
   productDiscovery: "/product-discovery",
   tecmaEntitlements: "/tecma/entitlements",
   accountSecurity: "/account/security",
+  executiveOverview: "/executive",
 };
 
 export const PATH_TO_SECTION: Record<string, Section> = Object.fromEntries(
@@ -124,6 +132,7 @@ export const SECTION_REQUIRED_PERMISSION: Partial<Record<Section, SectionPermiss
   priceAvailability: "apartments.read",
   integrations: "integrations.read",
   reports: "reports.read",
+  bigData: "reports.read",
   audit: "settings.read",
   tecmaEntitlements: "settings.read",
   emailFlows: "email_flows.manage",
@@ -185,6 +194,14 @@ export const NAV_ITEMS: NavItemConfig[] = [
   { id: "emailFlows", label: "Email", icon: Mail, adminOnly: true, compact: true, group: "admin" },
   { id: "productDiscovery", label: "Product Discovery", icon: Layers, adminOnly: true, compact: true, group: "admin" },
   {
+    id: "executiveOverview",
+    label: "Panoramica strategica",
+    icon: BookOpen,
+    adminOnly: true,
+    compact: true,
+    group: "admin",
+  },
+  {
     id: "tecmaEntitlements",
     label: "Entitlement workspace",
     icon: ShieldCheck,
@@ -193,4 +210,5 @@ export const NAV_ITEMS: NavItemConfig[] = [
     group: "admin",
   },
   { id: "reports", label: "Report", icon: BarChart2, compact: true, group: "tools" },
+  { id: "bigData", label: "Big Data", icon: Database, compact: true, group: "tools" },
 ];

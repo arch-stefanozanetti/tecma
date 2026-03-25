@@ -17,6 +17,7 @@ export type FeatureKey = (typeof FEATURE_KEYS)[keyof typeof FEATURE_KEYS];
 export const SECTION_FEATURE_KEY: Partial<Record<string, FeatureKey>> = {
   aiApprovals: FEATURE_KEYS.aiApprovals,
   reports: FEATURE_KEYS.reports,
+  bigData: FEATURE_KEYS.reports,
   integrations: FEATURE_KEYS.integrations,
 };
 

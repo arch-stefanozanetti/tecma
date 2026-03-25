@@ -7,6 +7,12 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ToastProvider } from "./contexts/ToastContext";
 import "./styles.css";
 
+const routerBasename = (() => {
+  const b = import.meta.env.BASE_URL;
+  if (b === "/" || b === "") return undefined;
+  return b.endsWith("/") ? b.slice(0, -1) : b;
+})();
+
 const updateSW = registerSW({
   onNeedRefresh: () => {
     window.dispatchEvent(new CustomEvent("pwa-need-refresh"));
@@ -20,7 +26,7 @@ if (typeof updateSW === "function") {
 // se un componente ha hook condizionali. Se l'errore scompare, cercare hook dopo return o in branch condizionali.
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
-    <BrowserRouter>
+    <BrowserRouter basename={routerBasename}>
       <ToastProvider>
         <App />
       </ToastProvider>

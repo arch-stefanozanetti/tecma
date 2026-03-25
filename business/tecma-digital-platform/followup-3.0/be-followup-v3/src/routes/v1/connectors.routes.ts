@@ -16,6 +16,17 @@ import {
   getMarketingApiKeyConfig,
   saveMarketingApiKeyConfig,
 } from "../../core/connectors/marketing-api-key-config.service.js";
+import {
+  deleteMarketingGa4Config,
+  deleteMarketingGoogleAdsConfig,
+  deleteMarketingMetaAdsConfig,
+  getMarketingGa4Config,
+  getMarketingGoogleAdsConfig,
+  getMarketingMetaAdsConfig,
+  saveMarketingGa4Config,
+  saveMarketingGoogleAdsConfig,
+  saveMarketingMetaAdsConfig,
+} from "../../core/connectors/marketing-analytics-config.service.js";
 import { sendWhatsAppMessage } from "../../core/communications/whatsapp.service.js";
 import { sendWithMessagingGateway } from "../../core/messaging/messaging-gateway.service.js";
 import {
@@ -24,6 +35,13 @@ import {
   hasOutlookConnected,
   deleteOutlookCredentials,
 } from "../../core/connectors/outlook.service.js";
+import { buildGoogleMarketingAuthorizationUrl } from "../../core/connectors/marketing-google-oauth.service.js";
+import { buildMetaMarketingAuthorizationUrl } from "../../core/connectors/marketing-meta-oauth.service.js";
+import {
+  listGoogleAdsAccessibleCustomersWithOutcome,
+  listGa4PropertiesForWorkspaceWithOutcome,
+  listMetaAdAccountsForWorkspace,
+} from "../../core/connectors/marketing-discovery.service.js";
 import { HttpError } from "../../types/http.js";
 import { handleAsync, sendError } from "../asyncHandler.js";
 import { requireAdmin } from "../authMiddleware.js";
@@ -183,6 +201,99 @@ connectorsRoutes.delete("/workspaces/:workspaceId/connectors/meta-whatsapp/confi
   return { deleted };
 }));
 
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/marketing-meta-ads/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_READ),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const config = await getMarketingMetaAdsConfig(req.params.workspaceId);
+    return { config: config ?? null };
+  })
+);
+connectorsRoutes.post(
+  "/workspaces/:workspaceId/connectors/marketing-meta-ads/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_UPDATE),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const body = z.object({ accessToken: z.string().min(1) }).parse(req.body);
+    const config = await saveMarketingMetaAdsConfig(req.params.workspaceId, body);
+    return { config };
+  })
+);
+connectorsRoutes.delete(
+  "/workspaces/:workspaceId/connectors/marketing-meta-ads/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_DELETE),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const deleted = await deleteMarketingMetaAdsConfig(req.params.workspaceId);
+    return { deleted };
+  })
+);
+
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/marketing-ga4/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_READ),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const config = await getMarketingGa4Config(req.params.workspaceId);
+    return { config: config ?? null };
+  })
+);
+connectorsRoutes.post(
+  "/workspaces/:workspaceId/connectors/marketing-ga4/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_UPDATE),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const body = z.object({ serviceAccountJson: z.string().min(1) }).parse(req.body);
+    const config = await saveMarketingGa4Config(req.params.workspaceId, body);
+    return { config };
+  })
+);
+connectorsRoutes.delete(
+  "/workspaces/:workspaceId/connectors/marketing-ga4/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_DELETE),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const deleted = await deleteMarketingGa4Config(req.params.workspaceId);
+    return { deleted };
+  })
+);
+
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/marketing-google-ads/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_READ),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const config = await getMarketingGoogleAdsConfig(req.params.workspaceId);
+    return { config: config ?? null };
+  })
+);
+connectorsRoutes.post(
+  "/workspaces/:workspaceId/connectors/marketing-google-ads/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_UPDATE),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const body = z
+      .object({
+        refreshToken: z.string().min(1),
+        clientId: z.string().optional(),
+        clientSecret: z.string().optional(),
+      })
+      .parse(req.body);
+    const config = await saveMarketingGoogleAdsConfig(req.params.workspaceId, body);
+    return { config };
+  })
+);
+connectorsRoutes.delete(
+  "/workspaces/:workspaceId/connectors/marketing-google-ads/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_DELETE),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const deleted = await deleteMarketingGoogleAdsConfig(req.params.workspaceId);
+    return { deleted };
+  })
+);
+
 /** Admin: prova invio template Meta (WhatsApp Cloud API). */
 connectorsRoutes.post("/workspaces/:workspaceId/connectors/meta-whatsapp/test", requireAdmin, entitledIntegrationsForParam, handleAsync(async (req) => {
   const body = z
@@ -278,3 +389,65 @@ connectorsRoutes.delete(
   const deleted = await deleteOutlookCredentials(userId, workspaceId);
   return { deleted };
 }));
+
+/** OAuth Google (Ads + Analytics): URL da aprire nel browser (Big Data / Integrazioni). */
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/marketing-google/oauth-url",
+  requirePermission(PERMISSIONS.INTEGRATIONS_UPDATE),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const userId = req.user?.sub;
+    if (!userId) throw new HttpError("Unauthorized", 401);
+    const url = buildGoogleMarketingAuthorizationUrl(req.params.workspaceId, userId);
+    return { url };
+  })
+);
+
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/marketing-google/ads-customers",
+  requirePermission(PERMISSIONS.INTEGRATIONS_READ),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const outcome = await listGoogleAdsAccessibleCustomersWithOutcome(req.params.workspaceId);
+    if (!outcome.ok) {
+      throw new HttpError(outcome.message, 424, outcome.code, outcome.hint);
+    }
+    return { customers: outcome.customers };
+  })
+);
+
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/marketing-google/ga4-properties",
+  requirePermission(PERMISSIONS.INTEGRATIONS_READ),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const outcome = await listGa4PropertiesForWorkspaceWithOutcome(req.params.workspaceId);
+    if (!outcome.ok) {
+      throw new HttpError(outcome.message, 424, outcome.code, outcome.hint);
+    }
+    return { properties: outcome.properties };
+  })
+);
+
+/** OAuth Meta Marketing API */
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/marketing-meta/oauth-url",
+  requirePermission(PERMISSIONS.INTEGRATIONS_UPDATE),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const userId = req.user?.sub;
+    if (!userId) throw new HttpError("Unauthorized", 401);
+    const url = buildMetaMarketingAuthorizationUrl(req.params.workspaceId, userId);
+    return { url };
+  })
+);
+
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/marketing-meta/ad-accounts",
+  requirePermission(PERMISSIONS.INTEGRATIONS_READ),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const adAccounts = await listMetaAdAccountsForWorkspace(req.params.workspaceId);
+    return { adAccounts };
+  })
+);

@@ -17,6 +17,9 @@ vi.mock("../../auth/projectScope", () => ({
   WorkspaceOverrideProvider: ({ children }: { children: unknown }) => children,
 }));
 vi.mock("../../assets/itd-icons/logotipoTecma.svg", () => ({ default: "/mock-logotipo.svg" }));
+vi.mock("../../dev/DevChannelPicker", () => ({
+  DevChannelPicker: () => null,
+}));
 
 const defaultProps = {
   section: "cockpit" as const,

@@ -3,13 +3,11 @@
  * Usato quando VITE_USE_BSS_AUTH=true e VITE_API_BASE_URL punta al gateway.
  * Contratto BSS: token { tokenType, accessToken, refreshToken, expiresIn }, user { id, firstName, lastName, email, role, TwoFA, project_ids, ... }.
  */
-import { getAccessToken } from "./http";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/v1";
+import { getAccessToken, resolveApiBaseUrl } from "./http";
 
 /** Base URL del gateway senza suffisso /v1 (per POST /login che è a livello root). */
 const getGatewayBaseUrl = (): string => {
-  const base = API_BASE_URL.trim();
+  const base = resolveApiBaseUrl().trim();
   if (base.endsWith("/v1")) return base.slice(0, -3);
   if (base.endsWith("/v1/")) return base.slice(0, -4);
   return base;
@@ -118,7 +116,7 @@ export async function loginBss(
 export async function meBss(): Promise<BssMeResponse> {
   const token = getAccessToken();
   if (!token) throw new Error("Nessun token di accesso");
-  const url = `${API_BASE_URL}/users/getUserByJWT`;
+  const url = `${resolveApiBaseUrl()}/users/getUserByJWT`;
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -140,7 +138,7 @@ export async function meBss(): Promise<BssMeResponse> {
  * Body/header come richiesto dal backend BSS (es. refreshToken in body).
  */
 export async function refreshBss(refreshToken: string): Promise<BssRefreshResponse> {
-  const url = `${API_BASE_URL}/auth/refresh-token`;
+  const url = `${resolveApiBaseUrl()}/auth/refresh-token`;
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

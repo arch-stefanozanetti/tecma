@@ -9,8 +9,9 @@ const profiles = {
     global: { lines: 70, statements: 70, functions: 75, branches: 40 },
     critical: { lines: 50, statements: 50, functions: 55, branches: 30 },
   },
+  /** Allineato a vitest.core: kernel a 100% su linee/branch. */
   target: {
-    global: { lines: 85, statements: 85, functions: 85, branches: 85 },
+    global: { lines: 100, statements: 100, functions: 100, branches: 100 },
     critical: { lines: 100, statements: 100, functions: 100, branches: 100 },
   },
 };
@@ -32,15 +33,14 @@ const thresholds = profiles[profile];
 const metricNames = ["lines", "statements", "functions", "branches"];
 const criticalFilesByProfile = {
   floor: [
-    "src/core/auth/auth.service.ts",
-    "src/core/workflow/workflow-engine.service.ts",
+    "src/core/auth/accountLockout.service.ts",
     "src/core/pricing/price-normalizer.ts",
+    "src/core/rbac/enterpriseRoles.mapper.ts",
   ],
   target: [
-    "src/core/auth/auth.service.ts",
-    "src/core/workflow/workflow-engine.service.ts",
+    "src/core/auth/accountLockout.service.ts",
     "src/core/pricing/price-normalizer.ts",
-    "src/core/rbac/permissions.ts",
+    "src/core/rbac/enterpriseRoles.mapper.ts",
   ],
 };
 

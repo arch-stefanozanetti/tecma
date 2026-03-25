@@ -1,0 +1,246 @@
+# FollowUp 3.0 — pipeline modulare DevSecOps (Semgrep, OSV, Trivy + aggregatore).
+# Deploy: invariato (Render). Vedi docs/SECURITY_RUNBOOK.md nel package followup-3.0.
+name: FollowUp 3.0 Security
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "business/tecma-digital-platform/followup-3.0/**"
+      - ".github/workflows/followup-3.0-security.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "business/tecma-digital-platform/followup-3.0/**"
+      - ".github/workflows/followup-3.0-security.yml"
+
+concurrency:
+  group: followup-security-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FOLLOWUP_ROOT: business/tecma-digital-platform/followup-3.0
+
+# security-events: upload SARIF → tab Security / Code scanning (UI GitHub, niente dashboard custom).
+# pull-requests: commento sticky aggregatore.
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: write
+
+jobs:
+  semgrep:
+    name: Semgrep (SAST)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.FOLLOWUP_ROOT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install semgrep
+      - run: mkdir -p security-reports
+      - name: Scan
+        run: |
+          set +e
+          semgrep scan --config p/ci --metrics off --json -o security-reports/semgrep-report.json .
+          if [ ! -s security-reports/semgrep-report.json ]; then
+            echo '{"results":[]}' > security-reports/semgrep-report.json
+          fi
+          semgrep scan --config p/ci --metrics off --sarif --sarif-output=security-reports/semgrep.sarif .
+          if [ ! -s security-reports/semgrep.sarif ]; then
+            echo '{"version":"2.1.0","$schema":"https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json","runs":[]}' > security-reports/semgrep.sarif
+          fi
+      - name: Upload Semgrep SARIF (GitHub Security UI)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ env.FOLLOWUP_ROOT }}/security-reports/semgrep.sarif
+          category: followup-semgrep
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sec-semgrep-json
+          path: ${{ env.FOLLOWUP_ROOT }}/security-reports/semgrep-report.json
+
+  osv:
+    name: OSV (SCA)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.FOLLOWUP_ROOT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - run: go install github.com/google/osv-scanner/v2/cmd/osv-scanner@v2.2.4
+      - run: echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - run: mkdir -p security-reports
+      - name: Scan
+        run: |
+          set +e
+          osv-scanner scan source -r . --format json --output security-reports/osv-report.json
+          EC=$?
+          if [ ! -s security-reports/osv-report.json ]; then
+            echo '{"results":[]}' > security-reports/osv-report.json
+          fi
+          if [ "$EC" -gt 1 ]; then
+            exit "$EC"
+          fi
+          set +e
+          osv-scanner scan source -r . --format sarif --output security-reports/osv.sarif
+          if [ ! -s security-reports/osv.sarif ]; then
+            echo '{"version":"2.1.0","$schema":"https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json","runs":[]}' > security-reports/osv.sarif
+          fi
+      - name: Upload OSV SARIF (GitHub Security UI)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ env.FOLLOWUP_ROOT }}/security-reports/osv.sarif
+          category: followup-osv
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sec-osv-json
+          path: ${{ env.FOLLOWUP_ROOT }}/security-reports/osv-report.json
+
+  trivy:
+    name: Trivy (fs)
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.FOLLOWUP_ROOT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aquasecurity/setup-trivy@v0.2.1
+        with:
+          version: v0.55.2
+          cache: true
+      - run: mkdir -p security-reports
+      - name: Scan
+        run: |
+          trivy fs --scanners vuln,misconfig --exit-code 0 --format json \
+            --skip-dirs node_modules --skip-dirs "**/node_modules" \
+            -o security-reports/trivy-report.json .
+          trivy fs --scanners vuln,misconfig --exit-code 0 --format sarif \
+            --skip-dirs node_modules --skip-dirs "**/node_modules" \
+            -o security-reports/trivy.sarif .
+          if [ ! -s security-reports/trivy.sarif ]; then
+            echo '{"version":"2.1.0","$schema":"https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json","runs":[]}' > security-reports/trivy.sarif
+          fi
+      - name: Upload Trivy SARIF (GitHub Security UI)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ env.FOLLOWUP_ROOT }}/security-reports/trivy.sarif
+          category: followup-trivy-fs
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sec-trivy-json
+          path: ${{ env.FOLLOWUP_ROOT }}/security-reports/trivy-report.json
+
+  sbom:
+    name: SBOM (CycloneDX)
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.FOLLOWUP_ROOT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aquasecurity/setup-trivy@v0.2.1
+        with:
+          version: v0.55.2
+          cache: true
+      - name: Generate SBOMs (BE + FE)
+        run: bash scripts/security/generate-sbom.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: followup-sbom
+          path: |
+            ${{ env.FOLLOWUP_ROOT }}/security-reports/sbom-be.cdx.json
+            ${{ env.FOLLOWUP_ROOT }}/security-reports/sbom-fe.cdx.json
+
+  aggregate:
+    name: Aggregate + gate
+    needs: [semgrep, osv]
+    runs-on: ubuntu-latest
+    env:
+      FAIL_ON_CRITICAL_GT: "999999"
+      FAIL_ON_HIGH_GT: "999999"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: sec-semgrep-json
+          path: ${{ env.FOLLOWUP_ROOT }}/security-reports
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: sec-osv-json
+          path: ${{ env.FOLLOWUP_ROOT }}/security-reports
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: ${{ env.FOLLOWUP_ROOT }}/security-aggregator/package-lock.json
+
+      - name: Build aggregator
+        working-directory: ${{ env.FOLLOWUP_ROOT }}/security-aggregator
+        run: npm ci && npm run build
+
+      - name: Merge + report (soft-fail per commento PR)
+        id: agg
+        working-directory: ${{ env.FOLLOWUP_ROOT }}
+        run: |
+          node security-aggregator/dist/cli.js aggregate \
+            --out-dir security-reports \
+            --semgrep security-reports/semgrep-report.json \
+            --osv security-reports/osv-report.json \
+            --pr-body-out security-reports/pr-body.md \
+            --soft-fail
+
+      - name: Dashboard HTML (navigabile, artifact)
+        working-directory: ${{ env.FOLLOWUP_ROOT }}
+        run: |
+          node security-aggregator/dist/cli.js dashboard \
+            --report security-reports/unified-report.json \
+            --out security-reports/security-dashboard.html
+
+      - name: Ensure PR body exists
+        if: github.event_name == 'pull_request' && always()
+        working-directory: ${{ env.FOLLOWUP_ROOT }}
+        run: |
+          if [ ! -f security-reports/pr-body.md ]; then
+            mkdir -p security-reports
+            printf '%s\n\n_Report non generato (step precedente fallito)._ \n' '<!-- security-report-bot -->' > security-reports/pr-body.md
+          fi
+
+      - name: PR comment (idempotente)
+        if: github.event_name == 'pull_request' && always()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: followup3-security-report
+          path: ${{ env.FOLLOWUP_ROOT }}/security-reports/pr-body.md
+          skip_unchanged: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-unified-followup3
+          path: |
+            ${{ env.FOLLOWUP_ROOT }}/security-reports/unified-report.json
+            ${{ env.FOLLOWUP_ROOT }}/security-reports/summary.json
+            ${{ env.FOLLOWUP_ROOT }}/security-reports/security-dashboard.html
+
+      - name: Gate (critical / high)
+        working-directory: ${{ env.FOLLOWUP_ROOT }}
+        run: node security-aggregator/dist/cli.js gate --summary security-reports/summary.json

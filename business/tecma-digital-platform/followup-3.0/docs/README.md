@@ -4,6 +4,12 @@ Indice della documentazione di progetto. **Piano unico (checklist, fasi, backlog
 
 ---
 
+## Panoramica per leadership (CTO / CEO)
+
+Sezione **navigabile** (executive summary, perché rebuild, maturità per dominio, architettura, GDPR alto livello, rischi): **[docs/executive/README.md](executive/README.md)**.
+
+---
+
 ## Documenti maestro
 
 | File | Contenuto |
@@ -17,7 +23,13 @@ Indice della documentazione di progetto. **Piano unico (checklist, fasi, backlog
 
 | File | Contenuto |
 |------|-----------|
-| [DOCS_CI_CD.md](DOCS_CI_CD.md) | CI monorepo e **followup-3.0** (`ci-be` / `ci-fe`), checklist merge (link), secret E2E opzionali, deploy Render. |
+| [DOCS_CI_CD.md](DOCS_CI_CD.md) | CI monorepo e **followup-3.0** (`ci-be` / `ci-fe`), workflow **security** (`followup-3.0-security.yml`), checklist merge (link), secret E2E opzionali, deploy Render. |
+| [SECURITY_RUNBOOK.md](SECURITY_RUNBOOK.md) | Policy segreti, audit dipendenze, threat model minimo, **pipeline modulare** (§8), **dashboard HTML** e **pentest vs DAST** (§9), **KPI enterprise e SBOM** (§10). |
+| [PENTEST_EXECUTION.md](PENTEST_EXECUTION.md) | Playbook operativo per avviare e chiudere un penetration test reale (scope, prerequisiti, output, retest). |
+| [PENTEST_VENDOR_HANDOFF.md](PENTEST_VENDOR_HANDOFF.md) | Template da inviare al fornitore pentest (scope, ROE, accessi, SLA, output). |
+| [plans/2026-03-24-devsecops-enterprise-roadmap.md](plans/2026-03-24-devsecops-enterprise-roadmap.md) | Roadmap DevSecOps oltre la pipeline: **KPI**, threat model esteso, **OIDC/secrets**, **SBOM**, WAF/API, **matrice vendor ASPM**. |
+| [github-oidc-deploy.example.yml](github-oidc-deploy.example.yml) | Snippet commentato: **OIDC** da GitHub Actions verso cloud (no chiavi long-lived). |
+| [gitlab-security-pipeline.example.yml](gitlab-security-pipeline.example.yml) | Esempio commentato per replicare la pipeline security su **GitLab CI** (opzionale). |
 | [STAGING_ENTITLEMENTS_SMOKE.md](STAGING_ENTITLEMENTS_SMOKE.md) | Checklist manuale post-deploy: console Tecma, 403 entitlement, liste workspace. |
 | [API_RIUSABILI.md](API_RIUSABILI.md) | API per uso esterno (riusabili): listati appartamenti, lista light clienti; contratti, auth, esempi; riferimento OpenAPI. |
 | [OBSERVABILITY.md](OBSERVABILITY.md) | Logging strutturato (`pino`), request correlation (`x-request-id`/`x-correlation-id`), OpenTelemetry (traces + metriche OTLP). |

@@ -11,6 +11,13 @@ import {
   viewerAssignmentUserId,
   type EntityAssignmentListViewer,
 } from "../workspaces/entity-assignment-query.util.js";
+import {
+  MarketingAttributionInputSchema,
+  type MarketingAttributionDoc,
+  normalizeTouchPartial,
+  touchHasSignal,
+  isMarketingAttributionDoc,
+} from "../marketing/marketing-attribution.schema.js";
 
 /** Coniuge/familiare del cliente (legacy). */
 export interface ClientConiuge {
@@ -86,6 +93,8 @@ export interface ClientRow {
   additionalInfo?: Record<string, unknown>;
   nProposals?: number;
   nReserved?: number;
+  /** Attribuzione marketing (gclid/fbclid/UTM) per Big Data / offline conversion. */
+  marketingAttribution?: MarketingAttributionDoc;
 }
 
 const buildMatch = (q: ListQueryInput) => {
@@ -173,6 +182,7 @@ const queryPrimaryClients = async (
     createdBy: 1,
     updatedAt: 1,
     createdAt: 1,
+    marketingAttribution: 1,
   };
 
   if (shouldApplyEntityAssignmentListFilter(viewer)) {
@@ -236,6 +246,9 @@ const queryPrimaryClients = async (
         city: typeof item.city === "string" ? item.city : undefined,
         myhomeVersion: typeof item.myhomeVersion === "string" ? item.myhomeVersion : undefined,
         createdBy: typeof item.createdBy === "string" ? item.createdBy : undefined,
+        ...(isMarketingAttributionDoc(rec.marketingAttribution)
+          ? { marketingAttribution: rec.marketingAttribution }
+          : {}),
       };
     });
 
@@ -279,6 +292,9 @@ const queryPrimaryClients = async (
       city: typeof item.city === "string" ? item.city : undefined,
       myhomeVersion: typeof item.myhomeVersion === "string" ? item.myhomeVersion : undefined,
       createdBy: typeof item.createdBy === "string" ? item.createdBy : undefined,
+      ...(isMarketingAttributionDoc((item as Record<string, unknown>).marketingAttribution)
+        ? { marketingAttribution: (item as Record<string, unknown>).marketingAttribution as MarketingAttributionDoc }
+        : {}),
     };
   });
 
@@ -303,23 +319,27 @@ export const queryClients = async (
 
 const mapDocToClientRow = (item: Record<string, unknown>): ClientRow => {
   const n = namesFromDoc(item);
-  return {
-  _id: String(item._id ?? ""),
-  workspaceId: typeof item.workspaceId === "string" ? item.workspaceId : undefined,
-  projectId: typeof item.projectId === "string" ? item.projectId : "",
-  firstName: n.firstName,
-  lastName: n.lastName,
-  fullName: n.fullName,
-  email: typeof item.email === "string" ? item.email : undefined,
-  phone: typeof item.phone === "string" ? item.phone : undefined,
-  status: typeof item.status === "string" ? item.status : "lead",
-  createdAt: item.createdAt ? String(item.createdAt) : undefined,
-  updatedAt: String(item.updatedAt || item.createdAt || new Date(0).toISOString()),
-  source: typeof item.source === "string" ? item.source : undefined,
-  city: typeof item.city === "string" ? item.city : undefined,
-  myhomeVersion: typeof item.myhomeVersion === "string" ? item.myhomeVersion : undefined,
-  createdBy: typeof item.createdBy === "string" ? item.createdBy : undefined,
-};
+  const row: ClientRow = {
+    _id: String(item._id ?? ""),
+    workspaceId: typeof item.workspaceId === "string" ? item.workspaceId : undefined,
+    projectId: typeof item.projectId === "string" ? item.projectId : "",
+    firstName: n.firstName,
+    lastName: n.lastName,
+    fullName: n.fullName,
+    email: typeof item.email === "string" ? item.email : undefined,
+    phone: typeof item.phone === "string" ? item.phone : undefined,
+    status: typeof item.status === "string" ? item.status : "lead",
+    createdAt: item.createdAt ? String(item.createdAt) : undefined,
+    updatedAt: String(item.updatedAt || item.createdAt || new Date(0).toISOString()),
+    source: typeof item.source === "string" ? item.source : undefined,
+    city: typeof item.city === "string" ? item.city : undefined,
+    myhomeVersion: typeof item.myhomeVersion === "string" ? item.myhomeVersion : undefined,
+    createdBy: typeof item.createdBy === "string" ? item.createdBy : undefined,
+  };
+  if (isMarketingAttributionDoc(item.marketingAttribution)) {
+    row.marketingAttribution = item.marketingAttribution;
+  }
+  return row;
 };
 
 export const getClientById = async (
@@ -357,6 +377,7 @@ export interface ClientCreateInput {
   phone?: string;
   status?: string;
   city?: string;
+  marketingAttribution?: z.infer<typeof MarketingAttributionInputSchema>;
 }
 
 export interface ClientUpdateInput {
@@ -368,6 +389,7 @@ export interface ClientUpdateInput {
   phone?: string;
   status?: string;
   city?: string;
+  marketingAttribution?: z.infer<typeof MarketingAttributionInputSchema>;
 }
 
 const ClientCreateSchema = z.object({
@@ -379,6 +401,7 @@ const ClientCreateSchema = z.object({
   phone: z.string().optional(),
   status: z.enum(["lead", "prospect", "client", "contacted", "negotiation", "won", "lost"]).optional().default("lead"),
   city: z.string().optional(),
+  marketingAttribution: MarketingAttributionInputSchema.optional(),
 });
 
 const ClientUpdateSchema = z.object({
@@ -389,6 +412,7 @@ const ClientUpdateSchema = z.object({
   phone: z.string().optional(),
   status: z.enum(["lead", "prospect", "client", "contacted", "negotiation", "won", "lost"]).optional(),
   city: z.string().optional(),
+  marketingAttribution: MarketingAttributionInputSchema.optional(),
 });
 
 /**
@@ -420,7 +444,7 @@ export const createClient = async (rawInput: unknown): Promise<{ client: ClientR
   const firstName = (input.firstName || "").trim();
   const lastName = (input.lastName || "").trim();
   const fullName = joinClientFullName(firstName, lastName) || "-";
-  const doc = {
+  const doc: Record<string, unknown> = {
     workspaceId: input.workspaceId,
     projectId: input.projectId,
     firstName,
@@ -433,8 +457,13 @@ export const createClient = async (rawInput: unknown): Promise<{ client: ClientR
     updatedAt: now,
     createdAt: now,
   };
+  const touchIn = input.marketingAttribution?.touch;
+  if (touchIn && touchHasSignal(touchIn)) {
+    const t = normalizeTouchPartial(touchIn, now);
+    doc.marketingAttribution = { firstTouch: t, lastTouch: t };
+  }
   try {
-    const result = await collection.insertOne(doc);
+    const result = await collection.insertOne(doc as never);
     const inserted = await collection.findOne({ _id: result.insertedId });
     const client = mapDocToClientRow(inserted as Record<string, unknown>);
     return { client };
@@ -493,6 +522,22 @@ export const updateClient = async (
   if (input.status !== undefined && CLIENT_STATUSES.includes(input.status as (typeof CLIENT_STATUSES)[number]))
     updateDoc.status = input.status;
   if (input.city !== undefined) updateDoc.city = (input.city || "").trim() || undefined;
+
+  const touchIn = input.marketingAttribution?.touch;
+  if (touchIn && touchHasSignal(touchIn)) {
+    const now = new Date().toISOString();
+    const normalized = normalizeTouchPartial(touchIn, now);
+    const prevAttr = existingRec.marketingAttribution;
+    if (isMarketingAttributionDoc(prevAttr)) {
+      updateDoc.marketingAttribution = {
+        firstTouch: prevAttr.firstTouch,
+        lastTouch: normalized,
+      };
+    } else {
+      updateDoc.marketingAttribution = { firstTouch: normalized, lastTouch: normalized };
+    }
+  }
+
   try {
     await collection.updateOne({ _id }, { $set: updateDoc });
   } catch (err: unknown) {

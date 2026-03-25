@@ -31,3 +31,9 @@ export {
   patchProjectPdfTemplate,
   deleteProjectPdfTemplate,
 } from "./project-pdf.service.js";
+export type { ProjectMarketingSettingsRow } from "./project-marketing-settings.service.js";
+export {
+  getProjectMarketingSettings,
+  getProjectMarketingSettingsRaw,
+  putProjectMarketingSettings,
+} from "./project-marketing-settings.service.js";

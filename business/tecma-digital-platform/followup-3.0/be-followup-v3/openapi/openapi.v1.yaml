@@ -6722,6 +6722,101 @@
         }
       }
     },
+    "/bigdata/projects/{projectId}": {
+      "get": {
+        "tags": [
+          "reports",
+          "bigdata"
+        ],
+        "summary": "Big Data: funnel CRM per canale (attribuzione) + marketing (stub)",
+        "description": "Richiede workspace con entitlement reports. Query: workspaceId, dateFrom, dateTo, attributionModel opzionale (last_touch|first_touch), section opzionale (full|overview|ads|meta|ga4|funnel|listings) per payload parziale e cache per tab.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workspaceId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dateFrom",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "dateTo",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "attributionModel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "last_touch",
+                "first_touch"
+              ]
+            },
+            "description": "Modello di attribuzione canale sui lead CRM.",
+            "example": "last_touch"
+          },
+          {
+            "name": "section",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "full",
+                "overview",
+                "ads",
+                "meta",
+                "ga4",
+                "funnel",
+                "listings"
+              ]
+            },
+            "description": "Sotto-report nativo (default full se omesso).",
+            "example": "overview"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Snapshot aggregato (cache ~1h)"
+          },
+          "400": {
+            "description": "Parametri mancanti"
+          },
+          "403": {
+            "description": "Entitlement o accesso progetto negato"
+          }
+        }
+      }
+    },
     "/platform/capabilities": {
       "get": {
         "tags": [
@@ -6890,6 +6985,178 @@
           },
           "401": {
             "description": "Missing/invalid API key"
+          }
+        }
+      }
+    },
+    "/platform/leads": {
+      "post": {
+        "tags": [
+          "platform",
+          "clients",
+          "Riusabili"
+        ],
+        "summary": "Crea lead da sito Recommerce (Webflow) con attribuzione marketing",
+        "description": "Scope platform.leads.create. workspaceId è quello della API key, non del body.",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "projectId",
+                  "firstName",
+                  "lastName"
+                ],
+                "properties": {
+                  "projectId": {
+                    "type": "string"
+                  },
+                  "firstName": {
+                    "type": "string"
+                  },
+                  "lastName": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "apartmentId": {
+                    "type": "string"
+                  },
+                  "apartmentCode": {
+                    "type": "string"
+                  },
+                  "dealType": {
+                    "type": "string",
+                    "enum": [
+                      "rent",
+                      "sell"
+                    ]
+                  },
+                  "createDeal": {
+                    "type": "boolean"
+                  },
+                  "marketingAttribution": {
+                    "type": "object",
+                    "properties": {
+                      "touch": {
+                        "type": "object",
+                        "properties": {
+                          "gclid": {
+                            "type": "string"
+                          },
+                          "fbclid": {
+                            "type": "string"
+                          },
+                          "utmSource": {
+                            "type": "string"
+                          },
+                          "utmMedium": {
+                            "type": "string"
+                          },
+                          "utmCampaign": {
+                            "type": "string"
+                          },
+                          "landingPath": {
+                            "type": "string"
+                          },
+                          "capturedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "clientId e opzionalmente requestId"
+          },
+          "401": {
+            "description": "Missing/invalid API key"
+          },
+          "403": {
+            "description": "Scope o projectId non consentito"
+          },
+          "409": {
+            "description": "Email già presente nel workspace"
+          }
+        }
+      }
+    },
+    "/platform/property-views": {
+      "post": {
+        "tags": [
+          "platform",
+          "Riusabili"
+        ],
+        "summary": "Registra visualizzazione listing/appartamento (Big Data first-party)",
+        "description": "Scope platform.propertyViews.create. projectId deve essere tra quelli consentiti dalla API key.",
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "projectId"
+                ],
+                "properties": {
+                  "projectId": {
+                    "type": "string",
+                    "description": "Progetto CRM target"
+                  },
+                  "listingId": {
+                    "type": "string",
+                    "description": "Identificativo listing CMS/slug"
+                  },
+                  "apartmentId": {
+                    "type": "string",
+                    "description": "ID appartamento CRM se noto"
+                  },
+                  "path": {
+                    "type": "string",
+                    "description": "Pathname pagina vista"
+                  },
+                  "occurredAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Istante evento (default server)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Evento inserito (ok, id Mongo)"
+          },
+          "401": {
+            "description": "Missing/invalid API key"
+          },
+          "403": {
+            "description": "Scope o projectId non consentito"
           }
         }
       }

@@ -35,6 +35,7 @@ import { isBssAuth } from "../../api/authApi";
 import { clearTokens, getRefreshToken } from "../../api/http";
 import { isSectionEnabledByFeature, isPriceAvailabilityRelevant } from "../features";
 import { Inbox } from "./Inbox";
+import { DevChannelPicker } from "../../dev/DevChannelPicker";
 
 interface PageTemplateProps {
   section: Section;
@@ -642,6 +643,7 @@ export const PageTemplate = ({
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="relative z-20 flex h-[72px] items-center justify-end border-b border-border bg-background px-4 lg:px-6">
           <div className="flex items-center gap-3">
+            <DevChannelPicker compact className="hidden min-[400px]:block" />
 
             {/* Workspace selector (admin) */}
             {isAdmin && onChangeWorkspace && (
