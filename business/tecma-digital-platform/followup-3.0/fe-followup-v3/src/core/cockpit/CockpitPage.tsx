@@ -23,6 +23,7 @@ import { useIsMobile } from "../shared/useIsMobile";
 import { isPriceAvailabilityRelevant } from "../features";
 import type { CalendarEvent, ClientRow, RequestRow } from "../../types/domain";
 import type { AiSuggestion, ProjectAccessProject } from "../../types/domain";
+import { HttpApiError } from "../../api/http";
 import { Button } from "../../components/ui/button";
 import { cn } from "../../lib/utils";
 import { PrioritySuggestionsList, type PriorityActionItem } from "./PrioritySuggestionsList";
@@ -68,6 +69,33 @@ const suggestionToCard = (s: AiSuggestion): PriorityActionItem => ({
 /** Allineato a MAX_SUGGESTION_GROUPS nel BE: max macro-card Priorità operative. */
 const MAX_PRIORITY_GROUPS = 8;
 
+function mapSuggestionsLoadError(error: unknown): { message: string; showAiConfigCta: boolean } {
+  if (error instanceof HttpApiError) {
+    if (error.code === "FEATURE_NOT_ENTITLED") {
+      return {
+        message: "Suggerimenti AI non disponibili: il modulo AI Approvals non è attivo su questo workspace.",
+        showAiConfigCta: false,
+      };
+    }
+    if (error.status === 403) {
+      return {
+        message: "Non hai i permessi necessari per leggere i suggerimenti AI in questo workspace.",
+        showAiConfigCta: false,
+      };
+    }
+    if (error.status === 401) {
+      return {
+        message: "Sessione non valida o scaduta. Ricarica la pagina ed effettua nuovamente l'accesso.",
+        showAiConfigCta: false,
+      };
+    }
+  }
+  return {
+    message: "Impossibile caricare i suggerimenti. Verifica la connessione e la configurazione AI del workspace.",
+    showAiConfigCta: true,
+  };
+}
+
 export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, onNavigateToSection, isAdmin }: CockpitPageProps) => {
   const isMobile = useIsMobile();
   const { email: scopeEmail, projects: scopeProjects } = useWorkspace();
@@ -79,6 +107,7 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
   const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
   const [llmUsedForSuggestions, setLlmUsedForSuggestions] = useState<boolean | null>(null);
   const [suggestionsFromCache, setSuggestionsFromCache] = useState(true);
+  const [showAiConfigCtaOnError, setShowAiConfigCtaOnError] = useState(false);
   const [suggestionsRefreshing, setSuggestionsRefreshing] = useState(false);
   const [executingSuggestionId, setExecutingSuggestionId] = useState<string | null>(null);
   const [agentSheetOpen, setAgentSheetOpen] = useState(false);
@@ -104,6 +133,7 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
       setAiConfigured(res.aiConfigured ?? true);
       setLlmUsedForSuggestions(res.llmUsed === true ? true : res.llmUsed === false ? false : null);
       setSuggestionsFromCache(fromCache);
+      setShowAiConfigCtaOnError(false);
     },
     []
   );
@@ -205,13 +235,15 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
         applySuggestionsResponse(res, true);
         setSuggestionsLoaded(true);
       })
-      .catch(() => {
+      .catch((error) => {
         if (cancelled) return;
+        const mapped = mapSuggestionsLoadError(error);
         setActions([]);
         setAiConfigured(null);
         setLlmUsedForSuggestions(null);
         setSuggestionsFromCache(true);
-        setSuggestionsError("Impossibile caricare i suggerimenti. Verifica la connessione e la configurazione AI del workspace.");
+        setSuggestionsError(mapped.message);
+        setShowAiConfigCtaOnError(mapped.showAiConfigCta);
         setSuggestionsLoaded(true);
       });
     return () => {
@@ -527,7 +559,7 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
           ) : suggestionsError ? (
             <div className="rounded-lg border border-border bg-card px-4 py-8 text-center">
               <p className="text-sm text-muted-foreground">{suggestionsError}</p>
-              {isAdmin && (
+              {isAdmin && showAiConfigCtaOnError && (
                 <Button className="mt-3 min-h-11" size="sm" onClick={() => navigate("/workspace")}>
                   Vai a Workspaces per configurare l&apos;AI
                 </Button>
