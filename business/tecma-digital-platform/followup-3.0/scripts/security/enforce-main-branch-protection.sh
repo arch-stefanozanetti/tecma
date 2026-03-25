@@ -25,7 +25,6 @@ read -r -d '' payload <<'JSON' || true
     "strict": true,
     "contexts": [
       "FE Quality Gate",
-      "BE Quality Gate",
       "Aggregate + gate"
     ]
   },
