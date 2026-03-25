@@ -21,6 +21,8 @@ git push origin main
 
 **Attenzione:** ogni `git push origin main` pubblica subito; conviene sempre `git pull` prima del push e, se possibile, provare in locale.
 
+Se GitHub risponde con **GH006** / *Protected branch update failed*, la protezione su `main` è **ancora attiva** (anche se la UI può confondere tra *Rulesets* e *Branch protection*): controlla **Settings → Rules** del repository oppure passa alla sezione **[`main` protetto](#main-protetto-pr-obbligatoria-da-cli-o-agente)** qui sotto.
+
 ---
 
 ## `main` protetto (PR obbligatoria da CLI o agente)
