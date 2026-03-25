@@ -6,7 +6,7 @@ Indice della documentazione di progetto. **Piano unico (checklist, fasi, backlog
 
 ## Panoramica per leadership (CTO / CEO)
 
-Sezione **navigabile** (executive summary, perché rebuild, maturità per dominio, architettura, GDPR alto livello, rischi): **[docs/executive/README.md](executive/README.md)**.
+Sezione **navigabile** (executive summary, perché rebuild, stadio operativo per dominio, architettura, GDPR alto livello, rischi): **[docs/executive/README.md](executive/README.md)**.
 
 ---
 

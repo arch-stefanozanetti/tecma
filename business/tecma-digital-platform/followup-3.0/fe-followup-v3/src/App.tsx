@@ -294,7 +294,7 @@ const renderSection = (
     return (
       <PageSimple
         title="Panoramica strategica (CTO / CEO)"
-        description="POC/MVP, maturità per dominio, architettura, privacy e rischi — allineata alla documentazione in repository."
+        description="Hub introduttivo con percorsi di lettura, mappe Mermaid e testi executive da repository — per allineare direzione, maturità tecnica e rischi prima di pitch o go-live."
       >
         <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Caricamento panoramica strategica…</div>}>
           <ExecutiveOverviewPage />
