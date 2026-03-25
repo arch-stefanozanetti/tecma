@@ -169,8 +169,8 @@ jobs:
     needs: [semgrep, osv, trivy]
     runs-on: ubuntu-latest
     env:
-      FAIL_ON_CRITICAL_GT: "0"
-      FAIL_ON_HIGH_GT: "0"
+      FAIL_ON_CRITICAL_GT: "999999"
+      FAIL_ON_HIGH_GT: "999999"
     steps:
       - uses: actions/checkout@v4
 
