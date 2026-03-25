@@ -1,0 +1,54 @@
+name: FollowUp 3.0 Production Verify
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "business/tecma-digital-platform/followup-3.0/**"
+      - "render.yaml"
+      - ".github/workflows/followup-3.0-production-verify.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: followup-production-verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  production-smoke:
+    name: Production Smoke Check
+    runs-on: ubuntu-latest
+    env:
+      BE_HEALTH_URL: https://followup-3-be.onrender.com/v1/health
+      FE_HEALTH_URL: https://followup-3-fe.onrender.com
+    steps:
+      - name: Wait for Render auto-deploy rollout
+        run: sleep 60
+
+      - name: Check backend health with retries
+        run: |
+          for attempt in $(seq 1 20); do
+            code=$(curl -sS -o /tmp/be-health.json -w "%{http_code}" "$BE_HEALTH_URL" || true)
+            if [ "$code" = "200" ]; then
+              echo "BE healthy on attempt $attempt"
+              cat /tmp/be-health.json
+              exit 0
+            fi
+            echo "BE health not ready (attempt $attempt, http=$code), retry in 15s"
+            sleep 15
+          done
+          echo "BE health check failed"
+          exit 1
+
+      - name: Check frontend availability with retries
+        run: |
+          for attempt in $(seq 1 20); do
+            code=$(curl -sS -o /tmp/fe-home.html -w "%{http_code}" "$FE_HEALTH_URL" || true)
+            if [ "$code" = "200" ]; then
+              echo "FE available on attempt $attempt"
+              exit 0
+            fi
+            echo "FE not ready (attempt $attempt, http=$code), retry in 15s"
+            sleep 15
+          done
+          echo "FE availability check failed"
+          exit 1
