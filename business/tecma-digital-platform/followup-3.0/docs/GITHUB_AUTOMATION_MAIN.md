@@ -1,83 +1,82 @@
 # GitHub: portare il codice su `main` senza usare la UI delle Pull Request
 
-Hai **due scenari** sul repository **tecma**: `main` **non protetto** oppure **protetto** (PR e/o check obbligatori). Scegli il blocco che corrisponde alla tua situazione attuale.
-
-Non devi “sapere fare le PR a mano”: con `main` non protetto basta **push diretto**; con `main` protetto usa **script** o **agente**.
+Su **tecma** la situazione dipende da **cosa** è attivo su `main` in **Settings → Branches → Branch protection rules** (o *Rulesets*). Non basta guardare solo «PR obbligatoria sì/no»: anche **solo i check obbligatori** cambiano il comportamento del push.
 
 ---
 
-## `main` non protetto (push diretto)
+## 1. Nessuna regola su `main` (vero push diretto)
 
-Se in **Settings → Rules / Branch protection** non richiedi più PR su `main`, GitHub accetta:
+Solo se **non** c’è alcuna protezione che richiede check (né PR), GitHub accetta:
 
 ```bash
 git checkout main
 git pull origin main
-git merge <tuo-branch>    # oppure già committi su main
+git merge <tuo-branch>
 git push origin main
 ```
 
-È il flusso **più semplice**: nessuna PR, nessuna UI GitHub. Le **Actions** possono comunque partire sul push su `main` (vedi workflow in `.github/workflows/`), ma non bloccano il push.
-
-**Attenzione:** ogni `git push origin main` pubblica subito; conviene sempre `git pull` prima del push e, se possibile, provare in locale.
-
-Se GitHub risponde con **GH006** / *Protected branch update failed*, la protezione su `main` è **ancora attiva** (anche se la UI può confondere tra *Rulesets* e *Branch protection*): controlla **Settings → Rules** del repository oppure passa alla sezione **[`main` protetto](#main-protetto-pr-obbligatoria-da-cli-o-agente)** qui sotto.
+Le Actions possono comunque girare sul push, ma **non** bloccano il push lato GitHub.
 
 ---
 
-## `main` protetto (PR obbligatoria da CLI o agente)
+## 2. Solo «Require status checks to pass» (senza PR obbligatoria) — il tuo caso tipico
 
-Se `main` è di nuovo protetto, di solito **non** basta `git push origin main` senza passare da PR (o da bypass admin).
+Se hai **disattivato** «Require a pull request before merging» ma lasci **attivo**:
 
-### Opzione A — Un solo comando (consigliata con protezione attiva)
+- **Require status checks to pass before merging**, con ad esempio:
+  - `FE Quality Gate`
+  - `Aggregate + gate`
+- (opzionale) **Require branches to be up to date before merging**
+
+allora GitHub si comporta come scrive la UI: *i commit vanno prima su **un altro branch**; quando i check richiesti sono **verdi**, si può integrare su `main` (merge o push su `main` che soddisfa i check).*
+
+In pratica un **`git push origin main`** con **commit nuovi** che non hanno ancora quei check **verdi** viene spesso rifiutato (**GH006**, messaggi tipo *X of Y required status checks are expected*): su quel commit i check non risultano ancora passati.
+
+**Cosa fare (senza aprire la UI delle PR a mano):**
+
+- Stesso flusso automatico della sezione 3: **`bash scripts/gh-promote-to-main.sh`** dalla root `tecma` (push branch → PR → merge dopo CI), oppure chiedere a un **agente con GitHub MCP** di fare PR + merge al posto tuo.
+
+**«Require branches to be up to date»:** se resta attivo con i check, GitHub può chiedere di aggiornare il branch con l’ultimo `main` prima del merge; è normale e riduce regressioni.
+
+**Se volessi davvero solo `git push origin main` senza passare da branch/CI:** dovresti **disattivare anche** «Require status checks to pass before merging» su `main` (scelta di governance: nessun gate obbligatorio su quel branch).
+
+---
+
+## 3. PR obbligatoria e/o regole aggiuntive
+
+Se è attiva anche **«Require a pull request before merging»**, di solito **non** basta un push diretto su `main` senza PR.
+
+### Opzione consigliata — un comando (GitHub CLI)
 
 Dalla **root del monorepo `tecma`**:
 
-1. **Una tantum**, autenticazione GitHub CLI:
-   ```bash
-   gh auth login
-   ```
-   Segui le istruzioni (browser o token). Chi ha il repo può usare un **Personal Access Token** con scope `repo`.
-
-2. Lavori su un branch (es. `feature/mia-modifica`), commit fatti.
-
+1. **Una tantum:** `gh auth login` (browser o token con scope `repo`).
+2. Branch con i commit pronti.
 3. Esegui:
    ```bash
    bash scripts/gh-promote-to-main.sh
    ```
+   Fa: push del branch → crea la PR verso `main` se manca → merge (eventuale bypass admin se consentito, altrimenti attende i check).
 
-Lo script fa in sequenza: **push del branch → crea la PR verso `main` se non esiste → merge** (prova prima con **bypass admin** se il tuo utente è owner; altrimenti **aspetta che i check CI siano verdi** e poi merge).
-
-Non devi aprire GitHub nel browser per creare o mergiare la PR.
-
-**Variante** (solo merge dopo CI, mai bypass):
+Solo merge dopo CI, senza bypass admin:
 
 ```bash
 bash scripts/gh-promote-to-main.sh --no-admin
 ```
 
-### Opzione B — Togliere la protezione (solo owner)
+### Togliere le protezioni (solo owner)
 
-Se vuoi tornare al flusso **senza PR** lato GitHub:
-
-1. Su **GitHub** → repository **tecma** → **Settings** → **Rules** → **Rulesets** (o *Branch protection rules*).
-2. Modifica o rimuovi la regola su **`main`** (es. disattiva **“Require a pull request before merging”**).
-
-Poi usa la sezione **[`main` non protetto](#main-non-protetto-push-diretto)** sopra.
-
-Solo un **amministratore** del repository può cambiare quelle impostazioni. È una scelta di governance: meno frizione, più responsabilità sul push diretto.
+In **Settings → Branches** (o Rulesets) modifica la regola su `main`: per il push diretto senza attesa check serve **non** richiedere status check su quel branch; per togliere la PR basta disattivare quella voce, ma i **check** restano il vincolo finché restano obbligatori (vedi sezione 2).
 
 ---
 
 ## Cursor / agente AI
 
-Puoi chiedere all’agente: *“porta questo lavoro su main”*. Se l’agente ha il **GitHub MCP** configurato, può creare e mergiare la PR al posto tuo quando `main` è protetto, senza che tu apra la UI.
-
-Con **`main` non protetto**, l’agente può limitarsi a **commit + `git push origin main`** (dopo `pull`).
+Puoi chiedere: *«porta questo lavoro su main»*. Con MCP GitHub l’agente può creare e mergiare la PR al posto tuo. Con `main` del tutto senza regole (sezione 1), basta **commit + `git push origin main`** (dopo `pull`).
 
 ---
 
 ## Riferimenti
 
-- Script (branch protetto): [`scripts/gh-promote-to-main.sh`](../../../../scripts/gh-promote-to-main.sh) (path dalla root `tecma`).
+- Script: [`scripts/gh-promote-to-main.sh`](../../../../scripts/gh-promote-to-main.sh) (path dalla root `tecma`).
 - CI FollowUp: `.github/workflows/` nella root `tecma`.
