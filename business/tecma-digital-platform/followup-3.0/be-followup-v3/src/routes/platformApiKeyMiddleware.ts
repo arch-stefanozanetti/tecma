@@ -69,6 +69,7 @@ const parseApiKeys = (): Map<string, PlatformAccessContext> => {
               "platform.listings.read",
               "platform.reports.read",
               "platform.clients.read",
+              "platform.leads.create",
             ],
       quotaPerDay:
         typeof config.quotaPerDay === "number" && Number.isFinite(config.quotaPerDay) && config.quotaPerDay > 0

@@ -20,6 +20,7 @@ vi.mock("../../config/env.js", async (importOriginal) => {
             "platform.listings.read",
             "platform.reports.read",
             "platform.clients.read",
+            "platform.leads.create",
           ],
         },
       }),
@@ -30,6 +31,11 @@ vi.mock("../../config/env.js", async (importOriginal) => {
 const queryApartmentsMock = vi.fn();
 const queryClientsLiteMock = vi.fn();
 const runKpiSummaryReportMock = vi.fn();
+const createPublicLeadFromPlatformMock = vi.fn();
+
+vi.mock("../../core/platform/platform-public-lead.service.js", () => ({
+  createPublicLeadFromPlatform: (...args: unknown[]) => createPublicLeadFromPlatformMock(...args),
+}));
 
 vi.mock("../../core/apartments/apartments.service.js", () => ({
   queryApartments: (...args: unknown[]) => queryApartmentsMock(...args),
@@ -77,6 +83,7 @@ describe("platform.routes", () => {
     queryApartmentsMock.mockResolvedValue({ data: [], paginationInfo: {} });
     queryClientsLiteMock.mockResolvedValue([{ id: "c1" }]);
     runKpiSummaryReportMock.mockResolvedValue({ ok: true });
+    createPublicLeadFromPlatformMock.mockResolvedValue({ data: { clientId: "cid1" } });
   });
 
   it("POST /clients/lite/query usa workspace della chiave e interseca projectIds", async () => {
@@ -98,5 +105,21 @@ describe("platform.routes", () => {
 
     expect(res.status).toBe(403);
     expect(queryClientsLiteMock).not.toHaveBeenCalled();
+  });
+
+  it("POST /leads inoltra al servizio public lead", async () => {
+    const res = await st()
+      .post("/v1/platform/leads")
+      .set("x-api-key", "k-test")
+      .send({
+        projectId: "p1",
+        firstName: "Mario",
+        lastName: "Rossi",
+        marketingAttribution: { touch: { utmSource: "google", utmCampaign: "spring" } },
+      });
+
+    expect(res.status).toBe(200);
+    expect(createPublicLeadFromPlatformMock).toHaveBeenCalled();
+    expect(res.body).toEqual({ data: { clientId: "cid1" } });
   });
 });

@@ -110,6 +110,20 @@ const EnvSchema = z.object({
   SIGNATURE_WEBHOOK_ALLOWED_CIDRS: z.string().optional().default(""),
   /** In produzione/staging: false nasconde GET /v1/openapi.json e /v1/docs (health e auth restano). */
   PUBLIC_API_DOCS_ENABLED: envBool(true),
+
+  /** Marketing / Big Data (opzionali; vedi docs/MARKETING_APIS_RUNBOOK.md) */
+  GOOGLE_ADS_DEVELOPER_TOKEN: z.string().optional().default(""),
+  GOOGLE_OAUTH_REFRESH_TOKEN: z.string().optional().default(""),
+  GOOGLE_OAUTH_CLIENT_ID: z.string().optional().default(""),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().optional().default(""),
+  GOOGLE_ADS_CUSTOMER_ID: z.string().optional().default(""),
+  GOOGLE_ADS_LOGIN_CUSTOMER_ID: z.string().optional().default(""),
+  GA4_PROPERTY_ID: z.string().optional().default(""),
+  GA4_SERVICE_ACCOUNT_JSON: z.string().optional().default(""),
+  META_APP_ID: z.string().optional().default(""),
+  META_APP_SECRET: z.string().optional().default(""),
+  META_ACCESS_TOKEN: z.string().optional().default(""),
+  META_AD_ACCOUNT_ID: z.string().optional().default(""),
 });
 
 const parsed = EnvSchema.parse({

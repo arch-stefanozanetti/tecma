@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   BarChart2,
+  Database,
   Building2,
   CalendarDays,
   Euro,
@@ -39,6 +40,7 @@ export type Section =
   | "emailFlows"
   | "audit"
   | "reports"
+  | "bigData"
   | "releases"
   | "integrations"
   | "priceAvailability"
@@ -71,6 +73,7 @@ export const SECTIONS: Section[] = [
   "emailFlows",
   "audit",
   "reports",
+  "bigData",
   "releases",
   "integrations",
   "priceAvailability",
@@ -95,6 +98,7 @@ export const SECTION_TO_PATH: Partial<Record<Section, string>> = {
   emailFlows: "/email-flows",
   audit: "/audit",
   reports: "/reports",
+  bigData: "/big-data",
   releases: "/releases",
   integrations: "/integrations",
   priceAvailability: "/prices",
@@ -124,6 +128,7 @@ export const SECTION_REQUIRED_PERMISSION: Partial<Record<Section, SectionPermiss
   priceAvailability: "apartments.read",
   integrations: "integrations.read",
   reports: "reports.read",
+  bigData: "reports.read",
   audit: "settings.read",
   tecmaEntitlements: "settings.read",
   emailFlows: "email_flows.manage",
@@ -193,4 +198,5 @@ export const NAV_ITEMS: NavItemConfig[] = [
     group: "admin",
   },
   { id: "reports", label: "Report", icon: BarChart2, compact: true, group: "tools" },
+  { id: "bigData", label: "Big Data", icon: Database, compact: true, group: "tools" },
 ];

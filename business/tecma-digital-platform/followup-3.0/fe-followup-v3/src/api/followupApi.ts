@@ -353,6 +353,25 @@ export const followupApi = {
     body: { workspaceId: string; projectIds: string[]; dateFrom?: string; dateTo?: string }
   ) =>
     postJson<{ data: Array<Record<string, unknown>> }>(`/reports/${reportType}`, body),
+  getBigDataProject: (
+    projectId: string,
+    query: {
+      workspaceId: string;
+      dateFrom: string;
+      dateTo: string;
+      attributionModel?: "last_touch" | "first_touch";
+    }
+  ) => {
+    const params = new URLSearchParams({
+      workspaceId: query.workspaceId,
+      dateFrom: query.dateFrom,
+      dateTo: query.dateTo,
+    });
+    if (query.attributionModel) params.set("attributionModel", query.attributionModel);
+    return getJson<{ data: Record<string, unknown> }>(
+      `/bigdata/projects/${encodeURIComponent(projectId)}?${params.toString()}`
+    );
+  },
   getAuditForEntity: (
     entityType: string,
     entityId: string,

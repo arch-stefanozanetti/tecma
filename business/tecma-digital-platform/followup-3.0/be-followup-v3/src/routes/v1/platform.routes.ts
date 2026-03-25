@@ -12,6 +12,7 @@ import {
 } from "../platformApiKeyMiddleware.js";
 import { platformApiKeyRateLimiter } from "../rateLimitMiddleware.js";
 import { handleAsync } from "../asyncHandler.js";
+import { createPublicLeadFromPlatform } from "../../core/platform/platform-public-lead.service.js";
 
 const ListingsQuerySchema = z.object({
   projectIds: z.array(z.string().min(1)).optional(),
@@ -52,6 +53,7 @@ platformRoutes.get("/capabilities", requirePlatformScope("platform.capabilities.
       "POST /platform/listings/query",
       "POST /platform/clients/lite/query",
       "POST /platform/reports/kpi-summary",
+      "POST /platform/leads",
     ],
   });
 });
@@ -111,4 +113,9 @@ platformRoutes.post("/reports/kpi-summary", requirePlatformScope("platform.repor
     dateFrom: parsed.dateFrom,
     dateTo: parsed.dateTo,
   });
+}));
+
+platformRoutes.post("/leads", requirePlatformScope("platform.leads.create"), handleAsync(async (req) => {
+  const access = req.platformAccess!;
+  return createPublicLeadFromPlatform(access, req.body);
 }));

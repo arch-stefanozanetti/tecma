@@ -36,6 +36,7 @@ import { EmailFlowsPage } from "./core/settings/EmailFlowsPage";
 import { ProjectDetailPage } from "./core/projects/ProjectDetailPage";
 import { AuditLogPage } from "./core/audit/AuditLogPage";
 import { ReportsPage } from "./core/reports/ReportsPage";
+import { BigDataPage } from "./core/bigdata/BigDataPage";
 import { PriceAvailabilityPage } from "./core/prices/PriceAvailabilityPage";
 import { ReleasesPage } from "./core/releases/ReleasesPage";
 import { IntegrationsPage } from "./core/integrations/IntegrationsPage";
@@ -288,6 +289,14 @@ const renderSection = (
     return (
       <PageSimple title="Report" description="Pipeline, clienti per stato, appartamenti per disponibilità.">
         <ReportsPage />
+      </PageSimple>
+    );
+  }
+
+  if (section === "bigData") {
+    return (
+      <PageSimple title="Big Data" description="Funnel marketing + CRM e stato connettori Ads / GA4 / Meta.">
+        <BigDataPage />
       </PageSimple>
     );
   }

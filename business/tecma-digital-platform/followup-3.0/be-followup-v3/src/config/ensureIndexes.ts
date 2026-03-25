@@ -11,6 +11,18 @@ interface IndexDefinition {
 const CORE_INDEXES: IndexDefinition[] = [
   // Core list queries: workspace + project + default sort (updatedAt)
   { collection: "tz_clients", keys: { workspaceId: 1, projectId: 1, updatedAt: -1 } },
+  {
+    collection: "tz_clients",
+    keys: { projectId: 1, "marketingAttribution.lastTouch.utmCampaign": 1 },
+    options: { sparse: true },
+  },
+  {
+    collection: "tz_clients",
+    keys: { projectId: 1, "marketingAttribution.lastTouch.gclid": 1 },
+    options: { sparse: true },
+  },
+  { collection: "tz_bigdata_cache", keys: { cacheKey: 1 }, options: { unique: true } },
+  { collection: "tz_bigdata_cache", keys: { expiresAt: 1 } },
   { collection: "tz_requests", keys: { workspaceId: 1, projectId: 1, updatedAt: -1 } },
   { collection: "tz_apartments", keys: { workspaceId: 1, projectId: 1, updatedAt: -1 } },
 
