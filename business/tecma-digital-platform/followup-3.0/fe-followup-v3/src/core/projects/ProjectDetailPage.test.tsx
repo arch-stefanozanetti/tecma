@@ -6,25 +6,25 @@ import { ProjectDetailPage } from "./ProjectDetailPage";
 
 vi.mock("../../api/followupApi", () => ({
   followupApi: {
-    getProjectDetail: vi.fn().mockResolvedValue({
-      id: "p1",
-      name: "Progetto 1",
-      displayName: "P1",
-      mode: "sell",
-    }),
-    getProjectPolicies: vi.fn().mockResolvedValue({ projectId: "p1", updatedAt: "" }),
-    getProjectBranding: vi.fn().mockResolvedValue({ projectId: "p1", updatedAt: "" }),
-    getProjectMarketingSettings: vi.fn().mockResolvedValue({ projectId: "p1", updatedAt: "" }),
-    putProjectMarketingSettings: vi.fn().mockResolvedValue({ projectId: "p1", updatedAt: "" }),
-    getProjectEmailConfig: vi.fn().mockResolvedValue({ projectId: "p1", updatedAt: "" }),
-    listProjectEmailTemplates: vi.fn().mockResolvedValue([]),
-    listProjectPdfTemplates: vi.fn().mockResolvedValue([]),
-    listProjectAccess: vi.fn().mockResolvedValue({ data: [] }),
+    projects: {
+      getProjectDetail: vi.fn().mockResolvedValue({
+        id: "p1",
+        name: "Progetto 1",
+        displayName: "P1",
+        mode: "sell",
+      }),
+      getProjectPolicies: vi.fn().mockResolvedValue({ projectId: "p1", updatedAt: "" }),
+      getProjectBranding: vi.fn().mockResolvedValue({ projectId: "p1", updatedAt: "" }),
+      getProjectMarketingSettings: vi.fn().mockResolvedValue({ projectId: "p1", updatedAt: "" }),
+      putProjectMarketingSettings: vi.fn().mockResolvedValue({ projectId: "p1", updatedAt: "" }),
+      getProjectEmailConfig: vi.fn().mockResolvedValue({ projectId: "p1", updatedAt: "" }),
+      listProjectEmailTemplates: vi.fn().mockResolvedValue([]),
+      listProjectPdfTemplates: vi.fn().mockResolvedValue([]),
+      listProjectAccess: vi.fn().mockResolvedValue({ data: [] }),
+    },
     listAssets: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0, page: 1, perPage: 25, totalPages: 0 } }),
     getAssetDownloadUrl: vi.fn().mockResolvedValue({ downloadUrl: "" }),
     apartments: { queryApartments: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0, page: 1, perPage: 25, totalPages: 0 } }) },
-    saveProjectPolicies: vi.fn().mockResolvedValue(undefined),
-    saveProjectEmailConfig: vi.fn().mockResolvedValue(undefined),
   },
 }));
 

@@ -1,7 +1,8 @@
 /**
  * Big Data: tab native (panoramica, Ads, Meta, GA4, funnel CRM, listings) + dati per sezione.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { ExecutiveMarkdown } from "../executive/ExecutiveMarkdown";
 import { Link } from "react-router-dom";
 import { followupApi } from "../../api/followupApi";
 import { HttpApiError } from "../../api/http";
@@ -32,11 +33,16 @@ import {
   MarketingMetaPicker,
 } from "../marketing/MarketingResourcePickers";
 
+const Ga4ChartsSectionLazy = lazy(() =>
+  import("./Ga4ReportCharts").then((m) => ({ default: m.Ga4ChartsSection }))
+);
+
 type BigDataSection = "full" | "overview" | "ads" | "meta" | "ga4" | "funnel" | "listings";
 
 type BigDataPayload = {
   section?: string;
   projectId?: string;
+  workspaceId?: string;
   dateRange?: { from?: string; to?: string };
   attributionModel?: string;
   definitions?: Record<string, string>;
@@ -71,7 +77,31 @@ type BigDataPayload = {
   marketing?: {
     googleAds?: { configured?: boolean; error?: string; customerId?: string; campaigns?: unknown[] };
     meta?: { configured?: boolean; error?: string; adAccountId?: string; campaigns?: unknown[] };
-    ga4?: { configured?: boolean; error?: string; propertyId?: string; summary?: Record<string, number> };
+    ga4?: {
+      configured?: boolean;
+      error?: string;
+      propertyId?: string;
+      propertyDisplayName?: string;
+      summary?: Record<string, number>;
+      recommerceWeb?: {
+        listingSampleRows?: number;
+        aptDetailSampleRows?: number;
+        topFilterDimensions?: Array<{ key?: string; value?: string; screenPageViews?: number }>;
+        topAptViewsFromGa4?: Array<{ aptCode?: string; screenPageViews?: number }>;
+        methodology?: string;
+        error?: string;
+      };
+      report?: {
+        trend?: Array<{ date?: string; sessions?: number; activeUsers?: number }>;
+        trendUsers?: Array<{ date?: string; newUsers?: number; activeUsers?: number }>;
+        channels?: Array<{ label?: string; sessions?: number }>;
+        firstUserChannels?: Array<{ channel?: string; activeUsers?: number; newUsers?: number }>;
+        devices?: Array<{ category?: string; sessions?: number; activeUsers?: number }>;
+        firstUserAcquisition?: Array<{ sourceMedium?: string; sessions?: number; newUsers?: number }>;
+        landingPages?: Array<{ path?: string; sessions?: number; activeUsers?: number }>;
+        chartInsights?: string[];
+      };
+    };
   };
   reconciliationNotes?: string[];
   cachedAt?: string;
@@ -177,7 +207,7 @@ export const BigDataPage = () => {
   useEffect(() => {
     if (!projectPanelOpen || !projectId || !workspaceId) return;
     setProjectMktLoading(true);
-    followupApi
+    followupApi.projects
       .getProjectMarketingSettings(projectId, workspaceId)
       .then((row) => {
         setProjectMktDraft({
@@ -291,7 +321,7 @@ export const BigDataPage = () => {
     if (!projectId || !workspaceId) return;
     setSavingProjectMkt(true);
     try {
-      await followupApi.putProjectMarketingSettings(projectId, workspaceId, {
+      await followupApi.projects.putProjectMarketingSettings(projectId, workspaceId, {
         googleAdsCustomerId: projectMktDraft.googleAdsCustomerId || null,
         googleAdsLoginCustomerId: projectMktDraft.googleAdsLoginCustomerId || null,
         ga4PropertyId: projectMktDraft.ga4PropertyId || null,
@@ -751,6 +781,8 @@ export const BigDataPage = () => {
                     )}
                   </ul>
                 </div>
+                <Ga4VisualReportBlock data={data} />
+                <RecommerceGa4Section data={data} context="listings" />
               </>
             )}
           </TabsContent>
@@ -852,6 +884,8 @@ export const BigDataPage = () => {
                     )}
                   </ul>
                 </div>
+                <Ga4VisualReportBlock data={data} />
+                <RecommerceGa4Section data={data} context="ga4" />
                 <MarketingStatusBlock data={data} shortcuts={shortcuts} />
                 {(data.reconciliationNotes?.length ?? 0) > 0 && (
                   <div className="text-xs text-muted-foreground">
@@ -946,7 +980,11 @@ function MarketingStatusBlock({
         <li>
           <span className="text-foreground">
             GA4: {data.marketing?.ga4?.configured ? "configurato" : "non configurato"}
-            {data.marketing?.ga4?.propertyId ? ` (property ${data.marketing.ga4.propertyId})` : ""}
+            {data.marketing?.ga4?.propertyDisplayName
+              ? ` — ${data.marketing.ga4.propertyDisplayName}`
+              : data.marketing?.ga4?.propertyId
+                ? ` (property ${data.marketing.ga4.propertyId})`
+                : ""}
             {data.marketing?.ga4?.error ? ` — ${data.marketing.ga4.error}` : ""}
           </span>
           {ga4Gap && <MarketingShortcutLinks shortcuts={shortcuts} />}
@@ -991,6 +1029,248 @@ function MetaBlock({ data, shortcuts }: { data: BigDataPayload; shortcuts?: Mark
   );
 }
 
+function Ga4VisualReportBlock({ data }: { data: BigDataPayload }) {
+  const { workspaceId: wsFromHook, hasPermission } = useWorkspace();
+  const { toastError } = useToast();
+  const rep = data.marketing?.ga4?.report;
+  const g = data.marketing?.ga4;
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiMarkdown, setAiMarkdown] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const workspaceId = (data.workspaceId ?? wsFromHook ?? "").trim();
+  const projectId = (data.projectId ?? "").trim();
+  const dateFrom = (data.dateRange?.from ?? "").trim();
+  const dateTo = (data.dateRange?.to ?? "").trim();
+  const canRequestAiNarrative =
+    hasPermission("reports.read") && workspaceId && projectId && dateFrom && dateTo && g?.configured;
+
+  const runAiNarrative = useCallback(async () => {
+    if (!canRequestAiNarrative) return;
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const res = await followupApi.postGa4BigDataAiNarrative(projectId, {
+        workspaceId,
+        dateFrom,
+        dateTo,
+      });
+      setAiMarkdown(res.data.markdown);
+    } catch (e) {
+      const msg = e instanceof HttpApiError ? e.message : e instanceof Error ? e.message : "Errore sintesi IA";
+      setAiError(msg);
+      toastError(msg);
+    } finally {
+      setAiLoading(false);
+    }
+  }, [canRequestAiNarrative, dateFrom, dateTo, projectId, toastError, workspaceId]);
+
+  if (!g?.configured || !rep) return null;
+
+  return (
+    <div className="space-y-4">
+      {rep.chartInsights && rep.chartInsights.length > 0 && (
+        <div className="rounded-lg border border-border bg-muted/15 p-4">
+          <h3 className="text-sm font-semibold text-foreground">Rilevamenti rapidi (regole sui grafici)</h3>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+            {rep.chartInsights.map((t, i) => (
+              <li key={i}>{t}</li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Elaborazione automatica su metriche aggregate (non generata da modello linguistico).
+          </p>
+        </div>
+      )}
+
+      <div className="rounded-lg border border-border bg-card/30 p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-foreground">Sintesi con IA</h3>
+          <Button type="button" variant="secondary" size="sm" disabled={!canRequestAiNarrative || aiLoading} onClick={runAiNarrative}>
+            {aiLoading ? "Generazione…" : "Genera sintesi IA"}
+          </Button>
+        </div>
+        {!canRequestAiNarrative && (
+          <p className="text-xs text-muted-foreground">
+            Per la sintesi servono workspace, progetto, intervallo date e GA4 configurato; in Workspaces va impostata anche la configurazione AI (provider e chiave).
+          </p>
+        )}
+        {aiError && <p className="text-sm text-amber-700 dark:text-amber-300">{aiError}</p>}
+        {aiMarkdown && (
+          <div className="prose prose-sm dark:prose-invert max-w-none border-t border-border pt-3">
+            <ExecutiveMarkdown source={aiMarkdown} />
+          </div>
+        )}
+      </div>
+
+      <Suspense
+        fallback={
+          <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            Caricamento grafici…
+          </p>
+        }
+      >
+        <Ga4ChartsSectionLazy
+          trend={(rep.trend ?? []).map((t) => ({
+            date: String(t.date ?? ""),
+            sessions: Number(t.sessions ?? 0),
+            activeUsers: Number(t.activeUsers ?? 0),
+          }))}
+          trendUsers={(rep.trendUsers ?? []).map((t) => ({
+            date: String(t.date ?? ""),
+            newUsers: Number(t.newUsers ?? 0),
+            activeUsers: Number(t.activeUsers ?? 0),
+          }))}
+          channels={(rep.channels ?? []).map((c) => ({
+            label: String(c.label ?? ""),
+            sessions: Number(c.sessions ?? 0),
+          }))}
+          firstUserChannels={(rep.firstUserChannels ?? []).map((r) => ({
+            channel: String(r.channel ?? ""),
+            activeUsers: Number(r.activeUsers ?? 0),
+            newUsers: Number(r.newUsers ?? 0),
+          }))}
+          devices={(rep.devices ?? []).map((d) => ({
+            category: String(d.category ?? ""),
+            sessions: Number(d.sessions ?? 0),
+            activeUsers: Number(d.activeUsers ?? 0),
+          }))}
+          firstUserAcquisition={(rep.firstUserAcquisition ?? []).map((r) => ({
+            sourceMedium: String(r.sourceMedium ?? ""),
+            sessions: Number(r.sessions ?? 0),
+            newUsers: Number(r.newUsers ?? 0),
+          }))}
+          landingPages={(rep.landingPages ?? []).map((p) => ({
+            path: String(p.path ?? ""),
+            sessions: Number(p.sessions ?? 0),
+            activeUsers: Number(p.activeUsers ?? 0),
+          }))}
+        />
+      </Suspense>
+    </div>
+  );
+}
+
+function ga4FilterKeyLabel(key: string | undefined): string {
+  switch (key) {
+    case "typology":
+      return "Tipologia";
+    case "floor":
+      return "Piano";
+    case "surface":
+      return "Superficie";
+    case "price":
+      return "Prezzo";
+    default:
+      return key ?? "—";
+  }
+}
+
+function RecommerceGa4Section({
+  data,
+  context,
+}: {
+  data: BigDataPayload;
+  context: "ga4" | "listings";
+}) {
+  const rc = data.marketing?.ga4?.recommerceWeb;
+  const g = data.marketing?.ga4;
+  if (!g?.configured) return null;
+
+  if (!rc) {
+    return (
+      <div className="rounded-lg border border-border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
+        Report listino web (filtri + schede da URL) non presente in questo snapshot: OAuth Google attivo su
+        Integrazioni, proprietà GA4 sul progetto, e caricamento da tab GA4, Listings o Tutto (backend aggiornato).
+      </div>
+    );
+  }
+
+  const filters = rc.topFilterDimensions ?? [];
+  const apts = rc.topAptViewsFromGa4 ?? [];
+
+  return (
+    <div className="space-y-6 rounded-lg border border-border bg-card/40 p-4">
+      <div>
+        <h3 className="text-base font-semibold text-foreground">
+          {context === "ga4" ? "Listino web (recommerce)" : "GA4 — listino web (recommerce)"}
+        </h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Filtri lista e schede da <span className="font-mono">pagePathPlusQueryString</span> su path{" "}
+          <span className="font-mono">/appartamenti</span>, <span className="font-mono">/listing</span>,{" "}
+          <span className="font-mono">/appartamento?apt=…</span>. Campionamento GA4: lista{" "}
+          {rc.listingSampleRows ?? "—"} righe, schede {rc.aptDetailSampleRows ?? "—"} righe.
+        </p>
+        {rc.methodology && <p className="mt-2 text-xs text-muted-foreground">{rc.methodology}</p>}
+        {rc.error && <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">{rc.error}</p>}
+      </div>
+
+      <div>
+        <h4 className="text-sm font-semibold text-foreground">Valori filtro più visti (aggregati)</h4>
+        <div className="mt-2 overflow-x-auto rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="p-3">Dimensione</th>
+                <th className="p-3">Valore</th>
+                <th className="p-3 text-right">Viste pagina</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filters.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="p-4 text-muted-foreground">
+                    Nessun parametro noto nella query (o traffico assente). Allineare i nomi query al sito (typology,
+                    floor, surface, price) oppure usare eventi GTM dedicati.
+                  </td>
+                </tr>
+              ) : (
+                filters.map((row, i) => (
+                  <tr key={`${row.key}-${row.value}-${i}`} className="border-t border-border">
+                    <td className="p-3">{ga4FilterKeyLabel(row.key)}</td>
+                    <td className="p-3 font-mono text-xs">{row.value}</td>
+                    <td className="p-3 text-right tabular-nums">{row.screenPageViews ?? 0}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <h4 className="text-sm font-semibold text-foreground">Schede appartamento (GA4, param apt)</h4>
+        <div className="mt-2 overflow-x-auto rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="p-3">Codice apt</th>
+                <th className="p-3 text-right">Viste pagina</th>
+              </tr>
+            </thead>
+            <tbody>
+              {apts.length === 0 ? (
+                <tr>
+                  <td colSpan={2} className="p-4 text-muted-foreground">
+                    Nessuna vista su path <span className="font-mono">/appartamento?apt=…</span> nel campione.
+                  </td>
+                </tr>
+              ) : (
+                apts.map((row) => (
+                  <tr key={row.aptCode} className="border-t border-border">
+                    <td className="p-3 font-mono text-xs">{row.aptCode}</td>
+                    <td className="p-3 text-right tabular-nums">{row.screenPageViews ?? 0}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Ga4Block({ data, shortcuts }: { data: BigDataPayload; shortcuts?: MarketingShortcuts }) {
   const g = data.marketing?.ga4;
   const summary = g?.summary ?? {};
@@ -1001,36 +1281,44 @@ function Ga4Block({ data, shortcuts }: { data: BigDataPayload; shortcuts?: Marke
   const needsSetup =
     !g?.configured || (g?.configured === true && !String(g?.propertyId ?? "").trim());
   return (
-    <div className="rounded-lg border border-border bg-card/40 p-4 space-y-2">
-      <h2 className="text-lg font-semibold">GA4</h2>
-      <p className="text-sm text-muted-foreground">
-        Stato: {g?.configured ? "configurato" : "non configurato"}
-        {g?.propertyId ? ` — property ${g.propertyId}` : ""}
-      </p>
-      {g?.configured && hasNumericMetrics && (
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {typeof summary.sessions === "number" ? (
-            <div className="rounded-md border border-border bg-background/50 p-3">
-              <p className="text-xs text-muted-foreground">Sessioni</p>
-              <p className="mt-1 text-xl font-semibold tabular-nums">{summary.sessions}</p>
-            </div>
-          ) : null}
-          {typeof summary.activeUsers === "number" ? (
-            <div className="rounded-md border border-border bg-background/50 p-3">
-              <p className="text-xs text-muted-foreground">Utenti attivi</p>
-              <p className="mt-1 text-xl font-semibold tabular-nums">{summary.activeUsers}</p>
-            </div>
-          ) : null}
-          {typeof summary.aptPageViews === "number" ? (
-            <div className="rounded-md border border-border bg-background/50 p-3">
-              <p className="text-xs text-muted-foreground">Visualizzazioni pagina / schermo</p>
-              <p className="mt-1 text-xl font-semibold tabular-nums">{summary.aptPageViews}</p>
-            </div>
-          ) : null}
-        </div>
-      )}
-      {g?.error && <p className="text-sm text-amber-700 dark:text-amber-300">{g.error}</p>}
-      {needsSetup && <MarketingShortcutLinks shortcuts={shortcuts} />}
+    <div className="rounded-lg border border-border bg-card/40 p-4 space-y-6">
+      <div className="space-y-2">
+        <h2 className="text-lg font-semibold">GA4</h2>
+        <p className="text-sm text-muted-foreground">
+          Stato: {g?.configured ? "configurato" : "non configurato"}
+          {g?.propertyDisplayName
+            ? ` — ${g.propertyDisplayName}`
+            : g?.propertyId
+              ? ` — property ${g.propertyId}`
+              : ""}
+        </p>
+        {g?.configured && hasNumericMetrics && (
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {typeof summary.sessions === "number" ? (
+              <div className="rounded-md border border-border bg-background/50 p-3">
+                <p className="text-xs text-muted-foreground">Sessioni</p>
+                <p className="mt-1 text-xl font-semibold tabular-nums">{summary.sessions}</p>
+              </div>
+            ) : null}
+            {typeof summary.activeUsers === "number" ? (
+              <div className="rounded-md border border-border bg-background/50 p-3">
+                <p className="text-xs text-muted-foreground">Utenti attivi</p>
+                <p className="mt-1 text-xl font-semibold tabular-nums">{summary.activeUsers}</p>
+              </div>
+            ) : null}
+            {typeof summary.aptPageViews === "number" ? (
+              <div className="rounded-md border border-border bg-background/50 p-3">
+                <p className="text-xs text-muted-foreground">Visualizzazioni pagina / schermo</p>
+                <p className="mt-1 text-xl font-semibold tabular-nums">{summary.aptPageViews}</p>
+              </div>
+            ) : null}
+          </div>
+        )}
+        {g?.error && <p className="text-sm text-amber-700 dark:text-amber-300">{g.error}</p>}
+        {needsSetup && <MarketingShortcutLinks shortcuts={shortcuts} />}
+      </div>
+      <Ga4VisualReportBlock data={data} />
+      <RecommerceGa4Section data={data} context="ga4" />
     </div>
   );
 }
