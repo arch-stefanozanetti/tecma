@@ -29,7 +29,8 @@ function parseRunReportSummary(text: string): Ga4TrafficSummary | null {
       totals?: Array<{ metricValues?: Array<{ value?: string }> }>;
       rows?: Array<{ metricValues?: Array<{ value?: string }> }>;
     };
-    const readRow = (row?: { metricValues?: Array<{ value?: string }> }): Ga4TrafficSummary | null => {
+    type RowMetrics = { sessions: number; activeUsers: number; aptPageViews: number };
+    const readRow = (row?: { metricValues?: Array<{ value?: string }> }): RowMetrics | null => {
       const mv = row?.metricValues;
       if (!mv?.length) return null;
       return {
@@ -123,7 +124,7 @@ export async function fetchGa4TrafficSummary(input: {
         propertyId: prop,
         summary: {},
         error:
-          "GA4 Data API non ha restituito dati. Abilita «Google Analytics Data API» nel progetto Google Cloud dell’OAuth marketing e verifica che l’utente del login abbia accesso in lettura alla proprietà GA4.",
+          "GA4 Data API non ha restituito dati. Abilita «Google Analytics Data API» nel progetto Google Cloud dell'OAuth marketing e verifica che l'utente del login abbia accesso in lettura alla proprietà GA4.",
       };
     }
   }
