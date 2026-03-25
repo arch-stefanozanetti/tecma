@@ -8,21 +8,25 @@ on:
     paths:
       - "business/tecma-digital-platform/followup-3.0/fe-followup-v3/**"
       - "business/tecma-digital-platform/followup-3.0/be-followup-v3/**"
+      - "business/tecma-digital-platform/followup-3.0/docs/**"
       - "business/tecma-digital-platform/design-system/**"
       - "render.yaml"
       - ".github/workflows/followup-3.0-ci-cd.yml"
       - "scripts/render-build-fe.sh"
       - "scripts/render-build-be.sh"
+      - "scripts/gh-promote-to-main.sh"
   pull_request:
     branches: [main]
     paths:
       - "business/tecma-digital-platform/followup-3.0/fe-followup-v3/**"
       - "business/tecma-digital-platform/followup-3.0/be-followup-v3/**"
+      - "business/tecma-digital-platform/followup-3.0/docs/**"
       - "business/tecma-digital-platform/design-system/**"
       - "render.yaml"
       - ".github/workflows/followup-3.0-ci-cd.yml"
       - "scripts/render-build-fe.sh"
       - "scripts/render-build-be.sh"
+      - "scripts/gh-promote-to-main.sh"
 
 concurrency:
   group: followup-3.0-ci-gate-${{ github.ref }}
