@@ -67,6 +67,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        /** Bundle principale > 2 MiB (default Workbox); altrimenti la build fallisce in prod (Render). */
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         navigateFallback,
         runtimeCaching: [
           {
