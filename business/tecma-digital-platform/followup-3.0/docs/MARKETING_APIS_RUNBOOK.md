@@ -46,7 +46,7 @@ Dopo il callback, il backend reindirizza il browser al frontend:
 
 ## Google Ads + OAuth (stesso progetto Google Cloud)
 
-1. Google Cloud: abilita **Google Ads API** e **Google Analytics API** (per scope Analytics).
+1. Google Cloud: abilita **Google Ads API** e **Google Analytics API** (per scope Analytics). Se vedi **HTTP 404** con pagina HTML generica su `listAccessibleCustomers`, spesso è una **versione REST sunsettata**: il backend usa `https://googleads.googleapis.com/v23/...` (aggiornare il codice se Google ritira la major; [date sunset](https://developers.google.com/google-ads/api/docs/sunset-dates)).
 2. OAuth client (Web) con redirect di callback marketing (tabella sopra).
 3. **Flusso UI**: Integrazioni → Collega Google salva il refresh token in `marketing_google_ads`. Alternativa manuale: `GOOGLE_OAUTH_REFRESH_TOKEN` in env o POST connector.
 4. Google Ads → **Tools → API Center** → developer token → `GOOGLE_ADS_DEVELOPER_TOKEN` (solo server, non da OAuth).

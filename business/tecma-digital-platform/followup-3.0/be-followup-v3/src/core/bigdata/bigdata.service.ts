@@ -15,6 +15,7 @@ import {
   type ProjectMarketingSettingsRow,
 } from "../projects/project-marketing-settings.service.js";
 import { aggregateTopPropertyViews } from "../platform/property-views.service.js";
+import { logger } from "../../observability/logger.js";
 
 export type BigDataSection = "full" | "overview" | "ads" | "meta" | "ga4" | "funnel" | "listings";
 
@@ -336,6 +337,36 @@ async function fetchMarketingForProject(
   return { googleAds, meta, ga4 };
 }
 
+const EMPTY_MARKETING_BLOCK: BigDataSnapshot["marketing"] = {
+  googleAds: { configured: false, campaigns: [] },
+  meta: { configured: false, campaigns: [] },
+  ga4: { configured: false, summary: {} },
+};
+
+/** Evita HTTP 500 se GA4/OAuth/network lancia durante Promise.all. */
+async function fetchMarketingForProjectSafe(
+  workspaceId: string,
+  projectId: string,
+  dateFrom: string,
+  dateTo: string,
+  opts?: { includeGa4Recommerce?: boolean; includeGa4Charts?: boolean }
+): Promise<BigDataSnapshot["marketing"]> {
+  try {
+    return await fetchMarketingForProject(workspaceId, projectId, dateFrom, dateTo, opts);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    logger.error({ err: e, workspaceId, projectId }, "fetchMarketingForProject failed");
+    return {
+      ...EMPTY_MARKETING_BLOCK,
+      ga4: {
+        configured: false,
+        summary: {},
+        error: `Caricamento dati marketing fallito: ${msg.slice(0, 240)}`,
+      },
+    };
+  }
+}
+
 function sumCampaignImpressions(
   campaigns: Array<{ impressions?: number; clicks?: number }>
 ): { impressions: number; clicks: number } {
@@ -352,12 +383,12 @@ function buildFunnelBridge(
   marketing: BigDataSnapshot["marketing"],
   funnelTotals: BigDataFunnelTotals
 ): BigDataFunnelBridge {
-  const g = sumCampaignImpressions(marketing.googleAds.campaigns ?? []);
-  const m = sumCampaignImpressions(marketing.meta.campaigns ?? []);
+  const g = sumCampaignImpressions(marketing.googleAds?.campaigns ?? []);
+  const m = sumCampaignImpressions(marketing.meta?.campaigns ?? []);
   const impressions = g.impressions + m.impressions > 0 ? g.impressions + m.impressions : undefined;
   const clicks = g.clicks + m.clicks > 0 ? g.clicks + m.clicks : undefined;
   const sessions =
-    typeof marketing.ga4.summary?.sessions === "number" ? marketing.ga4.summary.sessions : undefined;
+    typeof marketing.ga4?.summary?.sessions === "number" ? marketing.ga4.summary.sessions : undefined;
   return {
     ...(impressions !== undefined ? { impressions } : {}),
     ...(clicks !== undefined ? { clicks } : {}),
@@ -380,9 +411,9 @@ function baseReconciliationNotes(
       ? "Attribuzione canale: last touch (marketingAttribution.lastTouch)."
       : "Attribuzione canale: first touch (marketingAttribution.firstTouch).",
   ];
-  if (marketing.googleAds.error) notes.push(`Google Ads: ${marketing.googleAds.error}`);
-  if (marketing.meta.error) notes.push(`Meta: ${marketing.meta.error}`);
-  if (marketing.ga4.error) notes.push(`GA4: ${marketing.ga4.error}`);
+  if (marketing.googleAds?.error) notes.push(`Google Ads: ${marketing.googleAds.error}`);
+  if (marketing.meta?.error) notes.push(`Meta: ${marketing.meta.error}`);
+  if (marketing.ga4?.error) notes.push(`GA4: ${marketing.ga4.error}`);
   return notes;
 }
 
@@ -421,7 +452,7 @@ export async function getBigDataProjectSnapshot(rawInput: unknown): Promise<{ da
   let snapshot: BigDataSnapshot;
 
   if (section === "ads") {
-    const marketing = await fetchMarketingForProject(workspaceId, projectId, dateFrom, dateTo, {
+    const marketing = await fetchMarketingForProjectSafe(workspaceId, projectId, dateFrom, dateTo, {
       includeGa4Recommerce: false,
       includeGa4Charts: false,
     });
@@ -440,7 +471,7 @@ export async function getBigDataProjectSnapshot(rawInput: unknown): Promise<{ da
       cacheExpiresAt: expiresAt,
     };
   } else if (section === "meta") {
-    const marketing = await fetchMarketingForProject(workspaceId, projectId, dateFrom, dateTo, {
+    const marketing = await fetchMarketingForProjectSafe(workspaceId, projectId, dateFrom, dateTo, {
       includeGa4Recommerce: false,
       includeGa4Charts: false,
     });
@@ -459,7 +490,7 @@ export async function getBigDataProjectSnapshot(rawInput: unknown): Promise<{ da
       cacheExpiresAt: expiresAt,
     };
   } else if (section === "ga4") {
-    const marketing = await fetchMarketingForProject(workspaceId, projectId, dateFrom, dateTo, {
+    const marketing = await fetchMarketingForProjectSafe(workspaceId, projectId, dateFrom, dateTo, {
       includeGa4Recommerce: true,
       includeGa4Charts: true,
     });
@@ -503,7 +534,7 @@ export async function getBigDataProjectSnapshot(rawInput: unknown): Promise<{ da
     };
   } else if (section === "listings") {
     const crm = await buildCrmBlock(db, workspaceId, projectId, dateFrom, dateTo, attributionModel, false);
-    const marketing = await fetchMarketingForProject(workspaceId, projectId, dateFrom, dateTo, {
+    const marketing = await fetchMarketingForProjectSafe(workspaceId, projectId, dateFrom, dateTo, {
       includeGa4Recommerce: true,
       includeGa4Charts: true,
     });
@@ -532,7 +563,7 @@ export async function getBigDataProjectSnapshot(rawInput: unknown): Promise<{ da
     };
   } else if (section === "overview") {
     const crm = await buildCrmBlock(db, workspaceId, projectId, dateFrom, dateTo, attributionModel, false);
-    const marketing = await fetchMarketingForProject(workspaceId, projectId, dateFrom, dateTo, {
+    const marketing = await fetchMarketingForProjectSafe(workspaceId, projectId, dateFrom, dateTo, {
       includeGa4Recommerce: false,
       includeGa4Charts: false,
     });
@@ -558,7 +589,7 @@ export async function getBigDataProjectSnapshot(rawInput: unknown): Promise<{ da
     };
   } else {
     const crm = await buildCrmBlock(db, workspaceId, projectId, dateFrom, dateTo, attributionModel, true);
-    const marketing = await fetchMarketingForProject(workspaceId, projectId, dateFrom, dateTo, {
+    const marketing = await fetchMarketingForProjectSafe(workspaceId, projectId, dateFrom, dateTo, {
       includeGa4Recommerce: true,
       includeGa4Charts: true,
     });

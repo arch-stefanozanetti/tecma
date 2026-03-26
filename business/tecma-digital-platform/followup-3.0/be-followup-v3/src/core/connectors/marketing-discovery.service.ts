@@ -10,8 +10,11 @@ import {
 import { getGoogleMarketingOAuthClientConfig } from "./marketing-google-oauth.service.js";
 
 const GOOGLE_TOKEN = "https://oauth2.googleapis.com/token";
-/** REST Google Ads: usare una versione supportata (v17 deprecata → 404). Cfr. https://developers.google.com/google-ads/api/docs/account-management/listing-accounts */
-const GOOGLE_ADS_API = "https://googleads.googleapis.com/v19";
+/**
+ * REST Google Ads — versione major (path URL). Aggiornare quando la versione viene sunsettata
+ * (vedi https://developers.google.com/google-ads/api/docs/sunset-dates). v19+ rimosse → 404 HTML generico.
+ */
+const GOOGLE_ADS_API = "https://googleads.googleapis.com/v23";
 const GA_ADMIN = "https://analyticsadmin.googleapis.com/v1beta";
 const FB_GRAPH = "https://graph.facebook.com/v19.0";
 
