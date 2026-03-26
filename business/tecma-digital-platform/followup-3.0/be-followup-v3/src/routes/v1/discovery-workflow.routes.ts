@@ -11,6 +11,10 @@ import {
   createWorkflow,
   createWorkflowState,
   createWorkflowTransition,
+  updateWorkflowState,
+  deleteWorkflowState,
+  deleteWorkflowTransition,
+  deleteWorkflow,
 } from "../../core/workflow/workflow-engine.service.js";
 import {
   listCustomerNeeds,
@@ -65,6 +69,30 @@ discoveryWorkflowRoutes.post(
   "/workflows/transitions",
   requireAdmin,
   handleAsync((req) => createWorkflowTransition(req.body))
+);
+
+discoveryWorkflowRoutes.patch(
+  "/workflows/states/:stateId",
+  requireAdmin,
+  handleAsync((req) => updateWorkflowState(req.params.stateId, req.body))
+);
+
+discoveryWorkflowRoutes.delete(
+  "/workflows/states/:stateId",
+  requireAdmin,
+  handleAsync((req) => deleteWorkflowState(req.params.stateId))
+);
+
+discoveryWorkflowRoutes.delete(
+  "/workflows/transitions/:transitionId",
+  requireAdmin,
+  handleAsync((req) => deleteWorkflowTransition(req.params.transitionId))
+);
+
+discoveryWorkflowRoutes.delete(
+  "/workflows/:workflowId",
+  requireAdmin,
+  handleAsync((req) => deleteWorkflow(req.params.workflowId))
 );
 
 discoveryWorkflowRoutes.get(

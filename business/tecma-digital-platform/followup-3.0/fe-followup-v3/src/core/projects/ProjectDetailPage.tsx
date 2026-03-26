@@ -33,10 +33,11 @@ import {
   SlidersHorizontal,
   BarChart2,
   RefreshCw,
+  GitBranch,
 } from "lucide-react";
 import { ProjectOverviewTab } from "./ProjectOverviewTab";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
-import type { ProjectAccessRow } from "../../types/domain";
+import type { ProjectAccessRow, WorkflowRow } from "../../types/domain";
 import {
   Select,
   SelectContent,
@@ -55,6 +56,12 @@ import {
   MarketingGa4TwoPanePicker,
   MarketingMetaPicker,
 } from "../marketing/MarketingResourcePickers";
+import {
+  buildLegacyOverridesDraftFromSources,
+  buildPutPayloadFromDraft,
+  emptyLegacyOverridesDraft,
+  type LegacyOverridesDraft,
+} from "./legacyOverridesDraft";
 
 const SectionTitle = ({
   label,
@@ -96,6 +103,8 @@ type ProjectDoc = {
   hostKey?: string; assetKey?: string; feVendorKey?: string;
   automaticQuoteEnabled?: boolean; accountManagerEnabled?: boolean; hasDAS?: boolean;
   broker?: string | null; iban?: string;
+  migration?: Record<string, unknown>;
+  legacyPayload?: Record<string, unknown>;
 };
 
 type PoliciesDoc = {
@@ -120,8 +129,8 @@ export const ProjectDetailPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { workspaceId: scopeWorkspaceId } = useWorkspace();
-  const { toastError } = useToast();
+  const { workspaceId: scopeWorkspaceId, apiEnvironment } = useWorkspace();
+  const { toastError, toastSuccess } = useToast();
   const workspaceId = searchParams.get("workspaceId") ?? scopeWorkspaceId ?? "";
 
   const [project, setProject] = useState<ProjectDoc | null>(null);
@@ -141,12 +150,14 @@ export const ProjectDetailPage = () => {
     siteHostname: "",
   });
   const [emailConfigDraft, setEmailConfigDraft] = useState({ smtpHost: "", smtpPort: "", fromEmail: "", defaultTemplateId: "" });
+  const [legacyOverridesDraft, setLegacyOverridesDraft] = useState<LegacyOverridesDraft>(emptyLegacyOverridesDraft());
 
   const [savingIdentity, setSavingIdentity] = useState(false);
   const [savingPolicies, setSavingPolicies] = useState(false);
   const [savingBranding, setSavingBranding] = useState(false);
   const [savingMarketing, setSavingMarketing] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
+  const [savingLegacyOverrides, setSavingLegacyOverrides] = useState(false);
 
   const [secIdentity, setSecIdentity] = useState(true);
   const [secContacts, setSecContacts] = useState(true);
@@ -156,6 +167,8 @@ export const ProjectDetailPage = () => {
   const [secEmail, setSecEmail] = useState(false);
   const [secTechnica, setSecTechnica] = useState(false);
   const [secPdf, setSecPdf] = useState(false);
+  const [secLegacy, setSecLegacy] = useState(false);
+  const [secLegacyConfig, setSecLegacyConfig] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "impostazioni">("overview");
   const [secAccess, setSecAccess] = useState(true);
   const [projectAccessList, setProjectAccessList] = useState<ProjectAccessRow[]>([]);
@@ -175,23 +188,37 @@ export const ProjectDetailPage = () => {
   const [mktAdsLoadError, setMktAdsLoadError] = useState<string | null>(null);
   const [mktAdsLoadHint, setMktAdsLoadHint] = useState<string | null>(null);
 
+  const [workflowList, setWorkflowList] = useState<WorkflowRow[]>([]);
+  const [workflowSelect, setWorkflowSelect] = useState<string>("__default__");
+  const [savingWorkflow, setSavingWorkflow] = useState(false);
+  const [secWorkflow, setSecWorkflow] = useState(false);
+
   const wsId = workspaceId || "";
   const pid = projectId || "";
+  const isLegacyProject = Boolean(project?.migration || project?.legacyPayload);
+
+  const workflowsForProject = useMemo(() => {
+    const mode = project?.mode ?? identityDraft.mode ?? "sell";
+    return workflowList.filter((w) => w.type === mode || w.type === "custom");
+  }, [workflowList, project?.mode, identityDraft.mode]);
 
   const loadAll = useCallback(async () => {
     if (!pid || !wsId) return;
     setLoading(true);
     setError(null);
     try {
-      const [proj, pol, branding, mkt, cfg, etList, pdfList, accessRes] = await Promise.all([
+      const [proj, pol, branding, mkt, wfSettings, wfListRes, cfg, etList, pdfList, accessRes, legacyOverrides] = await Promise.all([
         followupApi.projects.getProjectDetail(pid, wsId),
         followupApi.projects.getProjectPolicies(pid, wsId).catch(() => null),
         followupApi.projects.getProjectBranding(pid, wsId).catch(() => null),
         followupApi.projects.getProjectMarketingSettings(pid, wsId).catch(() => null),
+        followupApi.projects.getProjectWorkflowSettings(pid, wsId).catch(() => null),
+        followupApi.listWorkflowsByWorkspace(wsId).catch(() => ({ workflows: [] as WorkflowRow[] })),
         followupApi.projects.getProjectEmailConfig(pid, wsId).catch(() => null),
         followupApi.projects.listProjectEmailTemplates(pid, wsId).catch(() => []),
         followupApi.projects.listProjectPdfTemplates(pid, wsId).catch(() => []),
         followupApi.projects.listProjectAccess(pid, wsId).catch(() => ({ data: [] })),
+        followupApi.projects.getProjectLegacyOverrides(pid, wsId).catch(() => null),
       ]);
       setProject(proj);
       setIdentityDraft({
@@ -241,6 +268,21 @@ export const ProjectDetailPage = () => {
       setEmailTemplates(Array.isArray(etList) ? etList : []);
       setPdfTemplates(Array.isArray(pdfList) ? pdfList : []);
       setProjectAccessList(accessRes?.data ?? []);
+      setWorkflowList(wfListRes?.workflows ?? []);
+      setWorkflowSelect(wfSettings?.workflowId ? wfSettings.workflowId : "__default__");
+      const rawProject =
+        proj.legacyPayload &&
+        typeof proj.legacyPayload === "object" &&
+        typeof (proj.legacyPayload as Record<string, unknown>).rawProject === "object" &&
+        (proj.legacyPayload as Record<string, unknown>).rawProject !== null
+          ? ((proj.legacyPayload as Record<string, unknown>).rawProject as Record<string, unknown>)
+          : null;
+      setLegacyOverridesDraft(
+        buildLegacyOverridesDraftFromSources(
+          legacyOverrides as Parameters<typeof buildLegacyOverridesDraftFromSources>[0],
+          rawProject
+        )
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Errore caricamento");
     } finally {
@@ -408,6 +450,22 @@ export const ProjectDetailPage = () => {
     }
   };
 
+  const handleSaveWorkflow = async () => {
+    if (!pid || !wsId) return;
+    setSavingWorkflow(true);
+    try {
+      await followupApi.projects.putProjectWorkflowSettings(pid, wsId, {
+        workflowId: workflowSelect === "__default__" ? null : workflowSelect,
+      });
+      toastSuccess("Workflow trattative aggiornato per questo progetto.");
+      void loadAll();
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : "Errore salvataggio workflow");
+    } finally {
+      setSavingWorkflow(false);
+    }
+  };
+
   const handleSaveMarketing = async () => {
     if (!pid || !wsId) return;
     setSavingMarketing(true);
@@ -442,6 +500,81 @@ export const ProjectDetailPage = () => {
       toastError(e instanceof Error ? e.message : "Errore salvataggio");
     } finally {
       setSavingEmail(false);
+    }
+  };
+
+  const setLegacyDraft = (patch: {
+    enabledTools?: Partial<LegacyOverridesDraft["enabledTools"]>;
+    floorPlanning?: Partial<LegacyOverridesDraft["floorPlanning"]>;
+    neurosales?: Partial<LegacyOverridesDraft["neurosales"]>;
+    myHome?: Partial<LegacyOverridesDraft["myHome"]>;
+    appointments?: Partial<LegacyOverridesDraft["appointments"]>;
+    policyFlags?: Partial<LegacyOverridesDraft["policyFlags"]>;
+    jobs?: Partial<LegacyOverridesDraft["jobs"]>;
+    advancedOverrides?: LegacyOverridesDraft["advancedOverrides"];
+    identityFields?: Partial<LegacyOverridesDraft["identityFields"]>;
+    pageTitleRows?: LegacyOverridesDraft["pageTitleRows"];
+    legacyEnabledTools?: LegacyOverridesDraft["legacyEnabledTools"];
+    manifestJson?: string;
+    myLivingJson?: string;
+    rentAssetJson?: string;
+    myhomeJson?: string;
+    jobsConfigJson?: string;
+    followupJson?: string;
+    floorPlanningConfigJson?: string;
+    neurosalesJson?: string;
+    legacyPolicyFlagsJson?: string;
+    businessPlatformJson?: string;
+    domainWhitelist?: string;
+    projectFlagsJson?: string;
+    proposalTemplateJson?: string;
+    ibanJson?: string;
+  }) =>
+    setLegacyOverridesDraft((prev) => ({
+      ...prev,
+      enabledTools: { ...prev.enabledTools, ...patch.enabledTools },
+      floorPlanning: { ...prev.floorPlanning, ...patch.floorPlanning },
+      neurosales: { ...prev.neurosales, ...patch.neurosales },
+      myHome: { ...prev.myHome, ...patch.myHome },
+      appointments: { ...prev.appointments, ...patch.appointments },
+      policyFlags: { ...prev.policyFlags, ...patch.policyFlags },
+      jobs: { ...prev.jobs, ...patch.jobs },
+      advancedOverrides: patch.advancedOverrides ?? prev.advancedOverrides,
+      identityFields: { ...prev.identityFields, ...patch.identityFields },
+      pageTitleRows: patch.pageTitleRows ?? prev.pageTitleRows,
+      legacyEnabledTools: patch.legacyEnabledTools ?? prev.legacyEnabledTools,
+      manifestJson: patch.manifestJson ?? prev.manifestJson,
+      myLivingJson: patch.myLivingJson ?? prev.myLivingJson,
+      rentAssetJson: patch.rentAssetJson ?? prev.rentAssetJson,
+      myhomeJson: patch.myhomeJson ?? prev.myhomeJson,
+      jobsConfigJson: patch.jobsConfigJson ?? prev.jobsConfigJson,
+      followupJson: patch.followupJson ?? prev.followupJson,
+      floorPlanningConfigJson: patch.floorPlanningConfigJson ?? prev.floorPlanningConfigJson,
+      neurosalesJson: patch.neurosalesJson ?? prev.neurosalesJson,
+      legacyPolicyFlagsJson: patch.legacyPolicyFlagsJson ?? prev.legacyPolicyFlagsJson,
+      businessPlatformJson: patch.businessPlatformJson ?? prev.businessPlatformJson,
+      domainWhitelist: patch.domainWhitelist ?? prev.domainWhitelist,
+      projectFlagsJson: patch.projectFlagsJson ?? prev.projectFlagsJson,
+      proposalTemplateJson: patch.proposalTemplateJson ?? prev.proposalTemplateJson,
+      ibanJson: patch.ibanJson ?? prev.ibanJson,
+    }));
+
+  const handleSaveLegacyOverrides = async () => {
+    if (!pid || !wsId) return;
+    const built = buildPutPayloadFromDraft(legacyOverridesDraft);
+    if (!built.ok) {
+      toastError(built.error);
+      return;
+    }
+    setSavingLegacyOverrides(true);
+    try {
+      await followupApi.projects.putProjectLegacyOverrides(pid, wsId, built.payload);
+      toastSuccess("Configurazioni legacy aggiornate.");
+      void loadAll();
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : "Errore salvataggio configurazioni legacy");
+    } finally {
+      setSavingLegacyOverrides(false);
     }
   };
 
@@ -539,6 +672,8 @@ export const ProjectDetailPage = () => {
               workspaceId={wsId}
               projectName={project.displayName || project.name}
               projectMode={project.mode}
+              apiEnvironment={apiEnvironment}
+              isLegacyProject={isLegacyProject}
               onRefresh={loadAll}
             />
           )}
@@ -784,6 +919,44 @@ export const ProjectDetailPage = () => {
                 <Button size="sm" onClick={handleSaveBranding} disabled={savingBranding} className="gap-2">
                   <Save className="h-3.5 w-3.5" />
                   {savingBranding ? "Salvataggio…" : "Salva branding"}
+                </Button>
+              </div>
+            )}
+          </section>
+
+          {/* ── Workflow trattative (override per progetto) ─── */}
+          <section>
+            <SectionTitle
+              label="Workflow trattative"
+              icon={<GitBranch className="h-4 w-4 text-muted-foreground" />}
+              open={secWorkflow}
+              onToggle={() => setSecWorkflow(!secWorkflow)}
+            />
+            {secWorkflow && (
+              <div className="mt-4 space-y-4">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Per default le trattative usano il workflow del workspace con lo stesso tipo (vendita/affitto). Qui puoi{" "}
+                  <strong className="text-foreground">forzare un workflow specifico</strong> per tutte le trattative di questo progetto.
+                  Lascia &quot;Default workspace&quot; per tornare al comportamento standard.
+                </p>
+                <F label="Workflow" hint="Compatibile con la modalità progetto (e workflow di tipo personalizzato).">
+                  <Select value={workflowSelect} onValueChange={setWorkflowSelect}>
+                    <SelectTrigger className="w-full max-w-md">
+                      <SelectValue placeholder="Seleziona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__default__">Default workspace (primo workflow del tipo)</SelectItem>
+                      {workflowsForProject.map((w) => (
+                        <SelectItem key={w._id} value={w._id}>
+                          {w.name} ({w.type})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </F>
+                <Button type="button" size="sm" onClick={() => void handleSaveWorkflow()} disabled={savingWorkflow} className="gap-2">
+                  <Save className="h-3.5 w-3.5" />
+                  {savingWorkflow ? "Salvataggio…" : "Salva workflow progetto"}
                 </Button>
               </div>
             )}
@@ -1087,6 +1260,608 @@ export const ProjectDetailPage = () => {
             )}
           </section>
 
+          {/* ── Configurazioni legacy editabili ─── */}
+          <section>
+            <SectionTitle
+              label="Configurazioni legacy (editabili)"
+              icon={<Settings className="h-4 w-4 text-muted-foreground" />}
+              open={secLegacyConfig}
+              onToggle={() => setSecLegacyConfig(!secLegacyConfig)}
+            />
+            {secLegacyConfig && (
+              <div className="mt-4 space-y-6">
+                <p className="text-xs text-muted-foreground">
+                  I valori sono salvati in <span className="font-mono">tz_project_legacy_overrides</span> e in{" "}
+                  <span className="font-mono">tz_projects.legacyPayload.rawProject</span> (merge). Campi complessi: JSON
+                  valido.
+                </p>
+
+                <details className="group rounded-lg border border-border bg-muted/10 p-3 open:bg-muted/20">
+                  <summary className="cursor-pointer text-sm font-semibold text-foreground">
+                    Identità, dominio e contatti (rawProject)
+                  </summary>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    {(
+                      [
+                        ["name", "name"],
+                        ["code", "code"],
+                        ["hostKey", "hostKey"],
+                        ["assetKey", "assetKey"],
+                        ["displayName", "displayName"],
+                        ["payoff", "payoff"],
+                        ["city", "city"],
+                        ["contactPhone", "contactPhone"],
+                        ["contactEmail", "contactEmail"],
+                        ["contactForm", "contactForm"],
+                        ["storeAddress", "storeAddress"],
+                        ["customDomain", "customDomain"],
+                        ["broker", "broker"],
+                        ["AQcode", "AQcode"],
+                        ["defaultLang", "defaultLang"],
+                        ["googleRecaptchaSecret", "googleRecaptchaSecret"],
+                        ["hCaptchaSecret", "hCaptchaSecret"],
+                      ] as const
+                    ).map(([k, field]) => (
+                      <F key={k} label={k}>
+                        <Input
+                          value={legacyOverridesDraft.identityFields[field]}
+                          onChange={(e) =>
+                            setLegacyDraft({
+                              identityFields: { [field]: e.target.value } as Partial<
+                                LegacyOverridesDraft["identityFields"]
+                              >,
+                            })
+                          }
+                          className="font-mono text-sm"
+                        />
+                      </F>
+                    ))}
+                    <F label="area">
+                      <Select
+                        value={legacyOverridesDraft.identityFields.area || "__unset__"}
+                        onValueChange={(v) =>
+                          setLegacyDraft({
+                            identityFields: {
+                              area: v === "__unset__" ? "" : (v as "sale" | "rent"),
+                            },
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="—" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__unset__">—</SelectItem>
+                          <SelectItem value="sale">sale</SelectItem>
+                          <SelectItem value="rent">rent</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </F>
+                    <F label="mailLanguages (comma-separated)">
+                      <Input
+                        value={legacyOverridesDraft.identityFields.mailLanguages}
+                        onChange={(e) => setLegacyDraft({ identityFields: { mailLanguages: e.target.value } })}
+                      />
+                    </F>
+                    <F label="disabledLanguages (comma-separated)">
+                      <Input
+                        value={legacyOverridesDraft.identityFields.disabledLanguages}
+                        onChange={(e) => setLegacyDraft({ identityFields: { disabledLanguages: e.target.value } })}
+                      />
+                    </F>
+                    <F label="languages (comma-separated)">
+                      <Input
+                        value={legacyOverridesDraft.identityFields.languages}
+                        onChange={(e) => setLegacyDraft({ identityFields: { languages: e.target.value } })}
+                      />
+                    </F>
+                    <div className="sm:col-span-2 flex flex-wrap gap-6">
+                      {(
+                        [
+                          ["accountManagerEnabled", "Account manager"],
+                          ["automaticQuoteEnabled", "Preventivo automatico"],
+                        ] as const
+                      ).map(([k, label]) => (
+                        <label key={k} className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={legacyOverridesDraft.identityFields[k]}
+                            onCheckedChange={(v) =>
+                              setLegacyDraft({
+                                identityFields: { [k]: Boolean(v) } as Partial<LegacyOverridesDraft["identityFields"]>,
+                              })
+                            }
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </details>
+
+                <details className="group rounded-lg border border-border bg-muted/10 p-3">
+                  <summary className="cursor-pointer text-sm font-semibold text-foreground">Page titles</summary>
+                  <div className="mt-3 space-y-2">
+                    {legacyOverridesDraft.pageTitleRows.map((row, idx) => (
+                      <div key={`pt-${idx}`} className="grid gap-2 sm:grid-cols-12">
+                        <Input
+                          className="sm:col-span-4 font-mono text-xs"
+                          placeholder="chiave (es. floorPlanning)"
+                          value={row.key}
+                          onChange={(e) => {
+                            const next = [...legacyOverridesDraft.pageTitleRows];
+                            next[idx] = { ...next[idx], key: e.target.value };
+                            setLegacyDraft({ pageTitleRows: next });
+                          }}
+                        />
+                        <Input
+                          className="sm:col-span-7 text-sm"
+                          placeholder="titolo"
+                          value={row.value}
+                          onChange={(e) => {
+                            const next = [...legacyOverridesDraft.pageTitleRows];
+                            next[idx] = { ...next[idx], value: e.target.value };
+                            setLegacyDraft({ pageTitleRows: next });
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="sm:col-span-1"
+                          onClick={() =>
+                            setLegacyDraft({
+                              pageTitleRows: legacyOverridesDraft.pageTitleRows.filter((_, i) => i !== idx),
+                            })
+                          }
+                        >
+                          −
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setLegacyDraft({
+                          pageTitleRows: [...legacyOverridesDraft.pageTitleRows, { key: "", value: "" }],
+                        })
+                      }
+                    >
+                      Aggiungi page title
+                    </Button>
+                  </div>
+                </details>
+
+                <details className="group rounded-lg border border-border bg-muted/10 p-3">
+                  <summary className="cursor-pointer text-sm font-semibold text-foreground">
+                    Enabled tools (lista legacy: name, url, enabled, …)
+                  </summary>
+                  <div className="mt-3 space-y-2 overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-left text-muted-foreground">
+                          <th className="p-1">Nome</th>
+                          <th className="p-1">Ver.</th>
+                          <th className="p-1">URL</th>
+                          <th className="p-1">Base</th>
+                          <th className="p-1">On</th>
+                          <th className="p-1" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {legacyOverridesDraft.legacyEnabledTools.map((row, idx) => (
+                          <tr key={`tool-${idx}`}>
+                            <td className="p-1">
+                              <Input
+                                className="h-8 font-mono text-xs"
+                                value={row.name}
+                                onChange={(e) => {
+                                  const next = [...legacyOverridesDraft.legacyEnabledTools];
+                                  next[idx] = { ...next[idx], name: e.target.value };
+                                  setLegacyDraft({ legacyEnabledTools: next });
+                                }}
+                              />
+                            </td>
+                            <td className="p-1">
+                              <Input
+                                className="h-8 text-xs"
+                                value={row.version}
+                                onChange={(e) => {
+                                  const next = [...legacyOverridesDraft.legacyEnabledTools];
+                                  next[idx] = { ...next[idx], version: e.target.value };
+                                  setLegacyDraft({ legacyEnabledTools: next });
+                                }}
+                              />
+                            </td>
+                            <td className="p-1 min-w-[140px]">
+                              <Input
+                                className="h-8 text-xs"
+                                value={row.url}
+                                onChange={(e) => {
+                                  const next = [...legacyOverridesDraft.legacyEnabledTools];
+                                  next[idx] = { ...next[idx], url: e.target.value };
+                                  setLegacyDraft({ legacyEnabledTools: next });
+                                }}
+                              />
+                            </td>
+                            <td className="p-1">
+                              <Input
+                                className="h-8 text-xs"
+                                value={row.baseUrl}
+                                onChange={(e) => {
+                                  const next = [...legacyOverridesDraft.legacyEnabledTools];
+                                  next[idx] = { ...next[idx], baseUrl: e.target.value };
+                                  setLegacyDraft({ legacyEnabledTools: next });
+                                }}
+                              />
+                            </td>
+                            <td className="p-1">
+                              <Checkbox
+                                checked={row.enabled}
+                                onCheckedChange={(v) => {
+                                  const next = [...legacyOverridesDraft.legacyEnabledTools];
+                                  next[idx] = { ...next[idx], enabled: Boolean(v) };
+                                  setLegacyDraft({ legacyEnabledTools: next });
+                                }}
+                              />
+                            </td>
+                            <td className="p-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  setLegacyDraft({
+                                    legacyEnabledTools: legacyOverridesDraft.legacyEnabledTools.filter((_, i) => i !== idx),
+                                  })
+                                }
+                              >
+                                −
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setLegacyDraft({
+                          legacyEnabledTools: [
+                            ...legacyOverridesDraft.legacyEnabledTools,
+                            { name: "", version: "", url: "", baseUrl: "", enabled: false },
+                          ],
+                        })
+                      }
+                    >
+                      Aggiungi tool
+                    </Button>
+                  </div>
+                </details>
+
+                <details className="group rounded-lg border border-border bg-muted/10 p-3">
+                  <summary className="cursor-pointer text-sm font-semibold text-foreground">
+                    Manifest, MyLiving, Rent, MyHome, Jobs, FollowUp, FloorPlanning
+                  </summary>
+                  <div className="mt-3 space-y-4">
+                    {(
+                      [
+                        ["manifestJson", "manifestConfig", "Manifest (PWA)"],
+                        ["myLivingJson", "myLivingConfig", "MyLiving config"],
+                        ["rentAssetJson", "rentAssetContext", "Rent asset context"],
+                        ["myhomeJson", "myhomeConfig", "MyHome (drilldown, …)"],
+                        ["jobsConfigJson", "jobsConfig", "Jobs config"],
+                        ["followupJson", "followupConfig", "FollowUp config (legacy dashboard)"],
+                        ["floorPlanningConfigJson", "floorPlanningConfig", "FloorPlanning config (flowWeb, quotation, …)"],
+                      ] as const
+                    ).map(([draftKey, _apiKey, label]) => (
+                      <F key={draftKey} label={label}>
+                        <Textarea
+                          rows={draftKey === "followupJson" || draftKey === "floorPlanningConfigJson" ? 10 : 6}
+                          className="font-mono text-xs"
+                          value={legacyOverridesDraft[draftKey]}
+                          onChange={(e) => setLegacyDraft({ [draftKey]: e.target.value })}
+                        />
+                      </F>
+                    ))}
+                  </div>
+                </details>
+
+                <details className="group rounded-lg border border-border bg-muted/10 p-3">
+                  <summary className="cursor-pointer text-sm font-semibold text-foreground">
+                    Neurosales, Policy (raw), Business platform, Project flags, Proposal, IBAN
+                  </summary>
+                  <div className="mt-3 space-y-4">
+                    <F label="Neurosales config (JSON profondo)">
+                      <Textarea
+                        rows={12}
+                        className="font-mono text-xs"
+                        value={legacyOverridesDraft.neurosalesJson}
+                        onChange={(e) => setLegacyDraft({ neurosalesJson: e.target.value })}
+                      />
+                    </F>
+                    <F label="Policy flags (oggetto multilingua raw, es. ita[])">
+                      <Textarea
+                        rows={8}
+                        className="font-mono text-xs"
+                        value={legacyOverridesDraft.legacyPolicyFlagsJson}
+                        onChange={(e) => setLegacyDraft({ legacyPolicyFlagsJson: e.target.value })}
+                      />
+                    </F>
+                    <F label="Business platform config">
+                      <Textarea
+                        rows={4}
+                        className="font-mono text-xs"
+                        value={legacyOverridesDraft.businessPlatformJson}
+                        onChange={(e) => setLegacyDraft({ businessPlatformJson: e.target.value })}
+                      />
+                    </F>
+                    <F label="domainWhitelist (comma-separated host)">
+                      <Input
+                        value={legacyOverridesDraft.domainWhitelist}
+                        onChange={(e) => setLegacyDraft({ domainWhitelist: e.target.value })}
+                        className="font-mono text-sm"
+                      />
+                    </F>
+                    <F label="projectFlags">
+                      <Textarea
+                        rows={4}
+                        className="font-mono text-xs"
+                        value={legacyOverridesDraft.projectFlagsJson}
+                        onChange={(e) => setLegacyDraft({ projectFlagsJson: e.target.value })}
+                      />
+                    </F>
+                    <F label="proposalTemplate">
+                      <Textarea
+                        rows={4}
+                        className="font-mono text-xs"
+                        value={legacyOverridesDraft.proposalTemplateJson}
+                        onChange={(e) => setLegacyDraft({ proposalTemplateJson: e.target.value })}
+                      />
+                    </F>
+                    <F label="iban (array JSON)">
+                      <Textarea
+                        rows={3}
+                        className="font-mono text-xs"
+                        value={legacyOverridesDraft.ibanJson}
+                        onChange={(e) => setLegacyDraft({ ibanJson: e.target.value })}
+                      />
+                    </F>
+                  </div>
+                </details>
+
+                <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Flag rapidi (workspace / mapping interno)</p>
+                  <p className="text-xs text-muted-foreground">Enabled tools</p>
+                  {[
+                    { key: "quotations" as const, label: "Preventivi" },
+                    { key: "appointments" as const, label: "Appuntamenti" },
+                    { key: "floorPlans" as const, label: "Planimetrie" },
+                    { key: "docs" as const, label: "Documenti" },
+                    { key: "myHome" as const, label: "Area MyHome" },
+                  ].map(({ key, label }) => (
+                    <div key={key} className="flex items-center gap-3">
+                      <Checkbox
+                        checked={legacyOverridesDraft.enabledTools[key]}
+                        onCheckedChange={(v) => setLegacyDraft({ enabledTools: { [key]: Boolean(v) } })}
+                      />
+                      <p className="text-sm">{label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">FloorPlanning</p>
+                  {[
+                    { key: "flowDeskEnabled" as const, label: "Flow Desk abilitato" },
+                    { key: "flowWebEnabled" as const, label: "Flow Web abilitato" },
+                    { key: "planInfoEnabled" as const, label: "Info planimetrie abilitate" },
+                    { key: "showOnlyAvailable" as const, label: "Mostra solo unità disponibili" },
+                  ].map(({ key, label }) => (
+                    <div key={key} className="flex items-center gap-3">
+                      <Checkbox
+                        checked={legacyOverridesDraft.floorPlanning[key]}
+                        onCheckedChange={(v) => setLegacyDraft({ floorPlanning: { [key]: Boolean(v) } })}
+                      />
+                      <p className="text-sm">{label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Neurosales</p>
+                  {[
+                    { key: "enabled" as const, label: "Neurosales abilitato" },
+                    { key: "dashboardEnabled" as const, label: "Dashboard abilitata" },
+                    { key: "cardsEnabled" as const, label: "Cards abilitate" },
+                    { key: "homePageEnabled" as const, label: "Home page dedicata abilitata" },
+                  ].map(({ key, label }) => (
+                    <div key={key} className="flex items-center gap-3">
+                      <Checkbox
+                        checked={legacyOverridesDraft.neurosales[key]}
+                        onCheckedChange={(v) => setLegacyDraft({ neurosales: { [key]: Boolean(v) } })}
+                      />
+                      <p className="text-sm">{label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">MyHome</p>
+                  {[
+                    { key: "enabled" as const, label: "MyHome abilitato" },
+                    { key: "documentAreaEnabled" as const, label: "Area documenti abilitata" },
+                    { key: "proposalEnabled" as const, label: "Proposta online abilitata" },
+                    { key: "reserveEnabled" as const, label: "Riserva online abilitata" },
+                    { key: "onlinePaymentEnabled" as const, label: "Pagamento online abilitato" },
+                  ].map(({ key, label }) => (
+                    <div key={key} className="flex items-center gap-3">
+                      <Checkbox
+                        checked={legacyOverridesDraft.myHome[key]}
+                        onCheckedChange={(v) => setLegacyDraft({ myHome: { [key]: Boolean(v) } })}
+                      />
+                      <p className="text-sm">{label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Appuntamenti</p>
+                  {[
+                    { key: "bookingEnabled" as const, label: "Booking appuntamenti abilitato" },
+                    { key: "openDaysEnabled" as const, label: "Open days abilitati" },
+                    { key: "unavailablePeriodEnabled" as const, label: "Gestione periodi non disponibili abilitata" },
+                  ].map(({ key, label }) => (
+                    <div key={key} className="flex items-center gap-3">
+                      <Checkbox
+                        checked={legacyOverridesDraft.appointments[key]}
+                        onCheckedChange={(v) => setLegacyDraft({ appointments: { [key]: Boolean(v) } })}
+                      />
+                      <p className="text-sm">{label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Policy flags</p>
+                  {[
+                    { key: "gdprEnabled" as const, label: "GDPR attivo" },
+                    { key: "marketingConsentEnabled" as const, label: "Consenso marketing richiesto" },
+                    { key: "profilingConsentEnabled" as const, label: "Consenso profilazione richiesto" },
+                  ].map(({ key, label }) => (
+                    <div key={key} className="flex items-center gap-3">
+                      <Checkbox
+                        checked={legacyOverridesDraft.policyFlags[key]}
+                        onCheckedChange={(v) => setLegacyDraft({ policyFlags: { [key]: Boolean(v) } })}
+                      />
+                      <p className="text-sm">{label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Jobs</p>
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={legacyOverridesDraft.jobs.leaseExpiryReminderEnabled}
+                      onCheckedChange={(v) => setLegacyDraft({ jobs: { leaseExpiryReminderEnabled: Boolean(v) } })}
+                    />
+                    <p className="text-sm">Promemoria scadenza locazione attivo</p>
+                  </div>
+                  <F label="Giorni di anticipo promemoria">
+                    <Input
+                      type="number"
+                      value={legacyOverridesDraft.jobs.reminderDaysBefore}
+                      onChange={(e) => setLegacyDraft({ jobs: { reminderDaysBefore: e.target.value } })}
+                      placeholder="30"
+                    />
+                  </F>
+                </div>
+
+                <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Override avanzati (sotto-campi deep)</p>
+                  <p className="text-xs text-muted-foreground">
+                    Inserisci percorso campo legacy (es: <span className="font-mono">myhomeConfig.proposal.priceVisible</span>) e valore.
+                  </p>
+                  {legacyOverridesDraft.advancedOverrides.map((row, idx) => (
+                    <div key={`adv-${idx}`} className="grid gap-2 sm:grid-cols-12">
+                      <div className="sm:col-span-6">
+                        <Input
+                          value={row.path}
+                          onChange={(e) => {
+                            const next = [...legacyOverridesDraft.advancedOverrides];
+                            next[idx] = { ...next[idx], path: e.target.value };
+                            setLegacyDraft({ advancedOverrides: next });
+                          }}
+                          placeholder="path.to.field"
+                        />
+                      </div>
+                      <div className="sm:col-span-3">
+                        <Select
+                          value={row.valueType}
+                          onValueChange={(v) => {
+                            const next = [...legacyOverridesDraft.advancedOverrides];
+                            next[idx] = { ...next[idx], valueType: v as "string" | "number" | "boolean", value: v === "boolean" ? "false" : "" };
+                            setLegacyDraft({ advancedOverrides: next });
+                          }}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="string">Stringa</SelectItem>
+                            <SelectItem value="number">Numero</SelectItem>
+                            <SelectItem value="boolean">Booleano</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="sm:col-span-2">
+                        {row.valueType === "boolean" ? (
+                          <Select
+                            value={row.value}
+                            onValueChange={(v) => {
+                              const next = [...legacyOverridesDraft.advancedOverrides];
+                              next[idx] = { ...next[idx], value: v };
+                              setLegacyDraft({ advancedOverrides: next });
+                            }}
+                          >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="true">true</SelectItem>
+                              <SelectItem value="false">false</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Input
+                            type={row.valueType === "number" ? "number" : "text"}
+                            value={row.value}
+                            onChange={(e) => {
+                              const next = [...legacyOverridesDraft.advancedOverrides];
+                              next[idx] = { ...next[idx], value: e.target.value };
+                              setLegacyDraft({ advancedOverrides: next });
+                            }}
+                            placeholder="valore"
+                          />
+                        )}
+                      </div>
+                      <div className="sm:col-span-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            const next = legacyOverridesDraft.advancedOverrides.filter((_, i) => i !== idx);
+                            setLegacyDraft({ advancedOverrides: next });
+                          }}
+                        >
+                          -
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      setLegacyDraft({
+                        advancedOverrides: [
+                          ...legacyOverridesDraft.advancedOverrides,
+                          { path: "", valueType: "string", value: "" },
+                        ],
+                      })
+                    }
+                  >
+                    Aggiungi override avanzato
+                  </Button>
+                </div>
+
+                <Button size="sm" onClick={handleSaveLegacyOverrides} disabled={savingLegacyOverrides} className="gap-2">
+                  <Save className="h-3.5 w-3.5" />
+                  {savingLegacyOverrides ? "Salvataggio…" : "Salva configurazioni legacy"}
+                </Button>
+              </div>
+            )}
+          </section>
+
           {/* ── Altri strumenti ─── */}
           <section className="border-t border-border pt-6">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Altri strumenti</p>
@@ -1100,6 +1875,41 @@ export const ProjectDetailPage = () => {
                 Template configurazione HC
               </Button>
             </div>
+          </section>
+
+          {/* ── Snapshot legacy (read-only) ─── */}
+          <section>
+            <SectionTitle
+              label="Snapshot legacy (solo lettura)"
+              icon={<BookOpen className="h-4 w-4 text-muted-foreground" />}
+              open={secLegacy}
+              onToggle={() => setSecLegacy(!secLegacy)}
+            />
+            {secLegacy && (
+              <div className="mt-4 space-y-4">
+                <p className="text-xs text-muted-foreground">
+                  Metadati e payload tecnico importati dal legacy per audit e riconciliazione.
+                </p>
+                <F label="Migration metadata">
+                  <Textarea
+                    value={project.migration ? JSON.stringify(project.migration, null, 2) : ""}
+                    readOnly
+                    rows={6}
+                    className="w-full font-mono text-xs"
+                    placeholder="Nessun metadata migration disponibile"
+                  />
+                </F>
+                <F label="Legacy payload">
+                  <Textarea
+                    value={project.legacyPayload ? JSON.stringify(project.legacyPayload, null, 2) : ""}
+                    readOnly
+                    rows={10}
+                    className="w-full font-mono text-xs"
+                    placeholder="Nessun payload legacy disponibile"
+                  />
+                </F>
+              </div>
+            )}
           </section>
         </div>
           )}

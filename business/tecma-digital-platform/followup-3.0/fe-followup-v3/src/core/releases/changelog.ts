@@ -34,6 +34,30 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.15.0",
+    date: "2026-03-26",
+    title: "Workflow: modale UI, CRUD stati/transizioni, override per progetto",
+    releaseType: "minor",
+    changes: [
+      {
+        type: "fix",
+        text: "Dialog modale: centratura corretta, max-height e scroll; z-index sopra al Sheet per evitare tagli in basso.",
+      },
+      {
+        type: "feature",
+        text: "Backend: PATCH/DELETE stati e DELETE transizioni con blocco 409 se in uso (richieste/lock) o transizioni collegate; GET/PUT /projects/:id/workflow-settings per override progetto; risoluzione workflow in transizioni trattativa con projectId.",
+      },
+      {
+        type: "feature",
+        text: "Configurazione workflow: modifica/elimina stati e transizioni; tabella azioni; progetto: sezione Workflow trattative (default workspace o workflow dedicato).",
+      },
+      {
+        type: "improvement",
+        text: "useWorkflowConfig: legge override workflow da impostazioni progetto quando disponibile.",
+      },
+    ],
+  },
+  {
     version: "0.14.0",
     date: "2026-03-25",
     title: "Big Data: funnel CRM per attribuzione + lead Webflow (platform API)",

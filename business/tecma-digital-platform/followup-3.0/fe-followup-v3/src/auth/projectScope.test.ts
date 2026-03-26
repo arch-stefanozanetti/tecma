@@ -123,12 +123,25 @@ describe("projectScope", () => {
     expect(loadProjectScope()).toBeNull();
   });
 
-  it("updateSelectedProjectIds aggiorna solo selectedProjectIds", () => {
+  it("updateSelectedProjectIds mantiene solo projectIds validi", () => {
     saveProjectScope(baseState);
     updateSelectedProjectIds(["p1", "p2"]);
     const loaded = loadProjectScope();
-    expect(loaded?.selectedProjectIds).toEqual(["p1", "p2"]);
+    expect(loaded?.selectedProjectIds).toEqual(["p1"]);
     expect(loaded?.email).toBe("u@test.com");
+  });
+
+  it("loadProjectScope seleziona tutti i progetti se selectedProjectIds è vuoto", () => {
+    saveProjectScope({
+      ...baseState,
+      projects: [
+        { id: "p1", name: "P1", displayName: "P1" },
+        { id: "p2", name: "P2", displayName: "P2" },
+      ],
+      selectedProjectIds: [],
+    });
+    const loaded = loadProjectScope();
+    expect(loaded?.selectedProjectIds).toEqual(["p1", "p2"]);
   });
 
   it("updateSelectedProjectIds non fa nulla se nessuno scope salvato", () => {

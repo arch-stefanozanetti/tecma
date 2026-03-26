@@ -10,6 +10,7 @@ import { v1Router } from "./routes/v1.js";
 import { customerPortalPublicRoutes, customerPortalRoutes } from "./routes/v1/customer-portal.routes.js";
 import { ensureDefaultRoleDefinitions } from "./core/rbac/roleDefinitions.service.js";
 import { ensureDefaultPrivacyPolicy } from "./core/gdpr/legal-documents.service.js";
+import { startRealtimeMetricsProjector } from "./core/reports/realtime-reports.service.js";
 import { logger } from "./observability/logger.js";
 import { initOtel, shutdownOtel } from "./observability/otel.js";
 import { requestContextMiddleware } from "./routes/requestContextMiddleware.js";
@@ -59,6 +60,7 @@ const bootstrap = async () => {
   await ensureDefaultPrivacyPolicy().catch((err) => {
     logger.error({ err }, "[legal] ensureDefaultPrivacyPolicy failed");
   });
+  startRealtimeMetricsProjector();
 
   const app = express();
   if (isProductionLike()) {

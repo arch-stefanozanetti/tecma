@@ -1,6 +1,53 @@
+import type { ReactNode } from "react";
 import { formatDate } from "../../lib/formatDate";
 import { ApartmentDetailAssignmentsSection } from "./ApartmentDetailAssignmentsSection";
 import type { ApartmentRow } from "../../types/domain";
+
+const EXTRA_INFO_LABELS: Record<string, string> = {
+  legacyNote: "Note",
+  planimetryUrls: "Altre planimetrie (URL)",
+  additionalPlanimetryUrls: "Planimetrie aggiuntive",
+};
+
+function formatExtraInfoKey(key: string): string {
+  if (EXTRA_INFO_LABELS[key]) return EXTRA_INFO_LABELS[key];
+  return key
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .replace(/^./, (s) => s.toUpperCase());
+}
+
+function renderExtraInfoValue(key: string, value: unknown): ReactNode {
+  if (value == null || value === "") return null;
+  if (key === "planimetryUrls" || key === "additionalPlanimetryUrls") {
+    if (Array.isArray(value) && value.every((v) => typeof v === "string")) {
+      return (
+        <ul className="list-inside list-disc space-y-1 text-sm">
+          {(value as string[]).map((u) => (
+            <li key={u}>
+              <a href={u} target="_blank" rel="noopener noreferrer" className="break-all text-primary underline underline-offset-2">
+                {u}
+              </a>
+            </li>
+          ))}
+        </ul>
+      );
+    }
+  }
+  if (Array.isArray(value)) {
+    if (value.every((v) => typeof v === "string" || typeof v === "number")) {
+      return value.join(", ");
+    }
+  }
+  if (typeof value === "object") {
+    return (
+      <pre className="mt-1 max-h-56 overflow-auto rounded-md bg-muted/50 p-2 text-xs font-mono whitespace-pre-wrap break-all text-foreground/90">
+        {JSON.stringify(value, null, 2)}
+      </pre>
+    );
+  }
+  return String(value);
+}
 
 export interface ApartmentDetailDettagliTabProps {
   apartment: ApartmentRow;
@@ -28,15 +75,17 @@ export function ApartmentDetailDettagliTab({
       {apartment.extraInfo && Object.keys(apartment.extraInfo).length > 0 && (
         <section className="rounded-lg border border-border bg-card p-4">
           <h2 className="text-sm font-semibold text-foreground mb-3">Info aggiuntive</h2>
-          <div className="grid gap-3 text-sm sm:grid-cols-2">
-            {Object.entries(apartment.extraInfo).map(([key, value]) =>
-              value != null && value !== "" ? (
-                <div key={key}>
-                  <span className="text-muted-foreground">{key}</span>
-                  <p className="font-medium text-foreground">{String(value)}</p>
+          <div className="grid gap-4 text-sm sm:grid-cols-2">
+            {Object.entries(apartment.extraInfo).map(([key, value]) => {
+              const rendered = renderExtraInfoValue(key, value);
+              if (rendered == null) return null;
+              return (
+                <div key={key} className="min-w-0 sm:col-span-2">
+                  <span className="text-muted-foreground">{formatExtraInfoKey(key)}</span>
+                  <div className="mt-1 font-medium text-foreground">{rendered}</div>
                 </div>
-              ) : null
-            )}
+              );
+            })}
           </div>
         </section>
       )}

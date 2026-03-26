@@ -1,17 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
-  const tzFindOneMock = vi.fn();
-  return { tzFindOneMock };
+  const getWorkflowForWorkspaceAndTypeMock = vi.fn();
+  return { getWorkflowForWorkspaceAndTypeMock };
 });
 
-vi.mock("../../config/db.js", () => ({
-  getDb: () => ({
-    collection: (name: string) => {
-      if (name === "tz_workflow_configs") return { findOne: mocks.tzFindOneMock };
-      throw new Error("Unexpected collection: " + name);
-    },
-  }),
+vi.mock("./workflow-engine.service.js", () => ({
+  getWorkflowForWorkspaceAndType: mocks.getWorkflowForWorkspaceAndTypeMock,
 }));
 
 import { getWorkflowConfig } from "./workflow.service.js";
@@ -21,28 +16,25 @@ describe("workflow.service", () => {
     vi.clearAllMocks();
   });
 
-  it("returns tz workflow config when present", async () => {
-    mocks.tzFindOneMock.mockResolvedValueOnce({
-      flowType: "sell",
-      states: [{ id: "new" }, { id: "won" }],
-      transitions: [{ fromState: "new", toState: "won", event: "win" }],
-      version: 3,
+  it("returns config mapped from workflow engine", async () => {
+    mocks.getWorkflowForWorkspaceAndTypeMock.mockResolvedValueOnce({
+      workflow: { _id: "wf1", workspaceId: "ws1", type: "sell" },
+      states: [
+        { _id: "s1", code: "new", label: "Nuova", terminal: false },
+        { _id: "s2", code: "won", label: "Vinta", terminal: true },
+      ],
+      transitions: [{ fromStateId: "s1", toStateId: "s2" }],
     });
 
     const result = await getWorkflowConfig("ws1", "p1", "sell");
 
     expect(result.flowType).toBe("sell");
     expect(result.states).toHaveLength(2);
-    expect(result.version).toBe(3);
+    expect(result.transitions[0]).toMatchObject({ fromState: "new", toState: "won" });
   });
 
-  it("returns default config when no tz doc", async () => {
-    mocks.tzFindOneMock.mockResolvedValueOnce(null);
-
-    const result = await getWorkflowConfig("ws1", "p1", "rent");
-
-    expect(result.flowType).toBe("rent");
-    expect(result.states.some((s) => s.id === "new")).toBe(true);
-    expect(result.transitions.some((t) => t.fromState === "offer" && t.toState === "won")).toBe(true);
+  it("throws when workflow is not configured", async () => {
+    mocks.getWorkflowForWorkspaceAndTypeMock.mockResolvedValueOnce(null);
+    await expect(getWorkflowConfig("ws1", "p1", "rent")).rejects.toMatchObject({ statusCode: 400 });
   });
 });

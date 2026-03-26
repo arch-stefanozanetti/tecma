@@ -1,6 +1,6 @@
 # FollowUp 3.0 — Panoramica per leadership (CTO / CEO)
 
-**Ultimo aggiornamento:** 2026-03-25  
+**Ultimo aggiornamento:** 2026-03-26  
 
 **Nell’app:** Admin → **Panoramica strategica**, URL `/executive`, command palette. Inizia dal tab **Panoramica visiva** (mappe di dominio).
 
@@ -23,10 +23,11 @@ journey
       04_architettura: 4: CTO
       05_privacy: 3: CTO
       06_rischi: 4: CTO
+      07_migrazione_legacy: 4: CTO
 ```
 
 - **~15 min (CEO):** [01](01-executive-summary.md) → [06](06-risks-open-decisions.md) (solo “In 30 secondi” + decisioni).  
-- **Completo (CTO):** 01 → 02 → 03 → 04 → 05 → 06.
+- **Completo (CTO):** 01 → 02 → 03 → 04 → 05 → 06 → [07](07-legacy-migration-and-data-parity.md).
 
 ---
 
@@ -40,6 +41,7 @@ journey
 | [04](04-architecture-at-a-glance.md) | CTO | Stack, deploy, integrazioni. |
 | [05](05-privacy-gdpr-and-tenant-model.md) | CTO, DPO | Tenant, PII, disclaimer. |
 | [06](06-risks-open-decisions.md) | CEO + CTO | Rischi e decisioni aperte. |
+| [07](07-legacy-migration-and-data-parity.md) | CTO, Product | Migrazione dati da Mongo legacy read-only, obiettivi A/B, metodo e deliverable. |
 
 ---
 

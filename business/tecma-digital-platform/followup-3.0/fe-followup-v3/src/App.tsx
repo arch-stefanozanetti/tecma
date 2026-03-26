@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { Routes, Route, useLocation, useSearchParams, useNavigate, Navigate } from "react-router-dom";
-import { clearProjectScope, loadProjectScope, saveProjectScope, updateSelectedProjectIds, updateWorkspaceId } from "./auth/projectScope";
+import { clearProjectScope, loadProjectScope, saveProjectScope, updateSelectedProjectIds } from "./auth/projectScope";
 import { followupApi } from "./api/followupApi";
 import { getRefreshToken, setTokens } from "./api/http";
 import { isBssAuth } from "./api/authApi";
@@ -36,6 +36,7 @@ import { EmailFlowsPage } from "./core/settings/EmailFlowsPage";
 import { ProjectDetailPage } from "./core/projects/ProjectDetailPage";
 import { AuditLogPage } from "./core/audit/AuditLogPage";
 import { ReportsPage } from "./core/reports/ReportsPage";
+import { SharedReportPage } from "./core/reports/SharedReportPage";
 import { BigDataPage } from "./core/bigdata/BigDataPage";
 import { PriceAvailabilityPage } from "./core/prices/PriceAvailabilityPage";
 import { ReleasesPage } from "./core/releases/ReleasesPage";
@@ -566,6 +567,8 @@ export const App = () => {
 
   if (pathname.startsWith("/set-password")) {
     appContent = <SetPasswordFromInvitePage />;
+  } else if (pathname.startsWith("/r/")) {
+    appContent = <SharedReportPage />;
   } else if (pathname.startsWith("/portal")) {
     appContent = <CustomerPortalPage />;
   } else if (pathname.startsWith("/reset-password")) {
@@ -594,13 +597,20 @@ export const App = () => {
       const allProjects = projectScope.projects ?? [];
       const wsIds = workspaceProjectIds;
       const isTzWorkspace = projectScope.workspaceId && !isLegacyWorkspace(projectScope.workspaceId);
-      const filteredProjects =
+      const filteredProjectsRaw =
         !isTzWorkspace || wsIds === null || (Array.isArray(wsIds) && wsIds.length === 0)
           ? allProjects
           : allProjects.filter((p) => wsIds.includes(p.id));
-      const filteredSelected = projectScope.selectedProjectIds?.filter((id) =>
+      // Fallback difensiva: se mapping workspace->project è incoerente, non bloccare UI/liste.
+      const filteredProjects =
+        filteredProjectsRaw.length === 0 && allProjects.length > 0 ? allProjects : filteredProjectsRaw;
+      const filteredSelectedRaw = projectScope.selectedProjectIds?.filter((id) =>
         filteredProjects.some((p) => p.id === id)
       ) ?? [];
+      const filteredSelected =
+        filteredSelectedRaw.length === 0 && filteredProjects.length > 0
+          ? filteredProjects.map((p) => p.id)
+          : filteredSelectedRaw;
 
       const templateProps = {
         section: effectiveSection,
@@ -616,26 +626,52 @@ export const App = () => {
           setAccessVersion((v) => v + 1);
         },
         onChangeWorkspace: (newWorkspaceId: string) => {
-          updateWorkspaceId(newWorkspaceId);
+          const targetWorkspaceId = newWorkspaceId.trim();
+          const currentScope = loadProjectScope();
+          if (!currentScope?.email || !targetWorkspaceId) return;
+          // hard reset: invalida subito scope precedente per evitare contaminazioni tra workspace.
+          clearProjectScope();
+          setWorkspaceProjectIds(null);
+          setWorkspaceFeatures(undefined);
+          setAccessVersion((v) => v + 1);
           const isLegacy = isLegacyWorkspace(newWorkspaceId);
           if (isLegacy) {
+            const selected = currentScope.selectedProjectIds ?? [];
+            saveProjectScope({
+              ...currentScope,
+              workspaceId: targetWorkspaceId,
+              selectedProjectIds: selected,
+            });
             void followupApi
-              .saveUserPreferences(projectScope.email ?? "", newWorkspaceId, projectScope.selectedProjectIds ?? [])
+              .saveUserPreferences(currentScope.email, targetWorkspaceId, selected)
               .catch(() => {});
+            setAccessVersion((v) => v + 1);
           } else {
-            followupApi
-              .listWorkspaceProjects(newWorkspaceId)
-              .then((res) => {
-                const newWsProjectIds = (res.data ?? []).map((wp) => wp.projectId);
-                const currentSelected = projectScope.selectedProjectIds ?? [];
-                const intersection = currentSelected.filter((id) => newWsProjectIds.includes(id));
-                const newSelected = intersection.length > 0 ? intersection : newWsProjectIds;
+            void Promise.all([
+              followupApi.getProjectsByEmail(currentScope.email, targetWorkspaceId),
+              followupApi.listWorkspaceProjects(targetWorkspaceId).catch(() => ({ data: [] })),
+            ])
+              .then(([projectAccess, workspaceProjects]) => {
+                const wsProjectIds = (workspaceProjects.data ?? []).map((wp) => wp.projectId);
+                const serverProjects = projectAccess.projects ?? [];
+                const filteredProjects =
+                  wsProjectIds.length === 0 ? serverProjects : serverProjects.filter((p) => wsProjectIds.includes(p.id));
+                const normalizedProjects = filteredProjects.length > 0 ? filteredProjects : serverProjects;
+                const newSelected = normalizedProjects.map((p) => p.id);
+                saveProjectScope({
+                  ...currentScope,
+                  role: projectAccess.role,
+                  isAdmin: projectAccess.isAdmin,
+                  workspaceId: targetWorkspaceId,
+                  projects: normalizedProjects,
+                  selectedProjectIds: newSelected,
+                });
                 updateSelectedProjectIds(newSelected);
-                return followupApi.saveUserPreferences(projectScope.email ?? "", newWorkspaceId, newSelected);
+                return followupApi.saveUserPreferences(currentScope.email, targetWorkspaceId, newSelected);
               })
               .catch(() => {});
+            setAccessVersion((v) => v + 1);
           }
-          setAccessVersion((v) => v + 1);
         },
         projects: filteredProjects,
         selectedProjectIds: filteredSelected,
@@ -654,7 +690,7 @@ export const App = () => {
 
       // Wrapper con key per forzare unmount/remount al cambio sezione (evita "more hooks" su stesso componente).
       const effectiveProjectIds =
-        isTzWorkspace && wsIds !== null
+        filteredSelected.length > 0
           ? filteredSelected
           : (projectScope.selectedProjectIds ?? []);
       const sectionContent = renderSection(

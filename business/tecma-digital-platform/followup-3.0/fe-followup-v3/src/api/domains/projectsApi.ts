@@ -47,6 +47,8 @@ export const projectsApi = {
       archived?: boolean;
       createdAt?: string;
       updatedAt?: string;
+      migration?: Record<string, unknown>;
+      legacyPayload?: Record<string, unknown>;
     }>(`/projects/${encodeURIComponent(projectId)}?workspaceId=${encodeURIComponent(workspaceId)}`),
   updateProject: (
     projectId: string,
@@ -273,6 +275,94 @@ export const projectsApi = {
       siteHostname?: string;
       updatedAt: string;
     }>(`/projects/${projectId}/marketing-settings?workspaceId=${encodeURIComponent(workspaceId)}`, payload),
+  getProjectWorkflowSettings: (projectId: string, workspaceId: string) =>
+    getJson<{
+      projectId: string;
+      workspaceId: string;
+      workflowId: string | null;
+      updatedAt: string;
+    }>(`/projects/${projectId}/workflow-settings?workspaceId=${encodeURIComponent(workspaceId)}`),
+  putProjectWorkflowSettings: (projectId: string, workspaceId: string, payload: { workflowId: string | null }) =>
+    putJson<{
+      projectId: string;
+      workspaceId: string;
+      workflowId: string | null;
+      updatedAt: string;
+    }>(`/projects/${projectId}/workflow-settings?workspaceId=${encodeURIComponent(workspaceId)}`, payload),
+  getProjectLegacyOverrides: (projectId: string, workspaceId: string) =>
+    getJson<{
+      projectId: string;
+      enabledTools?: {
+        quotations?: boolean;
+        appointments?: boolean;
+        floorPlans?: boolean;
+        docs?: boolean;
+        myHome?: boolean;
+      };
+      floorPlanning?: {
+        flowDeskEnabled?: boolean;
+        flowWebEnabled?: boolean;
+        planInfoEnabled?: boolean;
+        showOnlyAvailable?: boolean;
+      };
+      neurosales?: {
+        enabled?: boolean;
+        dashboardEnabled?: boolean;
+        cardsEnabled?: boolean;
+        homePageEnabled?: boolean;
+      };
+      myHome?: {
+        enabled?: boolean;
+        documentAreaEnabled?: boolean;
+        proposalEnabled?: boolean;
+        reserveEnabled?: boolean;
+        onlinePaymentEnabled?: boolean;
+      };
+      appointments?: {
+        bookingEnabled?: boolean;
+        openDaysEnabled?: boolean;
+        unavailablePeriodEnabled?: boolean;
+      };
+      policyFlags?: {
+        gdprEnabled?: boolean;
+        marketingConsentEnabled?: boolean;
+        profilingConsentEnabled?: boolean;
+      };
+      jobs?: {
+        leaseExpiryReminderEnabled?: boolean;
+        reminderDaysBefore?: number;
+      };
+      advancedOverrides?: Array<{
+        path: string;
+        valueType: "string" | "number" | "boolean";
+        stringValue?: string;
+        numberValue?: number;
+        booleanValue?: boolean;
+      }>;
+      identityFields?: Record<string, unknown>;
+      pageTitles?: Record<string, string>;
+      manifestConfig?: unknown;
+      myLivingConfig?: unknown;
+      legacyEnabledTools?: Array<Record<string, unknown>>;
+      rentAssetContext?: unknown;
+      myhomeConfig?: unknown;
+      jobsConfig?: unknown;
+      followupConfig?: unknown;
+      floorPlanningConfig?: unknown;
+      neurosalesConfig?: unknown;
+      legacyPolicyFlags?: unknown;
+      businessPlatformConfig?: unknown;
+      domainWhitelist?: string[];
+      projectFlags?: unknown;
+      proposalTemplate?: unknown;
+      iban?: unknown;
+      updatedAt: string;
+    }>(`/projects/${projectId}/legacy-overrides?workspaceId=${encodeURIComponent(workspaceId)}`),
+  putProjectLegacyOverrides: (projectId: string, workspaceId: string, payload: Record<string, unknown>) =>
+    putJson<{
+      projectId: string;
+      updatedAt: string;
+    }>(`/projects/${projectId}/legacy-overrides?workspaceId=${encodeURIComponent(workspaceId)}`, payload),
   listProjectAccess: (projectId: string, workspaceId: string) =>
     getJson<{ data: ProjectAccessRow[] }>(
       `/projects/${encodeURIComponent(projectId)}/access?workspaceId=${encodeURIComponent(workspaceId)}`

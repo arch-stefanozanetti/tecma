@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { cn } from "../../lib/utils";
 import type { RequestRow, RequestStatus } from "../../types/domain";
-import { ALLOWED_NEXT_STATUSES, CLIENT_ROLE_LABEL, formatDate, KANBAN_STATUS_ORDER, STATUS_LABEL, TYPE_LABEL, type ViewMode } from "./requestsPageConstants";
+import { CLIENT_ROLE_LABEL, formatDate, TYPE_LABEL, type ViewMode } from "./requestsPageConstants";
 
 interface RequestsBoardSectionProps {
   viewMode: ViewMode;
@@ -23,6 +23,10 @@ interface RequestsBoardSectionProps {
   committedSearch: string;
   statusChangingId: string | null;
   onStatusChange: (requestId: string, status: RequestStatus) => void;
+  getAllowedNextStatuses: (request: RequestRow) => RequestStatus[];
+  getStatusLabel: (type: RequestRow["type"], status: RequestStatus) => string;
+  kanbanStatusOrder: RequestStatus[];
+  statusFilterOptions: Array<{ value: string; label: string }>;
   onSelectRequest: (request: RequestRow) => void;
   requestsByStatus: Map<RequestStatus, RequestRow[]>;
   total: number;
@@ -58,6 +62,10 @@ export const RequestsBoardSection = ({
   committedSearch,
   statusChangingId,
   onStatusChange,
+  getAllowedNextStatuses,
+  getStatusLabel,
+  kanbanStatusOrder,
+  statusFilterOptions,
   onSelectRequest,
   requestsByStatus,
   total,
@@ -172,9 +180,9 @@ export const RequestsBoardSection = ({
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value={req.status}>{STATUS_LABEL[req.status]}</SelectItem>
-                              {(ALLOWED_NEXT_STATUSES[req.status] ?? []).map((s) => (
-                                <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>
+                              <SelectItem value={req.status}>{getStatusLabel(req.type, req.status)}</SelectItem>
+                              {getAllowedNextStatuses(req).map((s) => (
+                                <SelectItem key={s} value={s}>{getStatusLabel(req.type, s)}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -193,12 +201,14 @@ export const RequestsBoardSection = ({
             <div className="overflow-x-auto p-4">
               <p className="text-xs text-muted-foreground mb-2 text-center md:text-left">Scorri orizzontalmente per vedere tutte le colonne</p>
               <div className="flex min-h-[400px] gap-4">
-                {KANBAN_STATUS_ORDER.map((status) => {
+                {kanbanStatusOrder.map((status) => {
                   const items = requestsByStatus.get(status) ?? [];
                   return (
                     <div key={status} className="flex w-[280px] shrink-0 flex-col rounded-lg border border-border bg-muted/30">
                       <div className="flex items-center justify-between border-b border-border px-3 py-2">
-                        <span className="text-sm font-semibold text-foreground">{STATUS_LABEL[status]}</span>
+                        <span className="text-sm font-semibold text-foreground">
+                          {statusFilterOptions.find((s) => s.value === status)?.label ?? status}
+                        </span>
                         <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{items.length}</span>
                       </div>
                       <div className="flex-1 space-y-2 overflow-y-auto p-2">

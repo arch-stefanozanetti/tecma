@@ -17,6 +17,7 @@ import {
   Mail,
   Menu,
   Plug,
+  Search,
   Settings,
   Shield,
   UserCircle,
@@ -25,6 +26,7 @@ import {
 import { NAV_ITEMS, sectionMeetsPermissionRequirements, type Section } from "../config/routes";
 import { cn } from "../../lib/utils";
 import { Checkbox } from "../../components/ui/checkbox";
+import { Input } from "../../components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "../../components/ui/sheet";
 import logotipoTecma from "../../assets/itd-icons/logotipoTecma.svg";
 import { LogoTecma } from "../../components/LogoTecma";
@@ -400,15 +402,18 @@ const WorkspaceSelector = ({
 
 // ── Project Selector ──────────────────────────────────────────────────────────
 const ProjectSelector = ({
+  workspaceId,
   projects,
   selectedProjectIds,
   onSelectedProjectIdsChange,
 }: {
+  workspaceId: string;
   projects: ProjectAccessProject[];
   selectedProjectIds: string[];
   onSelectedProjectIdsChange: (ids: string[]) => void;
 }) => {
   const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -419,6 +424,25 @@ const ProjectSelector = ({
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  useEffect(() => {
+    // Rebind forte: quando cambia workspace o set progetti, chiudi il dropdown.
+    setOpen(false);
+  }, [workspaceId, projects]);
+
+  useEffect(() => {
+    if (!open) setSearchQuery("");
+  }, [open]);
+
+  const filteredProjects = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return projects;
+    return projects.filter((p) => {
+      const name = (p.displayName ?? p.name ?? "").toLowerCase();
+      const id = p.id.toLowerCase();
+      return name.includes(q) || id.includes(q);
+    });
+  }, [projects, searchQuery]);
+
   const toggle = (id: string) => {
     const next = selectedProjectIds.includes(id)
       ? selectedProjectIds.filter((p) => p !== id)
@@ -427,6 +451,20 @@ const ProjectSelector = ({
     if (next.length === 0) return;
     onSelectedProjectIdsChange(next);
   };
+
+  const selectAll = () => {
+    onSelectedProjectIdsChange(projects.map((p) => p.id));
+  };
+
+  /** Resta un solo progetto attivo (il primo tra quelli selezionati) — vincolo minimo 1 selezione. */
+  const deselectAllButOne = () => {
+    if (projects.length <= 1) return;
+    if (selectedProjectIds.length <= 1) return;
+    onSelectedProjectIdsChange([selectedProjectIds[0]]);
+  };
+
+  const allSelected = projects.length > 0 && selectedProjectIds.length === projects.length;
+  const canDeselectBulk = projects.length > 1 && selectedProjectIds.length > 1;
 
   const label =
     selectedProjectIds.length === projects.length
@@ -454,58 +492,86 @@ const ProjectSelector = ({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 z-50 w-64 overflow-hidden rounded-ui border border-border bg-card shadow-dropdown">
-          <div className="border-b border-border px-4 py-2.5">
+        <div className="absolute right-0 top-12 z-50 flex w-[min(100vw-2rem,20rem)] max-w-[20rem] flex-col overflow-hidden rounded-ui border border-border bg-card shadow-dropdown">
+          <div className="border-b border-border px-3 py-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Active projects
             </span>
-          </div>
-
-          <div className="py-1">
-            {projects.map((project) => {
-              const isSelected = selectedProjectIds.includes(project.id);
-              return (
-                <div
-                  key={project.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => toggle(project.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      toggle(project.id);
-                    }
-                  }}
-                  className="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted"
-                >
-                  <span onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={() => toggle(project.id)}
-                      size="sm"
-                      aria-label={project.displayName || project.name}
-                    />
-                  </span>
-                  <span className="flex-1 truncate">{project.displayName || project.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {project.id.includes("rent") ? "Rent" : "Sell"}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-
-          {selectedProjectIds.length < projects.length && (
-            <div className="border-t border-border px-4 py-2">
+            <div className="relative mt-2">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cerca per nome o ID…"
+                className="h-9 pl-8 text-sm"
+                autoComplete="off"
+                aria-label="Filtra progetti"
+              />
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => onSelectedProjectIdsChange(projects.map((p) => p.id))}
-                className="text-xs text-primary hover:underline"
+                onClick={selectAll}
+                disabled={allSelected || projects.length === 0}
+                className="text-xs font-medium text-primary hover:underline disabled:pointer-events-none disabled:opacity-40"
               >
-                Select all projects
+                Seleziona tutti
+              </button>
+              <span className="text-muted-foreground/50">·</span>
+              <button
+                type="button"
+                onClick={deselectAllButOne}
+                disabled={!canDeselectBulk}
+                title={
+                  canDeselectBulk
+                    ? "Lascia attivo solo il primo tra i progetti selezionati (serve almeno un progetto)"
+                    : undefined
+                }
+                className="text-xs font-medium text-primary hover:underline disabled:pointer-events-none disabled:opacity-40"
+              >
+                Deseleziona tutti
               </button>
             </div>
-          )}
+          </div>
+
+          <div className="max-h-[min(50vh,280px)] overflow-y-auto overscroll-contain py-1">
+            {filteredProjects.length === 0 ? (
+              <p className="px-4 py-6 text-center text-xs text-muted-foreground">Nessun progetto corrisponde.</p>
+            ) : (
+              filteredProjects.map((project) => {
+                const isSelected = selectedProjectIds.includes(project.id);
+                return (
+                  <div
+                    key={project.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => toggle(project.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggle(project.id);
+                      }
+                    }}
+                    className="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted"
+                  >
+                    <span onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggle(project.id)}
+                        size="sm"
+                        aria-label={project.displayName || project.name}
+                      />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{project.displayName || project.name}</span>
+                    <span className="flex-shrink-0 text-xs text-muted-foreground">
+                      {String(project.mode ?? "").toLowerCase() === "rent" ? "Rent" : "Sell"}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -653,6 +719,8 @@ export const PageTemplate = ({
             {/* Project selector */}
             {projects.length > 0 && (
               <ProjectSelector
+                key={`project-selector-${workspaceId}`}
+                workspaceId={workspaceId}
                 projects={projects}
                 selectedProjectIds={selectedProjectIds}
                 onSelectedProjectIdsChange={onSelectedProjectIdsChange}

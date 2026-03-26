@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createProject } from "../../core/projects/projects.service.js";
+import { createProject, updateProject } from "../../core/projects/projects.service.js";
 import {
   listProjectAccess,
   grantProjectAccess,
@@ -25,7 +25,13 @@ import {
   deleteProjectPdfTemplate,
   getProjectMarketingSettings,
   putProjectMarketingSettings,
+  getProjectLegacyOverrides,
+  putProjectLegacyOverrides,
 } from "../../core/projects/project-config.service.js";
+import {
+  getProjectWorkflowSettings,
+  putProjectWorkflowSettings,
+} from "../../core/projects/project-workflow-settings.service.js";
 import { handleAsync } from "../asyncHandler.js";
 import { getProjectContext } from "../requestContext.js";
 import { requireAdmin } from "../authMiddleware.js";
@@ -36,6 +42,10 @@ import { PERMISSIONS } from "../../core/rbac/permissions.js";
 export const projectsRoutes = Router();
 
 projectsRoutes.post("/projects", requireAdmin, handleAsync((req) => createProject(req.body)));
+projectsRoutes.patch("/projects/:projectId", requirePermission(PERMISSIONS.SETTINGS_UPDATE), handleAsync(async (req) => {
+  const { projectId, workspaceId, isAdmin } = getProjectContext(req);
+  return updateProject(projectId, workspaceId, isAdmin, req.body);
+}));
 
 projectsRoutes.get("/projects/:projectId/access", requirePermission(PERMISSIONS.SETTINGS_READ), requireCanAccessProject("workspaceId", "projectId"), handleAsync(async (req) => {
   const projectId = req.params.projectId ?? "";
@@ -136,4 +146,22 @@ projectsRoutes.get("/projects/:projectId/marketing-settings", requirePermission(
 projectsRoutes.put("/projects/:projectId/marketing-settings", requirePermission(PERMISSIONS.SETTINGS_UPDATE), handleAsync(async (req) => {
   const { projectId, workspaceId, isAdmin } = getProjectContext(req);
   return putProjectMarketingSettings(projectId, workspaceId, isAdmin, req.body);
+}));
+
+projectsRoutes.get("/projects/:projectId/workflow-settings", requirePermission(PERMISSIONS.SETTINGS_READ), handleAsync(async (req) => {
+  const { projectId, workspaceId, isAdmin } = getProjectContext(req);
+  return getProjectWorkflowSettings(projectId, workspaceId, isAdmin);
+}));
+projectsRoutes.put("/projects/:projectId/workflow-settings", requirePermission(PERMISSIONS.SETTINGS_UPDATE), handleAsync(async (req) => {
+  const { projectId, workspaceId, isAdmin } = getProjectContext(req);
+  return putProjectWorkflowSettings(projectId, workspaceId, isAdmin, req.body);
+}));
+
+projectsRoutes.get("/projects/:projectId/legacy-overrides", requirePermission(PERMISSIONS.SETTINGS_READ), handleAsync(async (req) => {
+  const { projectId, workspaceId, isAdmin } = getProjectContext(req);
+  return getProjectLegacyOverrides(projectId, workspaceId, isAdmin);
+}));
+projectsRoutes.put("/projects/:projectId/legacy-overrides", requirePermission(PERMISSIONS.SETTINGS_UPDATE), handleAsync(async (req) => {
+  const { projectId, workspaceId, isAdmin } = getProjectContext(req);
+  return putProjectLegacyOverrides(projectId, workspaceId, isAdmin, req.body);
 }));

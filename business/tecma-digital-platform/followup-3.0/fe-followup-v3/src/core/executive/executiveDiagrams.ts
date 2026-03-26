@@ -107,6 +107,21 @@ Connector_config,Altri_vendor,1`,
     bar [4, 4, 3, 4, 2]`,
   },
   {
+    id: "migration-data-flow",
+    title: "Migrazione dati",
+    description: "Da Mongo legacy read-only a collection tz_* e feature per fase (obiettivo A vs B).",
+    chart: `flowchart LR
+  legacyRO[Mongo_legacy_RO]
+  inv[Inventario_e_mapping]
+  etl[ETL_idempotente]
+  tzTZ[tz_star_collections]
+  feat[Parita_funzionale_FASE1_7]
+  legacyRO --> inv
+  inv --> etl
+  etl --> tzTZ
+  tzTZ --> feat`,
+  },
+  {
     id: "cicd-deploy",
     title: "CI e deploy",
     description: "Timeline semplificata dalla commit al runtime.",

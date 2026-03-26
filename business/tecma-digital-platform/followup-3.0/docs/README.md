@@ -17,6 +17,22 @@ Sezione **navigabile** (executive summary, perché rebuild, stadio operativo per
 | **[PIANO_GLOBALE_FOLLOWUP_3.md](PIANO_GLOBALE_FOLLOWUP_3.md)** | **Unico piano operativo:** checklist, fasi 0–8, workspace/segregazione, Millennium, AI aggregata, entitlement, dati legacy, roadmap implementativa. |
 | **[FOLLOWUP_3_MASTER.md](FOLLOWUP_3_MASTER.md)** | North Star, principi, visione, cosa non fare, riferimento followup-nova, wave 1–7 in ordine vincolante, regole non negoziabili. |
 
+### Migrazione legacy → `tz_*` (deliverable)
+
+| File | Contenuto |
+|------|-----------|
+| [deliverables/CLARIFY_MIGRATION_OBJECTIVES.md](deliverables/CLARIFY_MIGRATION_OBJECTIVES.md) | Obiettivo A (dati) vs B (parità funzionale), vincoli di tempo — allineamento CTO. |
+| [deliverables/LEGACY_MONGO_INVENTORY.md](deliverables/LEGACY_MONGO_INVENTORY.md) | Inventario DB/collection read-only + procedure mongosh. |
+| [deliverables/FASE1_CSV_MAPPING.md](deliverables/FASE1_CSV_MAPPING.md) | Matrice mapping cliente, appartamento, quote, utenti. |
+| [deliverables/RBAC_LEGACY_TO_WORKSPACE_MAPPING.md](deliverables/RBAC_LEGACY_TO_WORKSPACE_MAPPING.md) | Ruoli legacy → workspace e progetti. |
+| [deliverables/WORKFLOW_SELL_STATE_MAPPING.md](deliverables/WORKFLOW_SELL_STATE_MAPPING.md) | Stati SELL legacy → workflow e snapshot. |
+| [deliverables/GDPR_CONSENT_SCOPE_SPIKE.md](deliverables/GDPR_CONSENT_SCOPE_SPIKE.md) | Spike consensi progetto vs workspace. |
+| [deliverables/PILOT_ETL_RUNBOOK.md](deliverables/PILOT_ETL_RUNBOOK.md) | ETL pilota idempotente e validazione. |
+| [deliverables/LEGACY_PROJECT_WORKSPACE_MAPPING.md](deliverables/LEGACY_PROJECT_WORKSPACE_MAPPING.md) | Regola ID progetto + mapping `project_id -> workspace` usato dallo script ETL. |
+| [deliverables/MIGRATION_PILOT_RESULTS.md](deliverables/MIGRATION_PILOT_RESULTS.md) | Evidenza run pilota reale su `test-zanetti` con conteggi scritti. |
+| [deliverables/LEGACY_ENRICHMENT_P1_P2.md](deliverables/LEGACY_ENRICHMENT_P1_P2.md) | Backlog di arricchimento post-clone (P1/P2). |
+| [executive/07-legacy-migration-and-data-parity.md](executive/07-legacy-migration-and-data-parity.md) | Sintesi leadership + link ai deliverable. |
+
 ---
 
 ## Documenti di supporto

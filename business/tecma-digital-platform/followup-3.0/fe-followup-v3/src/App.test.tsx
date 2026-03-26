@@ -16,7 +16,10 @@ const PROJECT_SCOPE = {
 vi.mock("./api/followupApi", () => ({
   followupApi: {
     listWorkspaceProjects: vi.fn().mockResolvedValue({ data: [] }),
+    getProjectsByEmail: vi.fn().mockResolvedValue({ found: true, email: "user@test.com", role: "user", isAdmin: false, projects: [] }),
+    getWorkspaceById: vi.fn().mockResolvedValue({ workspace: { _id: "demo", features: [] } }),
     saveUserPreferences: vi.fn().mockResolvedValue(undefined),
+    subscribeRealtimeEvents: vi.fn().mockReturnValue(() => {}),
     queryCalendar: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),
     queryRequests: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),
     getAiSuggestions: vi.fn().mockResolvedValue({ generatedAt: "", data: [], aiConfigured: true, llmUsed: false, fromCache: true }),

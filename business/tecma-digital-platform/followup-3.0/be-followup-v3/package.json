@@ -1,6 +1,6 @@
 {
   "name": "be-followup-v3",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -30,7 +30,10 @@
     "db:copy-test": "tsx src/utils/copyCollections.ts",
     "clone-user-from-source": "tsx src/utils/cloneUserFromSourceDb.ts",
     "clone-adminusers-to-tz-users": "tsx src/utils/cloneAdminUsersToTzUsers.ts",
+    "migrate:legacy-pilot": "tsx scripts/migration/migrate-legacy-pilot.ts",
     "migrate:request-workflow": "tsx src/utils/migrateRequestWorkflowIds.ts",
+    "migrate:project-ids-to-objectid": "tsx src/utils/migrateProjectIdsToObjectIds.ts",
+    "cleanup:workflow-legacy-hard-cut": "tsx src/utils/hardCutWorkflowLegacyCleanup.ts",
     "migrate:apartments-to-inventory-pricing": "tsx src/utils/migrate-apartments-to-inventory-pricing.ts",
     "migrate:role-definitions:reconcile": "tsx src/utils/reconcileRoleDefinitionsWithBuiltin.ts",
     "check:no-legacy-runtime": "bash scripts/check-no-legacy-runtime.sh",

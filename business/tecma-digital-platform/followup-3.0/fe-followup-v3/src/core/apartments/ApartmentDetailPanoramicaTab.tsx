@@ -1,5 +1,6 @@
 import { followupApi } from "../../api/followupApi";
 import type { ApartmentRow } from "../../types/domain";
+import { ApartmentPlanimetryGallery } from "./ApartmentPlanimetryGallery";
 import ApartmentDetailPanoramica from "./ApartmentDetailPanoramica";
 import { ApartmentDetailPriceCalendarSection } from "./ApartmentDetailPriceCalendarSection";
 import { ApartmentDetailPriceDrawers } from "./ApartmentDetailPriceDrawers";
@@ -100,7 +101,9 @@ export function ApartmentDetailPanoramicaTab(props: ApartmentDetailPanoramicaTab
   } = props;
 
   return (
-    <section className="grid gap-6 sm:grid-cols-2">
+    <section className="space-y-6">
+      <ApartmentPlanimetryGallery apartment={apartment} onEditPlanimetry={onEditApartment} />
+      <div className="grid gap-6 sm:grid-cols-2">
       <ApartmentDetailPanoramica
         apartment={apartment}
         prices={prices}
@@ -214,6 +217,7 @@ export function ApartmentDetailPanoramicaTab(props: ApartmentDetailPanoramicaTab
         editPriceError={editPriceError}
         setEditPriceError={setEditPriceError}
       />
+      </div>
     </section>
   );
 }

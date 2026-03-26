@@ -6,6 +6,13 @@ import { getDb } from "../../config/db.js";
 import { canAccess } from "../../core/access/canAccess.js";
 import { getModelSample } from "../../core/inspect/inspect.service.js";
 import { runReport } from "../../core/reports/reports.service.js";
+import {
+  createReportSnapshot,
+  getRealtimeReport,
+  listReportSnapshots,
+  revokeReportSnapshot,
+  runAiRealtimeQuery
+} from "../../core/reports/realtime-reports.service.js";
 import { queryAuditLog } from "../../core/audit/audit-log.service.js";
 import { generateAiSuggestions, queryPendingAiSuggestions, decideAiSuggestion } from "../../core/ai/orchestrator.service.js";
 import { createAiActionDraft, queryAiActionDrafts, decideAiActionDraft } from "../../core/ai/action-engine.service.js";
@@ -33,6 +40,81 @@ intelligenceRoutes.post(
   requirePermission(PERMISSIONS.REPORTS_READ),
   requireWorkspaceEntitled("reports", workspaceIdFromBodyOrQuery),
   handleAsync((req) => runReport(req.params.reportType, req.body))
+);
+
+intelligenceRoutes.get(
+  "/reports/realtime/kpi-summary",
+  requirePermission(PERMISSIONS.REPORTS_READ),
+  handleAsync((req) =>
+    getRealtimeReport("kpi_summary", {
+      workspaceId: typeof req.query.workspaceId === "string" ? req.query.workspaceId : "",
+      projectIds:
+        typeof req.query.projectIds === "string"
+          ? req.query.projectIds.split(",").map((it) => it.trim()).filter(Boolean)
+          : [],
+    })
+  )
+);
+
+intelligenceRoutes.get(
+  "/reports/realtime/funnel",
+  requirePermission(PERMISSIONS.REPORTS_READ),
+  handleAsync((req) =>
+    getRealtimeReport("pipeline", {
+      workspaceId: typeof req.query.workspaceId === "string" ? req.query.workspaceId : "",
+      projectIds:
+        typeof req.query.projectIds === "string"
+          ? req.query.projectIds.split(",").map((it) => it.trim()).filter(Boolean)
+          : [],
+    })
+  )
+);
+
+intelligenceRoutes.get(
+  "/reports/realtime/conversions",
+  requirePermission(PERMISSIONS.REPORTS_READ),
+  handleAsync((req) =>
+    getRealtimeReport("clients_by_status", {
+      workspaceId: typeof req.query.workspaceId === "string" ? req.query.workspaceId : "",
+      projectIds:
+        typeof req.query.projectIds === "string"
+          ? req.query.projectIds.split(",").map((it) => it.trim()).filter(Boolean)
+          : [],
+    })
+  )
+);
+
+intelligenceRoutes.post(
+  "/reports/ai-query",
+  requirePermission(PERMISSIONS.REPORTS_READ),
+  handleAsync((req) => runAiRealtimeQuery(req.body))
+);
+
+intelligenceRoutes.post(
+  "/reports/share",
+  requirePermission(PERMISSIONS.REPORTS_READ),
+  handleAsync((req) => createReportSnapshot(req.body))
+);
+
+intelligenceRoutes.get(
+  "/reports/share/list",
+  requirePermission(PERMISSIONS.REPORTS_READ),
+  handleAsync((req) =>
+    listReportSnapshots({
+      workspaceId: typeof req.query.workspaceId === "string" ? req.query.workspaceId : "",
+      limit: typeof req.query.limit === "string" ? Number.parseInt(req.query.limit, 10) : undefined,
+    })
+  )
+);
+
+intelligenceRoutes.post(
+  "/reports/share/:snapshotId/revoke",
+  requirePermission(PERMISSIONS.REPORTS_READ),
+  handleAsync((req) => {
+    const workspaceId = typeof req.body?.workspaceId === "string" ? req.body.workspaceId : "";
+    if (!workspaceId) throw new HttpError("workspaceId required", 400);
+    return revokeReportSnapshot(req.params.snapshotId, workspaceId);
+  })
 );
 
 intelligenceRoutes.post(

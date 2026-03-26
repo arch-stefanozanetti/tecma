@@ -10,6 +10,7 @@ import doc03 from "../../../../docs/executive/03-domain-maturity-matrix.md?raw";
 import doc04 from "../../../../docs/executive/04-architecture-at-a-glance.md?raw";
 import doc05 from "../../../../docs/executive/05-privacy-gdpr-and-tenant-model.md?raw";
 import doc06 from "../../../../docs/executive/06-risks-open-decisions.md?raw";
+import doc07 from "../../../../docs/executive/07-legacy-migration-and-data-parity.md?raw";
 
 export interface ExecutiveDocTab {
   id: string;
@@ -25,4 +26,5 @@ export const EXECUTIVE_DOC_TABS: ExecutiveDocTab[] = [
   { id: "04", label: "Architettura", markdown: doc04 },
   { id: "05", label: "Privacy e GDPR", markdown: doc05 },
   { id: "06", label: "Rischi e decisioni", markdown: doc06 },
+  { id: "07", label: "Migrazione legacy", markdown: doc07 },
 ];

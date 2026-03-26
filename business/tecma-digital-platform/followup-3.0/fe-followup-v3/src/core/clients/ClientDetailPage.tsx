@@ -56,8 +56,16 @@ export const ClientDetailPage = () => {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
   const { workspaceId, selectedProjectIds, projects, isAdmin } = useWorkspace();
-  const workflowConfigRent = useWorkflowConfig(workspaceId, "rent");
-  const workflowConfigSell = useWorkflowConfig(workspaceId, "sell");
+  const projectLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of projects ?? []) {
+      map.set(p.id, p.displayName?.trim() || p.name?.trim() || p.id);
+    }
+    return map;
+  }, [projects]);
+  const projectIdForWorkflow = selectedProjectIds.length > 0 ? selectedProjectIds[0] : undefined;
+  const workflowConfigRent = useWorkflowConfig(workspaceId, "rent", projectIdForWorkflow);
+  const workflowConfigSell = useWorkflowConfig(workspaceId, "sell", projectIdForWorkflow);
   const getWorkflowConfig = (type: "rent" | "sell") => (type === "rent" ? workflowConfigRent : workflowConfigSell);
   const {
     client,
@@ -77,6 +85,18 @@ export const ClientDetailPage = () => {
   const [formPhone, setFormPhone] = useState("");
   const [formStatus, setFormStatus] = useState("lead");
   const [formCity, setFormCity] = useState("");
+  const [formBudget, setFormBudget] = useState("");
+  const [formMotivazione, setFormMotivazione] = useState("");
+  const [formNote, setFormNote] = useState("");
+  const [formProfilazione, setFormProfilazione] = useState(false);
+  const [formTrattamento, setFormTrattamento] = useState(false);
+  const [formMarketing, setFormMarketing] = useState(false);
+  const [formConiugeNome, setFormConiugeNome] = useState("");
+  const [formConiugeCognome, setFormConiugeCognome] = useState("");
+  const [formConiugeMail, setFormConiugeMail] = useState("");
+  const [formFamilyAdulti, setFormFamilyAdulti] = useState("");
+  const [formFamilyBambini, setFormFamilyBambini] = useState("");
+  const [formFamilyAnimali, setFormFamilyAnimali] = useState("");
   const [formSaving, setFormSaving] = useState(false);
   const [formSubmitError, setFormSubmitError] = useState<string | null>(null);
   const [additionalInfos, setAdditionalInfos] = useState<AdditionalInfoRow[]>([]);
@@ -484,6 +504,18 @@ export const ClientDetailPage = () => {
     setFormPhone(client.phone ?? "");
     setFormStatus(client.status ?? "lead");
     setFormCity(client.city ?? "");
+    setFormBudget(client.budget != null ? String(client.budget) : "");
+    setFormMotivazione(client.motivazione ?? "");
+    setFormNote(client.note ?? "");
+    setFormProfilazione(Boolean(client.profilazione));
+    setFormTrattamento(Boolean(client.trattamento));
+    setFormMarketing(Boolean(client.marketing));
+    setFormConiugeNome(client.coniuge?.nome ?? "");
+    setFormConiugeCognome(client.coniuge?.cognome ?? "");
+    setFormConiugeMail(client.coniuge?.mail ?? "");
+    setFormFamilyAdulti(client.family?.adulti != null ? String(client.family.adulti) : "");
+    setFormFamilyBambini(client.family?.bambini != null ? String(client.family.bambini) : "");
+    setFormFamilyAnimali(client.family?.animali != null ? String(client.family.animali) : "");
     const customInfos = additionalInfos.filter((ai) => (ai.path ?? "additionalInfo") === "additionalInfo");
     setFormAdditionalInfo(
       customInfos.length > 0
@@ -514,6 +546,28 @@ export const ClientDetailPage = () => {
         phone: formPhone.trim() || undefined,
         status: formStatus,
         city: formCity.trim() || undefined,
+        budget: formBudget.trim() === "" ? undefined : Number(formBudget),
+        motivazione: formMotivazione.trim() || undefined,
+        note: formNote.trim() || undefined,
+        profilazione: formProfilazione,
+        trattamento: formTrattamento,
+        marketing: formMarketing,
+        coniuge:
+          formConiugeNome.trim() || formConiugeCognome.trim() || formConiugeMail.trim()
+            ? {
+                nome: formConiugeNome.trim() || undefined,
+                cognome: formConiugeCognome.trim() || undefined,
+                mail: formConiugeMail.trim() || undefined,
+              }
+            : undefined,
+        family:
+          formFamilyAdulti.trim() || formFamilyBambini.trim() || formFamilyAnimali.trim()
+            ? {
+                adulti: formFamilyAdulti.trim() === "" ? null : Number(formFamilyAdulti),
+                bambini: formFamilyBambini.trim() === "" ? null : Number(formFamilyBambini),
+                animali: formFamilyAnimali.trim() === "" ? null : Number(formFamilyAnimali),
+              }
+            : undefined,
         additionalInfo: additionalInfoPayload,
       });
       setClient(res.client);
@@ -661,6 +715,30 @@ export const ClientDetailPage = () => {
         setFormCity={setFormCity}
         formStatus={formStatus}
         setFormStatus={setFormStatus}
+        formBudget={formBudget}
+        setFormBudget={setFormBudget}
+        formMotivazione={formMotivazione}
+        setFormMotivazione={setFormMotivazione}
+        formNote={formNote}
+        setFormNote={setFormNote}
+        formProfilazione={formProfilazione}
+        setFormProfilazione={setFormProfilazione}
+        formTrattamento={formTrattamento}
+        setFormTrattamento={setFormTrattamento}
+        formMarketing={formMarketing}
+        setFormMarketing={setFormMarketing}
+        formConiugeNome={formConiugeNome}
+        setFormConiugeNome={setFormConiugeNome}
+        formConiugeCognome={formConiugeCognome}
+        setFormConiugeCognome={setFormConiugeCognome}
+        formConiugeMail={formConiugeMail}
+        setFormConiugeMail={setFormConiugeMail}
+        formFamilyAdulti={formFamilyAdulti}
+        setFormFamilyAdulti={setFormFamilyAdulti}
+        formFamilyBambini={formFamilyBambini}
+        setFormFamilyBambini={setFormFamilyBambini}
+        formFamilyAnimali={formFamilyAnimali}
+        setFormFamilyAnimali={setFormFamilyAnimali}
         formAdditionalInfo={formAdditionalInfo}
         setFormAdditionalInfo={setFormAdditionalInfo}
         additionalInfos={additionalInfos}
@@ -786,7 +864,9 @@ export const ClientDetailPage = () => {
             <div className="grid gap-3 text-sm sm:grid-cols-2">
               <div>
                 <span className="text-muted-foreground">Progetto</span>
-                <p className="font-mono text-xs text-foreground">{client.projectId}</p>
+                <p className="font-medium text-foreground">
+                  {projectLabelById.get(client.projectId) ?? client.projectId}
+                </p>
               </div>
               <div>
                 <span className="text-muted-foreground">Stato</span>

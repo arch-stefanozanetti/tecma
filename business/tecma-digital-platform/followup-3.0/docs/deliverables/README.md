@@ -14,3 +14,10 @@ Indice dei file in questa cartella, referenziati dalla colonna **Stato** in [PIA
 | `visual-parity` | [FASE8_VISUAL_PARITY.md](./FASE8_VISUAL_PARITY.md) |
 | `user-access-granularity` | [FASE01_USER_ACCESS_RBAC.md](./FASE01_USER_ACCESS_RBAC.md) |
 | `commercial-entitlements`, `connectors-showcase-ux`, `tecma-activation-audit` | [FASE02_ENTITLEMENTS_AND_TECMA.md](./FASE02_ENTITLEMENTS_AND_TECMA.md) |
+
+## Migrazione legacy -> `tz_*`
+
+- [FASE1_CSV_MAPPING.md](./FASE1_CSV_MAPPING.md)
+- [PROJECT_LEGACY_GAP_MATRIX.md](./PROJECT_LEGACY_GAP_MATRIX.md)
+- [LEGACY_MONGO_INVENTORY.md](./LEGACY_MONGO_INVENTORY.md)
+- [MIGRATION_PILOT_RESULTS.md](./MIGRATION_PILOT_RESULTS.md)

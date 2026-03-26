@@ -28,6 +28,11 @@ export const ApartmentCreateSchema = z.object({
   surfaceMq: z.number().nonnegative().default(0),
   planimetryUrl: z.string().min(1),
   deposit: z.number().nonnegative().optional(),
+  plan: z.record(z.unknown()).optional(),
+  building: z.record(z.unknown()).optional(),
+  sides: z.array(z.record(z.unknown())).optional(),
+  extraInfo: z.record(z.unknown()).optional(),
+  tags: z.array(z.string()).optional(),
 });
 
 export const ApartmentUpdateSchema = ApartmentCreateSchema.partial().extend({
@@ -47,6 +52,12 @@ export type RawApartment = {
   planimetryUrl: string;
   updatedAt: string;
   createdAt: string;
+  plan?: Record<string, unknown>;
+  building?: Record<string, unknown>;
+  sides?: Array<Record<string, unknown>>;
+  floor?: number;
+  extraInfo?: Record<string, unknown>;
+  tags?: string[];
 };
 
 const toObjectId = (value: string): ObjectId => {
@@ -65,6 +76,12 @@ const mapApartment = (apartment: RawApartment) => ({
   surfaceMq: apartment.surfaceMq,
   rawPrice: apartment.rawPrice,
   planimetryUrl: apartment.planimetryUrl,
+  plan: apartment.plan,
+  building: apartment.building,
+  sides: apartment.sides,
+  floor: apartment.floor,
+  extraInfo: apartment.extraInfo,
+  tags: apartment.tags,
   updatedAt: apartment.updatedAt,
   createdAt: apartment.createdAt,
 });
@@ -80,6 +97,12 @@ export interface ApartmentRow {
   mode: "RENT" | "SELL";
   surfaceMq: number;
   rawPrice: RawPrice;
+  plan?: Record<string, unknown>;
+  building?: Record<string, unknown>;
+  sides?: Array<Record<string, unknown>>;
+  floor?: number;
+  extraInfo?: Record<string, unknown>;
+  tags?: string[];
   updatedAt: string;
 }
 
@@ -282,6 +305,12 @@ export const createApartment = async (rawInput: unknown) => {
     surfaceMq: input.surfaceMq,
     rawPrice: { mode: input.mode, amount: input.price },
     planimetryUrl: input.planimetryUrl,
+    ...(input.plan !== undefined && { plan: input.plan }),
+    ...(input.building !== undefined && { building: input.building }),
+    ...(input.sides !== undefined && { sides: input.sides }),
+    ...(input.floor !== undefined && { floor: input.floor }),
+    ...(input.extraInfo !== undefined && { extraInfo: input.extraInfo }),
+    ...(input.tags !== undefined && { tags: input.tags }),
     updatedAt: now,
     createdAt: now,
   };
@@ -333,6 +362,12 @@ export const updateApartment = async (rawInput: unknown) => {
   if (input.mode !== undefined) updateDoc.mode = input.mode;
   if (input.surfaceMq !== undefined) updateDoc.surfaceMq = input.surfaceMq;
   if (input.planimetryUrl !== undefined) updateDoc.planimetryUrl = input.planimetryUrl;
+  if (input.plan !== undefined) updateDoc.plan = input.plan;
+  if (input.building !== undefined) updateDoc.building = input.building;
+  if (input.sides !== undefined) updateDoc.sides = input.sides;
+  if (input.floor !== undefined) updateDoc.floor = input.floor;
+  if (input.extraInfo !== undefined) updateDoc.extraInfo = input.extraInfo;
+  if (input.tags !== undefined) updateDoc.tags = input.tags;
   if (input.price !== undefined || input.mode !== undefined) {
     const existing = await collection.findOne({ _id: apartmentId });
     if (!existing) throw new HttpError("Apartment not found", 404);

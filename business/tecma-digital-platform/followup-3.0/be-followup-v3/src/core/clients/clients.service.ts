@@ -377,6 +377,20 @@ export interface ClientCreateInput {
   phone?: string;
   status?: string;
   city?: string;
+  coniuge?: ClientConiuge;
+  family?: ClientFamily;
+  budget?: number | string | null;
+  motivazione?: string;
+  note?: string;
+  profilazione?: boolean;
+  trattamento?: boolean;
+  marketing?: boolean;
+  selectedAppartments?: ClientSelectedApartment[];
+  interestedAppartments?: ClientSelectedApartment[];
+  actions?: ClientAction[];
+  activityState?: string;
+  activityStateHistory?: Array<{ date?: Date | string; activityState?: string; reason?: string; movement?: ObjectId | string | null }>;
+  additionalInfo?: Record<string, unknown>;
   marketingAttribution?: z.infer<typeof MarketingAttributionInputSchema>;
 }
 
@@ -389,8 +403,59 @@ export interface ClientUpdateInput {
   phone?: string;
   status?: string;
   city?: string;
+  coniuge?: ClientConiuge;
+  family?: ClientFamily;
+  budget?: number | string | null;
+  motivazione?: string;
+  note?: string;
+  profilazione?: boolean;
+  trattamento?: boolean;
+  marketing?: boolean;
+  selectedAppartments?: ClientSelectedApartment[];
+  interestedAppartments?: ClientSelectedApartment[];
+  actions?: ClientAction[];
+  activityState?: string;
+  activityStateHistory?: Array<{ date?: Date | string; activityState?: string; reason?: string; movement?: ObjectId | string | null }>;
+  additionalInfo?: Record<string, unknown>;
   marketingAttribution?: z.infer<typeof MarketingAttributionInputSchema>;
 }
+
+const ClientConiugeSchema = z.object({
+  nome: z.string().optional(),
+  cognome: z.string().optional(),
+  mail: z.string().optional(),
+  indirizzo: z.string().optional(),
+  tel: z.string().optional(),
+});
+const ClientFamilySchema = z.object({
+  adulti: z.number().nullable().optional(),
+  bambini: z.number().nullable().optional(),
+  animali: z.number().nullable().optional(),
+});
+const ClientSelectedApartmentSchema = z.object({
+  appartment: z.union([z.string(), z.any()]).optional(),
+  status: z.string().optional(),
+  _id: z.union([z.string(), z.any()]).optional(),
+  createdOn: z.union([z.string(), z.date()]).optional(),
+});
+const ClientActionSchema = z.object({
+  actionName: z.string().optional(),
+  actionDate: z.union([z.string(), z.date()]).optional(),
+  vendor: z.union([z.string(), z.any()]).optional(),
+  note: z.string().nullable().optional(),
+  quote: z.union([z.string(), z.any()]).nullable().optional(),
+  category: z.string().optional(),
+  deleted: z.boolean().optional(),
+  _id: z.union([z.string(), z.any()]).optional(),
+  createdOn: z.union([z.string(), z.date()]).optional(),
+  eventId: z.union([z.string(), z.any()]).optional(),
+});
+const ClientActivityStateHistorySchema = z.object({
+  date: z.union([z.string(), z.date()]).optional(),
+  activityState: z.string().optional(),
+  reason: z.string().optional(),
+  movement: z.union([z.string(), z.any()]).nullable().optional(),
+});
 
 const ClientCreateSchema = z.object({
   workspaceId: z.string().min(1),
@@ -401,6 +466,20 @@ const ClientCreateSchema = z.object({
   phone: z.string().optional(),
   status: z.enum(["lead", "prospect", "client", "contacted", "negotiation", "won", "lost"]).optional().default("lead"),
   city: z.string().optional(),
+  coniuge: ClientConiugeSchema.optional(),
+  family: ClientFamilySchema.optional(),
+  budget: z.union([z.number(), z.string(), z.null()]).optional(),
+  motivazione: z.string().optional(),
+  note: z.string().optional(),
+  profilazione: z.boolean().optional(),
+  trattamento: z.boolean().optional(),
+  marketing: z.boolean().optional(),
+  selectedAppartments: z.array(ClientSelectedApartmentSchema).optional(),
+  interestedAppartments: z.array(ClientSelectedApartmentSchema).optional(),
+  actions: z.array(ClientActionSchema).optional(),
+  activityState: z.string().optional(),
+  activityStateHistory: z.array(ClientActivityStateHistorySchema).optional(),
+  additionalInfo: z.record(z.unknown()).optional(),
   marketingAttribution: MarketingAttributionInputSchema.optional(),
 });
 
@@ -412,6 +491,20 @@ const ClientUpdateSchema = z.object({
   phone: z.string().optional(),
   status: z.enum(["lead", "prospect", "client", "contacted", "negotiation", "won", "lost"]).optional(),
   city: z.string().optional(),
+  coniuge: ClientConiugeSchema.optional(),
+  family: ClientFamilySchema.optional(),
+  budget: z.union([z.number(), z.string(), z.null()]).optional(),
+  motivazione: z.string().optional(),
+  note: z.string().optional(),
+  profilazione: z.boolean().optional(),
+  trattamento: z.boolean().optional(),
+  marketing: z.boolean().optional(),
+  selectedAppartments: z.array(ClientSelectedApartmentSchema).optional(),
+  interestedAppartments: z.array(ClientSelectedApartmentSchema).optional(),
+  actions: z.array(ClientActionSchema).optional(),
+  activityState: z.string().optional(),
+  activityStateHistory: z.array(ClientActivityStateHistorySchema).optional(),
+  additionalInfo: z.record(z.unknown()).optional(),
   marketingAttribution: MarketingAttributionInputSchema.optional(),
 });
 
@@ -454,6 +547,20 @@ export const createClient = async (rawInput: unknown): Promise<{ client: ClientR
     phone: (input.phone || "").trim() || undefined,
     status: CLIENT_STATUSES.includes(input.status as (typeof CLIENT_STATUSES)[number]) ? input.status : "lead",
     city: (input.city || "").trim() || undefined,
+    ...(input.coniuge !== undefined && { coniuge: input.coniuge }),
+    ...(input.family !== undefined && { family: input.family }),
+    ...(input.budget !== undefined && { budget: input.budget }),
+    ...(input.motivazione !== undefined && { motivazione: input.motivazione }),
+    ...(input.note !== undefined && { note: input.note }),
+    ...(input.profilazione !== undefined && { profilazione: input.profilazione }),
+    ...(input.trattamento !== undefined && { trattamento: input.trattamento }),
+    ...(input.marketing !== undefined && { marketing: input.marketing }),
+    ...(input.selectedAppartments !== undefined && { selectedAppartments: input.selectedAppartments }),
+    ...(input.interestedAppartments !== undefined && { interestedAppartments: input.interestedAppartments }),
+    ...(input.actions !== undefined && { actions: input.actions }),
+    ...(input.activityState !== undefined && { activityState: input.activityState }),
+    ...(input.activityStateHistory !== undefined && { activityStateHistory: input.activityStateHistory }),
+    ...(input.additionalInfo !== undefined && { additionalInfo: input.additionalInfo }),
     updatedAt: now,
     createdAt: now,
   };
@@ -522,6 +629,20 @@ export const updateClient = async (
   if (input.status !== undefined && CLIENT_STATUSES.includes(input.status as (typeof CLIENT_STATUSES)[number]))
     updateDoc.status = input.status;
   if (input.city !== undefined) updateDoc.city = (input.city || "").trim() || undefined;
+  if (input.coniuge !== undefined) updateDoc.coniuge = input.coniuge;
+  if (input.family !== undefined) updateDoc.family = input.family;
+  if (input.budget !== undefined) updateDoc.budget = input.budget;
+  if (input.motivazione !== undefined) updateDoc.motivazione = input.motivazione;
+  if (input.note !== undefined) updateDoc.note = input.note;
+  if (input.profilazione !== undefined) updateDoc.profilazione = input.profilazione;
+  if (input.trattamento !== undefined) updateDoc.trattamento = input.trattamento;
+  if (input.marketing !== undefined) updateDoc.marketing = input.marketing;
+  if (input.selectedAppartments !== undefined) updateDoc.selectedAppartments = input.selectedAppartments;
+  if (input.interestedAppartments !== undefined) updateDoc.interestedAppartments = input.interestedAppartments;
+  if (input.actions !== undefined) updateDoc.actions = input.actions;
+  if (input.activityState !== undefined) updateDoc.activityState = input.activityState;
+  if (input.activityStateHistory !== undefined) updateDoc.activityStateHistory = input.activityStateHistory;
+  if (input.additionalInfo !== undefined) updateDoc.additionalInfo = input.additionalInfo;
 
   const touchIn = input.marketingAttribution?.touch;
   if (touchIn && touchHasSignal(touchIn)) {
