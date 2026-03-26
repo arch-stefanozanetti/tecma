@@ -163,9 +163,21 @@ import {
 describe("requests.service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.isTransitionAllowedForWorkspaceMock.mockResolvedValue(undefined);
-    mocks.getWorkflowForWorkspaceAndTypeMock.mockResolvedValue(null);
-    mocks.getStateByCodeMock.mockReturnValue(null);
+    const defaultDetail = {
+      workflow: { _id: "wf1", workspaceId: "ws1", name: "Default", type: "sell", createdAt: "x", updatedAt: "x" },
+      states: [
+        { _id: "s-new", workflowId: "wf1", code: "new", label: "Nuova", order: 0, terminal: false, reversible: true, apartmentLock: "none", createdAt: "x", updatedAt: "x" },
+        { _id: "s-contacted", workflowId: "wf1", code: "contacted", label: "Contattato", order: 1, terminal: false, reversible: true, apartmentLock: "none", createdAt: "x", updatedAt: "x" },
+        { _id: "s-offer", workflowId: "wf1", code: "offer", label: "Offerta", order: 2, terminal: false, reversible: true, apartmentLock: "none", createdAt: "x", updatedAt: "x" },
+        { _id: "s-won", workflowId: "wf1", code: "won", label: "Vinto", order: 3, terminal: true, reversible: false, apartmentLock: "none", createdAt: "x", updatedAt: "x" },
+      ],
+      transitions: [{ _id: "t1", workflowId: "wf1", fromStateId: "s-new", toStateId: "s-contacted", createdAt: "x" }],
+    };
+    mocks.isTransitionAllowedForWorkspaceMock.mockResolvedValue(true);
+    mocks.getWorkflowForWorkspaceAndTypeMock.mockResolvedValue(defaultDetail);
+    mocks.getStateByCodeMock.mockImplementation((detail: { states: Array<{ code: string }> }, code: string) =>
+      detail.states.find((s) => s.code === code) ?? null
+    );
     mocks.getActiveLockForApartmentMock.mockResolvedValue(null);
   });
 

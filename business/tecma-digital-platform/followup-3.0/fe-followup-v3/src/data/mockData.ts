@@ -29,6 +29,7 @@ export const mockApartments: ApartmentRow[] = Array.from({ length: 54 }).map((_,
     | "RENTED",
   mode: (index % 2 === 0 ? "SELL" : "RENT") as "RENT" | "SELL",
   surfaceMq: 45 + (index % 8) * 10,
+  floor: (index % 10) + 1,
   normalizedPrice: {
     display: index % 2 === 0 ? `EUR ${(180000 + index * 3200).toLocaleString("it-IT")}` : `EUR ${(900 + index * 24).toLocaleString("it-IT")}/mese`
   },

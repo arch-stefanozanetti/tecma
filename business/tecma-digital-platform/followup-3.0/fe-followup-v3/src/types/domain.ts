@@ -238,6 +238,19 @@ export interface ClientCreateInput {
   phone?: string;
   status?: string;
   city?: string;
+  coniuge?: ClientConiuge;
+  family?: ClientFamily;
+  budget?: number | string | null;
+  motivazione?: string;
+  note?: string;
+  profilazione?: boolean;
+  trattamento?: boolean;
+  marketing?: boolean;
+  selectedAppartments?: ClientSelectedApartment[];
+  interestedAppartments?: ClientSelectedApartment[];
+  actions?: ClientAction[];
+  activityState?: string;
+  activityStateHistory?: Array<{ date?: string; activityState?: string; reason?: string; movement?: string | null }>;
   additionalInfo?: Record<string, unknown>;
 }
 
@@ -250,6 +263,19 @@ export interface ClientUpdateInput {
   phone?: string;
   status?: string;
   city?: string;
+  coniuge?: ClientConiuge;
+  family?: ClientFamily;
+  budget?: number | string | null;
+  motivazione?: string;
+  note?: string;
+  profilazione?: boolean;
+  trattamento?: boolean;
+  marketing?: boolean;
+  selectedAppartments?: ClientSelectedApartment[];
+  interestedAppartments?: ClientSelectedApartment[];
+  actions?: ClientAction[];
+  activityState?: string;
+  activityStateHistory?: Array<{ date?: string; activityState?: string; reason?: string; movement?: string | null }>;
   additionalInfo?: Record<string, unknown>;
 }
 
@@ -317,6 +343,8 @@ export interface ApartmentRow {
   status: "AVAILABLE" | "RESERVED" | "SOLD" | "RENTED";
   mode: "RENT" | "SELL";
   surfaceMq: number;
+  /** URL planimetria principale (obbligatorio in creazione; opzionale in risposte legacy). */
+  planimetryUrl?: string;
   normalizedPrice?: {
     display: string;
   };
@@ -326,8 +354,9 @@ export interface ApartmentRow {
   plan?: ApartmentPlan;
   building?: ApartmentBuilding;
   sides?: ApartmentSide[];
-  floor?: number;
+  floor: number;
   extraInfo?: Record<string, unknown>;
+  tags?: string[];
 }
 
 /** Workflow engine (configurabile per workspace). */
@@ -554,6 +583,11 @@ export interface ApartmentCreateInput {
   surfaceMq: number;
   planimetryUrl: string;
   deposit?: number;
+  plan?: Record<string, unknown>;
+  building?: Record<string, unknown>;
+  sides?: Array<Record<string, unknown>>;
+  extraInfo?: Record<string, unknown>;
+  tags?: string[];
 }
 
 export interface HCApartmentConfig {

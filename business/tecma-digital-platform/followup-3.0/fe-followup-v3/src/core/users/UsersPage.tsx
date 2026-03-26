@@ -55,6 +55,7 @@ export const UsersPage = () => {
   const { isAdmin } = useWorkspace();
   const { toastError } = useToast();
   const [users, setUsers] = useState<UserWithVisibilityRow[]>([]);
+  const [usersViewMode, setUsersViewMode] = useState<"cards" | "list">("cards");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserWithVisibilityRow | null>(null);
@@ -405,7 +406,28 @@ export const UsersPage = () => {
         </p>
       </div>
 
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="inline-flex rounded-md border border-border bg-muted/20 p-1">
+          <Button
+            type="button"
+            size="sm"
+            variant={usersViewMode === "cards" ? "default" : "ghost"}
+            className="min-h-9 px-3"
+            onClick={() => setUsersViewMode("cards")}
+          >
+            Card
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={usersViewMode === "list" ? "default" : "ghost"}
+            className="min-h-9 px-3"
+            onClick={() => setUsersViewMode("list")}
+          >
+            Elenco
+          </Button>
+        </div>
+        <div className="flex gap-2">
         <Button
           size="sm"
           className="min-h-11"
@@ -429,6 +451,7 @@ export const UsersPage = () => {
         <Button variant="outline" size="sm" className="min-h-11" onClick={load} disabled={loading}>
           Ricarica
         </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -437,7 +460,7 @@ export const UsersPage = () => {
         <p className="text-sm text-destructive">{error}</p>
       ) : users.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nessun utente trovato.</p>
-      ) : (
+      ) : usersViewMode === "cards" ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {users.map((u) => (
             <button
@@ -469,6 +492,39 @@ export const UsersPage = () => {
               </div>
             </button>
           ))}
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-ui border border-border">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/40">
+                <th className="px-3 py-2 text-left font-medium">Utente</th>
+                <th className="px-3 py-2 text-left font-medium">Workspace</th>
+                <th className="px-3 py-2 text-left font-medium">Ruolo max</th>
+                <th className="px-3 py-2 text-right font-medium">Azione</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.email} className="border-b border-border/50">
+                  <td className="px-3 py-2 text-foreground">{u.email}</td>
+                  <td className="px-3 py-2 text-muted-foreground">
+                    {u.workspaces.length === 0
+                      ? "Nessun workspace"
+                      : u.workspaces.map((w) => `${w.workspaceName} (${w.role})`).join(", ")}
+                  </td>
+                  <td className="px-3 py-2 text-muted-foreground">
+                    {getMaxWorkspaceRole(u.workspaces.map((w) => w.role))}
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <Button variant="outline" size="sm" className="min-h-9" onClick={() => openUserDetail(u)}>
+                      Gestisci
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

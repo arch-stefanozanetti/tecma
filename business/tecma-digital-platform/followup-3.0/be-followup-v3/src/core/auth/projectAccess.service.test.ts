@@ -112,6 +112,19 @@ describe("projectAccess.service", () => {
     expect(result.projects.map((p) => p.id)).toEqual(expect.arrayContaining([p1.toHexString(), p2.toHexString()]));
   });
 
+  it("when duplicate project ids exist, prefers tz mode", async () => {
+    const p1 = new ObjectId();
+    mocks.usersFindOneMock.mockResolvedValueOnce({ email: "admin@example.com", role: "Admin" });
+    mocks.projectsToArrayMock
+      .mockResolvedValueOnce([{ _id: p1, name: "Alpha", mode: "sell" }])
+      .mockResolvedValueOnce([{ _id: p1, displayName: "Alpha", mode: "rent" }]);
+
+    const result = await getProjectAccessByEmail({ email: "admin@example.com" });
+    const found = result.projects.find((p) => p.id === p1.toHexString());
+
+    expect(found?.mode).toBe("rent");
+  });
+
   it("returns filtered non-admin projects and normalizes role", async () => {
     const p1 = new ObjectId();
     const p2 = new ObjectId();
@@ -173,6 +186,48 @@ describe("projectAccess.service", () => {
 
     const result = await getProjectAccessByEmail({
       email: "agent@example.com",
+      workspaceId: "507f1f77bcf86cd799439011",
+    });
+
+    expect(result.projects).toHaveLength(1);
+    expect(result.projects[0]?.id).toBe(p1.toHexString());
+  });
+
+  it("admin con workspace incoerente non resta bloccato: fallback a tutti i progetti", async () => {
+    const p1 = new ObjectId();
+    const p2 = new ObjectId();
+    mocks.usersFindOneMock.mockResolvedValueOnce({
+      email: "admin@example.com",
+      role: "admin",
+    });
+    mocks.projectsToArrayMock
+      .mockResolvedValueOnce([{ _id: p1, name: "One" }, { _id: p2, name: "Two" }])
+      .mockResolvedValueOnce([]);
+    // workspace con projectId che non matchano nessun progetto normalizzato
+    mocks.workspaceProjectsToArrayMock.mockResolvedValueOnce([{ projectId: "legacy-id-not-found" }]);
+
+    const result = await getProjectAccessByEmail({
+      email: "admin@example.com",
+      workspaceId: "507f1f77bcf86cd799439011",
+    });
+
+    expect(result.isAdmin).toBe(true);
+    expect(result.projects).toHaveLength(2);
+  });
+
+  it("workspace con projectId legacy include progetto migrato via legacyProjectId", async () => {
+    const p1 = new ObjectId();
+    mocks.usersFindOneMock.mockResolvedValueOnce({
+      email: "admin@example.com",
+      role: "admin",
+    });
+    mocks.projectsToArrayMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ _id: p1, legacyProjectId: "fake-rent-01", displayName: "App Nord" }]);
+    mocks.workspaceProjectsToArrayMock.mockResolvedValueOnce([{ projectId: "fake-rent-01" }]);
+
+    const result = await getProjectAccessByEmail({
+      email: "admin@example.com",
       workspaceId: "507f1f77bcf86cd799439011",
     });
 

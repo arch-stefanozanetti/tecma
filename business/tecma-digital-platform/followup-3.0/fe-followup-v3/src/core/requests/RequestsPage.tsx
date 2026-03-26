@@ -13,6 +13,7 @@ import type {
 import { useWorkspace } from "../../auth/projectScope";
 import { useIsMobile } from "../shared/useIsMobile";
 import { usePaginatedList } from "../shared/usePaginatedList";
+import { useWorkflowConfig } from "../../hooks/useWorkflowConfig";
 import { Button } from "../../components/ui/button";
 import {
   Select,
@@ -34,11 +35,9 @@ import { FiltersDrawer } from "../../components/ui/filters-drawer";
 import { useToast } from "../../contexts/ToastContext";
 import {
   TYPE_LABEL,
-  STATUS_LABEL,
+  EMPTY_STATUS_LABEL,
   CLIENT_ROLE_LABEL,
-  KANBAN_STATUS_ORDER,
   TYPE_FILTER_OPTIONS,
-  STATUS_FILTER_OPTIONS,
   ACTION_TYPE_LABEL,
   formatDate,
   REQUESTS_PER_PAGE,
@@ -53,7 +52,7 @@ export const RequestsPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
-  const { workspaceId, selectedProjectIds, hasPermission } = useWorkspace();
+  const { workspaceId, selectedProjectIds, projects, hasPermission } = useWorkspace();
   const canRequestsCreate = hasPermission("requests.create");
   const canRequestsUpdate = hasPermission("requests.update");
   const { toastError } = useToast();
@@ -90,6 +89,16 @@ export const RequestsPage = () => {
   const [actionDrawerMode, setActionDrawerMode] = useState<"create" | "edit">("create");
   const [editingAction, setEditingAction] = useState<RequestActionRow | null>(null);
   const [deletingActionId, setDeletingActionId] = useState<string | null>(null);
+  const projectIdForWorkflow = selectedProjectIds[0];
+  const workflowConfigRent = useWorkflowConfig(workspaceId, "rent", projectIdForWorkflow);
+  const workflowConfigSell = useWorkflowConfig(workspaceId, "sell", projectIdForWorkflow);
+  const getWorkflowConfig = (type: RequestType) => (type === "rent" ? workflowConfigRent : workflowConfigSell);
+  const workflowError = workflowConfigRent.error ?? workflowConfigSell.error;
+  const hasWorkflowReady =
+    !!workflowConfigRent.workflowDetail &&
+    !!workflowConfigSell.workflowDetail &&
+    !workflowConfigRent.loading &&
+    !workflowConfigSell.loading;
 
   useEffect(() => {
     if (filtersDrawerOpen) {
@@ -154,10 +163,20 @@ export const RequestsPage = () => {
       .then((r) =>
         setClientsLite((r.data ?? []).map((c) => ({ ...c, email: c.email ?? "" })))
       );
+  }, [newRequestOpen, workspaceId, selectedProjectIds]);
+
+  useEffect(() => {
+    if (!newRequestOpen || !workspaceId || !formProjectId) {
+      setApartmentsList([]);
+      setFormApartmentId("");
+      return;
+    }
+
+    setFormApartmentId("");
     followupApi.requests
       .queryApartments({
         workspaceId,
-        projectIds: selectedProjectIds,
+        projectIds: [formProjectId],
         page: 1,
         perPage: 500,
         searchText: "",
@@ -165,7 +184,7 @@ export const RequestsPage = () => {
         filters: {},
       })
       .then((r) => setApartmentsList(r.data ?? []));
-  }, [newRequestOpen, workspaceId, selectedProjectIds]);
+  }, [newRequestOpen, workspaceId, formProjectId]);
 
   const handleOpenNewRequest = () => {
     if (!canRequestsCreate) return;
@@ -175,8 +194,8 @@ export const RequestsPage = () => {
   const handleNewRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canRequestsCreate) return;
-    if (!workspaceId || !formProjectId || !formClientId) {
-      setFormError("Seleziona progetto e cliente.");
+    if (!workspaceId || !formProjectId || !formClientId || !formApartmentId) {
+      setFormError("Seleziona progetto, cliente e appartamento.");
       return;
     }
     setFormError(null);
@@ -186,7 +205,7 @@ export const RequestsPage = () => {
         workspaceId,
         projectId: formProjectId,
         clientId: formClientId,
-        apartmentId: formApartmentId || undefined,
+        apartmentId: formApartmentId,
         type: formType,
         status: formStatus,
         clientRole: formClientRole || undefined,
@@ -235,6 +254,28 @@ export const RequestsPage = () => {
     setPage(1);
   };
 
+  // Preset filtri da insight/report (loop insight -> azione).
+  useEffect(() => {
+    const preset = (location.state as {
+      presetFilters?: { status?: string; type?: string; searchText?: string };
+    } | null)?.presetFilters;
+    if (!preset) return;
+    if (preset.status) {
+      setStatusFilter(preset.status);
+      setStatusDraft(preset.status);
+    }
+    if (preset.type) {
+      setTypeFilter(preset.type);
+      setTypeDraft(preset.type);
+    }
+    if (preset.searchText) {
+      setSearch(preset.searchText);
+      setCommittedSearch(preset.searchText);
+    }
+    setPage(1);
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.state, location.pathname, navigate, setCommittedSearch, setPage]);
+
   const handleResetFilters = () => {
     setSearch("");
     setCommittedSearch("");
@@ -257,24 +298,63 @@ export const RequestsPage = () => {
     setPage(1);
   };
 
+  const statusFilterOptions = useMemo<{ value: string; label: string }[]>(() => {
+    const merged = new Map<string, string>();
+    for (const [k, v] of Object.entries(workflowConfigSell.statusLabelByCode ?? EMPTY_STATUS_LABEL)) merged.set(k, v);
+    for (const [k, v] of Object.entries(workflowConfigRent.statusLabelByCode ?? EMPTY_STATUS_LABEL)) merged.set(k, v);
+    const rows = [...merged.entries()].map(([value, label]) => ({ value, label }));
+    rows.sort((a, b) => a.label.localeCompare(b.label, "it"));
+    return [{ value: "all", label: "Tutti gli stati" }, ...rows];
+  }, [workflowConfigSell.statusLabelByCode, workflowConfigRent.statusLabelByCode]);
+
+  const kanbanStatusOrder = useMemo<RequestStatus[]>(() => {
+    const merged = [...workflowConfigSell.statusOrder, ...workflowConfigRent.statusOrder];
+    const dedup = Array.from(new Set(merged));
+    return dedup as RequestStatus[];
+  }, [workflowConfigSell.statusOrder, workflowConfigRent.statusOrder]);
+
+  const getStatusLabel = (type: RequestType, status: RequestStatus): string =>
+    getWorkflowConfig(type).statusLabelByCode[status] ?? status;
+  const workflowBlockingMessage =
+    workflowError instanceof Error
+      ? workflowError.message
+      : !hasWorkflowReady
+        ? "Workflow non configurato per il progetto selezionato."
+        : null;
+  const projectOptions = useMemo(() => {
+    const byId = new Map((projects ?? []).map((p) => [p.id, p]));
+    return selectedProjectIds.map((id) => {
+      const p = byId.get(id);
+      const label = p?.displayName?.trim() || p?.name?.trim() || id;
+      return { id, label, stale: !p };
+    });
+  }, [projects, selectedProjectIds]);
+  const projectLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of projects ?? []) {
+      map.set(p.id, p.displayName?.trim() || p.name?.trim() || p.id);
+    }
+    return map;
+  }, [projects]);
+
   /** Per vista kanban: raggruppa le richieste della pagina corrente per stato. */
   const requestsByStatus = useMemo(() => {
     const map = new Map<RequestStatus, RequestRow[]>();
-    for (const s of KANBAN_STATUS_ORDER) map.set(s, []);
+    for (const s of kanbanStatusOrder) map.set(s, []);
     for (const req of requests) {
       const list = map.get(req.status) ?? [];
       list.push(req);
       map.set(req.status, list);
     }
     return map;
-  }, [requests]);
+  }, [kanbanStatusOrder, requests]);
 
   const totalPages = Math.max(1, Math.ceil(total / REQUESTS_PER_PAGE));
   const pageStart = total === 0 ? 0 : (page - 1) * REQUESTS_PER_PAGE + 1;
   const pageEnd = Math.min(total, page * REQUESTS_PER_PAGE);
 
   const handleStatusChange = async (requestId: string, newStatus: RequestStatus) => {
-    if (!canRequestsUpdate) return;
+    if (!canRequestsUpdate || !hasWorkflowReady) return;
     setStatusChangingId(requestId);
     try {
       await followupApi.requests.updateRequestStatus(requestId, { status: newStatus });
@@ -368,10 +448,22 @@ export const RequestsPage = () => {
           viewMode={viewMode}
           onViewModeChange={setViewMode}
           onOpenNewRequest={handleOpenNewRequest}
-          newRequestDisabled={!canRequestsCreate}
-          newRequestTitle={!canRequestsCreate ? permTitle("requests.create") : undefined}
-          statusSelectDisabled={!canRequestsUpdate}
-          statusSelectTitle={!canRequestsUpdate ? permTitle("requests.update") : undefined}
+          newRequestDisabled={!canRequestsCreate || !hasWorkflowReady}
+          newRequestTitle={
+            !canRequestsCreate
+              ? permTitle("requests.create")
+              : !hasWorkflowReady
+                ? "Workflow non configurato per il progetto selezionato"
+                : undefined
+          }
+          statusSelectDisabled={!canRequestsUpdate || !hasWorkflowReady}
+          statusSelectTitle={
+            !canRequestsUpdate
+              ? permTitle("requests.update")
+              : !hasWorkflowReady
+                ? "Workflow non configurato per il progetto selezionato"
+                : undefined
+          }
           search={search}
           onSearchChange={setSearch}
           onSearch={handleSearch}
@@ -384,6 +476,10 @@ export const RequestsPage = () => {
           committedSearch={committedSearch}
           statusChangingId={statusChangingId}
           onStatusChange={handleStatusChange}
+          getAllowedNextStatuses={(request) => getWorkflowConfig(request.type).allowedNextStatuses(request.status) ?? []}
+          getStatusLabel={getStatusLabel}
+          kanbanStatusOrder={kanbanStatusOrder}
+          statusFilterOptions={statusFilterOptions}
           onSelectRequest={setSelectedRequest}
           requestsByStatus={requestsByStatus}
           total={total}
@@ -396,6 +492,11 @@ export const RequestsPage = () => {
           onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
           onLastPage={() => setPage(totalPages)}
         />
+        {workflowBlockingMessage && (
+          <div className="mt-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {workflowBlockingMessage} Configura prima i workflow (progetto/workspace) per usare la pagina Trattative.
+          </div>
+        )}
       </div>
 
       <FiltersDrawer
@@ -428,7 +529,7 @@ export const RequestsPage = () => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {STATUS_FILTER_OPTIONS.map((opt) => (
+                {statusFilterOptions.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>
                     {opt.label}
                   </SelectItem>
@@ -454,7 +555,7 @@ export const RequestsPage = () => {
               <DrawerHeader actions={<DrawerCloseButton />}>
                 <DrawerTitle>Dettaglio trattativa</DrawerTitle>
                 <p className="mt-0.5 text-sm font-normal text-muted-foreground">
-                  {TYPE_LABEL[selectedRequest.type]} · {STATUS_LABEL[selectedRequest.status]}
+                  {TYPE_LABEL[selectedRequest.type]} · {getStatusLabel(selectedRequest.type, selectedRequest.status)}
                 </p>
               </DrawerHeader>
               <DrawerBody className="space-y-6">
@@ -498,7 +599,9 @@ export const RequestsPage = () => {
                     </div>
                     <div>
                       <span className="block text-xs text-muted-foreground mb-0.5">Progetto</span>
-                      <p className="font-mono text-xs text-foreground">{selectedRequest.projectId}</p>
+                      <p className="font-medium text-foreground">
+                        {projectLabelById.get(selectedRequest.projectId) ?? selectedRequest.projectId}
+                      </p>
                     </div>
                     {(selectedRequest.quoteNumber ?? selectedRequest.quoteStatus ?? selectedRequest.quoteTotalPrice != null) && (
                       <div className="rounded-md border border-border bg-background p-3 space-y-1 mt-2">
@@ -539,7 +642,7 @@ export const RequestsPage = () => {
                           <li key={t._id} className="flex flex-col gap-0.5 text-sm border-l-2 border-muted pl-3 py-1">
                             <div className="flex items-center justify-between gap-2 flex-wrap">
                               <span className="font-medium text-foreground">
-                                {STATUS_LABEL[t.fromState]} → {STATUS_LABEL[t.toState]}
+                                {getStatusLabel(selectedRequest.type, t.fromState)} → {getStatusLabel(selectedRequest.type, t.toState)}
                               </span>
                               {canRevert && (
                                 <Button
@@ -551,7 +654,7 @@ export const RequestsPage = () => {
                                   onClick={() => handleRevert(t._id)}
                                 >
                                   <RotateCcw className="h-3 w-3" />
-                                  {revertingTransitionId === t._id ? "..." : `Reverti a ${STATUS_LABEL[t.fromState]}`}
+                                  {revertingTransitionId === t._id ? "..." : `Reverti a ${getStatusLabel(selectedRequest.type, t.fromState)}`}
                                 </Button>
                               )}
                             </div>
@@ -713,9 +816,10 @@ export const RequestsPage = () => {
                     <SelectValue placeholder="Seleziona progetto" />
                   </SelectTrigger>
                   <SelectContent>
-                    {selectedProjectIds.map((id) => (
-                      <SelectItem key={id} value={id}>
-                        {id}
+                    {projectOptions.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.label}
+                        {project.stale ? " (ID non allineato)" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -737,13 +841,17 @@ export const RequestsPage = () => {
                 </Select>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-muted-foreground">Appartamento (opzionale)</label>
-                <Select value={formApartmentId || "_none"} onValueChange={(v) => setFormApartmentId(v === "_none" ? "" : v)}>
+                <label className="mb-1 block text-sm font-medium text-foreground">Appartamento *</label>
+                <Select value={formApartmentId} onValueChange={setFormApartmentId}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Nessuno" />
+                    <SelectValue placeholder="Seleziona appartamento" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="_none">Nessuno</SelectItem>
+                    {apartmentsList.length === 0 && (
+                      <SelectItem value="__no_apartments__" disabled>
+                        Nessun appartamento nel progetto selezionato
+                      </SelectItem>
+                    )}
                     {apartmentsList.map((a) => (
                       <SelectItem key={a._id} value={a._id}>
                         {a.code} {a.name ? `— ${a.name}` : ""}
@@ -785,7 +893,13 @@ export const RequestsPage = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(STATUS_LABEL).map(([v, label]) => (
+                    {getWorkflowConfig(formType).statusOrder.map((statusCode) => (
+                      <SelectItem key={statusCode} value={statusCode}>
+                        {getStatusLabel(formType, statusCode)}
+                      </SelectItem>
+                    ))}
+                    {getWorkflowConfig(formType).statusOrder.length === 0 &&
+                      Object.entries(getWorkflowConfig(formType).statusLabelByCode).map(([v, label]) => (
                       <SelectItem key={v} value={v}>
                         {label}
                       </SelectItem>
@@ -800,7 +914,7 @@ export const RequestsPage = () => {
               </Button>
               <Button
                 type="submit"
-                disabled={formSaving || !canRequestsCreate}
+                disabled={formSaving || !canRequestsCreate || !hasWorkflowReady || !formApartmentId}
                 title={!canRequestsCreate ? permTitle("requests.create") : undefined}
                 className="min-h-11"
               >

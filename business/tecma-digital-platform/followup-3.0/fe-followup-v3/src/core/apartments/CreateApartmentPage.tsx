@@ -12,6 +12,9 @@ const CreateApartmentFormSchema = z.object({
   floor: z.string(),
   surfaceMq: z.string(),
   planimetryUrl: z.string(),
+  typologyName: z.string(),
+  tags: z.string(),
+  extraLegacyNote: z.string(),
   mode: z.enum(["RENT", "SELL"]),
   status: z.enum(["AVAILABLE", "RESERVED", "SOLD", "RENTED"]),
 });
@@ -47,6 +50,9 @@ type CreateApartmentForm = {
   floor: string;
   surfaceMq: string;
   planimetryUrl: string;
+  typologyName: string;
+  tags: string;
+  extraLegacyNote: string;
   mode: "RENT" | "SELL";
   status: "AVAILABLE" | "RESERVED" | "SOLD" | "RENTED";
 };
@@ -59,6 +65,9 @@ const initialForm: CreateApartmentForm = {
   floor: "",
   surfaceMq: "",
   planimetryUrl: "",
+  typologyName: "",
+  tags: "",
+  extraLegacyNote: "",
   mode: "SELL" as const,
   status: "AVAILABLE" as const
 };
@@ -152,7 +161,17 @@ export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: Crea
         surfaceMq: Number(form.surfaceMq || 0),
         planimetryUrl: form.planimetryUrl.trim(),
         mode: form.mode,
-        status: form.status
+        status: form.status,
+        plan: form.typologyName.trim()
+          ? {
+              typology: { name: form.typologyName.trim() },
+            }
+          : undefined,
+        extraInfo: form.extraLegacyNote.trim() ? { legacyNote: form.extraLegacyNote.trim() } : undefined,
+        tags: form.tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
       };
       if (form.mode === "RENT" && form.deposit.trim() !== "") {
         const d = Number(form.deposit);
@@ -268,6 +287,18 @@ export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: Crea
             <label>
               URL planimetria *
               <Input value={form.planimetryUrl} onChange={(e) => setForm((s) => ({ ...s, planimetryUrl: e.target.value }))} className="w-full" required />
+            </label>
+            <label>
+              Tipologia legacy
+              <Input value={form.typologyName} onChange={(e) => setForm((s) => ({ ...s, typologyName: e.target.value }))} className="w-full" />
+            </label>
+            <label>
+              Tag (separati da virgola)
+              <Input value={form.tags} onChange={(e) => setForm((s) => ({ ...s, tags: e.target.value }))} className="w-full" />
+            </label>
+            <label>
+              Nota extra info legacy
+              <Input value={form.extraLegacyNote} onChange={(e) => setForm((s) => ({ ...s, extraLegacyNote: e.target.value }))} className="w-full" />
             </label>
             <div className="space-y-1">
               <label className="block text-sm font-medium text-foreground">Stato</label>

@@ -1,0 +1,44 @@
+{
+  "runId": "pilot-smoke-2026-03-26b",
+  "dryRun": true,
+  "workspaceId": "DRY_RUN_WORKSPACE_ID",
+  "workspaceName": "Migration Pilot",
+  "startedAt": "2026-03-26T08:40:11.645Z",
+  "source": {
+    "uriMasked": "mongodb+srv://***:***@cluster-dev-1.4cbias1.mongodb.net/test",
+    "dbProject": "project",
+    "dbClient": "client",
+    "dbAsset": "asset",
+    "dbUser": "user"
+  },
+  "targetDb": "test-zanetti",
+  "mappedProjects": [
+    {
+      "legacyProjectId": "5eea2b9cc432923ea39f03ae",
+      "targetProjectId": "5eea2b9cc432923ea39f03ae",
+      "legacyProjectName": "arborea"
+    },
+    {
+      "legacyProjectId": "5fda1944b80b079c8ef380c0",
+      "targetProjectId": "5fda1944b80b079c8ef380c0",
+      "legacyProjectName": "parco-vittoria"
+    }
+  ],
+  "counters": {
+    "projectsScanned": 2,
+    "projectsUpserted": 2,
+    "usersScanned": 5,
+    "usersUpserted": 5,
+    "clientsScanned": 10,
+    "clientsSkippedGdpr": 0,
+    "clientsUpserted": 10,
+    "apartmentsScanned": 10,
+    "apartmentsUpserted": 10,
+    "quotesScanned": 5,
+    "quotesUpserted": 5,
+    "requestsScanned": 10,
+    "requestsUpserted": 10
+  },
+  "notes": [],
+  "endedAt": "2026-03-26T08:40:12.446Z"
+}

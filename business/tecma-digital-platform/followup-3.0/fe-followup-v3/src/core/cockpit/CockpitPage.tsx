@@ -124,6 +124,7 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
   const [kpiLoading, setKpiLoading] = useState(false);
   const [recentClients, setRecentClients] = useState<ClientRow[]>([]);
   const [recentRequests, setRecentRequests] = useState<RequestRow[]>([]);
+  const [metricsTick, setMetricsTick] = useState(0);
   const navigate = useNavigate();
 
   const applySuggestionsResponse = useCallback(
@@ -199,6 +200,16 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
 
   useEffect(() => {
     if (!workspaceId || projectIds.length === 0) return;
+    const unsubscribe = followupApi.subscribeRealtimeEvents(
+      workspaceId,
+      { eventTypes: ["metrics.updated"], projectId: projectIds.length === 1 ? projectIds[0] : undefined },
+      () => setMetricsTick((v) => v + 1)
+    );
+    return () => unsubscribe();
+  }, [workspaceId, projectIds]);
+
+  useEffect(() => {
+    if (!workspaceId || projectIds.length === 0) return;
     setKpiLoading(true);
     const base = { workspaceId, projectIds, page: 1, perPage: 1, searchText: "" };
     Promise.all([
@@ -211,7 +222,7 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
       .then(([apartments, soldOrRented, calendar, clients, requests]) => setKpi({ apartments, soldOrRented, calendar, clients, requests }))
       .catch(() => setKpi({ apartments: null, soldOrRented: null, calendar: null, clients: null, requests: null }))
       .finally(() => setKpiLoading(false));
-  }, [workspaceId, projectIds]);
+  }, [workspaceId, projectIds, metricsTick]);
 
   useEffect(() => {
     if (!workspaceId || projectIds.length === 0) return;

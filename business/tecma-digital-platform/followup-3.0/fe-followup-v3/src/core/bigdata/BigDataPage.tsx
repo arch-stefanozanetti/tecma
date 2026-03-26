@@ -143,7 +143,17 @@ function marketingMissingProjectIds(d: BigDataPayload | null | undefined): boole
 type MarketingShortcuts = { projectMarketingTo: string; integrationsTo: string };
 
 export const BigDataPage = () => {
-  const { workspaceId, selectedProjectIds, hasPermission } = useWorkspace();
+  const { workspaceId, selectedProjectIds, projects, hasPermission } = useWorkspace();
+  const projectOptions = useMemo(() => {
+    const byId = new Map((projects ?? []).map((p) => [p.id, p]));
+    return selectedProjectIds.map((id) => {
+      const p = byId.get(id);
+      return {
+        id,
+        label: p?.displayName?.trim() || p?.name?.trim() || id,
+      };
+    });
+  }, [projects, selectedProjectIds]);
   const canReadIntegrations = hasPermission("integrations.read");
   const integrationsReadOnly = !hasPermission("integrations.update");
   const { toastError, toastSuccess } = useToast();
@@ -178,6 +188,7 @@ export const BigDataPage = () => {
   const [mktGa4LoadHint, setMktGa4LoadHint] = useState<string | null>(null);
   const [mktAdsLoadError, setMktAdsLoadError] = useState<string | null>(null);
   const [mktAdsLoadHint, setMktAdsLoadHint] = useState<string | null>(null);
+  const [metricsTick, setMetricsTick] = useState(0);
 
   const adsPickOptions = useMemo(
     () => mergeAdsCustomers(mktAdsCustomers, projectMktDraft.googleAdsCustomerId),
@@ -349,7 +360,17 @@ export const BigDataPage = () => {
     if (!workspaceId || !projectId) return;
     void load(section);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load ricreato ogni render; dipendenze esplicite sotto
-  }, [workspaceId, projectId, section, dateFrom, dateTo, attributionModel]);
+  }, [workspaceId, projectId, section, dateFrom, dateTo, attributionModel, metricsTick]);
+
+  useEffect(() => {
+    if (!workspaceId || !projectId) return;
+    const unsubscribe = followupApi.subscribeRealtimeEvents(
+      workspaceId,
+      { eventTypes: ["metrics.updated"], projectId },
+      () => setMetricsTick((v) => v + 1)
+    );
+    return () => unsubscribe();
+  }, [workspaceId, projectId]);
 
   const data = dataByTab[section] ?? null;
   const showSetupBanner =
@@ -420,9 +441,9 @@ export const BigDataPage = () => {
                 <SelectValue placeholder="Seleziona progetto" />
               </SelectTrigger>
               <SelectContent>
-                {selectedProjectIds.map((id) => (
-                  <SelectItem key={id} value={id}>
-                    {id}
+                {projectOptions.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.label}
                   </SelectItem>
                 ))}
               </SelectContent>

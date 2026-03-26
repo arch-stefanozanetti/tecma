@@ -24,8 +24,9 @@ export const ApartmentDetailPage = () => {
   const navigate = useNavigate();
   const { workspaceId, selectedProjectIds, isAdmin } = useWorkspace();
   const { toastError } = useToast();
-  const workflowConfigRent = useWorkflowConfig(workspaceId, "rent");
-  const workflowConfigSell = useWorkflowConfig(workspaceId, "sell");
+  const projectIdForWorkflow = selectedProjectIds.length > 0 ? selectedProjectIds[0] : undefined;
+  const workflowConfigRent = useWorkflowConfig(workspaceId, "rent", projectIdForWorkflow);
+  const workflowConfigSell = useWorkflowConfig(workspaceId, "sell", projectIdForWorkflow);
   const getWorkflowConfig = (type: "rent" | "sell") => (type === "rent" ? workflowConfigRent : workflowConfigSell);
   const {
     apartment,
@@ -48,6 +49,15 @@ export const ApartmentDetailPage = () => {
   const [editName, setEditName] = useState("");
   const [editStatus, setEditStatus] = useState<ApartmentRow["status"]>("AVAILABLE");
   const [editSurfaceMq, setEditSurfaceMq] = useState("");
+  const [editFloor, setEditFloor] = useState("");
+  const [editTypologyName, setEditTypologyName] = useState("");
+  const [editRooms, setEditRooms] = useState("");
+  const [editBedrooms, setEditBedrooms] = useState("");
+  const [editBathrooms, setEditBathrooms] = useState("");
+  const [editTags, setEditTags] = useState("");
+  const [editPlanimetryUrl, setEditPlanimetryUrl] = useState("");
+  const [editAdditionalPlanimetryUrls, setEditAdditionalPlanimetryUrls] = useState("");
+  const [editExtraNote, setEditExtraNote] = useState("");
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [prices, setPrices] = useState<{
@@ -187,6 +197,20 @@ export const ApartmentDetailPage = () => {
       setEditName(apartment.name ?? "");
       setEditStatus(apartment.status);
       setEditSurfaceMq(String(apartment.surfaceMq ?? ""));
+      setEditFloor(apartment.floor != null ? String(apartment.floor) : "");
+      setEditTypologyName(String(apartment.plan?.typology?.name ?? ""));
+      setEditRooms(apartment.plan?.mainFeatures?.rooms != null ? String(apartment.plan.mainFeatures.rooms) : "");
+      setEditBedrooms(apartment.plan?.mainFeatures?.bedroom != null ? String(apartment.plan.mainFeatures.bedroom) : "");
+      setEditBathrooms(apartment.plan?.mainFeatures?.bathroom != null ? String(apartment.plan.mainFeatures.bathroom) : "");
+      setEditTags(Array.isArray(apartment.tags) ? apartment.tags.join(", ") : "");
+      setEditPlanimetryUrl(apartment.planimetryUrl?.trim() ?? "");
+      const extraUrls = apartment.extraInfo?.planimetryUrls;
+      setEditAdditionalPlanimetryUrls(
+        Array.isArray(extraUrls) && extraUrls.every((u) => typeof u === "string")
+          ? (extraUrls as string[]).join(", ")
+          : ""
+      );
+      setEditExtraNote(typeof apartment.extraInfo?.legacyNote === "string" ? apartment.extraInfo.legacyNote : "");
       setEditError(null);
     }
   }, [editApartmentOpen, apartment]);
@@ -202,12 +226,44 @@ export const ApartmentDetailPage = () => {
         setEditError("Superficie non valida.");
         return;
       }
-      const updated = await followupApi.apartments.updateApartment(apartment._id, {
+      const additionalPlanimetry = editAdditionalPlanimetryUrls
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.startsWith("http://") || s.startsWith("https://"));
+      const nextExtra: Record<string, unknown> = { ...(apartment.extraInfo ?? {}) };
+      nextExtra.legacyNote = editExtraNote.trim() || undefined;
+      if (additionalPlanimetry.length > 0) {
+        nextExtra.planimetryUrls = additionalPlanimetry;
+      } else {
+        delete nextExtra.planimetryUrls;
+      }
+
+      const body: Parameters<typeof followupApi.apartments.updateApartment>[1] = {
         code: editCode.trim(),
         name: editName.trim() || editCode.trim(),
         status: editStatus,
         surfaceMq,
-      });
+        floor: editFloor.trim() === "" ? undefined : Number(editFloor),
+        tags: editTags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
+        plan: {
+          ...(apartment.plan ?? {}),
+          typology: { ...(apartment.plan?.typology ?? {}), name: editTypologyName.trim() || undefined },
+          mainFeatures: {
+            ...(apartment.plan?.mainFeatures ?? {}),
+            rooms: editRooms.trim() === "" ? undefined : Number(editRooms),
+            bedroom: editBedrooms.trim() === "" ? undefined : Number(editBedrooms),
+            bathroom: editBathrooms.trim() === "" ? undefined : Number(editBathrooms),
+          },
+        },
+        extraInfo: nextExtra,
+      };
+      if (editPlanimetryUrl.trim()) {
+        body.planimetryUrl = editPlanimetryUrl.trim();
+      }
+      const updated = await followupApi.apartments.updateApartment(apartment._id, body);
       setApartment(updated.apartment);
       setEditApartmentOpen(false);
     } catch (err) {
@@ -362,6 +418,24 @@ export const ApartmentDetailPage = () => {
         onStatusChange={setEditStatus}
         surfaceMq={editSurfaceMq}
         onSurfaceMqChange={setEditSurfaceMq}
+        floor={editFloor}
+        onFloorChange={setEditFloor}
+        typologyName={editTypologyName}
+        onTypologyNameChange={setEditTypologyName}
+        rooms={editRooms}
+        onRoomsChange={setEditRooms}
+        bedrooms={editBedrooms}
+        onBedroomsChange={setEditBedrooms}
+        bathrooms={editBathrooms}
+        onBathroomsChange={setEditBathrooms}
+        tags={editTags}
+        onTagsChange={setEditTags}
+        planimetryUrl={editPlanimetryUrl}
+        onPlanimetryUrlChange={setEditPlanimetryUrl}
+        additionalPlanimetryUrls={editAdditionalPlanimetryUrls}
+        onAdditionalPlanimetryUrlsChange={setEditAdditionalPlanimetryUrls}
+        extraNote={editExtraNote}
+        onExtraNoteChange={setEditExtraNote}
         error={editError}
         saving={editSaving}
         onSubmit={handleEditApartmentSubmit}

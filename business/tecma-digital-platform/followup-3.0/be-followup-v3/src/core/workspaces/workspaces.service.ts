@@ -3,7 +3,7 @@
  * Gestione tz_workspaces e tz_workspace_projects (solo test-zanetti).
  * CRUD workspace: admin only.
  */
-import { ObjectId } from "mongodb";
+import { type Filter, ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
 import { HttpError } from "../../types/http.js";
@@ -238,34 +238,64 @@ export const listWorkspaceProjects = async (
   const wpColl = db.collection(COLLECTION_WORKSPACE_PROJECTS);
   const projColl = db.collection(COLLECTION_TZ_PROJECTS);
   const docs = await wpColl.find({ workspaceId }).sort({ createdAt: 1 }).toArray();
-  const rows: WorkspaceProjectEnrichedRow[] = [];
+  const uniqueByProjectId = new Map<string, { workspaceId: string; projectId: string; createdAt: string }>();
   for (const d of docs) {
-    const projectId = String(d.projectId ?? "");
-    const base: WorkspaceProjectEnrichedRow = {
-      workspaceId: String(d.workspaceId ?? ""),
-      projectId,
-      createdAt: toIsoDate(d.createdAt),
-      id: projectId,
-    };
-    try {
-      const projQuery =
-        ObjectId.isValid(projectId) && projectId.length === 24
-          ? { $or: [{ _id: new ObjectId(projectId) }, { _id: projectId as unknown as ObjectId }] }
-          : { _id: projectId as unknown as ObjectId };
-      const proj = await projColl.findOne(projQuery, {
-        projection: { name: 1, displayName: 1, mode: 1 },
+    const projectId = String(d.projectId ?? "").trim();
+    if (!projectId) continue;
+    if (!uniqueByProjectId.has(projectId)) {
+      uniqueByProjectId.set(projectId, {
+        workspaceId: String(d.workspaceId ?? ""),
+        projectId,
+        createdAt: toIsoDate(d.createdAt),
       });
-      if (proj) {
-        const p = proj as { name?: string; displayName?: string; mode?: string };
-        base.name = typeof p.name === "string" ? p.name : undefined;
-        base.displayName = typeof p.displayName === "string" ? p.displayName : base.name;
-        const mode = p.mode;
-        base.mode = mode === "rent" || mode === "sell" ? mode : undefined;
-      }
-    } catch {
-      // ignora errore lookup progetto
     }
-    rows.push(base);
+  }
+
+  const projectIds = [...uniqueByProjectId.keys()];
+  if (projectIds.length === 0) return [];
+
+  const asObjectIds = projectIds.filter((id) => ObjectId.isValid(id) && id.length === 24).map((id) => new ObjectId(id));
+  const matched = await projColl
+    .find(
+      {
+        $or: [
+          { _id: { $in: projectIds } },
+          { _id: { $in: asObjectIds } },
+          { legacyProjectId: { $in: projectIds } },
+        ],
+      } as Filter<{ _id?: unknown; legacyProjectId?: unknown; name?: unknown; displayName?: unknown; mode?: unknown }>,
+      { projection: { _id: 1, legacyProjectId: 1, name: 1, displayName: 1, mode: 1 } }
+    )
+    .toArray();
+
+  const byId = new Map<string, { name?: string; displayName?: string; mode?: string }>();
+  const byLegacyId = new Map<string, { name?: string; displayName?: string; mode?: string }>();
+  for (const p of matched as Array<{ _id?: unknown; legacyProjectId?: unknown; name?: unknown; displayName?: unknown; mode?: unknown }>) {
+    const normalized = {
+      name: typeof p.name === "string" ? p.name : undefined,
+      displayName: typeof p.displayName === "string" ? p.displayName : undefined,
+      mode: p.mode === "rent" || p.mode === "sell" ? p.mode : undefined,
+    };
+    const id = p._id instanceof ObjectId ? p._id.toHexString() : typeof p._id === "string" ? p._id : "";
+    if (id) byId.set(id, normalized);
+    const legacyId = typeof p.legacyProjectId === "string" ? p.legacyProjectId : "";
+    if (legacyId) byLegacyId.set(legacyId, normalized);
+  }
+
+  const rows: WorkspaceProjectEnrichedRow[] = [];
+  for (const entry of uniqueByProjectId.values()) {
+    const match = byId.get(entry.projectId) ?? byLegacyId.get(entry.projectId);
+    // hardening: escludi righe orfane non risolvibili a tz_projects
+    if (!match) continue;
+    rows.push({
+      workspaceId: entry.workspaceId,
+      projectId: entry.projectId,
+      createdAt: entry.createdAt,
+      id: entry.projectId,
+      name: match.name,
+      displayName: match.displayName ?? match.name,
+      mode: match.mode,
+    });
   }
   return rows;
 };

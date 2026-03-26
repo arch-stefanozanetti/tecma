@@ -1,6 +1,5 @@
-import { getDb } from "../../config/db.js";
-
-const TZ_WORKFLOW_COLLECTION = "tz_workflow_configs";
+import { HttpError } from "../../types/http.js";
+import { getWorkflowForWorkspaceAndType } from "./workflow-engine.service.js";
 
 export interface WorkflowState {
   id: string;
@@ -23,54 +22,38 @@ export interface WorkflowConfig {
   version?: number;
 }
 
-/** Get workflow config for a given flow type from tz_workflow_configs. */
+/** Legacy endpoint adapter: reads runtime workflow engine (strict, no fallback). */
 export const getWorkflowConfig = async (
   workspaceId: string,
   projectId: string,
   flowType: "rent" | "sell"
 ): Promise<WorkflowConfig> => {
-  const db = getDb();
-  const tzColl = db.collection(TZ_WORKFLOW_COLLECTION);
-  const tzDoc = await tzColl.findOne({
-    workspaceId,
-    projectId,
-    flowType,
-  });
-
-  if (tzDoc && tzDoc.states && Array.isArray(tzDoc.states)) {
-    return {
-      flowType: tzDoc.flowType ?? flowType,
-      states: tzDoc.states,
-      transitions: Array.isArray(tzDoc.transitions) ? tzDoc.transitions : [],
-      version: typeof tzDoc.version === "number" ? tzDoc.version : undefined,
-    };
+  const detail = await getWorkflowForWorkspaceAndType(workspaceId, flowType, projectId);
+  if (!detail) {
+    throw new HttpError(
+      `Workflow non configurato per workspace "${workspaceId}", progetto "${projectId}" e tipo "${flowType}"`,
+      400,
+      "WorkflowNotConfigured"
+    );
   }
-
-  return getDefaultWorkflowConfig(flowType);
-};
-
-function getDefaultWorkflowConfig(flowType: "rent" | "sell"): WorkflowConfig {
-  const states: WorkflowState[] = [
-    { id: "new", label: "Nuova", isRequestEditable: true },
-    { id: "contacted", label: "Contattato", isRequestEditable: true },
-    { id: "viewing", label: "Visita", isRequestEditable: true },
-    { id: "offer", label: "Offerta", isRequestEditable: true },
-    { id: "won", label: "Vinto", isTerminal: true },
-    { id: "lost", label: "Perso", isTerminal: true },
-  ];
-  const transitions: WorkflowTransition[] = [
-    { fromState: "new", toState: "contacted", event: "contact" },
-    { fromState: "new", toState: "viewing", event: "view" },
-    { fromState: "new", toState: "lost", event: "lose" },
-    { fromState: "contacted", toState: "viewing", event: "view" },
-    { fromState: "contacted", toState: "offer", event: "offer" },
-    { fromState: "contacted", toState: "lost", event: "lose" },
-    { fromState: "viewing", toState: "offer", event: "offer" },
-    { fromState: "viewing", toState: "contacted", event: "contact" },
-    { fromState: "viewing", toState: "lost", event: "lose" },
-    { fromState: "offer", toState: "won", event: "win" },
-    { fromState: "offer", toState: "lost", event: "lose" },
-    { fromState: "offer", toState: "viewing", event: "view" },
-  ];
+  const stateById = new Map(detail.states.map((s) => [s._id, s.code]));
+  const states: WorkflowState[] = detail.states.map((s) => ({
+    id: s.code,
+    label: s.label,
+    isTerminal: s.terminal,
+    isRequestEditable: !s.terminal,
+  }));
+  const transitions: WorkflowTransition[] = detail.transitions
+    .map((t) => {
+      const fromState = stateById.get(t.fromStateId);
+      const toState = stateById.get(t.toStateId);
+      if (!fromState || !toState) return null;
+      return {
+        fromState,
+        toState,
+        event: `${fromState}_to_${toState}`,
+      } satisfies WorkflowTransition;
+    })
+    .filter((x): x is WorkflowTransition => x !== null);
   return { flowType, states, transitions, version: 1 };
-}
+};

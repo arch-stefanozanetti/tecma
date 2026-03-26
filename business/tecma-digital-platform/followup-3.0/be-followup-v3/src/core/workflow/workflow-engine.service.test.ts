@@ -16,19 +16,30 @@ const mocks = vi.hoisted(() => {
   const transitionsInsertOneMock = vi.fn();
   const transitionsToArrayMock = vi.fn();
   const transitionsFindMock = vi.fn(() => ({ toArray: transitionsToArrayMock }));
+  const transitionsDeleteOneMock = vi.fn(() => Promise.resolve({ deletedCount: 1 }));
+  const transitionsCountDocumentsMock = vi.fn(() => Promise.resolve(0));
 
   const workflowsCollection = {
     find: workflowsFindMock,
     findOne: workflowsFindOneMock,
     insertOne: workflowsInsertOneMock,
+    deleteOne: vi.fn(() => Promise.resolve({ deletedCount: 1 })),
   };
   const statesCollection = {
     find: statesFindMock,
     insertOne: statesInsertOneMock,
+    findOne: vi.fn(),
+    updateOne: vi.fn(),
+    deleteOne: vi.fn(() => Promise.resolve({ deletedCount: 1 })),
+    deleteMany: vi.fn(() => Promise.resolve({ deletedCount: 0 })),
+    countDocuments: vi.fn(() => Promise.resolve(0)),
   };
   const transitionsCollection = {
     find: transitionsFindMock,
     insertOne: transitionsInsertOneMock,
+    deleteOne: transitionsDeleteOneMock,
+    deleteMany: vi.fn(() => Promise.resolve({ deletedCount: 0 })),
+    countDocuments: transitionsCountDocumentsMock,
   };
 
   return {
@@ -42,6 +53,7 @@ const mocks = vi.hoisted(() => {
     transitionsInsertOneMock,
     transitionsToArrayMock,
     transitionsFindMock,
+    transitionsDeleteOneMock,
     workflowsCollection,
     statesCollection,
     transitionsCollection,
@@ -54,6 +66,9 @@ vi.mock("../../config/db.js", () => ({
       if (name === "tz_workflows") return mocks.workflowsCollection;
       if (name === "tz_workflow_states") return mocks.statesCollection;
       if (name === "tz_workflow_transitions") return mocks.transitionsCollection;
+      if (name === "tz_requests") return { countDocuments: () => Promise.resolve(0) };
+      if (name === "tz_apartment_locks") return { countDocuments: () => Promise.resolve(0) };
+      if (name === "tz_project_workflow_settings") return { findOne: () => Promise.resolve(null), countDocuments: () => Promise.resolve(0) };
       throw new Error("Unexpected collection: " + name);
     },
   }),
@@ -64,6 +79,8 @@ import {
   createWorkflow,
   createWorkflowState,
   createWorkflowTransition,
+  deleteWorkflow,
+  deleteWorkflowTransition,
   getStateByCode,
   getWorkflowForWorkspaceAndType,
   getWorkflowWithStatesAndTransitions,
@@ -201,5 +218,34 @@ describe("workflow-engine.service", () => {
     expect(wf.workflow._id).toBe(workflowId.toHexString());
     expect(st.state.apartmentLock).toBe("soft");
     expect(tr.transition._id).toBe(transitionId.toHexString());
+  });
+
+  it("deleteWorkflowTransition removes row", async () => {
+    const tid = new ObjectId();
+    await deleteWorkflowTransition(tid.toHexString());
+    expect(mocks.transitionsDeleteOneMock).toHaveBeenCalled();
+  });
+
+  it("deleteWorkflow removes workflow when not referenced", async () => {
+    const workflowId = new ObjectId();
+    mocks.workflowsFindOneMock.mockResolvedValueOnce({
+      _id: workflowId,
+      workspaceId: "ws1",
+      name: "Flow",
+      type: "sell",
+      createdAt: "x",
+      updatedAt: "x",
+    });
+    mocks.statesFindMock.mockReturnValueOnce({
+      toArray: () =>
+        Promise.resolve([
+          { _id: new ObjectId(), workflowId: workflowId.toHexString() },
+          { _id: new ObjectId(), workflowId: workflowId.toHexString() },
+        ]),
+    } as unknown as ReturnType<typeof mocks.statesFindMock>);
+    await deleteWorkflow(workflowId.toHexString());
+    expect(mocks.transitionsCollection.deleteMany).toHaveBeenCalled();
+    expect(mocks.statesCollection.deleteMany).toHaveBeenCalled();
+    expect(mocks.workflowsCollection.deleteOne).toHaveBeenCalled();
   });
 });

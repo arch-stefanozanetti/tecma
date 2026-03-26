@@ -75,6 +75,7 @@ const EventDrawer = ({
   onDelete,
   canEditEvent,
   canDeleteEvent,
+  projectLabelById,
 }: {
   event: CalendarEvent | null;
   open: boolean;
@@ -83,6 +84,7 @@ const EventDrawer = ({
   onDelete?: () => void;
   canEditEvent: boolean;
   canDeleteEvent: boolean;
+  projectLabelById: Map<string, string>;
 }) => {
   const [deleting, setDeleting] = useState(false);
   const { toastError } = useToast();
@@ -127,7 +129,7 @@ const EventDrawer = ({
           </div>
           <div className="flex items-center gap-3 text-sm">
             <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span className="font-mono text-xs">{event.projectId}</span>
+            <span>{projectLabelById.get(event.projectId) ?? event.projectId}</span>
           </div>
           <div className="pt-1">
             <span
@@ -356,6 +358,13 @@ export const CalendarPage = (_props: CalendarPageProps) => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { workspaceId, selectedProjectIds, projects, hasPermission } = useWorkspace();
+  const projectLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of projects ?? []) {
+      map.set(p.id, p.displayName?.trim() || p.name?.trim() || p.id);
+    }
+    return map;
+  }, [projects]);
   const canCreateCalendar = hasPermission("calendar.create");
   const canUpdateCalendar = hasPermission("calendar.update");
   const canDeleteCalendar = hasPermission("calendar.delete");
@@ -683,6 +692,7 @@ export const CalendarPage = (_props: CalendarPageProps) => {
         onDelete={handleEventFormSaved}
         canEditEvent={canUpdateCalendar}
         canDeleteEvent={canDeleteCalendar}
+        projectLabelById={projectLabelById}
       />
       <CalendarEventFormDrawer
         mode={eventFormMode}

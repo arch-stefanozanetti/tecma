@@ -16,6 +16,7 @@ import { completeGoogleMarketingOAuth } from "../../core/connectors/marketing-go
 import { completeMetaMarketingOAuth } from "../../core/connectors/marketing-meta-oauth.service.js";
 import { openApiV1 } from "../../docs/openapi.js";
 import { getCurrentPrivacyPolicy } from "../../core/gdpr/legal-documents.service.js";
+import { getReportSnapshotByToken } from "../../core/reports/realtime-reports.service.js";
 import { HttpError } from "../../types/http.js";
 import { ENV, isProductionLike } from "../../config/env.js";
 import { handleAsync, sendError } from "../asyncHandler.js";
@@ -128,6 +129,12 @@ publicRoutes.get("/public/listings", publicApiRateLimiter, handleAsync((req) => 
   };
   return queryApartments(body);
 }));
+
+publicRoutes.get(
+  "/public/reports/:token",
+  publicApiRateLimiter,
+  handleAsync((req) => getReportSnapshotByToken(req.params.token))
+);
 
 function marketingIntegrationsRedirect(extra: string): string {
   const base = (ENV.MARKETING_FRONTEND_REDIRECT_BASE ?? "").trim().replace(/\/$/, "") || ENV.APP_PUBLIC_URL.replace(/\/$/, "");

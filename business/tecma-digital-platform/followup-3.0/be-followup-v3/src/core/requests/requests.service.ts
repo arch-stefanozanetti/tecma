@@ -51,17 +51,6 @@ export type RequestStatus =
   | "won"
   | "lost";
 
-/** Allowed state transitions (macchina a stati in-process). */
-const ALLOWED_TRANSITIONS: Record<RequestStatus, RequestStatus[]> = {
-  new: ["contacted", "viewing", "lost"],
-  contacted: ["viewing", "quote", "offer", "lost"],
-  viewing: ["quote", "offer", "contacted", "lost"],
-  quote: ["offer", "viewing", "lost"],
-  offer: ["won", "lost", "viewing", "quote"],
-  won: [],
-  lost: [],
-};
-
 /** Single request/deal row as returned by query and getById. */
 export interface RequestRow {
   _id: string;
@@ -289,6 +278,26 @@ export const createRequest = async (rawInput: unknown): Promise<{ request: Reque
   const db = getDb();
   const collection = db.collection(COLLECTION_NAME);
   const now = new Date().toISOString();
+  const workflowDetail = await getWorkflowForWorkspaceAndType(
+    input.workspaceId,
+    input.type,
+    input.projectId
+  );
+  if (!workflowDetail) {
+    throw new HttpError(
+      `Workflow non configurato per workspace "${input.workspaceId}" e tipo "${input.type}"`,
+      400,
+      "WorkflowNotConfigured"
+    );
+  }
+  const stateRow = getStateByCode(workflowDetail, input.status ?? "new");
+  if (!stateRow) {
+    throw new HttpError(
+      `Stato "${input.status}" non presente nel workflow configurato`,
+      400,
+      "WorkflowStateNotFound"
+    );
+  }
   const doc: Record<string, unknown> = {
     workspaceId: input.workspaceId,
     projectId: input.projectId,
@@ -296,6 +305,8 @@ export const createRequest = async (rawInput: unknown): Promise<{ request: Reque
     apartmentId: input.apartmentId ?? null,
     type: input.type,
     status: input.status,
+    workflowId: workflowDetail.workflow._id,
+    currentStateId: stateRow._id,
     createdAt: now,
     updatedAt: now,
   };
@@ -356,25 +367,45 @@ export const updateRequestStatus = async (
     : "new") as RequestStatus;
   const workspaceId = typeof doc.workspaceId === "string" ? doc.workspaceId : "";
   const requestType = (doc.type === "rent" || doc.type === "sell" ? doc.type : "sell") as "rent" | "sell";
-  const allowedByWorkflow = await isTransitionAllowedForWorkspace(workspaceId, requestType, currentStatus, newStatus);
-  if (allowedByWorkflow === false) {
+  const projectId =
+    typeof doc.projectId === "string" && doc.projectId.trim() !== "" ? doc.projectId : undefined;
+  const allowedByWorkflow = await isTransitionAllowedForWorkspace(
+    workspaceId,
+    requestType,
+    currentStatus,
+    newStatus,
+    projectId
+  );
+  if (allowedByWorkflow !== true) {
+    const workflowExists = await getWorkflowForWorkspaceAndType(workspaceId, requestType, projectId);
+    if (!workflowExists) {
+      throw new HttpError(
+        `Workflow non configurato per workspace "${workspaceId}" e tipo "${requestType}"`,
+        400,
+        "WorkflowNotConfigured"
+      );
+    }
     throw new HttpError(
       `Transizione non consentita: da "${currentStatus}" a "${newStatus}"`,
       400
     );
   }
-  if (allowedByWorkflow !== true) {
-    const allowed = ALLOWED_TRANSITIONS[currentStatus];
-    if (!allowed || !allowed.includes(newStatus)) {
-      throw new HttpError(
-        `Transizione non consentita: da "${currentStatus}" a "${newStatus}"`,
-        400
-      );
-    }
+  const workflowDetail = await getWorkflowForWorkspaceAndType(workspaceId, requestType, projectId);
+  if (!workflowDetail) {
+    throw new HttpError(
+      `Workflow non configurato per workspace "${workspaceId}" e tipo "${requestType}"`,
+      400,
+      "WorkflowNotConfigured"
+    );
   }
-
-  const workflowDetail = await getWorkflowForWorkspaceAndType(workspaceId, requestType);
   const targetState = workflowDetail ? getStateByCode(workflowDetail, newStatus) : null;
+  if (!targetState) {
+    throw new HttpError(
+      `Stato "${newStatus}" non presente nel workflow configurato`,
+      400,
+      "WorkflowStateNotFound"
+    );
+  }
   const apartmentId = typeof doc.apartmentId === "string" && doc.apartmentId ? doc.apartmentId : undefined;
 
   if (targetState && (targetState.apartmentLock === "soft" || targetState.apartmentLock === "hard") && apartmentId) {
@@ -445,12 +476,12 @@ export const updateRequestStatus = async (
     await session.endSession();
   }
 
-  const projectId = typeof doc.projectId === "string" ? doc.projectId : "";
   const clientId = typeof doc.clientId === "string" ? doc.clientId : "";
+  const projectIdForEvents = projectId ?? "";
   if (newStatus === "quote" || newStatus === "offer") {
     dispatchEvent(workspaceId, "proposal.sent", {
       workspaceId,
-      projectId,
+      projectId: projectIdForEvents,
       entityType: "request",
       entityId: id,
       clientId,
@@ -461,7 +492,7 @@ export const updateRequestStatus = async (
   if (newStatus === "won") {
     dispatchEvent(workspaceId, "contract.signed", {
       workspaceId,
-      projectId,
+      projectId: projectIdForEvents,
       entityType: "request",
       entityId: id,
       clientId,
@@ -564,8 +595,26 @@ export const revertRequestStatus = async (
 
   const workspaceId = typeof requestDoc.workspaceId === "string" ? requestDoc.workspaceId : "";
   const requestType = (requestDoc.type === "rent" || requestDoc.type === "sell" ? requestDoc.type : "sell") as "rent" | "sell";
-  const workflowDetail = await getWorkflowForWorkspaceAndType(workspaceId, requestType);
+  const projectId =
+    typeof requestDoc.projectId === "string" && requestDoc.projectId.trim() !== ""
+      ? requestDoc.projectId
+      : undefined;
+  const workflowDetail = await getWorkflowForWorkspaceAndType(workspaceId, requestType, projectId);
+  if (!workflowDetail) {
+    throw new HttpError(
+      `Workflow non configurato per workspace "${workspaceId}" e tipo "${requestType}"`,
+      400,
+      "WorkflowNotConfigured"
+    );
+  }
   const fromStateRow = workflowDetail ? getStateByCode(workflowDetail, fromState) : null;
+  if (!fromStateRow) {
+    throw new HttpError(
+      `Stato "${fromState}" non presente nel workflow configurato`,
+      400,
+      "WorkflowStateNotFound"
+    );
+  }
   if (workflowDetail && fromStateRow && !fromStateRow.reversible) {
     throw new HttpError(
       "Revert non consentito: lo stato di destinazione non è reversibile.",

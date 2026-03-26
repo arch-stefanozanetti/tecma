@@ -39,7 +39,7 @@ type ProjectTypeFilter = "all" | "rent" | "sell";
 
 /** Project mode from backend; fallback for legacy responses without mode. */
 function projectMode(project: ProjectAccessProject): "rent" | "sell" {
-  return project.mode === "rent" ? "rent" : "sell";
+  return String(project.mode ?? "").toLowerCase() === "rent" ? "rent" : "sell";
 }
 
 export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {

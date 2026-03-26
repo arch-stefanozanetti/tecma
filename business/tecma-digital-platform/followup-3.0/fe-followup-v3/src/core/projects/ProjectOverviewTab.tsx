@@ -9,6 +9,7 @@ import { useToast } from "../../contexts/ToastContext";
 import { Button } from "../../components/ui/button";
 import { FileUpload } from "../../components/ui/file-upload";
 import { cn } from "../../lib/utils";
+import { buildLegacyPlanimetryUrl } from "../../lib/legacyPlanimetryUrl";
 import type { ApartmentRow, AssetRow } from "../../types/domain";
 import { ImagePlus, LayoutGrid, ExternalLink, Loader2 } from "lucide-react";
 
@@ -17,6 +18,8 @@ type ProjectOverviewTabProps = {
   workspaceId: string;
   projectName: string;
   projectMode: "rent" | "sell";
+  apiEnvironment?: "dev-1" | "demo" | "prod";
+  isLegacyProject?: boolean;
   onRefresh?: () => void;
 };
 
@@ -25,6 +28,8 @@ export const ProjectOverviewTab = ({
   workspaceId,
   projectName,
   projectMode,
+  apiEnvironment,
+  isLegacyProject = false,
   onRefresh,
 }: ProjectOverviewTabProps) => {
   const navigate = useNavigate();
@@ -233,7 +238,9 @@ export const ProjectOverviewTab = ({
                 key={apt._id}
                 apartment={apt}
                 workspaceId={workspaceId}
-                projectId={projectId}
+                projectName={projectName}
+                apiEnvironment={apiEnvironment}
+                isLegacyProject={isLegacyProject}
                 planimetryByApartment={planimetryByApartment}
                 onOpen={() => navigate(`/apartments/${apt._id}`)}
               />
@@ -248,13 +255,17 @@ export const ProjectOverviewTab = ({
 const ApartmentCard = ({
   apartment,
   workspaceId,
-  projectId,
+  projectName,
+  apiEnvironment,
+  isLegacyProject,
   planimetryByApartment,
   onOpen,
 }: {
   apartment: ApartmentRow;
   workspaceId: string;
-  projectId: string;
+  projectName: string;
+  apiEnvironment?: "dev-1" | "demo" | "prod";
+  isLegacyProject: boolean;
   planimetryByApartment: (apartmentId: string) => Promise<AssetRow | null>;
   onOpen: () => void;
 }) => {
@@ -270,10 +281,29 @@ const ApartmentCard = ({
         /* ignore */
       }
     });
+
+    if (!isLegacyProject) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    // Legacy fallback: derive URL by environment when no planimetry asset is present.
+    const cacheKey = apartment.updatedAt ? String(new Date(apartment.updatedAt).getTime()) : undefined;
+    const legacyUrl = buildLegacyPlanimetryUrl({
+      apiEnvironment,
+      projectName,
+      apartmentName: apartment.name || apartment.code || apartment._id,
+      cacheKey,
+    });
+    if (legacyUrl) {
+      setPreviewUrl((prev) => prev ?? legacyUrl);
+    }
+
     return () => {
       cancelled = true;
     };
-  }, [apartment._id, workspaceId, planimetryByApartment]);
+  }, [apartment._id, apartment.code, apartment.name, apartment.updatedAt, workspaceId, planimetryByApartment, isLegacyProject, apiEnvironment, projectName]);
 
   const price =
     apartment.normalizedPrice?.display ??

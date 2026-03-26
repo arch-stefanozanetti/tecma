@@ -6620,7 +6620,8 @@
         "tags": [
           "workflows"
         ],
-        "summary": "Configurazione workflow (workspaceId, projectId, flowType query)",
+        "summary": "Configurazione workflow runtime (strict-no-fallback)",
+        "deprecated": true,
         "security": [
           {
             "bearerAuth": []
@@ -6657,7 +6658,10 @@
         ],
         "responses": {
           "200": {
-            "description": "Config workflow"
+            "description": "Config workflow risolta da override progetto/workspace"
+          },
+          "400": {
+            "description": "Workflow non configurato per workspace/progetto/tipo"
           }
         }
       }
@@ -6718,6 +6722,256 @@
         "responses": {
           "200": {
             "description": "Dati report"
+          }
+        }
+      }
+    },
+    "/reports/realtime/kpi-summary": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "KPI summary realtime da read model",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Workspace di riferimento",
+            "example": "ws_demo"
+          },
+          {
+            "name": "projectIds",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project IDs separati da virgola",
+            "example": "proj_1,proj_2"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dati KPI realtime"
+          }
+        }
+      }
+    },
+    "/reports/realtime/funnel": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Funnel realtime da read model",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Workspace di riferimento",
+            "example": "ws_demo"
+          },
+          {
+            "name": "projectIds",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project IDs separati da virgola",
+            "example": "proj_1,proj_2"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dati funnel realtime"
+          }
+        }
+      }
+    },
+    "/reports/realtime/conversions": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Conversioni realtime da read model",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Workspace di riferimento",
+            "example": "ws_demo"
+          },
+          {
+            "name": "projectIds",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Project IDs separati da virgola",
+            "example": "proj_1,proj_2"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dati conversioni realtime"
+          }
+        }
+      }
+    },
+    "/reports/ai-query": {
+      "post": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Query report in linguaggio naturale con DSL whitelisted",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "workspaceId",
+                  "projectIds",
+                  "query"
+                ],
+                "properties": {
+                  "workspaceId": {
+                    "type": "string",
+                    "description": "Workspace su cui eseguire la query"
+                  },
+                  "projectIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Project IDs ammessi per la query"
+                  },
+                  "query": {
+                    "type": "string",
+                    "description": "Domanda in linguaggio naturale"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Risposta AI con answer, chartSpec e tableData"
+          }
+        }
+      }
+    },
+    "/reports/share": {
+      "post": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Crea snapshot condivisibile (magic link) di una query report AI",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "workspaceId",
+                  "projectIds",
+                  "query"
+                ],
+                "properties": {
+                  "workspaceId": {
+                    "type": "string",
+                    "description": "Workspace su cui creare lo snapshot"
+                  },
+                  "projectIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Project IDs inclusi nello snapshot"
+                  },
+                  "query": {
+                    "type": "string",
+                    "description": "Query utente da salvare"
+                  },
+                  "expiresInHours": {
+                    "type": "integer",
+                    "description": "Scadenza link in ore",
+                    "example": 72
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Magic link creato"
+          }
+        }
+      }
+    },
+    "/public/reports/{token}": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "summary": "Legge snapshot report condiviso via token",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Token magic link",
+            "example": "public_token_example"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Snapshot condiviso trovato o assente"
           }
         }
       }
@@ -8124,6 +8378,232 @@
           "404": {
             "description": "Non trovato"
           }
+        }
+      }
+    },
+    "/projects/{projectId}/workflow-settings": {
+      "get": {
+        "tags": ["projects"],
+        "summary": "Override workflow trattative per progetto",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "description": "Project id" }
+          },
+          {
+            "name": "workspaceId",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "description": "Workspace id", "example": "ws1" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Impostazioni workflow progetto",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "projectId": { "type": "string" },
+                    "workspaceId": { "type": "string" },
+                    "workflowId": { "type": "string", "nullable": true, "description": "Workflow id o null per default workspace" },
+                    "updatedAt": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" },
+          "500": { "description": "Server error" }
+        }
+      },
+      "put": {
+        "tags": ["projects"],
+        "summary": "Imposta o rimuove override workflow per progetto",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "description": "Project id" }
+          },
+          {
+            "name": "workspaceId",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "description": "Workspace id", "example": "ws1" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "workflowId": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "Id workflow tz_workflows o null per usare il default del workspace"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Aggiornato" },
+          "400": { "description": "Bad request" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" },
+          "500": { "description": "Server error" }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/workflows": {
+      "get": {
+        "tags": ["workflows"],
+        "summary": "Elenco workflow per workspace",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "description": "Workspace id", "example": "ws1" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Lista workflow" },
+          "401": { "description": "Unauthorized" },
+          "500": { "description": "Server error" }
+        }
+      }
+    },
+    "/workflows/{workflowId}": {
+      "get": {
+        "tags": ["workflows"],
+        "summary": "Workflow con stati e transizioni",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "workflowId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "description": "Workflow id" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Dettaglio workflow" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" },
+          "500": { "description": "Server error" }
+        }
+      },
+      "delete": {
+        "tags": ["workflows"],
+        "summary": "Elimina intero workflow se non referenziato (admin)",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "workflowId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "description": "Workflow id" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Eliminato" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" },
+          "409": { "description": "Conflict (workflow in uso)" },
+          "500": { "description": "Server error" }
+        }
+      }
+    },
+    "/workflows/states/{stateId}": {
+      "patch": {
+        "tags": ["workflows"],
+        "summary": "Aggiorna stato workflow (admin)",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "stateId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "description": "State id" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": { "type": "string" },
+                  "label": { "type": "string" },
+                  "order": { "type": "integer" },
+                  "terminal": { "type": "boolean" },
+                  "reversible": { "type": "boolean" },
+                  "apartmentLock": { "type": "string", "enum": ["none", "soft", "hard"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Stato aggiornato" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" },
+          "409": { "description": "Conflict (in uso)" },
+          "500": { "description": "Server error" }
+        }
+      },
+      "delete": {
+        "tags": ["workflows"],
+        "summary": "Elimina stato workflow se non referenziato (admin)",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "stateId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Eliminato" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" },
+          "409": { "description": "Conflict" },
+          "500": { "description": "Server error" }
+        }
+      }
+    },
+    "/workflows/transitions/{transitionId}": {
+      "delete": {
+        "tags": ["workflows"],
+        "summary": "Elimina transizione configurazione (admin)",
+        "security": [{ "bearerAuth": [] }, { "apiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "transitionId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Eliminato" },
+          "401": { "description": "Unauthorized" },
+          "404": { "description": "Not found" },
+          "500": { "description": "Server error" }
         }
       }
     }

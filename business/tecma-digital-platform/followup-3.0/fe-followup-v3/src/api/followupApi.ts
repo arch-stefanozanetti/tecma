@@ -301,6 +301,61 @@ export const followupApi = {
     body: { workspaceId: string; projectIds: string[]; dateFrom?: string; dateTo?: string }
   ) =>
     postJson<{ data: Array<Record<string, unknown>> }>(`/reports/${reportType}`, body),
+  getRealtimeKpiSummary: (workspaceId: string, projectIds: string[]) =>
+    getJson<{
+      data: Array<Record<string, unknown>>;
+      source: string;
+      freshness?: { lastEventAt: string | null; lagMs: number | null; updatedAt: string | null };
+    }>(
+      `/reports/realtime/kpi-summary?workspaceId=${encodeURIComponent(workspaceId)}&projectIds=${projectIds.map((p) => encodeURIComponent(p)).join(",")}`
+    ),
+  getRealtimeFunnel: (workspaceId: string, projectIds: string[]) =>
+    getJson<{
+      data: Array<Record<string, unknown>>;
+      source: string;
+      freshness?: { lastEventAt: string | null; lagMs: number | null; updatedAt: string | null };
+    }>(
+      `/reports/realtime/funnel?workspaceId=${encodeURIComponent(workspaceId)}&projectIds=${projectIds.map((p) => encodeURIComponent(p)).join(",")}`
+    ),
+  getRealtimeConversions: (workspaceId: string, projectIds: string[]) =>
+    getJson<{
+      data: Array<Record<string, unknown>>;
+      source: string;
+      freshness?: { lastEventAt: string | null; lagMs: number | null; updatedAt: string | null };
+    }>(
+      `/reports/realtime/conversions?workspaceId=${encodeURIComponent(workspaceId)}&projectIds=${projectIds.map((p) => encodeURIComponent(p)).join(",")}`
+    ),
+  runAiReportQuery: (body: { workspaceId: string; projectIds: string[]; query: string }) =>
+    postJson<{
+      data: {
+        answer: string;
+        dsl: Record<string, unknown>;
+        chartSpec: Record<string, unknown>;
+        tableData: Array<Record<string, unknown>>;
+      };
+    }>("/reports/ai-query", body),
+  shareAiReportQuery: (body: { workspaceId: string; projectIds: string[]; query: string; expiresInHours?: number }) =>
+    postJson<{ data: { token: string; url: string; expiresAt: string; snapshotId: string } }>("/reports/share", body),
+  listSharedAiReportQueries: (workspaceId: string, limit = 20) =>
+    getJson<{
+      data: Array<{
+        _id: string;
+        workspaceId: string;
+        projectIds: string[];
+        query: string;
+        createdAt: string;
+        expiresAt: string;
+        revokedAt: string | null;
+      }>;
+    }>(`/reports/share/list?workspaceId=${encodeURIComponent(workspaceId)}&limit=${limit}`),
+  revokeSharedAiReportQuery: (snapshotId: string, workspaceId: string) =>
+    postJson<{ data: { revoked: boolean } }>(`/reports/share/${encodeURIComponent(snapshotId)}/revoke`, {
+      workspaceId,
+    }),
+  getSharedAiReportQuery: (token: string) =>
+    getJson<{ data: { found: boolean; query?: string; response?: Record<string, unknown>; expiresAt?: string } }>(
+      `/public/reports/${encodeURIComponent(token)}`
+    ),
   getBigDataProject: (
     projectId: string,
     query: {
@@ -725,6 +780,8 @@ export const followupApi = {
     getJson<WorkflowWithDetail>(`/workflows/${encodeURIComponent(workflowId)}`),
   createWorkflow: (payload: { workspaceId: string; name: string; type: WorkflowType }) =>
     postJson<{ workflow: WorkflowRow }>("/workflows", payload),
+  deleteWorkflow: (workflowId: string) =>
+    deleteJson<{ deleted: boolean }>(`/workflows/${encodeURIComponent(workflowId)}`),
   createWorkflowState: (payload: {
     workflowId: string;
     code: string;
@@ -736,6 +793,21 @@ export const followupApi = {
   }) => postJson<{ state: WorkflowStateRow }>("/workflows/states", payload),
   createWorkflowTransition: (payload: { workflowId: string; fromStateId: string; toStateId: string }) =>
     postJson<{ transition: WorkflowTransitionRow }>("/workflows/transitions", payload),
+  patchWorkflowState: (
+    stateId: string,
+    payload: Partial<{
+      code: string;
+      label: string;
+      order: number;
+      terminal: boolean;
+      reversible: boolean;
+      apartmentLock: ApartmentLockType;
+    }>
+  ) => patchJson<{ state: WorkflowStateRow }>(`/workflows/states/${encodeURIComponent(stateId)}`, payload),
+  deleteWorkflowState: (stateId: string) =>
+    deleteJson<{ deleted: boolean }>(`/workflows/states/${encodeURIComponent(stateId)}`),
+  deleteWorkflowTransition: (transitionId: string) =>
+    deleteJson<{ deleted: boolean }>(`/workflows/transitions/${encodeURIComponent(transitionId)}`),
   createRequest: (payload: RequestCreateInput) => postJson<{ request: RequestRow }>("/requests", payload),
   updateRequestStatus: (requestId: string, payload: { status: string; reason?: string; quoteId?: string }) =>
     patchJson<{ request: RequestRow }>(`/requests/${requestId}/status`, payload),

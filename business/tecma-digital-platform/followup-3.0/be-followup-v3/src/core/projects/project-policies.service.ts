@@ -9,6 +9,7 @@ export interface ProjectPoliciesRow {
   privacyPolicyUrl?: string;
   termsUrl?: string;
   content?: string;
+  legalNotes?: string;
   updatedAt: string;
 }
 
@@ -16,6 +17,7 @@ const PoliciesPutSchema = z.object({
   privacyPolicyUrl: z.string().url().optional().or(z.literal("")),
   termsUrl: z.string().url().optional().or(z.literal("")),
   content: z.string().optional(),
+  legalNotes: z.string().optional(),
 });
 
 export const getProjectPolicies = async (
@@ -35,6 +37,7 @@ export const getProjectPolicies = async (
     privacyPolicyUrl: typeof doc.privacyPolicyUrl === "string" ? doc.privacyPolicyUrl : undefined,
     termsUrl: typeof doc.termsUrl === "string" ? doc.termsUrl : undefined,
     content: typeof doc.content === "string" ? doc.content : undefined,
+    legalNotes: typeof doc.legalNotes === "string" ? doc.legalNotes : undefined,
     updatedAt: toIsoDate(doc.updatedAt),
   };
 };
@@ -54,6 +57,7 @@ export const putProjectPolicies = async (
     ...(input.privacyPolicyUrl !== undefined && { privacyPolicyUrl: input.privacyPolicyUrl || undefined }),
     ...(input.termsUrl !== undefined && { termsUrl: input.termsUrl || undefined }),
     ...(input.content !== undefined && { content: input.content }),
+    ...(input.legalNotes !== undefined && { legalNotes: input.legalNotes }),
     updatedAt: now,
   };
   await db.collection(COLLECTION_POLICIES).updateOne(

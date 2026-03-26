@@ -52,6 +52,25 @@ vi.mock("../../auth/projectScope", () => ({
     }),
 }));
 
+vi.mock("../../hooks/useWorkflowConfig", () => ({
+  useWorkflowConfig: () => ({
+    statusLabelByCode: {
+      new: "Nuova",
+      contacted: "Contattato",
+      viewing: "Visita",
+      quote: "Preventivo",
+      offer: "Offerta",
+      won: "Vinta",
+      lost: "Persa",
+    },
+    allowedNextStatuses: () => ["contacted", "viewing", "quote", "offer", "won", "lost"],
+    statusOrder: ["new", "contacted", "viewing", "quote", "offer", "won", "lost"],
+    workflowDetail: { workflow: { _id: "wf1" }, states: [], transitions: [] },
+    loading: false,
+    error: null,
+  }),
+}));
+
 describe("RequestsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();

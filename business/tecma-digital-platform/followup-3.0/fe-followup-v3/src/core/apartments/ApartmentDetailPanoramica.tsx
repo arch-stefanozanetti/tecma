@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import type { ApartmentRow } from "../../types/domain";
+import { useWorkspace } from "../../auth/projectScope";
 import { Button } from "../../components/ui/button";
+import { Badge } from "../../components/ui/badge";
 import { formatDate } from "../../lib/formatDate";
 import {
   STATUS_LABEL,
@@ -53,8 +55,12 @@ export default function ApartmentDetailPanoramica({
   onCloseMonthlyRentPeriod,
   editPriceSaving,
 }: ApartmentDetailPanoramicaProps): JSX.Element {
+  const { projects } = useWorkspace();
   const priceDisplay = getPriceDisplay(apartment, prices);
   const inventoryStatusLabel = getInventoryStatusLabel(inventory);
+  const projectLabelById = new Map(
+    (projects ?? []).map((p) => [p.id, p.displayName?.trim() || p.name?.trim() || p.id])
+  );
 
   return (
     <>
@@ -69,6 +75,18 @@ export default function ApartmentDetailPanoramica({
             <span className="text-muted-foreground">Nome</span>
             <p className="font-medium text-foreground">{apartment.name || "—"}</p>
           </div>
+          {apartment.tags && apartment.tags.length > 0 && (
+            <div>
+              <span className="text-muted-foreground">Tag</span>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {apartment.tags.map((t) => (
+                  <Badge key={t} variant="secondary" className="font-normal">
+                    {t}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
           <div>
             <span className="text-muted-foreground">Superficie</span>
             <p className="font-medium text-foreground">
@@ -136,7 +154,7 @@ export default function ApartmentDetailPanoramica({
           )}
           <div>
             <span className="text-muted-foreground">Progetto</span>
-            <p className="font-mono text-xs text-foreground">{apartment.projectId}</p>
+            <p className="font-medium text-foreground">{projectLabelById.get(apartment.projectId) ?? apartment.projectId}</p>
           </div>
         </div>
       </div>

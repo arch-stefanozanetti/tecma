@@ -28,6 +28,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../../components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { WorkflowCanvas } from "./WorkflowCanvas";
+import { Pencil, Trash2 } from "lucide-react";
 
 const WORKFLOW_TYPE_LABEL: Record<WorkflowType, string> = {
   sell: "Vendita",
@@ -74,6 +75,18 @@ export const WorkflowConfigPage = () => {
   const [newTransFrom, setNewTransFrom] = useState("");
   const [newTransTo, setNewTransTo] = useState("");
   const [addingTrans, setAddingTrans] = useState(false);
+  const [editStateOpen, setEditStateOpen] = useState(false);
+  const [editingState, setEditingState] = useState<WorkflowStateRow | null>(null);
+  const [editStateCode, setEditStateCode] = useState("");
+  const [editStateLabel, setEditStateLabel] = useState("");
+  const [editStateOrder, setEditStateOrder] = useState(0);
+  const [editStateTerminal, setEditStateTerminal] = useState(false);
+  const [editStateReversible, setEditStateReversible] = useState(true);
+  const [editStateLock, setEditStateLock] = useState<ApartmentLockType>("none");
+  const [savingEditState, setSavingEditState] = useState(false);
+  const [deletingStateId, setDeletingStateId] = useState<string | null>(null);
+  const [deletingTransitionId, setDeletingTransitionId] = useState<string | null>(null);
+  const [deletingWorkflowId, setDeletingWorkflowId] = useState<string | null>(null);
 
   const effectiveWorkspaceId = selectedWorkspaceForConfig || workspaceId;
   const currentWorkspaceName = workspaces.find((w) => w._id === workspaceId)?.name ?? workspaceId;
@@ -150,6 +163,24 @@ export const WorkflowConfigPage = () => {
     setAddTransOpen(false);
   }, []);
 
+  const handleDeleteWorkflow = useCallback(
+    (wfId: string) => {
+      if (!window.confirm("Eliminare l'intero workflow? L'operazione è consentita solo se non ci sono riferimenti attivi.")) return;
+      setDeletingWorkflowId(wfId);
+      followupApi
+        .deleteWorkflow(wfId)
+        .then(() => {
+          if (editingWorkflowId === wfId) {
+            closeDetail();
+          }
+          loadWorkflows();
+        })
+        .catch((e) => toastError(e instanceof Error ? e.message : "Errore eliminazione workflow"))
+        .finally(() => setDeletingWorkflowId(null));
+    },
+    [closeDetail, editingWorkflowId, loadWorkflows, toastError]
+  );
+
   const openAddStateModal = useCallback(() => {
     if (detail) {
       setNewStateOrder(detail.states.length);
@@ -191,6 +222,75 @@ export const WorkflowConfigPage = () => {
       .catch((e) => toastError(e instanceof Error ? e.message : "Errore aggiunta stato"))
       .finally(() => setAddingState(false));
   }, [detail, newStateCode, newStateLabel, newStateOrder, newStateTerminal, newStateReversible, newStateLock, loadDetail]);
+
+  const openEditState = useCallback((s: WorkflowStateRow) => {
+    setEditingState(s);
+    setEditStateCode(s.code);
+    setEditStateLabel(s.label);
+    setEditStateOrder(s.order);
+    setEditStateTerminal(s.terminal);
+    setEditStateReversible(s.reversible);
+    setEditStateLock(s.apartmentLock);
+    setEditStateOpen(true);
+  }, []);
+
+  const handleSaveEditState = useCallback(() => {
+    if (!detail || !editingState || !editStateCode.trim()) return;
+    setSavingEditState(true);
+    followupApi
+      .patchWorkflowState(editingState._id, {
+        code: editStateCode.trim(),
+        label: editStateLabel.trim() || editStateCode.trim(),
+        order: editStateOrder,
+        terminal: editStateTerminal,
+        reversible: editStateReversible,
+        apartmentLock: editStateLock,
+      })
+      .then(() => {
+        setEditStateOpen(false);
+        setEditingState(null);
+        loadDetail(detail.workflow._id);
+      })
+      .catch((e) => toastError(e instanceof Error ? e.message : "Errore modifica stato"))
+      .finally(() => setSavingEditState(false));
+  }, [
+    detail,
+    editingState,
+    editStateCode,
+    editStateLabel,
+    editStateOrder,
+    editStateTerminal,
+    editStateReversible,
+    editStateLock,
+    loadDetail,
+    toastError,
+  ]);
+
+  const handleDeleteState = useCallback(
+    (stateId: string) => {
+      if (!detail || !window.confirm("Eliminare questo stato? Solo se non è in uso e senza transizioni collegate.")) return;
+      setDeletingStateId(stateId);
+      followupApi
+        .deleteWorkflowState(stateId)
+        .then(() => loadDetail(detail.workflow._id))
+        .catch((e) => toastError(e instanceof Error ? e.message : "Errore eliminazione stato"))
+        .finally(() => setDeletingStateId(null));
+    },
+    [detail, loadDetail, toastError]
+  );
+
+  const handleDeleteTransition = useCallback(
+    (transitionId: string) => {
+      if (!detail || !window.confirm("Rimuovere questa transizione dalla configurazione?")) return;
+      setDeletingTransitionId(transitionId);
+      followupApi
+        .deleteWorkflowTransition(transitionId)
+        .then(() => loadDetail(detail.workflow._id))
+        .catch((e) => toastError(e instanceof Error ? e.message : "Errore eliminazione transizione"))
+        .finally(() => setDeletingTransitionId(null));
+    },
+    [detail, loadDetail, toastError]
+  );
 
   const handleAddTransition = useCallback(() => {
     if (!detail || !newTransFrom || !newTransTo || newTransFrom === newTransTo) return;
@@ -310,15 +410,29 @@ export const WorkflowConfigPage = () => {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {workflows.map((wf) => (
-              <button
-                key={wf._id}
-                type="button"
-                onClick={() => openDetail(wf._id)}
-                className="rounded-ui border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-muted/30 focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <span className="font-medium text-foreground">{wf.name}</span>
-                <span className="ml-2 text-xs text-muted-foreground">{WORKFLOW_TYPE_LABEL[wf.type]}</span>
-              </button>
+              <div key={wf._id} className="rounded-ui border border-border bg-card px-4 py-3 transition-colors hover:bg-muted/30">
+                <button
+                  type="button"
+                  onClick={() => openDetail(wf._id)}
+                  className="w-full text-left focus:outline-none focus:ring-2 focus:ring-ring rounded-ui"
+                >
+                  <span className="font-medium text-foreground">{wf.name}</span>
+                  <span className="ml-2 text-xs text-muted-foreground">{WORKFLOW_TYPE_LABEL[wf.type]}</span>
+                </button>
+                <div className="mt-3 flex justify-end">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                    onClick={() => handleDeleteWorkflow(wf._id)}
+                    disabled={deletingWorkflowId === wf._id || detailLoading}
+                    aria-label="Elimina workflow"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -333,6 +447,20 @@ export const WorkflowConfigPage = () => {
               {detailLoading ? "Caricamento..." : detail ? `Dettaglio workflow ${detail.workflow.name}` : "Workflow"}
             </SheetTitle>
           </SheetHeader>
+          {detail && (
+            <div className="mt-4 flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-destructive border-destructive/30 hover:text-destructive"
+                onClick={() => handleDeleteWorkflow(detail.workflow._id)}
+                disabled={deletingWorkflowId === detail.workflow._id || detailLoading}
+              >
+                {deletingWorkflowId === detail.workflow._id ? "Eliminazione..." : "Elimina workflow"}
+              </Button>
+            </div>
+          )}
           {detailLoading && !detail ? (
             <p className="mt-4 text-sm text-muted-foreground">Caricamento dettaglio workflow...</p>
           ) : detail ? (
@@ -367,6 +495,7 @@ export const WorkflowConfigPage = () => {
                           <th className="text-left font-semibold p-2">Terminale</th>
                           <th className="text-left font-semibold p-2">Reversibile</th>
                           <th className="text-left font-semibold p-2">Lock</th>
+                          <th className="text-right font-semibold p-2 w-24">Azioni</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -378,6 +507,32 @@ export const WorkflowConfigPage = () => {
                             <td className="p-2">{s.terminal ? "Sì" : "—"}</td>
                             <td className="p-2">{s.reversible ? "Sì" : "—"}</td>
                             <td className="p-2">{s.apartmentLock !== "none" ? LOCK_LABEL[s.apartmentLock] : "—"}</td>
+                            <td className="p-2 text-right">
+                              <div className="flex justify-end gap-1">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => openEditState(s)}
+                                  disabled={detailLoading}
+                                  aria-label="Modifica stato"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                  onClick={() => handleDeleteState(s._id)}
+                                  disabled={detailLoading || deletingStateId === s._id}
+                                  aria-label="Elimina stato"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -398,6 +553,7 @@ export const WorkflowConfigPage = () => {
                         <tr>
                           <th className="text-left font-semibold p-2">Da stato</th>
                           <th className="text-left font-semibold p-2">A stato</th>
+                          <th className="text-right font-semibold p-2 w-20">Azioni</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -408,6 +564,19 @@ export const WorkflowConfigPage = () => {
                             <tr key={t._id} className="border-b border-border last:border-0">
                               <td className="p-2">{from?.code ?? t.fromStateId}</td>
                               <td className="p-2">{to?.code ?? t.toStateId}</td>
+                              <td className="p-2 text-right">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                  onClick={() => handleDeleteTransition(t._id)}
+                                  disabled={detailLoading || deletingTransitionId === t._id}
+                                  aria-label="Elimina transizione"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </td>
                             </tr>
                           );
                         })}
@@ -468,6 +637,80 @@ export const WorkflowConfigPage = () => {
             <Button variant="outline" size="sm" className="min-h-11" onClick={() => setAddStateOpen(false)}>Annulla</Button>
             <Button size="sm" className="min-h-11" onClick={handleAddState} disabled={addingState || !newStateCode.trim()}>
               {addingState ? "..." : "Aggiungi"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editStateOpen} onOpenChange={setEditStateOpen}>
+        <DialogContent size="small" className="gap-4">
+          <DialogHeader>
+            <DialogTitle>Modifica stato</DialogTitle>
+          </DialogHeader>
+          {editingState && (
+            <div className="grid gap-3">
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Code</label>
+                <Input
+                  value={editStateCode}
+                  onChange={(e) => setEditStateCode(e.target.value)}
+                  placeholder="es. in_lavorazione"
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Label</label>
+                <Input value={editStateLabel} onChange={(e) => setEditStateLabel(e.target.value)} className="w-full" />
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Ordine</label>
+                <Input
+                  type="number"
+                  value={editStateOrder}
+                  onChange={(e) => setEditStateOrder(Number(e.target.value) || 0)}
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-muted-foreground mb-1">Lock appartamento</label>
+                <Select value={editStateLock} onValueChange={(v) => setEditStateLock(v as ApartmentLockType)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(["none", "soft", "hard"] as const).map((x) => (
+                      <SelectItem key={x} value={x}>
+                        {LOCK_LABEL[x]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={editStateTerminal} onChange={(e) => setEditStateTerminal(e.target.checked)} />
+                Terminale
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={editStateReversible}
+                  onChange={(e) => setEditStateReversible(e.target.checked)}
+                />
+                Reversibile
+              </label>
+            </div>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" className="min-h-11" onClick={() => setEditStateOpen(false)}>
+              Annulla
+            </Button>
+            <Button
+              size="sm"
+              className="min-h-11"
+              onClick={handleSaveEditState}
+              disabled={savingEditState || !editStateCode.trim()}
+            >
+              {savingEditState ? "..." : "Salva"}
             </Button>
           </div>
         </DialogContent>

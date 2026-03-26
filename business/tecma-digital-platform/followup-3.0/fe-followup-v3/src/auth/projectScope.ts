@@ -6,6 +6,7 @@ const ProjectAccessProjectSchema = z.object({
   id: z.string(),
   name: z.string(),
   displayName: z.string().optional(),
+  mode: z.enum(["rent", "sell"]).optional(),
 });
 
 const ProjectScopeSchema = z.object({
@@ -82,14 +83,20 @@ export const loadProjectScope = (): ProjectScopeState | null => {
     const parsed = ProjectScopeSchema.safeParse(JSON.parse(raw));
     if (!parsed.success) return null;
     const data = parsed.data;
+    const projects = data.projects.map((p: { id: string; name: string; displayName?: string; mode?: "rent" | "sell" }) => ({
+      id: p.id,
+      name: p.name,
+      displayName: p.displayName ?? p.name,
+      mode: p.mode,
+    }));
+    const validProjectIds = new Set(projects.map((p) => p.id));
+    const sanitizedSelected = data.selectedProjectIds.filter((id) => validProjectIds.has(id));
+    const selectedProjectIds = sanitizedSelected.length > 0 ? sanitizedSelected : projects.map((p) => p.id);
     return {
       ...data,
       permissions: data.permissions ?? [],
-      projects: data.projects.map((p: { id: string; name: string; displayName?: string }) => ({
-        id: p.id,
-        name: p.name,
-        displayName: p.displayName ?? p.name,
-      })),
+      projects,
+      selectedProjectIds,
     };
   } catch {
     return null;
@@ -132,6 +139,7 @@ export const useWorkspace = () => {
   };
   return {
     workspaceId: override?.workspaceId ?? scope?.workspaceId ?? "",
+    apiEnvironment: scope?.apiEnvironment,
     selectedProjectIds: override?.selectedProjectIds ?? scope?.selectedProjectIds ?? [],
     projects: override?.projects ?? scope?.projects ?? [],
     email: scope?.email ?? "",

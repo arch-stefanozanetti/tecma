@@ -8,6 +8,7 @@ import {
   DrawerCloseButton,
 } from "../../components/ui/drawer";
 import { Input } from "../../components/ui/input";
+import { Textarea } from "../../components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -34,6 +35,30 @@ export interface ClientDetailAnagraficaProps {
   setFormCity: (v: string) => void;
   formStatus: string;
   setFormStatus: (v: string) => void;
+  formBudget: string;
+  setFormBudget: (v: string) => void;
+  formMotivazione: string;
+  setFormMotivazione: (v: string) => void;
+  formNote: string;
+  setFormNote: (v: string) => void;
+  formProfilazione: boolean;
+  setFormProfilazione: (v: boolean) => void;
+  formTrattamento: boolean;
+  setFormTrattamento: (v: boolean) => void;
+  formMarketing: boolean;
+  setFormMarketing: (v: boolean) => void;
+  formConiugeNome: string;
+  setFormConiugeNome: (v: string) => void;
+  formConiugeCognome: string;
+  setFormConiugeCognome: (v: string) => void;
+  formConiugeMail: string;
+  setFormConiugeMail: (v: string) => void;
+  formFamilyAdulti: string;
+  setFormFamilyAdulti: (v: string) => void;
+  formFamilyBambini: string;
+  setFormFamilyBambini: (v: string) => void;
+  formFamilyAnimali: string;
+  setFormFamilyAnimali: (v: string) => void;
   formAdditionalInfo: Record<string, unknown>;
   setFormAdditionalInfo: React.Dispatch<React.SetStateAction<Record<string, unknown>>>;
   additionalInfos: AdditionalInfoRow[];
@@ -57,6 +82,30 @@ export default function ClientDetailAnagrafica({
   setFormCity,
   formStatus,
   setFormStatus,
+  formBudget,
+  setFormBudget,
+  formMotivazione,
+  setFormMotivazione,
+  formNote,
+  setFormNote,
+  formProfilazione,
+  setFormProfilazione,
+  formTrattamento,
+  setFormTrattamento,
+  formMarketing,
+  setFormMarketing,
+  formConiugeNome,
+  setFormConiugeNome,
+  formConiugeCognome,
+  setFormConiugeCognome,
+  formConiugeMail,
+  setFormConiugeMail,
+  formFamilyAdulti,
+  setFormFamilyAdulti,
+  formFamilyBambini,
+  setFormFamilyBambini,
+  formFamilyAnimali,
+  setFormFamilyAnimali,
   formAdditionalInfo,
   setFormAdditionalInfo,
   additionalInfos,
@@ -136,6 +185,54 @@ export default function ClientDetailAnagrafica({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Budget</label>
+              <Input
+                className="min-h-11 rounded-lg border-border"
+                value={formBudget}
+                onChange={(e) => setFormBudget(e.target.value)}
+                placeholder="Es. 350000"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Motivazione</label>
+              <Input
+                className="min-h-11 rounded-lg border-border"
+                value={formMotivazione}
+                onChange={(e) => setFormMotivazione(e.target.value)}
+                placeholder="Motivazione acquisto/affitto"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Consensi legacy</label>
+              <div className="grid grid-cols-3 gap-2">
+                <Button type="button" variant={formProfilazione ? "default" : "outline"} onClick={() => setFormProfilazione(!formProfilazione)}>Profilazione</Button>
+                <Button type="button" variant={formTrattamento ? "default" : "outline"} onClick={() => setFormTrattamento(!formTrattamento)}>Trattamento</Button>
+                <Button type="button" variant={formMarketing ? "default" : "outline"} onClick={() => setFormMarketing(!formMarketing)}>Marketing</Button>
+              </div>
+            </div>
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <p className="text-sm font-medium text-foreground">Coniuge</p>
+              <Input className="min-h-11 rounded-lg border-border" value={formConiugeNome} onChange={(e) => setFormConiugeNome(e.target.value)} placeholder="Nome" />
+              <Input className="min-h-11 rounded-lg border-border" value={formConiugeCognome} onChange={(e) => setFormConiugeCognome(e.target.value)} placeholder="Cognome" />
+              <Input className="min-h-11 rounded-lg border-border" value={formConiugeMail} onChange={(e) => setFormConiugeMail(e.target.value)} placeholder="Email" />
+            </div>
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <p className="text-sm font-medium text-foreground">Famiglia</p>
+              <Input className="min-h-11 rounded-lg border-border" type="number" value={formFamilyAdulti} onChange={(e) => setFormFamilyAdulti(e.target.value)} placeholder="Adulti" />
+              <Input className="min-h-11 rounded-lg border-border" type="number" value={formFamilyBambini} onChange={(e) => setFormFamilyBambini(e.target.value)} placeholder="Bambini" />
+              <Input className="min-h-11 rounded-lg border-border" type="number" value={formFamilyAnimali} onChange={(e) => setFormFamilyAnimali(e.target.value)} placeholder="Animali" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Note legacy</label>
+              <Textarea
+                className="rounded-lg border-border"
+                value={formNote}
+                onChange={(e) => setFormNote(e.target.value)}
+                rows={3}
+                placeholder="Note cliente"
+              />
             </div>
             {additionalInfos
               .filter((ai) => (ai.path ?? "additionalInfo") === "additionalInfo" && ai.active !== false)

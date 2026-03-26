@@ -11,6 +11,7 @@ const InputSchema = z.object({
 
 type ProjectDoc = {
   _id?: ObjectId | string;
+  legacyProjectId?: string;
   name?: string;
   displayName?: string;
   mode?: "rent" | "sell";
@@ -65,11 +66,12 @@ const fetchTzProjects = async (filterIds?: string[]): Promise<ProjectDoc[]> => {
   const coll = db.collection("tz_projects");
   const query: Record<string, unknown> = { archived: { $ne: true } };
   if (filterIds && filterIds.length > 0) {
-    query._id = { $in: filterIds };
+    const objectIds = filterIds.filter((id) => ObjectId.isValid(id)).map((id) => new ObjectId(id));
+    query.$or = [{ _id: { $in: filterIds } }, { _id: { $in: objectIds } }, { legacyProjectId: { $in: filterIds } }];
   }
   const docs = await coll
     .find(query)
-    .project({ _id: 1, name: 1, displayName: 1, mode: 1 })
+    .project({ _id: 1, legacyProjectId: 1, name: 1, displayName: 1, mode: 1 })
     .toArray();
   return docs as ProjectDoc[];
 };
@@ -134,23 +136,36 @@ export const getProjectAccessByEmail = async (rawInput: unknown) => {
     }
   }
 
-  const seenIds = new Set<string>();
-  const merged: ProjectDoc[] = [];
+  const byId = new Map<string, ProjectDoc>();
   for (const p of [...projectsFromProjectDb, ...projectsFromTz]) {
     const id = normalizeId(p._id ?? "");
-    if (id && !seenIds.has(id)) {
-      seenIds.add(id);
-      merged.push(p);
+    if (!id) continue;
+    const prev = byId.get(id);
+    if (!prev) {
+      byId.set(id, p);
+      continue;
     }
+    // Prefer fields from tz_projects when duplicate ids exist.
+    byId.set(id, {
+      ...prev,
+      ...p,
+      _id: prev._id ?? p._id,
+    });
   }
+  const merged = [...byId.values()];
 
-  let normalizedProjects = merged.map(buildProjectOutput).sort((a, b) => a.displayName.localeCompare(b.displayName));
+  const allNormalizedProjects = merged.map(buildProjectOutput).sort((a, b) => a.displayName.localeCompare(b.displayName));
+  let normalizedProjects = allNormalizedProjects;
 
   if (workspaceId) {
     const inWorkspace = await loadWorkspaceProjectIds(workspaceId);
     if (inWorkspace.length > 0) {
       const wsSet = new Set(inWorkspace);
-      normalizedProjects = normalizedProjects.filter((p) => wsSet.has(p.id));
+      normalizedProjects = normalizedProjects.filter((p) => {
+        if (wsSet.has(p.id)) return true;
+        const matchedById = merged.find((m) => normalizeId(m._id ?? "") === p.id);
+        return typeof matchedById?.legacyProjectId === "string" && wsSet.has(matchedById.legacyProjectId);
+      });
     }
     if (!isAdmin && inWorkspace.length > 0) {
       const emailKey = email.trim().toLowerCase();
@@ -159,6 +174,10 @@ export const getProjectAccessByEmail = async (rawInput: unknown) => {
         const allowed = new Set(userProjectIds);
         normalizedProjects = normalizedProjects.filter((p) => allowed.has(p.id));
       }
+    }
+    // Hardening: evita lockout admin se i riferimenti projectId nel workspace sono incoerenti.
+    if (isAdmin && normalizedProjects.length === 0 && allNormalizedProjects.length > 0) {
+      normalizedProjects = allNormalizedProjects;
     }
   }
 

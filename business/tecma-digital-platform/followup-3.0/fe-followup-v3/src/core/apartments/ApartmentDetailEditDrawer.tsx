@@ -24,6 +24,24 @@ export interface ApartmentDetailEditDrawerProps {
   onStatusChange: (v: ApartmentRow["status"]) => void;
   surfaceMq: string;
   onSurfaceMqChange: (v: string) => void;
+  floor: string;
+  onFloorChange: (v: string) => void;
+  typologyName: string;
+  onTypologyNameChange: (v: string) => void;
+  rooms: string;
+  onRoomsChange: (v: string) => void;
+  bedrooms: string;
+  onBedroomsChange: (v: string) => void;
+  bathrooms: string;
+  onBathroomsChange: (v: string) => void;
+  tags: string;
+  onTagsChange: (v: string) => void;
+  planimetryUrl: string;
+  onPlanimetryUrlChange: (v: string) => void;
+  additionalPlanimetryUrls: string;
+  onAdditionalPlanimetryUrlsChange: (v: string) => void;
+  extraNote: string;
+  onExtraNoteChange: (v: string) => void;
   error: string | null;
   saving: boolean;
   onSubmit: (e: React.FormEvent) => void;
@@ -40,6 +58,24 @@ export function ApartmentDetailEditDrawer({
   onStatusChange,
   surfaceMq,
   onSurfaceMqChange,
+  floor,
+  onFloorChange,
+  typologyName,
+  onTypologyNameChange,
+  rooms,
+  onRoomsChange,
+  bedrooms,
+  onBedroomsChange,
+  bathrooms,
+  onBathroomsChange,
+  tags,
+  onTagsChange,
+  planimetryUrl,
+  onPlanimetryUrlChange,
+  additionalPlanimetryUrls,
+  onAdditionalPlanimetryUrlsChange,
+  extraNote,
+  onExtraNoteChange,
   error,
   saving,
   onSubmit,
@@ -96,6 +132,53 @@ export function ApartmentDetailEditDrawer({
                 onChange={(e) => onSurfaceMqChange(e.target.value)}
                 required
               />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Piano</label>
+              <Input
+                type="number"
+                className="min-h-11 rounded-lg border-border"
+                value={floor}
+                onChange={(e) => onFloorChange(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Tipologia (legacy plan)</label>
+              <Input className="min-h-11 rounded-lg border-border" value={typologyName} onChange={(e) => onTypologyNameChange(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <Input type="number" className="min-h-11 rounded-lg border-border" value={rooms} onChange={(e) => onRoomsChange(e.target.value)} placeholder="Vani" />
+              <Input type="number" className="min-h-11 rounded-lg border-border" value={bedrooms} onChange={(e) => onBedroomsChange(e.target.value)} placeholder="Camere" />
+              <Input type="number" className="min-h-11 rounded-lg border-border" value={bathrooms} onChange={(e) => onBathroomsChange(e.target.value)} placeholder="Bagni" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Tag (separati da virgola)</label>
+              <Input className="min-h-11 rounded-lg border-border" value={tags} onChange={(e) => onTagsChange(e.target.value)} placeholder="vista mare, premium" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">URL planimetria principale</label>
+              <Input
+                type="url"
+                className="min-h-11 rounded-lg border-border"
+                value={planimetryUrl}
+                onChange={(e) => onPlanimetryUrlChange(e.target.value)}
+                placeholder="https://..."
+              />
+              <p className="mt-1 text-xs text-muted-foreground">Obbligatorio in fase di creazione; lascia vuoto per non modificare l&apos;URL già salvato.</p>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Altre planimetrie (URL)</label>
+              <Input
+                className="min-h-11 rounded-lg border-border"
+                value={additionalPlanimetryUrls}
+                onChange={(e) => onAdditionalPlanimetryUrlsChange(e.target.value)}
+                placeholder="https://..., https://..."
+              />
+              <p className="mt-1 text-xs text-muted-foreground">Separati da virgola; compaiono nella galleria in Panoramica.</p>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Nota extra info</label>
+              <Input className="min-h-11 rounded-lg border-border" value={extraNote} onChange={(e) => onExtraNoteChange(e.target.value)} placeholder="Informazione legacy aggiuntiva" />
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
           </DrawerBody>

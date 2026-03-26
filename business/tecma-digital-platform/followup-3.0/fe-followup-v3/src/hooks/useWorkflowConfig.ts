@@ -1,10 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { followupApi } from "../api/followupApi";
-import {
-  REQUEST_STATUS_LABEL,
-  REQUEST_ALLOWED_TRANSITIONS,
-  REQUEST_STATUS_ORDER,
-} from "../constants/requestStatus";
+import { projectsApi } from "../api/domains/projectsApi";
 import type { RequestStatus } from "../types/domain";
 import type { WorkflowWithDetail } from "../types/domain";
 
@@ -59,53 +55,66 @@ function buildFromWorkflow(detail: WorkflowWithDetail): {
 
 /**
  * Carica la config workflow per workspace + tipo e espone label, transizioni e ordine stati.
- * Se non c'è workflow configurato, usa le costanti di fallback.
+ * Con `projectId`, se presente override in Impostazioni progetto → workflow, usa quel workflow.
+ * Altrimenti il primo workflow del tipo sul workspace.
+ * Se non c'è workflow configurato, restituisce errore esplicito (hard cut no-fallback).
  */
 export function useWorkflowConfig(
   workspaceId: string | undefined,
-  type: "rent" | "sell"
+  type: "rent" | "sell",
+  projectId?: string
 ): WorkflowConfigResult {
-  const [workflowsData, setWorkflowsData] = useState<{ workflows: { _id: string; type: string }[] } | null>(null);
   const [detail, setDetail] = useState<WorkflowWithDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
   useEffect(() => {
     if (!workspaceId) {
-      setWorkflowsData(null);
       setDetail(null);
       return;
     }
     let cancelled = false;
     setLoading(true);
     setError(null);
-    followupApi
-      .listWorkflowsByWorkspace(workspaceId)
-      .then((res) => {
-        if (cancelled) return;
-        setWorkflowsData(res);
-        const w = res.workflows?.find((x) => x.type === type);
-        if (!w) {
-          setDetail(null);
-          setLoading(false);
-          return;
+
+    const loadDefaultByWorkspace = async (): Promise<WorkflowWithDetail | null> => {
+      const res = await followupApi.listWorkflowsByWorkspace(workspaceId);
+      const w = res.workflows?.find((x) => x.type === type);
+      if (!w) return null;
+      return followupApi.getWorkflowWithStatesAndTransitions(w._id);
+    };
+
+    const run = async (): Promise<void> => {
+      try {
+        if (projectId) {
+          try {
+            const settings = await projectsApi.getProjectWorkflowSettings(projectId, workspaceId);
+            if (settings.workflowId) {
+              const d = await followupApi.getWorkflowWithStatesAndTransitions(settings.workflowId);
+              if (!cancelled) setDetail(d);
+              return;
+            }
+          } catch {
+            /* fallback workspace default */
+          }
         }
-        return followupApi.getWorkflowWithStatesAndTransitions(w._id);
-      })
-      .then((d) => {
-        if (cancelled || d === undefined) return;
-        setDetail(d);
-      })
-      .catch((e) => {
+        const d = await loadDefaultByWorkspace();
+        if (!d) {
+          throw new Error(`Workflow non configurato per tipo "${type}"`);
+        }
+        if (!cancelled) setDetail(d);
+      } catch (e) {
         if (!cancelled) setError(e);
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    };
+
+    void run();
     return () => {
       cancelled = true;
     };
-  }, [workspaceId, type]);
+  }, [workspaceId, type, projectId]);
 
   return useMemo((): WorkflowConfigResult => {
     if (detail?.workflow && detail?.states?.length) {
@@ -118,9 +127,9 @@ export function useWorkflowConfig(
       };
     }
     return {
-      statusLabelByCode: REQUEST_STATUS_LABEL as Record<string, string>,
-      allowedNextStatuses: (current: RequestStatus) => REQUEST_ALLOWED_TRANSITIONS[current] ?? [],
-      statusOrder: REQUEST_STATUS_ORDER,
+      statusLabelByCode: {},
+      allowedNextStatuses: () => [],
+      statusOrder: [],
       workflowDetail: null,
       loading,
       error,

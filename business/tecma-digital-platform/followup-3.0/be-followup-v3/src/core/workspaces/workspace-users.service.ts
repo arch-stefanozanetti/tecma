@@ -21,8 +21,12 @@ async function ensureUniqueIndex(): Promise<void> {
   } catch (err) {
     if (err instanceof MongoServerError && (err.code === 85 || err.code === 86)) {
       logger.warn({ err, code: err.code }, "[workspace-users] createIndex conflict, continuing");
+    } else if (err instanceof MongoServerError) {
+      // Hardening: non bloccare i read-path (access checks) se il DB non consente createIndex
+      // o se c'è un errore indice non critico runtime.
+      logger.warn({ err, code: err.code }, "[workspace-users] createIndex failed, continuing without ensuring index");
     } else {
-      throw err;
+      logger.warn({ err }, "[workspace-users] createIndex failed (non-mongo), continuing without ensuring index");
     }
   }
   indexEnsured = true;

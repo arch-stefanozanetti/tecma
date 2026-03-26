@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
+import { useWorkspace } from "../../auth/projectScope";
 
 interface AssociateAptClientPageProps {
   workspaceId: string;
@@ -42,6 +43,7 @@ export const AssociateAptClientPage = ({
   initialApartmentId,
   initialStatus,
 }: AssociateAptClientPageProps) => {
+  const { projects } = useWorkspace();
   const [clients, setClients] = useState<Array<{ _id: string; fullName: string; email: string }>>([]);
   const [apartments, setApartments] = useState<ApartmentRow[]>([]);
   const [clientId, setClientId] = useState(initialClientId ?? "");
@@ -54,6 +56,13 @@ export const AssociateAptClientPage = ({
   const [selectedProjectId, setSelectedProjectId] = useState(projectIds[0] ?? "");
   const [searchText, setSearchText] = useState("");
   const [commandText, setCommandText] = useState("associa");
+  const projectLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of projects ?? []) {
+      map.set(p.id, p.displayName?.trim() || p.name?.trim() || p.id);
+    }
+    return map;
+  }, [projects]);
 
   const activeProjectIds = useMemo(() => (selectedProjectId ? [selectedProjectId] : projectIds), [selectedProjectId, projectIds]);
 
@@ -243,7 +252,7 @@ export const AssociateAptClientPage = ({
                 <SelectContent>
                   {projectIds.map((projectId) => (
                     <SelectItem key={projectId} value={projectId}>
-                      {projectId}
+                      {projectLabelById.get(projectId) ?? projectId}
                     </SelectItem>
                   ))}
                 </SelectContent>

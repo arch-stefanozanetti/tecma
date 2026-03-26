@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   ExternalLink,
 } from "lucide-react";
@@ -47,6 +47,7 @@ type ClientFormMode = "create" | "edit";
 
 export const ClientsPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const isMobile = useIsMobile();
   const { workspaceId, selectedProjectIds, projects, hasPermission } = useWorkspace();
   const canClientsRead = hasPermission("clients.read");
@@ -76,6 +77,13 @@ export const ClientsPage = () => {
   const [formSaving, setFormSaving] = useState(false);
   const [additionalInfos, setAdditionalInfos] = useState<AdditionalInfoRow[]>([]);
   const otherOptionsRef = useRef<HTMLDivElement>(null);
+  const projectLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of projects ?? []) {
+      map.set(p.id, p.displayName?.trim() || p.name?.trim() || p.id);
+    }
+    return map;
+  }, [projects]);
 
   useEffect(() => {
     if (!workspaceId) return;
@@ -225,6 +233,22 @@ export const ClientsPage = () => {
     filters,
     enabled: !!(workspaceId && selectedProjectIds.length > 0),
   });
+
+  // Preset filtri da insight/report (loop insight -> azione).
+  useEffect(() => {
+    const preset = (location.state as { presetFilters?: { status?: string; searchText?: string } } | null)?.presetFilters;
+    if (!preset) return;
+    if (preset.status) {
+      setStatusFilter(preset.status);
+      setFiltersDraft((prev) => ({ ...prev, status: preset.status ?? prev.status }));
+    }
+    if (preset.searchText) {
+      setSearch(preset.searchText);
+      setCommittedSearch(preset.searchText);
+    }
+    setPage(1);
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.state, location.pathname, navigate, setCommittedSearch, setPage]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -408,7 +432,12 @@ export const ClientsPage = () => {
                     <p><span className="font-medium text-foreground">Creato il:</span> {formatDate(selectedClient.createdAt)}</p>
                     <p><span className="font-medium text-foreground">Aggiornato il:</span> {formatDate(selectedClient.updatedAt)}</p>
                     {selectedClient.source != null && <p><span className="font-medium text-foreground">Fonte:</span> {selectedClient.source}</p>}
-                    {selectedClient.projectId != null && <p><span className="font-medium text-foreground">Progetto:</span> {selectedClient.projectId}</p>}
+                    {selectedClient.projectId != null && (
+                      <p>
+                        <span className="font-medium text-foreground">Progetto:</span>{" "}
+                        {projectLabelById.get(selectedClient.projectId) ?? selectedClient.projectId}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

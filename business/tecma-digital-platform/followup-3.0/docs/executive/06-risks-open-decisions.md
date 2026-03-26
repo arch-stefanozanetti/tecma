@@ -46,6 +46,6 @@ xychart-beta
 
 ## Documentazione correlata
 
-[PIANO_GLOBALE_FOLLOWUP_3.md](../PIANO_GLOBALE_FOLLOWUP_3.md) · [ACCEPTANCE_GATES.md](../ACCEPTANCE_GATES.md) · [PENTEST_EXECUTION.md](../PENTEST_EXECUTION.md) · [PENTEST_VENDOR_HANDOFF.md](../PENTEST_VENDOR_HANDOFF.md)
+[PIANO_GLOBALE_FOLLOWUP_3.md](../PIANO_GLOBALE_FOLLOWUP_3.md) · [ACCEPTANCE_GATES.md](../ACCEPTANCE_GATES.md) · [PENTEST_EXECUTION.md](../PENTEST_EXECUTION.md) · [PENTEST_VENDOR_HANDOFF.md](../PENTEST_VENDOR_HANDOFF.md) · [07 — Migrazione legacy e parità dati](07-legacy-migration-and-data-parity.md)
 
 [README.md](README.md) · [01 executive summary](01-executive-summary.md)

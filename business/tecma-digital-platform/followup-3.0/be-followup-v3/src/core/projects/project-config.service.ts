@@ -37,3 +37,8 @@ export {
   getProjectMarketingSettingsRaw,
   putProjectMarketingSettings,
 } from "./project-marketing-settings.service.js";
+export type { ProjectLegacyOverridesRow } from "./project-legacy-overrides.service.js";
+export {
+  getProjectLegacyOverrides,
+  putProjectLegacyOverrides,
+} from "./project-legacy-overrides.service.js";
