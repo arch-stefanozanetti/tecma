@@ -43,7 +43,7 @@ const APARTMENTS_PER_PAGE = 10;
 export const ApartmentsPage = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const { workspaceId, selectedProjectIds, hasPermission } = useWorkspace();
+  const { workspaceId, selectedProjectIds, projects, hasPermission } = useWorkspace();
   const canReadApartments = hasPermission("apartments.read");
   const canCreateApartments = hasPermission("apartments.create");
   const canUpdateApartments = hasPermission("apartments.update");
@@ -176,6 +176,11 @@ export const ApartmentsPage = () => {
   const totalPages = Math.max(1, Math.ceil(total / APARTMENTS_PER_PAGE));
   const pageStart = total === 0 ? 0 : (page - 1) * APARTMENTS_PER_PAGE + 1;
   const pageEnd = Math.min(total, page * APARTMENTS_PER_PAGE);
+  const showProjectColumn = selectedProjectIds.length > 1;
+  const projectNameById = useMemo(() => {
+    const map = new Map(projects.map((p) => [p.id, p.displayName ?? p.name]));
+    return (projectId: string) => map.get(projectId) ?? projectId;
+  }, [projects]);
 
   return (
     <div className="min-h-full bg-app font-body text-foreground">
@@ -191,6 +196,8 @@ export const ApartmentsPage = () => {
           isLoading={isLoading}
           apartments={apartments}
           committedSearch={committedSearch}
+          showProjectColumn={showProjectColumn}
+          projectNameById={projectNameById}
           createApartmentDisabled={!canCreateApartments}
           createApartmentTitle={!canCreateApartments ? "Non hai il permesso di creare appartamenti" : undefined}
           importExcelDisabled={!canUpdateApartments}

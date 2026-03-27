@@ -1,4 +1,16 @@
-import { ArrowLeftRight, Download, ExternalLink, Filter, MoreHorizontal, RefreshCcw, RotateCcw, Search, Upload } from "lucide-react";
+import {
+  ArrowLeftRight,
+  Download,
+  Euro,
+  ExternalLink,
+  Filter,
+  KeyRound,
+  MoreHorizontal,
+  RefreshCcw,
+  RotateCcw,
+  Search,
+  Upload,
+} from "lucide-react";
 import type { MutableRefObject } from "react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -44,6 +56,10 @@ interface ApartmentsListSectionProps {
   /** Gate JWT: apartments.export */
   exportExcelDisabled?: boolean;
   exportExcelTitle?: string;
+  /** Se true, mostra la colonna progetto (utile con più progetti in scope). */
+  showProjectColumn?: boolean;
+  /** Risolve projectId → nome visualizzato. */
+  projectNameById: (projectId: string) => string;
 }
 
 export const ApartmentsListSection = ({
@@ -79,8 +95,11 @@ export const ApartmentsListSection = ({
   importExcelTitle,
   exportExcelDisabled = false,
   exportExcelTitle,
+  showProjectColumn = false,
+  projectNameById,
 }: ApartmentsListSectionProps) => {
   const isMobile = useIsMobile();
+  const tableColSpan = showProjectColumn ? 12 : 11;
   return (
     <>
       <div className="flex flex-wrap items-start gap-3">
@@ -207,6 +226,17 @@ export const ApartmentsListSection = ({
                   >
                     <div className="font-medium text-foreground">{apt.code}</div>
                     {apt.name && apt.name !== apt.code && <div className="mt-0.5 truncate text-sm text-muted-foreground">{apt.name}</div>}
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1" title={apt.mode === "RENT" ? "Affitto" : "Vendita"}>
+                        {apt.mode === "RENT" ? <KeyRound className="h-3.5 w-3.5 shrink-0" aria-hidden /> : <Euro className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+                        <span className="sr-only">{apt.mode === "RENT" ? "Affitto" : "Vendita"}</span>
+                      </span>
+                      {showProjectColumn && (
+                        <span className="truncate max-w-[min(100%,12rem)]" title={projectNameById(apt.projectId)}>
+                          {projectNameById(apt.projectId)}
+                        </span>
+                      )}
+                    </div>
                     <div className="mt-1 flex items-center justify-between gap-2 flex-wrap">
                       <span className="text-xs text-muted-foreground">{apt.normalizedPrice?.display ?? "—"}</span>
                       <span className={cn("text-xs", availability.className)}>{availability.label}</span>
@@ -222,10 +252,14 @@ export const ApartmentsListSection = ({
           </div>
 
           <div className="hidden md:block overflow-x-auto">
-            <table className="w-full min-w-[1020px]">
+            <table className="w-full min-w-[1100px]">
               <thead>
                 <tr className="border-b border-border text-left text-sm font-normal text-muted-foreground">
                   <th className="w-10 px-4 py-4 font-normal" />
+                  <th className="w-11 px-2 py-4 text-center font-normal" title="Vendita o affitto">
+                    <span className="sr-only">Modalità</span>
+                  </th>
+                  {showProjectColumn && <th className="max-w-[160px] px-3 py-4 font-normal">Progetto</th>}
                   <th className="px-4 py-4 font-normal">Appartamento</th>
                   <th className="px-4 py-4 font-normal">Aggiornato il</th>
                   <th className="px-4 py-4 font-normal">Tipologia</th>
@@ -239,9 +273,9 @@ export const ApartmentsListSection = ({
               </thead>
               <tbody>
                 {isLoading && apartments.length === 0 ? (
-                  <tr><td colSpan={10} className="px-4 py-16 text-center text-sm text-muted-foreground">Caricamento...</td></tr>
+                  <tr><td colSpan={tableColSpan} className="px-4 py-16 text-center text-sm text-muted-foreground">Caricamento...</td></tr>
                 ) : apartments.length === 0 ? (
-                  <tr><td colSpan={10} className="px-4 py-16 text-center text-sm text-muted-foreground">{committedSearch ? "Nessun risultato per questa ricerca" : "Nessun appartamento trovato"}</td></tr>
+                  <tr><td colSpan={tableColSpan} className="px-4 py-16 text-center text-sm text-muted-foreground">{committedSearch ? "Nessun risultato per questa ricerca" : "Nessun appartamento trovato"}</td></tr>
                 ) : (
                   apartments.map((apt) => {
                     const availability = availabilityInfo(apt.status);
@@ -253,6 +287,22 @@ export const ApartmentsListSection = ({
                             <ExternalLink className="h-3.5 w-3.5" />
                           </button>
                         </td>
+                        <td className="w-11 px-2 py-4 text-center align-middle">
+                          <span
+                            className="inline-flex items-center justify-center text-muted-foreground"
+                            title={apt.mode === "RENT" ? "Affitto" : "Vendita"}
+                            aria-label={apt.mode === "RENT" ? "Affitto" : "Vendita"}
+                          >
+                            {apt.mode === "RENT" ? <KeyRound className="h-3.5 w-3.5" /> : <Euro className="h-3.5 w-3.5" />}
+                          </span>
+                        </td>
+                        {showProjectColumn && (
+                          <td className="max-w-[160px] px-3 py-4 align-middle">
+                            <span className="block truncate text-xs text-muted-foreground" title={projectNameById(apt.projectId)}>
+                              {projectNameById(apt.projectId)}
+                            </span>
+                          </td>
+                        )}
                         <td className="px-4 py-4">
                           <button type="button" className="text-left font-normal text-primary hover:underline" onClick={(e) => { e.stopPropagation(); onOpenApartment(apt._id); }}>
                             {apt.code}
