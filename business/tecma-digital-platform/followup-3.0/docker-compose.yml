@@ -42,14 +42,27 @@ services:
     restart: unless-stopped
     environment:
       VITE_PROXY_TARGET: http://be:8080
+      VITE_EXPERIMENTAL_EDITOR_PROXY_TARGET: http://editor:3002
     ports:
       - "5177:5177"
     depends_on:
       - be
+      - editor
     volumes:
       - ./fe-followup-v3:/app
       - ../design-system:/app/design-system
       - /app/node_modules
+
+  editor:
+    build:
+      context: ./experimental/pascal-editor
+      dockerfile: Dockerfile
+    container_name: followup-experimental-editor
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_BASE_PATH: /experimental/editor
+    ports:
+      - "3002:3002"
 
 volumes:
   mongo-data:

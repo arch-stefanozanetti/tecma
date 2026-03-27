@@ -4,8 +4,11 @@
   "description": "Followup 3.0 – CRM multi-progetto (BE + FE). Avvio 100% in locale.",
   "scripts": {
     "dev": "concurrently -n be,fe \"npm run dev:be\" \"npm run dev:fe\"",
+    "dev:all": "concurrently -n be,fe,editor \"npm run dev:be\" \"npm run dev:fe\" \"npm run dev:editor\"",
     "dev:be": "cd be-followup-v3 && npm run dev",
     "dev:fe": "cd fe-followup-v3 && npm run dev",
+    "dev:editor": "cd experimental/pascal-editor && bun install && bun run dev",
+    "build:editor": "cd experimental/pascal-editor && bun run build",
     "test": "npm run test:be && npm run test:fe",
     "test:be": "cd be-followup-v3 && npm run test",
     "test:fe": "cd fe-followup-v3 && npm run test:run",

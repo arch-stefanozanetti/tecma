@@ -4,6 +4,8 @@ Nuovo CRM multi-progetto creato da zero.
 
 **Documentazione:** [docs/README.md](docs/README.md) (indice) · **Leadership (CTO/CEO):** [docs/executive/README.md](docs/executive/README.md) · **Piano di riferimento unico (visione e wave):** [docs/FOLLOWUP_3_MASTER.md](docs/FOLLOWUP_3_MASTER.md) · **Modello Request/Deal (Wave 4):** [docs/REQUESTS_MODEL.md](docs/REQUESTS_MODEL.md)
 
+**Experimental:** [docs/EXPERIMENTAL_EDITOR.md](docs/EXPERIMENTAL_EDITOR.md) (integrazione Pascal 3D Editor su `/experimental/editor`, area Tecma superadmin).
+
 ## Componenti
 - `be-followup-v3` REST API modulare (solo MongoDB; Supabase rimosso)
 - `fe-followup-v3` frontend React/TypeScript

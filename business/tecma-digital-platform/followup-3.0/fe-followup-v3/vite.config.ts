@@ -13,6 +13,10 @@ const proxyTarget =
   typeof process.env.VITE_PROXY_TARGET === "string" && process.env.VITE_PROXY_TARGET
     ? process.env.VITE_PROXY_TARGET
     : "http://localhost:8080";
+const experimentalEditorProxyTarget =
+  typeof process.env.VITE_EXPERIMENTAL_EDITOR_PROXY_TARGET === "string" && process.env.VITE_EXPERIMENTAL_EDITOR_PROXY_TARGET
+    ? process.env.VITE_EXPERIMENTAL_EDITOR_PROXY_TARGET
+    : "http://localhost:3002";
 
 /** Deploy sotto path (dev-1 multi-canale). Es. `/app/main/` — deve coincidere con rewrite CDN/Render. */
 const viteBaseRaw = (process.env.VITE_BASE_PATH ?? "").trim();
@@ -115,6 +119,11 @@ export default defineConfig({
       "/v1": {
         target: proxyTarget,
         changeOrigin: true
+      },
+      "/experimental/editor": {
+        target: experimentalEditorProxyTarget,
+        changeOrigin: true,
+        ws: true,
       }
     }
   },

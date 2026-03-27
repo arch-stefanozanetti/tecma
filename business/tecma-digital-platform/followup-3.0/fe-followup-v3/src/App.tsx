@@ -47,6 +47,7 @@ import { CustomerPortalPage } from "./core/customer-portal/CustomerPortalPage";
 import { ProjectsPage } from "./core/projects/ProjectsPage";
 import { InboxPage } from "./core/shared/InboxPage";
 import { Customer360Page } from "./core/customer360/Customer360Page";
+import { ExperimentalHubPage } from "./core/experimental/ExperimentalHubPage";
 import { isSectionEnabledByFeature, isPriceAvailabilityRelevant } from "./core/features";
 import {
   SECTIONS,
@@ -107,6 +108,7 @@ const renderSection = (
   hasPermission?: (perm: string) => boolean,
   isTecmaAdmin?: boolean
 ): ReactNode => {
+  const editorUrl = import.meta.env.VITE_EXPERIMENTAL_EDITOR_URL?.trim() || "/experimental/editor";
   if (!isSectionEnabledByFeature(section, enabledFeatures)) {
     return (
       <PageSimple title="Funzionalità non disponibile" description="Questa funzionalità non è abilitata per il workspace corrente.">
@@ -277,6 +279,24 @@ const renderSection = (
     return (
       <PageSimple title="Product Discovery" description="Feedback clienti, opportunità, iniziative e feature (solo admin).">
         <ProductDiscoveryPage />
+      </PageSimple>
+    );
+  }
+
+  if (section === "experimental") {
+    if (!isTecmaAdmin) {
+      return (
+        <PageSimple title="Accesso negato" description="Solo superadmin Tecma possono aprire l'area Experimental.">
+          <p className="text-sm text-muted-foreground">Verifica il ruolo sull'account o contatta Tecma.</p>
+        </PageSimple>
+      );
+    }
+    return (
+      <PageSimple
+        title="Experimental"
+        description="Area sperimentale riservata ai superadmin Tecma. Le funzionalita qui presenti possono cambiare o essere rimosse."
+      >
+        <ExperimentalHubPage editorUrl={editorUrl} />
       </PageSimple>
     );
   }
