@@ -1,5 +1,10 @@
 # Lessons (agent / team)
 
+## 2026-04-08 — Priorità prodotto solo nel repo Followup
+
+- **Problema:** suggerire Jira/etichette esterne per A/B/C non risponde al bisogno di tracciare e implementare tutto *dentro* `followup-3.0`.
+- **Pattern:** stato e checkbox in `tasks/IMPLEMENTATION_TRACKER.md` + link da `docs/plans/`; nessun tool esterno obbligatorio.
+
 ## 2026-04-08 — Matching score non costante
 
 - **Problema:** `matching.service.ts` usava `DEFAULT_SCORE = 80` per ogni candidato; la UI mostrava sempre 80.
