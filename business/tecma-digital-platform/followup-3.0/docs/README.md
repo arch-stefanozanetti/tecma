@@ -40,6 +40,9 @@ Sezione **navigabile** (executive summary, perché rebuild, stadio operativo per
 | File | Contenuto |
 |------|-----------|
 | [DOCS_CI_CD.md](DOCS_CI_CD.md) | CI monorepo e **followup-3.0** (`ci-be` / `ci-fe`), workflow **security** (`followup-3.0-security.yml`), checklist merge (link), secret E2E opzionali, deploy Render. |
+| **[CI_AND_TEST_GATES.md](CI_AND_TEST_GATES.md)** | **Gate CI followup-3.0:** cosa è obbligatorio vs periodico (unit FE/BE, integrazione, E2E smoke, build). |
+| [CI_PROCESS_SCALE.md](CI_PROCESS_SCALE.md) | Pentest periodico, load/SLO, scalabilità — processo oltre i test automatici. |
+| [OBSERVABILITY_ALERTS_FOLLOWUP.md](OBSERVABILITY_ALERTS_FOLLOWUP.md) | Checklist alert/metriche minime post-deploy (Render, Mongo). |
 | [GITHUB_AUTOMATION_MAIN.md](GITHUB_AUTOMATION_MAIN.md) | **Senza aprire la UI delle PR:** script `scripts/gh-promote-to-main.sh` (push → PR → merge automatico) oppure come alleggerire la protezione su `main`. |
 | [SECURITY_RUNBOOK.md](SECURITY_RUNBOOK.md) | Policy segreti, audit dipendenze, threat model minimo, **pipeline modulare** (§8), **dashboard HTML** e **pentest vs DAST** (§9), **KPI enterprise e SBOM** (§10). |
 | [PENTEST_EXECUTION.md](PENTEST_EXECUTION.md) | Playbook operativo per avviare e chiudere un penetration test reale (scope, prerequisiti, output, retest). |

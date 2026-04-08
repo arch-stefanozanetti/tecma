@@ -23,16 +23,17 @@ Se questi step passano in CI, la build su Render (followup-3-fe, followup-3-be) 
 
 ### Backend (`be-followup-v3`)
 
-Pipeline: `.github/workflows/ci-be.yml`
+Pipeline principale monorepo: `.github/workflows/followup-3.0-ci-cd.yml` (job **BE Quality Gate**).  
+Riferimento unico gate obbligatori/opzionali: [CI_AND_TEST_GATES.md](CI_AND_TEST_GATES.md).
 
-Gate bloccanti:
+Gate bloccanti nel job BE (sintesi):
 
-1. `npm run test:lint:core`
-2. `npm run check:openapi`
-3. `npm run check:route-guards` (vedi `docs/ROUTE_ACCESS_ALLOWLIST.md`; aggiungere step in `.github/workflows/ci-be.yml` se non presente)
-4. `npm run check:no-legacy-runtime`
-5. `npm run build`
-6. `npm run test:coverage:core`
+1. `npm run test` (unit)
+2. `npm run test:integration`
+3. `vitest.core.config.ts --coverage` + soglie `check-core-coverage.mjs`
+4. `bash scripts/render-build-be.sh`
+
+Pipeline legacy/addizionale (se presente nel repo): `.github/workflows/ci-be.yml` può includere lint OpenAPI, route-guards, `check:no-legacy-runtime` — allineare i branch protection ai check effettivamente richiesti.
 
 Coverage threshold (core):
 
@@ -45,7 +46,17 @@ Config: `be-followup-v3/vitest.core.config.ts`
 
 ### Frontend (`fe-followup-v3`)
 
-Pipeline: `.github/workflows/ci-fe.yml`
+Pipeline principale: `.github/workflows/followup-3.0-ci-cd.yml` (job **FE Quality Gate** + **FE E2E smoke**).  
+Dettaglio: [CI_AND_TEST_GATES.md](CI_AND_TEST_GATES.md).
+
+Gate bloccanti (sintesi):
+
+1. `pnpm run test:coverage:core`
+2. `pnpm run test:run:ci` (suite unit completa)
+3. `bash scripts/render-build-fe.sh`
+4. E2E: `pnpm run test:e2e:smoke` (job separato)
+
+Legacy / opzionale — pipeline `ci-fe.yml` se usata:
 
 Gate bloccanti:
 

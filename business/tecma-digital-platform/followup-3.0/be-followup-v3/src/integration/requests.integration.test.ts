@@ -15,6 +15,21 @@ describe("integration: requests service", () => {
     process.env.MONGO_DB_NAME = "test-db";
     const { connectDb } = await import("../config/db.js");
     await connectDb();
+    const { createWorkflow, createWorkflowState } = await import("../core/workflow/workflow-engine.service.js");
+    const { workflow } = await createWorkflow({
+      workspaceId: "ws1",
+      name: "Integration sell",
+      type: "sell",
+    });
+    await createWorkflowState({
+      workflowId: workflow._id,
+      code: "new",
+      label: "New",
+      order: 1,
+      terminal: false,
+      reversible: true,
+      apartmentLock: "soft",
+    });
     const { createClient } = await import("../core/clients/clients.service.js");
     const { client } = await createClient({
       workspaceId: "ws1",

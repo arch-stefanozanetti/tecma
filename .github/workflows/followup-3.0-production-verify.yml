@@ -18,6 +18,7 @@ jobs:
     name: Production Smoke Check
     runs-on: ubuntu-latest
     env:
+      BE_BASE_URL: https://followup-3-be.onrender.com
       BE_HEALTH_URL: https://followup-3-be.onrender.com/v1/health
       FE_HEALTH_URL: https://followup-3-fe.onrender.com
     steps:
@@ -38,6 +39,21 @@ jobs:
           done
           echo "BE health check failed"
           exit 1
+
+      - name: Verify backend health JSON body
+        run: |
+          set -e
+          ok=$(jq -r '.ok' /tmp/be-health.json)
+          svc=$(jq -r '.service' /tmp/be-health.json)
+          echo "ok=$ok service=$svc"
+          test "$ok" = "true"
+          test "$svc" = "be-followup-v3"
+
+      - name: Check unauthenticated API returns 401
+        run: |
+          code=$(curl -sS -o /dev/null -w "%{http_code}" "$BE_BASE_URL/v1/auth/me" || true)
+          echo "GET /v1/auth/me without token -> HTTP $code"
+          test "$code" = "401"
 
       - name: Check frontend availability with retries
         run: |

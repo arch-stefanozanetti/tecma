@@ -2,7 +2,7 @@
 
 - **Repo monorepo (root = tecma):** workflow [.github/workflows/followup-3.0-ci-cd.yml](../../../../.github/workflows/followup-3.0-ci-cd.yml).  
   Path che scatenano la pipeline: `fe-followup-v3/**`, `be-followup-v3/**`, `design-system/**`, `render.yaml`, il file workflow stesso.
-  I gate bloccanti sono i job **`FE Quality Gate`** e **`BE Quality Gate`** su PR verso `main`.
+  I gate bloccanti sono i job **`FE Quality Gate`** (core coverage + unit FE completa + build), **`FE E2E smoke (Playwright)`**, **`BE Quality Gate`** (unit + integrazione + coverage core + build) su PR verso `main`. Dettaglio tabella obbligatorio/opzionale: [CI_AND_TEST_GATES.md](CI_AND_TEST_GATES.md).
 
 - **Security modulare (Semgrep, OSV, Trivy, aggregatore JSON):** [.github/workflows/followup-3.0-security.yml](../../../../.github/workflows/followup-3.0-security.yml) — si attiva su modifiche sotto `business/tecma-digital-platform/followup-3.0/**`. Job parallelo **SBOM (CycloneDX)** genera `sbom-be.cdx.json` / `sbom-fe.cdx.json` (artifact **`followup-sbom`**). Opzionale manuale (ZAP staging, Trivy su immagine BE): [followup-3.0-security-optional.yml](../../../../.github/workflows/followup-3.0-security-optional.yml). Policy, KPI enterprise e comandi: [SECURITY_RUNBOOK.md](SECURITY_RUNBOOK.md) §8–§11; roadmap: [plans/2026-03-24-devsecops-enterprise-roadmap.md](plans/2026-03-24-devsecops-enterprise-roadmap.md); playbook pentest: [PENTEST_EXECUTION.md](PENTEST_EXECUTION.md).
 
@@ -17,9 +17,9 @@
 
 ## Cosa fa la pipeline
 
-- **followup-3.0-ci-cd.yml:** integrazione continua — build + test **frontend** (pnpm) e **backend** (npm), con gate coverage core FE/BE. **Nessun deploy** da GitHub Actions.
+- **followup-3.0-ci-cd.yml:** integrazione continua — FE: coverage core, suite unit Vitest completa, build Render, **E2E smoke** (`e2e/smoke.spec.ts`); BE: unit, **test integrazione** (`mongodb-memory-server`), coverage core, build. **Nessun deploy** da GitHub Actions.
 - **followup-3.0-security.yml:** scan SAST/SCA/IaC, report unificato, **dashboard HTML** navigabile (`security-dashboard.html` nell’artifact), **SBOM CycloneDX** (artifact `followup-sbom`), gate su severità, commento PR, upload **SARIF** verso **GitHub Code scanning** (tab **Security**). Permessi workflow: `security-events: write`, `pull-requests: write`. Pentest: vedi [SECURITY_RUNBOOK.md](SECURITY_RUNBOOK.md) §9.
-- **followup-3.0-production-verify.yml:** smoke post-merge su `main` (healthcheck BE/FE in produzione) per validare il rollout Render auto-deploy.
+- **followup-3.0-production-verify.yml:** smoke post-merge su `main` (health JSON `ok`, GET `/v1/auth/me` → 401, home FE) per validare il rollout Render auto-deploy.
 
 ## Deploy in produzione / staging
 
@@ -28,7 +28,7 @@
 Push su `main` (branch collegato al Blueprint) → Render esegue deploy dei servizi definiti nel Blueprint.
 Per avere comportamento **test passati => produzione**, rendi `main` protetto in GitHub con:
 - PR obbligatoria (no direct push)
-- Required checks: `FE Quality Gate`, `BE Quality Gate`, `Aggregate + gate`
+- Required checks: `FE Quality Gate`, `FE E2E smoke (Playwright)`, `BE Quality Gate`, e i job della pipeline security (`Aggregate + gate` o equivalente)
 - Branch up-to-date richiesto prima del merge
 
 Script helper (API GitHub):

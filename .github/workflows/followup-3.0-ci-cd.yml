@@ -1,5 +1,6 @@
 # FollowUp 3.0: CI quality gate su main (nessun deploy da Actions).
 # Deploy: Render auto-deploy da main (commit) dopo merge PR.
+# Gate documentati: business/tecma-digital-platform/followup-3.0/docs/CI_AND_TEST_GATES.md
 name: FollowUp 3.0 CI Gate
 
 on:
@@ -40,6 +41,7 @@ jobs:
   fe-quality-gate:
     name: FE Quality Gate
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -63,12 +65,52 @@ jobs:
         working-directory: ${{ env.FOLLOWUP_FE_DIR }}
         run: pnpm run test:coverage:core
 
+      - name: Run full unit suite (FE)
+        working-directory: ${{ env.FOLLOWUP_FE_DIR }}
+        run: pnpm run test:run:ci
+
       - name: Run deploy build (FE)
         run: bash scripts/render-build-fe.sh
+
+  fe-e2e-smoke:
+    name: FE E2E smoke (Playwright)
+    runs-on: ubuntu-latest
+    needs: fe-quality-gate
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node (FE)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: ${{ env.FOLLOWUP_FE_DIR }}/pnpm-lock.yaml
+
+      - name: Install dependencies (FE)
+        working-directory: ${{ env.FOLLOWUP_FE_DIR }}
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        working-directory: ${{ env.FOLLOWUP_FE_DIR }}
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run E2E smoke
+        working-directory: ${{ env.FOLLOWUP_FE_DIR }}
+        env:
+          CI: true
+          PLAYWRIGHT_USE_WEBSERVER: "true"
+        run: pnpm run test:e2e:smoke
 
   be-quality-gate:
     name: BE Quality Gate
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -83,6 +125,14 @@ jobs:
           MONGO_URI: mongodb://localhost:27017
           MONGO_DB_NAME: followup_ci_test
         run: npm run test
+
+      - name: Run integration tests (BE)
+        working-directory: ${{ env.FOLLOWUP_BE_DIR }}
+        env:
+          MONGO_URI: mongodb://localhost:27017
+          MONGO_DB_NAME: followup_ci_integration
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: npm run test:integration
 
       - name: Run core coverage gate (BE)
         working-directory: ${{ env.FOLLOWUP_BE_DIR }}
