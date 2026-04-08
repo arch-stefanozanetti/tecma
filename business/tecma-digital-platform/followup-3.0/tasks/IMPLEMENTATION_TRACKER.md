@@ -1,6 +1,7 @@
 # Followup 3.0 — tracker implementativo (repo)
 
 **Uso:** checklist unica nel monorepo; sostituisce riferimenti a tool esterni per sapere *cosa è fatto nel codice* e *cosa resta*.  
+**Roadmap su più cicli (ordine e DoD):** [MULTI_CYCLE_ROADMAP.md](./MULTI_CYCLE_ROADMAP.md).  
 **Allineamento:** ID tema = [PIANO_GLOBALE_FOLLOWUP_3.md](../docs/PIANO_GLOBALE_FOLLOWUP_3.md) §2.  
 **Tag:** **A** = piano/FASE · **B** = parità legacy (perimetro) · **C** = valore rapido (vedi [priorità A/B/C](../docs/plans/2026-04-08-priorita-abc-followup-design.md)).
 
