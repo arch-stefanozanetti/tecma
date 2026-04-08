@@ -68,12 +68,12 @@ Finché il perimetro non è scritto, il tag **B** si applica solo a **gap generi
 
 ---
 
-## 6. Prossimi passi operativi
+## 6. Tracciamento nel repository (nessun tool esterno obbligatorio)
 
-1. In backlog/Jira: aggiungere campo o etichette **A / B / C** (multi-select) sulle epiche/story collegate agli ID della checklist globale.
-2. In ogni planning: verificare le tre regole di §2.
-3. Aggiornare questo file solo se cambia il **modello di priorità** (non per ogni task).
+1. **Stato implementativo e checkbox** aggiornati in [`tasks/IMPLEMENTATION_TRACKER.md`](../../tasks/IMPLEMENTATION_TRACKER.md): tag **A / B / C**, ID allineati al piano globale, completamento verificabile nel codice.
+2. In ogni incremento: verificare le tre regole di §2 usando il tracker.
+3. Aggiornare **questo** file solo se cambia il **modello di priorità**; aggiornare il **tracker** quando si chiude un tema o un sotto-task nel repo.
 
 ---
 
-*Documento di design prodotto per integrare le lenti A/B/C discusse in sessione; il dettaglio implementativo resta nei deliverable FASE e nel piano globale.*
+*Documento di design prodotto per integrare le lenti A/B/C discusse in sessione; il dettaglio implementativo resta nei deliverable FASE, nel piano globale e nel tracker sotto `tasks/`.*
