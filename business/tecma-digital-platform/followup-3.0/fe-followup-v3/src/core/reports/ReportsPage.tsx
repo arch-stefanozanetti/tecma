@@ -16,9 +16,12 @@ import {
   YAxis,
 } from "recharts";
 import { followupApi } from "../../api/followupApi";
+import { HttpApiError } from "../../api/http";
 import { useWorkspace } from "../../auth/projectScope";
+import { Alert } from "../../components/ui/alert";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { DateInput } from "../../components/ui/date-input";
 import {
   Select,
   SelectContent,
@@ -82,6 +85,7 @@ export const ReportsPage = () => {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [data, setData] = useState<Array<Record<string, unknown>>>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [aiQuery, setAiQuery] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
@@ -109,6 +113,7 @@ export const ReportsPage = () => {
   const load = useCallback(async () => {
     if (!workspaceId || selectedProjectIds.length === 0) return;
     setLoading(true);
+    setLoadError(null);
     try {
       const useRealtime = !dateFrom && !dateTo;
       const res:
@@ -133,7 +138,13 @@ export const ReportsPage = () => {
         setFreshness(null);
       }
     } catch (e) {
-      console.error(e);
+      const message =
+        e instanceof HttpApiError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : "Impossibile caricare il report.";
+      setLoadError(message);
       setData([]);
       setFreshness(null);
     } finally {
@@ -530,6 +541,17 @@ export const ReportsPage = () => {
         <p className="mt-1 text-sm text-muted-foreground">
           Pipeline, KPI sintetici, clienti per stato, appartamenti per disponibilità.
         </p>
+        {loadError && (
+          <div className="mt-4">
+            <Alert
+              variant="error"
+              title="Caricamento report non riuscito"
+              onClose={() => setLoadError(null)}
+            >
+              {loadError}
+            </Alert>
+          </div>
+        )}
         <div className="mt-4 inline-flex rounded-md border border-border bg-muted/20 p-1">
           <Button
             type="button"
@@ -739,11 +761,23 @@ export const ReportsPage = () => {
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Da data</label>
-            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-36" />
+            <DateInput
+              aria-label="Report da data"
+              value={dateFrom}
+              max={dateTo || undefined}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="w-40 min-w-[10rem]"
+            />
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">A data</label>
-            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-36" />
+            <DateInput
+              aria-label="Report a data"
+              value={dateTo}
+              min={dateFrom || undefined}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="w-40 min-w-[10rem]"
+            />
           </div>
           <Button variant="outline" className="min-h-11" onClick={() => void load()}>Aggiorna</Button>
           <Button

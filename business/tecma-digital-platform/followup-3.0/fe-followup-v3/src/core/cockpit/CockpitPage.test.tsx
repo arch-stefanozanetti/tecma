@@ -48,6 +48,7 @@ vi.mock("../../api/followupApi", () => {
       decideAiSuggestion: vi.fn().mockResolvedValue({}),
       queryCalendar: vi.fn().mockResolvedValue(empty),
       queryRequests: vi.fn().mockResolvedValue(empty),
+      subscribeRealtimeEvents: vi.fn().mockReturnValue(() => {}),
       clients: { queryClients: vi.fn().mockResolvedValue(empty) },
       apartments: { queryApartments: vi.fn().mockResolvedValue(empty) },
     },

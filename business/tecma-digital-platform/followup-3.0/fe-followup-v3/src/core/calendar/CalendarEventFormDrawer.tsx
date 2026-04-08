@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import moment from "moment";
 import { followupApi } from "../../api/followupApi";
 import { useIsMobile } from "../shared/useIsMobile";
-import type { CalendarEvent } from "../../types/domain";
+import type { ApartmentRow, CalendarEvent, WorkspaceUserRow } from "../../types/domain";
 import { Button } from "../../components/ui/button";
 import {
   SidePanel,
@@ -14,6 +14,9 @@ import {
   SidePanelTitle,
 } from "../../components/ui/side-panel";
 import { Input } from "../../components/ui/input";
+import { DatetimeField } from "../../components/ui/datetime-field";
+import { Textarea } from "../../components/ui/textarea";
+import { Checkbox } from "../../components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -21,14 +24,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
+import {
+  ACTIVITY_STATUS_LABELS,
+  ACTIVITY_TYPE_LABELS,
+  CALENDAR_ACTIVITY_STATUSES,
+  CALENDAR_ACTIVITY_TYPES,
+  CALENDAR_OUTCOMES,
+  OUTCOME_LABELS,
+} from "./calendarConstants";
 
 const toDatetimeLocal = (iso: string) => moment(iso).format("YYYY-MM-DDTHH:mm");
 const fromDatetimeLocal = (s: string) => moment(s).toISOString();
 
 const SOURCE_OPTIONS: { value: CalendarEvent["source"]; label: string }[] = [
-  { value: "FOLLOWUP_SELL", label: "Vendita" },
-  { value: "FOLLOWUP_RENT", label: "Affitto" },
-  { value: "CUSTOM_SERVICE", label: "Servizio" },
+  { value: "FOLLOWUP_SELL", label: "Canale — Vendita" },
+  { value: "FOLLOWUP_RENT", label: "Canale — Affitto" },
+  { value: "CUSTOM_SERVICE", label: "Canale — Servizio" },
 ];
 
 const SUBMIT_LABEL: Record<"create" | "edit", string> = { create: "Crea", edit: "Salva" };
@@ -48,15 +59,16 @@ export interface CalendarEventFormDrawerProps {
   workspaceId: string;
   projectIds: string[];
   projects: { id: string; name: string; displayName: string }[];
+  /** Membri workspace (vendor / assegnazione). */
+  workspaceUsers?: WorkspaceUserRow[];
+  currentUserEmail?: string;
+  /** Può assegnare ad altri utenti */
+  canAssignAny?: boolean;
   open: boolean;
   onClose: () => void;
-  /** Called after create/edit; for create, the new event is passed so the parent can show it immediately. */
   onSaved: (createdEvent?: CalendarEvent) => void;
-  /** Prefill per modalità create (es. da Timeline). */
   prefill?: CalendarEventFormPrefill;
-  /** Titolo drawer personalizzato (es. "Fissa in calendario"). */
   drawerTitle?: string;
-  /** Cliente e Progetto in sola lettura (es. quando aperto da scheda cliente). */
   readOnlyClientAndProject?: boolean;
 }
 
@@ -67,6 +79,9 @@ export const CalendarEventFormDrawer = ({
   workspaceId,
   projectIds,
   projects,
+  workspaceUsers = [],
+  currentUserEmail = "",
+  canAssignAny = false,
   open,
   onClose,
   onSaved,
@@ -77,15 +92,25 @@ export const CalendarEventFormDrawer = ({
   const [title, setTitle] = useState("");
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
+  const [allDay, setAllDay] = useState(false);
   const [projectId, setProjectId] = useState("");
   const [source, setSource] = useState<CalendarEvent["source"]>("CUSTOM_SERVICE");
+  const [activityType, setActivityType] = useState<NonNullable<CalendarEvent["activityType"]>>("meeting");
+  const [activityStatus, setActivityStatus] = useState<NonNullable<CalendarEvent["activityStatus"]>>("none");
+  const [outcome, setOutcome] = useState<string>("__none__");
+  const [assignedUserId, setAssignedUserId] = useState("");
+  const [apartmentIds, setApartmentIds] = useState<string[]>([]);
+  const [notesInternal, setNotesInternal] = useState("");
+  const [notesClientVisible, setNotesClientVisible] = useState("");
+  const [additionalInfo, setAdditionalInfo] = useState("");
+  const [notifyClientOnActivityUpdate, setNotifyClientOnActivityUpdate] = useState(false);
   const [clientId, setClientId] = useState("");
   const [clientsLite, setClientsLite] = useState<Array<{ _id: string; fullName: string; email?: string; projectId: string }>>([]);
+  const [apartmentOptions, setApartmentOptions] = useState<ApartmentRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const isMobile = useIsMobile();
 
-  // Carica clienti per la tendina quando il drawer è aperto (per select o per mostrare il nome in sola lettura)
   useEffect(() => {
     if (!open || !workspaceId || projectIds.length === 0) {
       setClientsLite([]);
@@ -98,30 +123,71 @@ export const CalendarEventFormDrawer = ({
   }, [open, workspaceId, projectIds]);
 
   useEffect(() => {
+    if (!open || !workspaceId || !projectId) {
+      setApartmentOptions([]);
+      return;
+    }
+    followupApi.apartments
+      .queryApartments({
+        workspaceId,
+        projectIds: [projectId],
+        page: 1,
+        perPage: 200,
+        searchText: "",
+        sort: { field: "code", direction: 1 },
+        filters: {},
+      })
+      .then((r) => setApartmentOptions(r.data ?? []))
+      .catch(() => setApartmentOptions([]));
+  }, [open, workspaceId, projectId]);
+
+  useEffect(() => {
     if (!open) return;
     setFormError(null);
+    const defaultAssignee =
+      currentUserEmail.trim().toLowerCase() ||
+      workspaceUsers[0]?.userId?.trim().toLowerCase() ||
+      "";
     if (mode === "edit" && event) {
       setTitle(event.title);
       setStartsAt(toDatetimeLocal(event.startsAt));
       setEndsAt(toDatetimeLocal(event.endsAt));
+      setAllDay(event.allDay === true);
       setProjectId(event.projectId);
       setSource(event.source);
+      setActivityType(event.activityType ?? "meeting");
+      setActivityStatus(event.activityStatus ?? "none");
+      setOutcome(event.outcome && event.outcome.length > 0 ? event.outcome : "__none__");
+      setAssignedUserId((event.assignedUserId ?? defaultAssignee).toLowerCase());
+      setApartmentIds(event.apartmentIds?.length ? event.apartmentIds : event.apartmentId ? [event.apartmentId] : []);
+      setNotesInternal(event.notesInternal ?? "");
+      setNotesClientVisible(event.notesClientVisible ?? "");
+      setAdditionalInfo(event.additionalInfo ?? "");
+      setNotifyClientOnActivityUpdate(event.notifyClientOnActivityUpdate === true);
       setClientId(event.clientId ?? "");
     } else {
       const start = prefill?.startsAt
         ? moment(prefill.startsAt)
         : defaultDate.clone().hour(9).minute(0).second(0);
-      const end = prefill?.endsAt
-        ? moment(prefill.endsAt)
-        : start.clone().add(1, "hour");
+      const end = prefill?.endsAt ? moment(prefill.endsAt) : start.clone().add(1, "hour");
       setTitle(prefill?.title ?? "");
       setStartsAt(start.format("YYYY-MM-DDTHH:mm"));
       setEndsAt(end.format("YYYY-MM-DDTHH:mm"));
+      setAllDay(false);
       setProjectId(prefill?.projectId ?? projectIds[0] ?? "");
       setSource("CUSTOM_SERVICE");
+      setActivityType("meeting");
+      setActivityStatus("none");
+      setOutcome("__none__");
+      setAssignedUserId(defaultAssignee);
+      setApartmentIds([]);
+      setNotesInternal("");
+      setNotesClientVisible("");
+      setAdditionalInfo("");
+      setNotifyClientOnActivityUpdate(false);
       setClientId(prefill?.clientId ?? "");
     }
-  }, [open, mode, event, defaultDate, projectIds, prefill]);
+  }, [open, mode, event, defaultDate, projectIds, prefill, currentUserEmail, workspaceUsers]);
 
   const parseApiErrorMessage = (err: unknown): string => {
     const msg = err instanceof Error ? err.message : "Errore durante il salvataggio.";
@@ -136,28 +202,52 @@ export const CalendarEventFormDrawer = ({
 
   const canCreate = Boolean(workspaceId && projectIds?.length && projectId);
   const noScopeMessage =
-    !workspaceId || !projectIds?.length
-      ? "Seleziona un progetto nello scope per creare eventi."
-      : null;
+    !workspaceId || !projectIds?.length ? "Seleziona un progetto nello scope per creare eventi." : null;
+
+  const buildTimeIso = () => {
+    if (allDay) {
+      const d = moment(startsAt).startOf("day");
+      return {
+        startsAtIso: d.toISOString(),
+        endsAtIso: d.clone().endOf("day").toISOString(),
+      };
+    }
+    let endsAtValue = endsAt;
+    if (moment(endsAtValue).isSameOrBefore(moment(startsAt))) {
+      endsAtValue = moment(startsAt).add(1, "hour").format("YYYY-MM-DDTHH:mm");
+    }
+    return { startsAtIso: fromDatetimeLocal(startsAt), endsAtIso: fromDatetimeLocal(endsAtValue) };
+  };
+
+  const toggleApartment = (id: string) => {
+    setApartmentIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
     setSaving(true);
     try {
+      const { startsAtIso, endsAtIso } = buildTimeIso();
+      const assignee = (assignedUserId || currentUserEmail).trim().toLowerCase();
       if (mode === "edit" && event) {
-        let editEndsAt = endsAt;
-        if (moment(editEndsAt).isSameOrBefore(moment(startsAt))) {
-          editEndsAt = moment(startsAt).add(1, "hour").format("YYYY-MM-DDTHH:mm");
-          setEndsAt(editEndsAt);
-        }
         await followupApi.updateCalendarEvent(event._id, {
           title: title.trim(),
-          startsAt: fromDatetimeLocal(startsAt),
-          endsAt: fromDatetimeLocal(editEndsAt),
-          projectId: projectId || undefined,
+          startsAt: startsAtIso,
+          endsAt: endsAtIso,
+          projectId,
           source,
-          ...(clientId.trim() ? { clientId: clientId.trim() } : { clientId: null }),
+          activityType,
+          activityStatus,
+          outcome: outcome === "__none__" ? null : (outcome as CalendarEvent["outcome"]),
+          assignedUserId: assignee,
+          allDay: allDay || undefined,
+          apartmentIds: apartmentIds.length > 0 ? apartmentIds : null,
+          notesInternal: notesInternal.trim() || null,
+          notesClientVisible: notesClientVisible.trim() || null,
+          additionalInfo: additionalInfo.trim() || null,
+          notifyClientOnActivityUpdate,
+          clientId: clientId.trim() ? clientId.trim() : null,
         });
         onSaved();
       } else {
@@ -165,13 +255,6 @@ export const CalendarEventFormDrawer = ({
           setFormError(noScopeMessage ?? "Seleziona un progetto.");
           return;
         }
-        let endsAtValue = endsAt;
-        if (moment(endsAtValue).isSameOrBefore(moment(startsAt))) {
-          endsAtValue = moment(startsAt).add(1, "hour").format("YYYY-MM-DDTHH:mm");
-          setEndsAt(endsAtValue);
-        }
-        const startsAtIso = fromDatetimeLocal(startsAt);
-        const endsAtIso = fromDatetimeLocal(endsAtValue);
         const { event: createdEvent } = await followupApi.createCalendarEvent({
           workspaceId: workspaceId!,
           projectId,
@@ -179,11 +262,18 @@ export const CalendarEventFormDrawer = ({
           startsAt: startsAtIso,
           endsAt: endsAtIso,
           source,
+          activityType,
+          activityStatus,
+          ...(outcome !== "__none__" && { outcome: outcome as CalendarEvent["outcome"] }),
+          assignedUserId: assignee,
+          allDay: allDay || undefined,
+          apartmentIds: apartmentIds.length > 0 ? apartmentIds : undefined,
+          notesInternal: notesInternal.trim() || undefined,
+          notesClientVisible: notesClientVisible.trim() || undefined,
+          additionalInfo: additionalInfo.trim() || undefined,
+          notifyClientOnActivityUpdate: notifyClientOnActivityUpdate || undefined,
           ...(clientId.trim() && { clientId: clientId.trim() }),
         });
-        // #region agent log
-        fetch("http://127.0.0.1:7857/ingest/45821bd5-f1c6-412c-97d1-2d1ee6a22e0e", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "94c3ac" }, body: JSON.stringify({ sessionId: "94c3ac", location: "CalendarEventFormDrawer.tsx:createDone", message: "create response", data: { payloadProjectId: projectId, payloadStartsAt: startsAtIso, payloadEndsAt: endsAtIso, createdId: createdEvent?._id, createdProjectId: createdEvent?.projectId, createdStartsAt: createdEvent?.startsAt }, hypothesisId: "H1_H2", timestamp: Date.now() }) }).catch(() => {});
-        // #endregion
         onSaved(createdEvent);
       }
       onClose();
@@ -196,17 +286,16 @@ export const CalendarEventFormDrawer = ({
 
   if (!open) return null;
 
-  const titleLabel =
-    drawerTitle ?? (mode === "edit" ? "Modifica evento" : "Nuovo evento");
+  const titleLabel = drawerTitle ?? (mode === "edit" ? "Modifica attività" : "Nuova attività");
 
   return (
     <SidePanel variant="operational" open={open} onOpenChange={(o) => !o && onClose()}>
-      <SidePanelContent side="right" size={isMobile ? "full" : "md"} className={isMobile ? "h-full max-h-full" : undefined}>
+      <SidePanelContent side="right" size={isMobile ? "full" : "lg"} className={isMobile ? "h-full max-h-full" : undefined}>
         <SidePanelHeader actions={<SidePanelClose />}>
           <SidePanelTitle>{titleLabel}</SidePanelTitle>
         </SidePanelHeader>
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-          <SidePanelBody className="space-y-4">
+          <SidePanelBody className="space-y-4 overflow-y-auto">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">Titolo *</label>
               <Input
@@ -214,41 +303,129 @@ export const CalendarEventFormDrawer = ({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
-                placeholder="Titolo evento"
+                placeholder="Titolo attività"
               />
             </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Tipo di attività *</label>
+                <Select value={activityType} onValueChange={(v) => setActivityType(v as NonNullable<CalendarEvent["activityType"]>)}>
+                  <SelectTrigger className="min-h-11 rounded-lg border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CALENDAR_ACTIVITY_TYPES.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {ACTIVITY_TYPE_LABELS[t]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">Status</label>
+                <Select value={activityStatus} onValueChange={(v) => setActivityStatus(v as NonNullable<CalendarEvent["activityStatus"]>)}>
+                  <SelectTrigger className="min-h-11 rounded-lg border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CALENDAR_ACTIVITY_STATUSES.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {ACTIVITY_STATUS_LABELS[s]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Esito (opzionale)</label>
+              <Select value={outcome} onValueChange={setOutcome}>
+                <SelectTrigger className="min-h-11 rounded-lg border-border">
+                  <SelectValue placeholder="Esito" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">—</SelectItem>
+                  {CALENDAR_OUTCOMES.map((o) => (
+                    <SelectItem key={o} value={o}>
+                      {OUTCOME_LABELS[o]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Vendor / assegnatario *</label>
+              {canAssignAny ? (
+                <Select value={assignedUserId} onValueChange={(v) => setAssignedUserId(v)} required>
+                  <SelectTrigger className="min-h-11 rounded-lg border-border">
+                    <SelectValue placeholder="Seleziona utente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {workspaceUsers.map((u) => (
+                      <SelectItem key={u.userId} value={u.userId.toLowerCase()}>
+                        {u.userId}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input className="min-h-11 rounded-lg border-border bg-muted" value={assignedUserId || currentUserEmail} readOnly disabled />
+              )}
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Canale (report)</label>
+              <Select value={source} onValueChange={(v) => setSource(v as CalendarEvent["source"])}>
+                <SelectTrigger className="min-h-11 rounded-lg border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SOURCE_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">Inizio</label>
-              <Input
-                type="datetime-local"
-                className="min-h-11 rounded-lg border-border"
+              <DatetimeField
+                idPrefix="event-start"
                 value={startsAt}
-                onChange={(e) => {
-                  const nextStart = e.target.value;
+                disabled={allDay}
+                onChange={(nextStart) => {
                   setStartsAt(nextStart);
                   const startM = moment(nextStart);
                   const endM = moment(endsAt);
-                  if (!endM.isValid() || endM.isSameOrBefore(startM)) {
+                  if (!allDay && (!endM.isValid() || endM.isSameOrBefore(startM))) {
                     setEndsAt(startM.clone().add(1, "hour").format("YYYY-MM-DDTHH:mm"));
                   }
                 }}
-                required
               />
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">Fine</label>
-              <Input
-                type="datetime-local"
-                className="min-h-11 rounded-lg border-border"
+              <DatetimeField
+                idPrefix="event-end"
                 value={endsAt}
-                onChange={(e) => {
-                  const nextEnd = e.target.value;
-                  setEndsAt(nextEnd);
-                }}
+                disabled={allDay}
                 min={startsAt}
-                required
+                onChange={(v) => setEndsAt(v)}
               />
             </div>
+            <div className="flex items-center gap-2">
+              <Checkbox id="allDay" checked={allDay} onCheckedChange={(c) => setAllDay(c === true)} />
+              <label htmlFor="allDay" className="text-sm font-medium leading-none">
+                Tutto il giorno
+              </label>
+            </div>
+
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">Progetto</label>
               {readOnlyClientAndProject ? (
@@ -273,6 +450,28 @@ export const CalendarEventFormDrawer = ({
                 </Select>
               )}
             </div>
+
+            <div>
+              <p className="mb-1.5 text-sm font-medium text-foreground">Appartamenti (opzionale)</p>
+              <div className="max-h-32 space-y-1.5 overflow-y-auto rounded-lg border border-border p-2">
+                {apartmentOptions.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Nessun appartamento caricato per questo progetto.</p>
+                ) : (
+                  apartmentOptions.map((a) => (
+                    <label key={a._id} className="flex cursor-pointer items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={apartmentIds.includes(a._id)}
+                        onCheckedChange={() => toggleApartment(a._id)}
+                      />
+                      <span>
+                        {a.code} — {a.name}
+                      </span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">Cliente</label>
               {readOnlyClientAndProject ? (
@@ -287,10 +486,7 @@ export const CalendarEventFormDrawer = ({
                   disabled
                 />
               ) : (
-                <Select
-                  value={clientId || "__none__"}
-                  onValueChange={(v) => setClientId(v === "__none__" ? "" : v)}
-                >
+                <Select value={clientId || "__none__"} onValueChange={(v) => setClientId(v === "__none__" ? "" : v)}>
                   <SelectTrigger className="min-h-11 rounded-lg border-border">
                     <SelectValue placeholder="Seleziona cliente (opzionale)" />
                   </SelectTrigger>
@@ -306,21 +502,45 @@ export const CalendarEventFormDrawer = ({
                 </Select>
               )}
             </div>
+
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">Tipo</label>
-              <Select value={source} onValueChange={(v) => setSource(v as CalendarEvent["source"])}>
-                <SelectTrigger className="min-h-11 rounded-lg border-border">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SOURCE_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Note interne (max 2000)</label>
+              <Textarea
+                className="min-h-[72px] rounded-lg border-border"
+                value={notesInternal}
+                onChange={(e) => setNotesInternal(e.target.value.slice(0, 2000))}
+                placeholder="Non visibili al cliente"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">{notesInternal.length}/2000</p>
             </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Note visibili al cliente (max 2000)</label>
+              <Textarea
+                className="min-h-[72px] rounded-lg border-border"
+                value={notesClientVisible}
+                onChange={(e) => setNotesClientVisible(e.target.value.slice(0, 2000))}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">{notesClientVisible.length}/2000</p>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Informazioni aggiuntive</label>
+              <Textarea
+                className="min-h-[56px] rounded-lg border-border"
+                value={additionalInfo}
+                onChange={(e) => setAdditionalInfo(e.target.value.slice(0, 4000))}
+              />
+            </div>
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="notify"
+                checked={notifyClientOnActivityUpdate}
+                onCheckedChange={(c) => setNotifyClientOnActivityUpdate(c === true)}
+              />
+              <label htmlFor="notify" className="text-sm leading-snug text-foreground">
+                Invia aggiornamenti attività al cliente (quando il canale email sarà collegato).
+              </label>
+            </div>
+
             {noScopeMessage && mode === "create" && !readOnlyClientAndProject && (
               <p className="text-sm text-amber-600">{noScopeMessage}</p>
             )}

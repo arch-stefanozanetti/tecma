@@ -79,6 +79,8 @@ export interface WorkspaceUserRow {
   userId: string;
   role: WorkspaceUserRole;
   access_scope: AccessScope;
+  /** Colore barra agenda calendario (#RRGGBB) */
+  calendarDisplayColor?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -148,6 +150,28 @@ export interface AdditionalInfoCreateInput {
   active?: boolean;
 }
 
+export type CalendarActivityType =
+  | "call"
+  | "videoCall"
+  | "meeting"
+  | "onsiteInspection"
+  | "proposal"
+  | "customActivity"
+  | "busy"
+  | "outOfOffice";
+
+export type CalendarActivityStatus = "none" | "confirmed" | "pending" | "lowReliability" | "canceled";
+
+export type CalendarOutcome =
+  | "CONTINUE_WITH_PROPOSAL"
+  | "CONTINUE_WITH_QUOTE"
+  | "ADDITIONAL_APPOINTMENT_SET"
+  | "FOLLOW_UP_SET"
+  | "AWAITING_CLIENT_FEEDBACK"
+  | "NOT_INTERESTED_FEATURES"
+  | "NOT_INTERESTED_PRICE"
+  | "OTHER";
+
 export interface CalendarEvent {
   _id: string;
   workspaceId?: string;
@@ -158,6 +182,19 @@ export interface CalendarEvent {
   source: "FOLLOWUP_SELL" | "FOLLOWUP_RENT" | "CUSTOM_SERVICE";
   clientId?: string;
   apartmentId?: string;
+  activityType?: CalendarActivityType;
+  activityStatus?: CalendarActivityStatus;
+  outcome?: CalendarOutcome | null;
+  /** Email utente workspace assegnato */
+  assignedUserId?: string;
+  apartmentIds?: string[];
+  allDay?: boolean;
+  notesInternal?: string;
+  notesClientVisible?: string;
+  additionalInfo?: string;
+  notifyClientOnActivityUpdate?: boolean;
+  createdByUserId?: string;
+  updatedAt?: string;
 }
 
 export interface ClientConiuge {
@@ -288,6 +325,16 @@ export interface CalendarEventCreateInput {
   source?: CalendarEvent["source"];
   clientId?: string;
   apartmentId?: string;
+  activityType?: CalendarActivityType;
+  activityStatus?: CalendarActivityStatus;
+  outcome?: CalendarOutcome | null;
+  assignedUserId?: string;
+  apartmentIds?: string[];
+  allDay?: boolean;
+  notesInternal?: string;
+  notesClientVisible?: string;
+  additionalInfo?: string;
+  notifyClientOnActivityUpdate?: boolean;
 }
 
 export interface CalendarEventUpdateInput {
@@ -298,6 +345,16 @@ export interface CalendarEventUpdateInput {
   source?: CalendarEvent["source"];
   clientId?: string | null;
   apartmentId?: string | null;
+  activityType?: CalendarActivityType;
+  activityStatus?: CalendarActivityStatus;
+  outcome?: CalendarOutcome | null;
+  assignedUserId?: string | null;
+  apartmentIds?: string[] | null;
+  allDay?: boolean;
+  notesInternal?: string | null;
+  notesClientVisible?: string | null;
+  additionalInfo?: string | null;
+  notifyClientOnActivityUpdate?: boolean;
 }
 
 export interface ApartmentPlan {

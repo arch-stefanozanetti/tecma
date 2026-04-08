@@ -140,8 +140,6 @@ export const followupApi = {
   apartments: apartmentsApi,
   requests: requestsApi,
   projects: projectsApi,
-  /** @deprecated Usa followupApi.apartments.queryApartments */
-  queryApartments: apartmentsApi.queryApartments,
   getApartmentPriceCalendar: apartmentsApi.getApartmentPriceCalendar,
   upsertApartmentPriceCalendar: apartmentsApi.upsertApartmentPriceCalendar,
   queryCalendar: (query: ListQuery) => postJson<PaginatedResponse<CalendarEvent>>("/calendar/events/query", query),

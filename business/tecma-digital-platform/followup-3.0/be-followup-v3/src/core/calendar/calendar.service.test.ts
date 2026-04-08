@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => {
   };
 
   const dispatchEventMock = vi.fn(() => Promise.resolve());
+  const workspaceMemberFindOneMock = vi.fn().mockResolvedValue({ workspaceId: "ws1", userId: "u@test.com" });
 
   return {
     findOneMock,
@@ -37,6 +38,7 @@ const mocks = vi.hoisted(() => {
     findMock,
     calendarEventsCollection,
     dispatchEventMock,
+    workspaceMemberFindOneMock,
   };
 });
 
@@ -44,6 +46,7 @@ vi.mock("../../config/db.js", () => ({
   getDb: () => ({
     collection: (name: string) => {
       if (name === "calendar_events") return mocks.calendarEventsCollection;
+      if (name === "tz_user_workspaces") return { findOne: mocks.workspaceMemberFindOneMock };
       throw new Error("Unexpected collection: " + name);
     },
   }),
@@ -53,12 +56,15 @@ vi.mock("../automations/automation-events.service.js", () => ({
   dispatchEvent: mocks.dispatchEventMock,
 }));
 
+import { PERMISSIONS } from "../rbac/permissions.js";
 import {
   createCalendarEvent,
   deleteCalendarEvent,
   queryCalendarEvents,
   updateCalendarEvent,
 } from "./calendar.service.js";
+
+const testCtx = { userEmail: "u@test.com", permissions: [PERMISSIONS.ALL] };
 
 describe("calendar.service", () => {
   beforeEach(() => {
@@ -94,6 +100,34 @@ describe("calendar.service", () => {
     expect(mocks.findMock).toHaveBeenCalled();
   });
 
+  it("queryCalendarEvents passa a find un intervallo startsAt come stringhe ISO (allineato al tipo in DB)", async () => {
+    mocks.toArrayMock.mockResolvedValueOnce([]);
+    mocks.countDocumentsMock.mockResolvedValueOnce(0);
+
+    await queryCalendarEvents({
+      workspaceId: "ws1",
+      projectIds: ["p1"],
+      page: 1,
+      perPage: 20,
+      filters: {
+        dateFrom: "2026-04-01T00:00:00.000Z",
+        dateTo: "2026-04-30T23:59:59.999Z",
+      },
+    });
+
+    expect(mocks.findMock).toHaveBeenCalledWith({
+      $and: [
+        { workspaceId: "ws1", projectId: { $in: ["p1"] } },
+        {
+          startsAt: {
+            $gte: "2026-04-01T00:00:00.000Z",
+            $lte: "2026-04-30T23:59:59.999Z",
+          },
+        },
+      ],
+    });
+  });
+
   it("queryCalendarEvents returns empty result when primary has no rows", async () => {
     const now = new Date().toISOString();
     mocks.toArrayMock.mockResolvedValueOnce([]);
@@ -116,16 +150,34 @@ describe("calendar.service", () => {
     const insertedId = new ObjectId();
     mocks.insertOneMock.mockResolvedValueOnce({ insertedId });
 
-    const result = await createCalendarEvent({
+    mocks.findOneMock.mockResolvedValueOnce({
+      _id: insertedId,
       workspaceId: "ws1",
       projectId: "p1",
-      title: "  Visita App  ",
+      title: "Visita App",
       startsAt: "2026-01-01T10:00:00.000Z",
       endsAt: "2026-01-01T11:00:00.000Z",
       source: "FOLLOWUP_SELL",
       clientId: "c1",
       apartmentId: "a1",
+      activityType: "meeting",
+      activityStatus: "none",
+      assignedUserId: "u@test.com",
     });
+
+    const result = await createCalendarEvent(
+      {
+        workspaceId: "ws1",
+        projectId: "p1",
+        title: "  Visita App  ",
+        startsAt: "2026-01-01T10:00:00.000Z",
+        endsAt: "2026-01-01T11:00:00.000Z",
+        source: "FOLLOWUP_SELL",
+        clientId: "c1",
+        apartmentId: "a1",
+      },
+      testCtx
+    );
 
     expect(result.event._id).toBe(insertedId.toHexString());
     expect(result.event.title).toBe("Visita App");
@@ -137,12 +189,12 @@ describe("calendar.service", () => {
   });
 
   it("updateCalendarEvent validates id and returns 404 when missing", async () => {
-    await expect(updateCalendarEvent("bad-id", { title: "x" })).rejects.toMatchObject({
+    await expect(updateCalendarEvent("bad-id", { title: "x" }, testCtx)).rejects.toMatchObject({
       statusCode: 404,
     } as Partial<HttpError>);
 
     mocks.findOneMock.mockResolvedValueOnce(null);
-    await expect(updateCalendarEvent(new ObjectId().toHexString(), { title: "x" })).rejects.toMatchObject({
+    await expect(updateCalendarEvent(new ObjectId().toHexString(), { title: "x" }, testCtx)).rejects.toMatchObject({
       statusCode: 404,
     } as Partial<HttpError>);
   });
@@ -167,11 +219,15 @@ describe("calendar.service", () => {
 
     mocks.findOneMock.mockResolvedValueOnce(existing).mockResolvedValueOnce(updated);
 
-    const result = await updateCalendarEvent(id.toHexString(), {
-      title: " New ",
-      apartmentId: "a1",
-      source: "FOLLOWUP_SELL",
-    });
+    const result = await updateCalendarEvent(
+      id.toHexString(),
+      {
+        title: " New ",
+        apartmentId: "a1",
+        source: "FOLLOWUP_SELL",
+      },
+      testCtx
+    );
 
     expect(mocks.updateOneMock).toHaveBeenCalledOnce();
     expect(result.event.title).toBe("New");

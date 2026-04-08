@@ -47,6 +47,10 @@ vi.mock("../../auth/projectScope", () => ({
     selectedProjectIds: ["p1"],
     projects: [{ id: "p1", name: "Project 1", displayName: "Project 1" }],
     isAdmin: false,
+    email: "user@test.com",
+    permissions: ["calendar.create", "calendar.assignAny", "clients.read"],
+    hasPermission: (perm: string) =>
+      ["calendar.create", "calendar.assignAny", "clients.read"].includes(perm),
   }),
 }));
 
@@ -55,7 +59,7 @@ vi.mock("../../hooks/useWorkflowConfig", () => ({
 }));
 
 vi.mock("../../contexts/ToastContext", () => ({
-  useToast: () => ({ toastError: vi.fn() }),
+  useToast: () => ({ toastError: vi.fn(), toastSuccess: vi.fn() }),
 }));
 
 vi.mock("../../components/MatchingCandidatesList", () => ({

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 
 export interface MatchingCandidate<T extends { _id: string }> {
@@ -27,6 +28,16 @@ export function MatchingCandidatesList<T extends { _id: string }>({
   renderItemTitle,
   renderItemSubtitle,
 }: MatchingCandidatesListProps<T>) {
+  const ordered = useMemo(
+    () =>
+      [...candidates].sort((a, b) => {
+        const byScore = b.score - a.score;
+        if (byScore !== 0) return byScore;
+        return a.item._id.localeCompare(b.item._id);
+      }),
+    [candidates]
+  );
+
   if (loading) {
     return (
       <section className="rounded-lg border border-border bg-card p-4">
@@ -37,7 +48,7 @@ export function MatchingCandidatesList<T extends { _id: string }>({
     );
   }
 
-  if (candidates.length === 0) {
+  if (ordered.length === 0) {
     return (
       <section className="rounded-lg border border-border bg-card p-4">
         <h2 className="text-sm font-semibold text-foreground mb-1">{title}</h2>
@@ -51,10 +62,11 @@ export function MatchingCandidatesList<T extends { _id: string }>({
     <section className="rounded-lg border border-border bg-card p-4">
       <h2 className="text-sm font-semibold text-foreground mb-1">{title}</h2>
       <p className="text-xs text-muted-foreground mb-4">
-        {introText} Lo score (0–100) indica l’affinità; sotto ogni candidato trovi il motivo per cui è stato suggerito.
+        {introText} Ordinati dal match migliore al peggiore. Lo score (0–100) indica l’affinità; sotto ogni candidato trovi perché è stato
+        suggerito (compila budget e assicurati che il listino abbia prezzo per un confronto economico più preciso).
       </p>
       <ul className="space-y-4">
-        {candidates.map(({ item, score, reasons }) => (
+        {ordered.map(({ item, score, reasons }) => (
           <li
             key={item._id}
             className="rounded-lg border border-border bg-muted/30 p-4 flex flex-col sm:flex-row sm:items-start gap-4"

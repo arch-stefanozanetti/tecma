@@ -182,7 +182,11 @@ export const ClientsListSection = ({
             {isLoading && clients.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">Caricamento...</p>
             ) : clients.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">{committedSearch ? "Nessun risultato per questa ricerca" : "Nessun cliente trovato"}</p>
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                {committedSearch
+                  ? "Nessun risultato per questa ricerca. Prova altre parole o reimposta i filtri."
+                  : "Nessun cliente in elenco. Crea un contatto o verifica i progetti selezionati in alto."}
+              </p>
             ) : (
               clients.map((client) => (
                 <button
@@ -219,9 +223,19 @@ export const ClientsListSection = ({
               </thead>
               <tbody>
                 {isLoading && clients.length === 0 ? (
-                  <tr><td colSpan={9} className="px-4 py-16 text-center text-sm text-muted-foreground">Loading clients...</td></tr>
+                  <tr>
+                    <td colSpan={9} className="px-4 py-16 text-center text-sm text-muted-foreground">
+                      Caricamento clienti…
+                    </td>
+                  </tr>
                 ) : clients.length === 0 ? (
-                  <tr><td colSpan={9} className="px-4 py-16 text-center text-sm text-muted-foreground">{committedSearch ? "No results for this search" : "No clients found"}</td></tr>
+                  <tr>
+                    <td colSpan={9} className="px-4 py-16 text-center text-sm text-muted-foreground">
+                      {committedSearch
+                        ? "Nessun risultato per questa ricerca. Prova altre parole o reimposta i filtri."
+                        : "Nessun cliente in elenco. Crea un contatto o verifica i progetti selezionati in alto."}
+                    </td>
+                  </tr>
                 ) : (
                   clients.map((client) => (
                     <tr key={client._id} role="button" tabIndex={0} className="group cursor-pointer border-b border-border text-sm text-foreground hover:bg-muted" onClick={() => onOpenClient(client._id)} onKeyDown={(e) => e.key === "Enter" && onOpenClient(client._id)}>

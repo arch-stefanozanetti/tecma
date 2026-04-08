@@ -2361,6 +2361,45 @@
                       "FOLLOWUP_RENT",
                       "CUSTOM_SERVICE"
                     ]
+                  },
+                  "activityType": {
+                    "type": "string",
+                    "description": "Tipo operativo attività (parità legacy CRM)"
+                  },
+                  "activityStatus": {
+                    "type": "string",
+                    "description": "Stato conferma attività"
+                  },
+                  "outcome": {
+                    "type": "string",
+                    "description": "Esito attività (enum legacy)"
+                  },
+                  "assignedUserId": {
+                    "type": "string",
+                    "description": "Email utente workspace assegnato (vendor)"
+                  },
+                  "apartmentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Id appartamenti collegati"
+                  },
+                  "allDay": {
+                    "type": "boolean"
+                  },
+                  "notesInternal": {
+                    "type": "string"
+                  },
+                  "notesClientVisible": {
+                    "type": "string"
+                  },
+                  "additionalInfo": {
+                    "type": "string"
+                  },
+                  "notifyClientOnActivityUpdate": {
+                    "type": "boolean",
+                    "description": "Flag notifica cliente (invio email in iterazione successiva)"
                   }
                 }
               }
@@ -2398,6 +2437,83 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "startsAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "endsAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "projectId": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "FOLLOWUP_SELL",
+                      "FOLLOWUP_RENT",
+                      "CUSTOM_SERVICE"
+                    ]
+                  },
+                  "activityType": {
+                    "type": "string"
+                  },
+                  "activityStatus": {
+                    "type": "string"
+                  },
+                  "outcome": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "assignedUserId": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "apartmentIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "nullable": true
+                  },
+                  "allDay": {
+                    "type": "boolean"
+                  },
+                  "notesInternal": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "notesClientVisible": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "additionalInfo": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "notifyClientOnActivityUpdate": {
+                    "type": "boolean"
+                  },
+                  "clientId": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Evento aggiornato"

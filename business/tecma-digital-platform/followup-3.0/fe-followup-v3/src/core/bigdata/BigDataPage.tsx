@@ -11,6 +11,7 @@ import { useToast } from "../../contexts/ToastContext";
 import { Alert } from "../../components/ui/alert";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { DateInput } from "../../components/ui/date-input";
 import {
   Select,
   SelectContent,
@@ -451,11 +452,11 @@ export const BigDataPage = () => {
           </div>
           <div>
             <label className="text-xs text-muted-foreground">Da</label>
-            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+            <DateInput aria-label="Intervallo da" value={dateFrom} max={dateTo || undefined} onChange={(e) => setDateFrom(e.target.value)} />
           </div>
           <div>
             <label className="text-xs text-muted-foreground">A</label>
-            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            <DateInput aria-label="Intervallo a" value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)} />
           </div>
           {(activeTab === "funnel" || activeTab === "full") && (
             <div className="min-w-[160px]">

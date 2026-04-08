@@ -103,7 +103,7 @@ export const CreateApartmentPage = ({ workspaceId, projectIds, onCreated }: Crea
   }, []);
 
   useEffect(() => {
-    void followupApi
+    void followupApi.apartments
       .queryApartments({
         workspaceId,
         projectIds,

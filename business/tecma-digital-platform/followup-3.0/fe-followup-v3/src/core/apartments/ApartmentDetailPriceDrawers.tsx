@@ -1,5 +1,6 @@
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { DateInput } from "../../components/ui/date-input";
 import {
   Drawer,
   DrawerContent,
@@ -140,19 +141,21 @@ export function ApartmentDetailPriceDrawers(props: ApartmentDetailPriceDrawersPr
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground">Data inizio (opzionale)</label>
-                <Input
-                  type="date"
+                <DateInput
+                  aria-label="Prezzo vendita valido da"
                   className="mt-1"
                   value={addSalePriceForm.validFrom}
+                  max={addSalePriceForm.validTo || undefined}
                   onChange={(e) => setAddSalePriceForm((f) => ({ ...f, validFrom: e.target.value }))}
                 />
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground">Data fine (opzionale)</label>
-                <Input
-                  type="date"
+                <DateInput
+                  aria-label="Prezzo vendita valido a"
                   className="mt-1"
                   value={addSalePriceForm.validTo}
+                  min={addSalePriceForm.validFrom || undefined}
                   onChange={(e) => setAddSalePriceForm((f) => ({ ...f, validTo: e.target.value }))}
                 />
               </div>
@@ -237,19 +240,21 @@ export function ApartmentDetailPriceDrawers(props: ApartmentDetailPriceDrawersPr
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground">Data inizio (opzionale)</label>
-                <Input
-                  type="date"
+                <DateInput
+                  aria-label="Canone valido da"
                   className="mt-1"
                   value={addMonthlyRentForm.validFrom}
+                  max={addMonthlyRentForm.validTo || undefined}
                   onChange={(e) => setAddMonthlyRentForm((f) => ({ ...f, validFrom: e.target.value }))}
                 />
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground">Data fine (opzionale)</label>
-                <Input
-                  type="date"
+                <DateInput
+                  aria-label="Canone valido a"
                   className="mt-1"
                   value={addMonthlyRentForm.validTo}
+                  min={addMonthlyRentForm.validFrom || undefined}
                   onChange={(e) => setAddMonthlyRentForm((f) => ({ ...f, validTo: e.target.value }))}
                 />
               </div>
@@ -312,8 +317,8 @@ export function ApartmentDetailPriceDrawers(props: ApartmentDetailPriceDrawersPr
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground">Data fine (opzionale)</label>
-                <Input
-                  type="date"
+                <DateInput
+                  aria-label="Modifica prezzo vendita valido a"
                   className="mt-1"
                   value={editSalePriceForm.validTo}
                   onChange={(e) => setEditSalePriceForm((f) => ({ ...f, validTo: e.target.value }))}
@@ -390,8 +395,8 @@ export function ApartmentDetailPriceDrawers(props: ApartmentDetailPriceDrawersPr
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground">Data fine (opzionale)</label>
-                <Input
-                  type="date"
+                <DateInput
+                  aria-label="Modifica canone valido a"
                   className="mt-1"
                   value={editMonthlyRentForm.validTo}
                   onChange={(e) => setEditMonthlyRentForm((f) => ({ ...f, validTo: e.target.value }))}

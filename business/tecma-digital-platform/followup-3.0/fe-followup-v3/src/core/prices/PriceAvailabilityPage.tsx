@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { followupApi } from "../../api/followupApi";
 import { useWorkspace } from "../../auth/projectScope";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { DateInput } from "../../components/ui/date-input";
 import { PriceAvailabilityGrid, type MatrixUnit, type MatrixCell } from "./PriceAvailabilityGrid";
 
 const toYMD = (d: Date) => d.toISOString().split("T")[0];
@@ -79,19 +79,21 @@ export const PriceAvailabilityPage = () => {
         <div className="flex flex-wrap items-end gap-4 rounded-lg border border-border bg-card p-4">
           <div>
             <label className="mb-1 block text-xs font-medium text-foreground">Da</label>
-            <Input
-              type="date"
-              className="w-40"
+            <DateInput
+              aria-label="Prezzi da"
+              className="w-40 min-w-[10rem]"
               value={dateFrom}
+              max={dateTo || undefined}
               onChange={(e) => setDateFrom(e.target.value)}
             />
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-foreground">A</label>
-            <Input
-              type="date"
-              className="w-40"
+            <DateInput
+              aria-label="Prezzi a"
+              className="w-40 min-w-[10rem]"
               value={dateTo}
+              min={dateFrom || undefined}
               onChange={(e) => setDateTo(e.target.value)}
             />
           </div>

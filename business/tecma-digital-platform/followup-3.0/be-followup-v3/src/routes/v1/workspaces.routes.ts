@@ -124,9 +124,15 @@ workspacesRoutes.patch(
   handleAsync(async (req) => {
     const workspaceId = req.params.id;
     const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
-    const body = req.body as { role?: string };
+    const body = req.body as { role?: string; access_scope?: string; calendarDisplayColor?: string | null };
     const role = body.role !== undefined ? toMembershipRole(body.role) : undefined;
-    const result = await updateWorkspaceUser(workspaceId, userId, { role });
+    const access_scope =
+      body.access_scope === "assigned" ? "assigned" : body.access_scope === "all" ? "all" : undefined;
+    const result = await updateWorkspaceUser(workspaceId, userId, {
+      role,
+      ...(access_scope !== undefined ? { access_scope } : {}),
+      ...(body.calendarDisplayColor !== undefined ? { calendarDisplayColor: body.calendarDisplayColor } : {}),
+    });
     safeAsync(
       auditRecord({
         action: "workspace.membership.updated",

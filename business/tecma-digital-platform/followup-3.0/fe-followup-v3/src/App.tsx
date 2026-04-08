@@ -9,8 +9,6 @@ import { getKeycloakCallbackPath } from "./auth/keycloakOidc";
 import { spaAbsolutePath } from "./lib/spaPath";
 import { PageTemplate } from "./core/shared/PageTemplate";
 import { PageSimple } from "./core/shared/PageSimple";
-import { CalendarPage } from "./core/calendar/CalendarPage";
-import { CockpitPage } from "./core/cockpit/CockpitPage";
 import { ClientsPage } from "./core/clients/ClientsPage";
 import { ApartmentsPage } from "./core/apartments/ApartmentsPage";
 import { CreateApartmentPage } from "./core/apartments/CreateApartmentPage";
@@ -35,14 +33,10 @@ import { UsersPage } from "./core/users/UsersPage";
 import { EmailFlowsPage } from "./core/settings/EmailFlowsPage";
 import { ProjectDetailPage } from "./core/projects/ProjectDetailPage";
 import { AuditLogPage } from "./core/audit/AuditLogPage";
-import { ReportsPage } from "./core/reports/ReportsPage";
 import { SharedReportPage } from "./core/reports/SharedReportPage";
-import { BigDataPage } from "./core/bigdata/BigDataPage";
-import { PriceAvailabilityPage } from "./core/prices/PriceAvailabilityPage";
 import { ReleasesPage } from "./core/releases/ReleasesPage";
 import { IntegrationsPage } from "./core/integrations/IntegrationsPage";
 import { TecmaEntitlementsPage } from "./core/integrations/TecmaEntitlementsPage";
-import { ProductDiscoveryPage } from "./core/product-discovery/ProductDiscoveryPage";
 import { CustomerPortalPage } from "./core/customer-portal/CustomerPortalPage";
 import { ProjectsPage } from "./core/projects/ProjectsPage";
 import { InboxPage } from "./core/shared/InboxPage";
@@ -73,6 +67,28 @@ const ApartmentDetailPage = lazy(() =>
 );
 const ExecutiveOverviewPage = lazy(() =>
   import("./core/executive/ExecutiveOverviewPage").then((module) => ({ default: module.ExecutiveOverviewPage }))
+);
+const CalendarPage = lazy(() =>
+  import("./core/calendar/CalendarPage").then((module) => ({ default: module.CalendarPage }))
+);
+const CockpitPage = lazy(() =>
+  import("./core/cockpit/CockpitPage").then((module) => ({ default: module.CockpitPage }))
+);
+const ReportsPage = lazy(() =>
+  import("./core/reports/ReportsPage").then((module) => ({ default: module.ReportsPage }))
+);
+const BigDataPage = lazy(() =>
+  import("./core/bigdata/BigDataPage").then((module) => ({ default: module.BigDataPage }))
+);
+const ProductDiscoveryPage = lazy(() =>
+  import("./core/product-discovery/ProductDiscoveryPage").then((module) => ({ default: module.ProductDiscoveryPage }))
+);
+const PriceAvailabilityPage = lazy(() =>
+  import("./core/prices/PriceAvailabilityPage").then((module) => ({ default: module.PriceAvailabilityPage }))
+);
+
+const LazySectionFallback = () => (
+  <div className="flex min-h-[40vh] items-center justify-center p-8 text-sm text-muted-foreground">Caricamento…</div>
 );
 
 function ExperimentalRouteContent({
@@ -155,19 +171,25 @@ const renderSection = (
   if (section === "cockpit") {
     return (
       <PageSimple title="Cosa fare oggi" description="Azioni suggerite e prossimi appuntamenti. Scegli un’azione dalla card o vai al Calendario.">
-        <CockpitPage
-          workspaceId={workspaceId}
-          projectIds={projectIds}
-          projects={projectsForCockpit}
-          onNavigateToSection={onSectionChange}
-          isAdmin={isAdmin ?? false}
-        />
+        <Suspense fallback={<LazySectionFallback />}>
+          <CockpitPage
+            workspaceId={workspaceId}
+            projectIds={projectIds}
+            projects={projectsForCockpit}
+            onNavigateToSection={onSectionChange}
+            isAdmin={isAdmin ?? false}
+          />
+        </Suspense>
       </PageSimple>
     );
   }
 
   if (section === "calendar") {
-    return <CalendarPage />;
+    return (
+      <Suspense fallback={<LazySectionFallback />}>
+        <CalendarPage />
+      </Suspense>
+    );
   }
 
   if (section === "clients") {
@@ -297,7 +319,9 @@ const renderSection = (
   if (section === "productDiscovery") {
     return (
       <PageSimple title="Product Discovery" description="Feedback clienti, opportunità, iniziative e feature (solo admin).">
-        <ProductDiscoveryPage />
+        <Suspense fallback={<LazySectionFallback />}>
+          <ProductDiscoveryPage />
+        </Suspense>
       </PageSimple>
     );
   }
@@ -368,7 +392,9 @@ const renderSection = (
   if (section === "reports") {
     return (
       <PageSimple title="Report" description="Pipeline, clienti per stato, appartamenti per disponibilità.">
-        <ReportsPage />
+        <Suspense fallback={<LazySectionFallback />}>
+          <ReportsPage />
+        </Suspense>
       </PageSimple>
     );
   }
@@ -376,7 +402,9 @@ const renderSection = (
   if (section === "bigData") {
     return (
       <PageSimple title="Big Data" description="Funnel marketing + CRM e stato connettori Ads / GA4 / Meta.">
-        <BigDataPage />
+        <Suspense fallback={<LazySectionFallback />}>
+          <BigDataPage />
+        </Suspense>
       </PageSimple>
     );
   }
@@ -396,7 +424,9 @@ const renderSection = (
     }
     return (
       <PageSimple title="Prezzi e disponibilità" description="Calendario listini e disponibilità per data, stile backoffice. Clicca su una cella per modificare prezzo e disponibilità.">
-        <PriceAvailabilityPage />
+        <Suspense fallback={<LazySectionFallback />}>
+          <PriceAvailabilityPage />
+        </Suspense>
       </PageSimple>
     );
   }

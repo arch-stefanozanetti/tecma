@@ -1,5 +1,10 @@
 # Lessons (agent / team)
 
+## 2026-04-08 — Matching score non costante
+
+- **Problema:** `matching.service.ts` usava `DEFAULT_SCORE = 80` per ogni candidato; la UI mostrava sempre 80.
+- **Pattern:** calcolare score 0–100 da segnali reali (stesso progetto, interesse esplicito, budget vs `rawPrice`, stato immobile, prossimità mq alla mediana del progetto) e test unitari sulle funzioni pure in `matching-score.util.ts`.
+
 ## 2026-03-21 — Test HTTP Vitest / supertest
 
 - **Problema:** `request(app)` con supertest può causare `ECONNRESET` sotto esecuzione parallela dei file di test.

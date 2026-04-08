@@ -13,6 +13,7 @@ import type {
   RequestTransitionRow,
   RequestActionRow,
   RequestActionType,
+  WorkspaceUserRow,
 } from "../../types/domain";
 import { Button } from "../../components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
@@ -34,8 +35,13 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import { cn } from "../../lib/utils";
-import { formatDate } from "../../lib/formatDate";
-import { ACTION_TYPE_LABEL, statusLabel } from "./clientDetailConstants";
+import { formatDate, formatDateTime } from "../../lib/formatDate";
+import {
+  ACTION_TYPE_LABEL,
+  clientQuickActionLabel,
+  isClientQuickAuditAction,
+  statusLabel,
+} from "./clientDetailConstants";
 import { Textarea } from "../../components/ui/textarea";
 import { FileUpload } from "../../components/ui/file-upload";
 import { MatchingCandidatesList } from "../../components/MatchingCandidatesList";
@@ -55,7 +61,9 @@ import moment from "moment";
 export const ClientDetailPage = () => {
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
-  const { workspaceId, selectedProjectIds, projects, isAdmin } = useWorkspace();
+  const { workspaceId, selectedProjectIds, projects, isAdmin, email: userEmail, hasPermission } = useWorkspace();
+  const canCreateCalendar = hasPermission("calendar.create");
+  const canAssignAnyCalendar = hasPermission("calendar.assignAny");
   const projectLabelById = useMemo(() => {
     const map = new Map<string, string>();
     for (const p of projects ?? []) {
@@ -63,10 +71,6 @@ export const ClientDetailPage = () => {
     }
     return map;
   }, [projects]);
-  const projectIdForWorkflow = selectedProjectIds.length > 0 ? selectedProjectIds[0] : undefined;
-  const workflowConfigRent = useWorkflowConfig(workspaceId, "rent", projectIdForWorkflow);
-  const workflowConfigSell = useWorkflowConfig(workspaceId, "sell", projectIdForWorkflow);
-  const getWorkflowConfig = (type: "rent" | "sell") => (type === "rent" ? workflowConfigRent : workflowConfigSell);
   const {
     client,
     setClient,
@@ -77,6 +81,11 @@ export const ClientDetailPage = () => {
     requestsLoading,
     reloadRequests,
   } = useClientDetailData(clientId, workspaceId, selectedProjectIds);
+  /** Workflow allineato al progetto del cliente (non solo al primo progetto nello scope). */
+  const workflowProjectId = client?.projectId ?? (selectedProjectIds.length > 0 ? selectedProjectIds[0] : undefined);
+  const workflowConfigRent = useWorkflowConfig(workspaceId, "rent", workflowProjectId);
+  const workflowConfigSell = useWorkflowConfig(workspaceId, "sell", workflowProjectId);
+  const getWorkflowConfig = (type: "rent" | "sell") => (type === "rent" ? workflowConfigRent : workflowConfigSell);
   const { toastError, toastSuccess } = useToast();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [formFirstName, setFormFirstName] = useState("");
@@ -103,7 +112,7 @@ export const ClientDetailPage = () => {
   const [formAdditionalInfo, setFormAdditionalInfo] = useState<Record<string, unknown>>({});
   const [auditEvents, setAuditEvents] = useState<Array<{ _id: string; at: string; action: string; actor?: { email?: string }; payload?: Record<string, unknown> }>>([]);
   const [assignments, setAssignments] = useState<Array<{ userId: string }>>([]);
-  const [workspaceUsers, setWorkspaceUsers] = useState<Array<{ userId: string }>>([]);
+  const [workspaceUsers, setWorkspaceUsers] = useState<WorkspaceUserRow[]>([]);
   const [assignUserId, setAssignUserId] = useState("");
   const [actionLogging, setActionLogging] = useState<string | null>(null);
   const [matchCandidates, setMatchCandidates] = useState<Array<{ item: { _id: string; code: string; name?: string; status: string; mode: string; surfaceMq: number }; score: number; reasons: string[] }>>([]);
@@ -115,6 +124,8 @@ export const ClientDetailPage = () => {
   const [timelineActions, setTimelineActions] = useState<RequestActionRow[]>([]);
   const [timelineActionsLoading, setTimelineActionsLoading] = useState(false);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [calendarEventsLoading, setCalendarEventsLoading] = useState(false);
+  const [calendarEventsError, setCalendarEventsError] = useState<string | null>(null);
   const [actionDrawerOpen, setActionDrawerOpen] = useState(false);
   const [actionDrawerMode, setActionDrawerMode] = useState<"create" | "edit">("create");
   const [editingAction, setEditingAction] = useState<RequestActionRow | null>(null);
@@ -155,7 +166,8 @@ export const ClientDetailPage = () => {
     setActionLogging(type);
     try {
       await followupApi.clients.createClientAction(clientId, type, workspaceId);
-      await followupApi.getAuditForEntity("client", clientId, workspaceId ?? "", 25).then((r) => setAuditEvents(r.data ?? []));
+      await followupApi.getAuditForEntity("client", clientId, workspaceId ?? "", 100).then((r) => setAuditEvents(r.data ?? []));
+      toastSuccess("Attività registrata: comparirà in Timeline.");
     } catch (err) {
       toastError(err instanceof Error ? err.message : "Errore durante la registrazione dell'azione.");
     } finally {
@@ -174,26 +186,41 @@ export const ClientDetailPage = () => {
       .finally(() => setTimelineActionsLoading(false));
   }, [activeTab, workspaceId]);
 
-  // Tab Timeline: carica eventi calendario del progetto cliente (Customer 360), filtrati per clientId
+  // Eventi calendario del cliente: sempre sul progetto del cliente (non sullo scope selezionato),
+  // altrimenti con scope diverso la query non trova nulla.
   useEffect(() => {
-    if (!workspaceId || !client?.projectId || selectedProjectIds.length === 0 || !clientId) return;
+    if (!workspaceId || !client?.projectId || !clientId) {
+      setCalendarEvents([]);
+      setCalendarEventsError(null);
+      setCalendarEventsLoading(false);
+      return;
+    }
     const from = new Date();
     from.setDate(from.getDate() - 90);
     const to = new Date();
     to.setDate(to.getDate() + 90);
+    setCalendarEventsLoading(true);
+    setCalendarEventsError(null);
     followupApi
       .queryCalendar({
         workspaceId,
-        projectIds: selectedProjectIds.includes(client.projectId) ? [client.projectId] : selectedProjectIds,
+        projectIds: [client.projectId],
         page: 1,
         perPage: 100,
         searchText: "",
         sort: { field: "startsAt", direction: -1 },
         filters: { dateFrom: from.toISOString(), dateTo: to.toISOString(), clientId },
       })
-      .then((r) => setCalendarEvents(r.data ?? []))
-      .catch(() => setCalendarEvents([]));
-  }, [workspaceId, clientId, client?.projectId, selectedProjectIds, calendarEventsRefreshKey]);
+      .then((r) => {
+        setCalendarEvents(r.data ?? []);
+        setCalendarEventsError(null);
+      })
+      .catch((err) => {
+        setCalendarEvents([]);
+        setCalendarEventsError(err instanceof Error ? err.message : "Errore caricamento calendario");
+      })
+      .finally(() => setCalendarEventsLoading(false));
+  }, [workspaceId, clientId, client?.projectId, calendarEventsRefreshKey]);
 
   useEffect(() => {
     if ((activeTab !== "timeline" && activeTab !== "trattative") || requests.length === 0) return;
@@ -270,10 +297,18 @@ export const ClientDetailPage = () => {
     () => timelineActions.filter((a) => a.requestIds.some((id) => requestIdsSet.has(id))),
     [timelineActions, requestIdsSet]
   );
+  type ClientAuditTimelineRow = {
+    _id: string;
+    at: string;
+    action: string;
+    actor?: { email?: string };
+    payload?: Record<string, unknown>;
+  };
   type TimelineItem =
     | { kind: "transition"; id: string; createdAt: string; requestId: string; request: RequestRow; transition: RequestTransitionRow }
     | { kind: "action"; id: string; createdAt: string; action: RequestActionRow }
-    | { kind: "calendar_event"; id: string; createdAt: string; event: CalendarEvent };
+    | { kind: "calendar_event"; id: string; createdAt: string; event: CalendarEvent }
+    | { kind: "client_quick_action"; id: string; createdAt: string; audit: ClientAuditTimelineRow };
   const timelineUnified = useMemo(() => {
     const items: TimelineItem[] = [];
     requests.forEach((req) => {
@@ -288,9 +323,18 @@ export const ClientDetailPage = () => {
     calendarEvents.forEach((ev) => {
       items.push({ kind: "calendar_event", id: `ev-${ev._id}`, createdAt: ev.startsAt, event: ev });
     });
+    auditEvents.forEach((ev) => {
+      if (!isClientQuickAuditAction(ev.action)) return;
+      items.push({
+        kind: "client_quick_action",
+        id: `audit-${ev._id}`,
+        createdAt: ev.at,
+        audit: ev,
+      });
+    });
     items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return items;
-  }, [requests, transitionsByRequestId, timelineActionsFiltered, calendarEvents]);
+  }, [requests, transitionsByRequestId, timelineActionsFiltered, calendarEvents, auditEvents]);
 
   /** Prossimi appuntamenti (solo futuri), max 5, per blocco in cima alla scheda */
   const upcomingCalendarEvents = useMemo(() => {
@@ -345,6 +389,15 @@ export const ClientDetailPage = () => {
           title: item.event.title,
           startsAt: item.event.startsAt,
           endsAt: item.event.endsAt,
+        });
+      } else if (item.kind === "client_quick_action") {
+        const start = moment().hour(9).minute(0).second(0);
+        const end = start.clone().add(1, "hour");
+        setCalendarDrawerPrefill({
+          ...basePrefill,
+          title: clientQuickActionLabel(item.audit.action),
+          startsAt: start.toISOString(),
+          endsAt: end.toISOString(),
         });
       } else {
         const start = moment().hour(9).minute(0).second(0);
@@ -475,7 +528,7 @@ export const ClientDetailPage = () => {
   useEffect(() => {
     if (!clientId || !workspaceId) return;
     followupApi
-      .getAuditForEntity("client", clientId, workspaceId, 25)
+      .getAuditForEntity("client", clientId, workspaceId, 100)
       .then((r) => setAuditEvents(r.data ?? []))
       .catch(() => setAuditEvents([]));
   }, [clientId, workspaceId]);
@@ -489,12 +542,12 @@ export const ClientDetailPage = () => {
   }, [clientId, workspaceId]);
 
   useEffect(() => {
-    if (!workspaceId || !isAdmin) return;
+    if (!workspaceId) return;
     followupApi
       .listWorkspaceUsers(workspaceId)
       .then((r) => setWorkspaceUsers(r.data ?? []))
       .catch(() => setWorkspaceUsers([]));
-  }, [workspaceId, isAdmin]);
+  }, [workspaceId]);
 
   useEffect(() => {
     if (!editDialogOpen || !client) return;
@@ -649,15 +702,37 @@ export const ClientDetailPage = () => {
               variant="ghost"
               size="sm"
               className="h-7 text-xs"
+              disabled={!canCreateCalendar || !client.projectId || !workspaceId}
+              title={
+                !canCreateCalendar
+                  ? "Non hai il permesso di creare eventi in calendario"
+                  : !client.projectId
+                    ? "Cliente senza progetto: impossibile creare un evento"
+                    : undefined
+              }
               onClick={() => {
-                setCalendarDrawerPrefill({ clientId: client._id, projectId: client.projectId ?? undefined });
+                const start = moment().hour(9).minute(0).second(0);
+                const end = start.clone().add(1, "hour");
+                setCalendarDrawerPrefill({
+                  clientId: client._id,
+                  projectId: client.projectId,
+                  title: `Appuntamento con ${clientDisplayName(client)}`,
+                  startsAt: start.toISOString(),
+                  endsAt: end.toISOString(),
+                });
                 setCalendarDrawerOpen(true);
               }}
             >
               Fissa in calendario
             </Button>
           </div>
-          {upcomingCalendarEvents.length === 0 ? (
+          {calendarEventsError ? (
+            <p className="text-sm text-destructive" title={calendarEventsError}>
+              Impossibile caricare gli appuntamenti. {calendarEventsError}
+            </p>
+          ) : calendarEventsLoading ? (
+            <p className="text-sm text-muted-foreground">Caricamento appuntamenti…</p>
+          ) : upcomingCalendarEvents.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nessun appuntamento in programma.</p>
           ) : (
             <ul className="space-y-1">
@@ -1150,8 +1225,8 @@ export const ClientDetailPage = () => {
 
           <MatchingCandidatesList
             title="Appartamenti papabili (matching)"
-            introText="Appartamenti disponibili compatibili con il profilo del cliente."
-            emptyMessage="Nessun appartamento papabile trovato. Completa il profilo (budget, città) per migliorare il matching."
+            introText="Appartamenti dello stesso progetto, ordinati per affinità con il cliente."
+            emptyMessage="Nessun appartamento nel progetto del cliente. Verifica il progetto assegnato o crea unità in inventario."
             loading={matchLoading}
             candidates={matchCandidates}
             getItemLink={(item) => `/apartments/${item._id}`}
@@ -1185,7 +1260,14 @@ export const ClientDetailPage = () => {
                     });
                     setCalendarDrawerOpen(true);
                   }}
-                  disabled={!clientId || !client?.projectId || !workspaceId || selectedProjectIds.length === 0}
+                  disabled={!canCreateCalendar || !clientId || !client?.projectId || !workspaceId}
+                  title={
+                    !canCreateCalendar
+                      ? "Permesso calendario mancante (calendar.create)"
+                      : !client?.projectId
+                        ? "Cliente senza progetto"
+                        : undefined
+                  }
                 >
                   <Calendar className="h-3.5 w-3.5" />
                   Fissa in calendario
@@ -1202,11 +1284,13 @@ export const ClientDetailPage = () => {
                 </Button>
               </div>
             </div>
-            {timelineActionsLoading && timelineUnified.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Caricamento...</p>
+            {(timelineActionsLoading || calendarEventsLoading) && timelineUnified.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Caricamento timeline…</p>
             ) : timelineUnified.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Nessun evento. Le transizioni delle trattative e le azioni collegate al cliente appariranno qui.
+                Nessuna voce in timeline. Usa le <strong>azioni rapide</strong> nel tab Profilo, oppure{" "}
+                &quot;Fissa in calendario&quot; e le trattative: transizioni, appuntamenti e attività manuali
+                compariranno qui.
               </p>
             ) : (
               <div className="relative pl-10">
@@ -1226,13 +1310,25 @@ export const ClientDetailPage = () => {
                             ? "bg-primary text-primary-foreground"
                             : item.kind === "calendar_event"
                               ? "bg-secondary text-secondary-foreground"
-                              : "bg-muted text-muted-foreground"
+                              : item.kind === "client_quick_action"
+                                ? "bg-amber-100 text-amber-900 border-amber-200"
+                                : "bg-muted text-muted-foreground"
                         )}
                       >
                         {item.kind === "transition" ? (
                           <TrendingUp className="h-3.5 w-3.5" />
                         ) : item.kind === "calendar_event" ? (
                           <Calendar className="h-3.5 w-3.5" />
+                        ) : item.kind === "client_quick_action" ? (
+                          item.audit.action.includes("mail") ? (
+                            <Mail className="h-3.5 w-3.5" />
+                          ) : item.audit.action.includes("call") ? (
+                            <Phone className="h-3.5 w-3.5" />
+                          ) : item.audit.action.includes("meeting") ? (
+                            <CalendarCheck className="h-3.5 w-3.5" />
+                          ) : (
+                            <FileText className="h-3.5 w-3.5" />
+                          )
                         ) : item.action.type === "call" ? (
                           <Phone className="h-3.5 w-3.5" />
                         ) : item.action.type === "email" ? (
@@ -1245,8 +1341,10 @@ export const ClientDetailPage = () => {
                       </div>
                       {/* Data + card */}
                       <div className="flex gap-3 min-w-0 flex-1 pl-8">
-                        <span className="text-muted-foreground shrink-0 text-xs w-20 pt-0.5">
-                          {formatDate(item.createdAt)}
+                        <span className="text-muted-foreground shrink-0 text-xs w-[7.5rem] pt-0.5">
+                          {item.kind === "calendar_event" || item.kind === "client_quick_action"
+                            ? formatDateTime(item.createdAt)
+                            : formatDate(item.createdAt)}
                         </span>
                         <div className="min-w-0 flex-1 rounded-lg border border-border bg-card p-3 shadow-sm">
                           {item.kind === "transition" ? (
@@ -1280,12 +1378,36 @@ export const ClientDetailPage = () => {
                                 </Button>
                               </div>
                             </>
+                          ) : item.kind === "client_quick_action" ? (
+                            <>
+                              <p className="font-medium text-foreground">
+                                {clientQuickActionLabel(item.audit.action)}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                Azione rapida registrata dal profilo
+                                {item.audit.actor?.email ? ` · ${item.audit.actor.email}` : ""}
+                              </p>
+                              {canCreateCalendar && client?.projectId ? (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 text-[11px] text-primary gap-1"
+                                    onClick={() => openCalendarDrawerFromTimelineItem(item)}
+                                  >
+                                    <Calendar className="h-3 w-3" />
+                                    Collega a calendario
+                                  </Button>
+                                </div>
+                              ) : null}
+                            </>
                           ) : item.kind === "calendar_event" ? (
                             <>
                               <p className="font-medium text-foreground">{item.event.title}</p>
                               <p className="text-xs text-muted-foreground mt-0.5">
-                                {formatDate(item.event.startsAt)}
-                                {item.event.endsAt && ` – ${formatDate(item.event.endsAt)}`}
+                                {formatDateTime(item.event.startsAt)}
+                                {item.event.endsAt && ` – ${formatDateTime(item.event.endsAt)}`}
                               </p>
                               <div className="mt-2 flex flex-wrap gap-2">
                                 <Button
@@ -1513,6 +1635,9 @@ export const ClientDetailPage = () => {
         workspaceId={workspaceId ?? ""}
         projectIds={client?.projectId ? [client.projectId] : selectedProjectIds}
         projects={projects}
+        workspaceUsers={workspaceUsers}
+        currentUserEmail={userEmail}
+        canAssignAny={canAssignAnyCalendar}
         open={calendarDrawerOpen}
         onClose={() => setCalendarDrawerOpen(false)}
         onSaved={() => {

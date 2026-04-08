@@ -1,23 +1,35 @@
 /**
- * DateInput — campo data DS (Figma 924-7456). Input type="date" con icona calendario.
- * Usabile dentro FormField; riusa Input e useFormField.
+ * DateInput — campo data DS: calendario a comparsa (Popover + DayPicker), locale italiana.
+ * Compatibile con l’API precedente (`value` / `onChange` come input date).
  */
 import * as React from "react";
-import { Calendar } from "lucide-react";
-import { Input, type InputProps } from "./input";
+import { type InputProps } from "./input";
+import { DatePickerField } from "./date-picker";
 
-export interface DateInputProps
-  extends Omit<InputProps, "type"> {}
+export interface DateInputProps extends Omit<InputProps, "type" | "endAdornment"> {}
 
-const DateInput = React.forwardRef<HTMLInputElement, DateInputProps>(
-  ({ endAdornment, ...props }, ref) => (
-    <Input
-      ref={ref}
-      type="date"
-      endAdornment={endAdornment ?? <Calendar className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />}
-      {...props}
-    />
-  )
+const DateInput = React.forwardRef<HTMLButtonElement, DateInputProps>(
+  ({ className, value, onChange, disabled, id, inputSize, invalid, min, max, "aria-label": ariaLabel }, ref) => {
+    const v = typeof value === "string" ? value : "";
+    const handleChange = (next: string) => {
+      onChange?.({ target: { value: next } } as React.ChangeEvent<HTMLInputElement>);
+    };
+    return (
+      <DatePickerField
+        ref={ref}
+        id={id}
+        aria-label={ariaLabel}
+        value={v}
+        onChange={handleChange}
+        disabled={disabled}
+        invalid={invalid}
+        size={inputSize === "sm" ? "sm" : "default"}
+        className={className}
+        min={typeof min === "string" ? min : undefined}
+        max={typeof max === "string" ? max : undefined}
+      />
+    );
+  }
 );
 DateInput.displayName = "DateInput";
 

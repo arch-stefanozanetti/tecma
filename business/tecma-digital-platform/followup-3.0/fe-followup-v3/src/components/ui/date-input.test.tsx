@@ -2,30 +2,26 @@ import { describe, it, expect, render, screen } from "../../test-utils";
 import { DateInput } from "./date-input";
 
 describe("DateInput", () => {
-  it("rende un input type=date", () => {
+  it("rende un trigger accessibile (calendario a comparsa)", () => {
     render(<DateInput aria-label="Data" />);
-    const input = screen.getByLabelText(/data/i);
-    expect(input).toHaveAttribute("type", "date");
-    expect(input).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /data/i })).toBeInTheDocument();
   });
 
-  it("mostra icona calendario (wrapper con type=date)", () => {
-    const { container } = render(<DateInput />);
-    const input = container.querySelector('input[type="date"]');
-    expect(input).toBeInTheDocument();
-    const wrapper = input?.closest("div");
-    expect(wrapper?.querySelector("svg")).toBeInTheDocument();
+  it("mostra icona calendario sul trigger", () => {
+    const { container } = render(<DateInput aria-label="Data" />);
+    const btn = screen.getByRole("button", { name: /data/i });
+    expect(btn.querySelector("svg")).toBeInTheDocument();
+    expect(container.querySelector('input[type="date"]')).not.toBeInTheDocument();
   });
 
   it("accetta value e onChange", () => {
     render(<DateInput value="2025-01-15" onChange={() => {}} aria-label="Data" />);
-    const input = document.querySelector('input[type="date"]') as HTMLInputElement;
-    expect(input).toHaveValue("2025-01-15");
+    expect(screen.getByRole("button", { name: /data/i })).toHaveTextContent(/15 gennaio 2025/i);
   });
 
   it("supporta invalid come Input", () => {
-    const { container } = render(<DateInput invalid aria-label="Data" />);
-    const wrapper = container.querySelector('input[type="date"]')?.closest("div");
-    expect(wrapper?.className).toMatch(/destructive|border/);
+    render(<DateInput invalid aria-label="Data" />);
+    const btn = screen.getByRole("button", { name: /data/i });
+    expect(btn.className).toMatch(/destructive|border-destructive/);
   });
 });

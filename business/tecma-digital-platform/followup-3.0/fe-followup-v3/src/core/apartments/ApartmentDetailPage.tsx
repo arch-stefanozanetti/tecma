@@ -379,8 +379,8 @@ export const ApartmentDetailPage = () => {
         <TabsContent value="matching" className="space-y-4 mt-4">
           <MatchingCandidatesList
             title="Clienti papabili (matching)"
-            introText="Clienti il cui profilo (budget, zona) è più compatibile con questo appartamento."
-            emptyMessage="Nessun cliente papabile trovato. Completa i profili clienti (budget, città) per migliorare il matching."
+            introText="Clienti dello stesso progetto, ordinati per affinità con questo immobile."
+            emptyMessage="Nessun altro cliente nel progetto. Aggiungi lead o verifica il progetto selezionato."
             loading={matchLoading}
             candidates={matchCandidates}
             getItemLink={(item) => `/clients/${item._id}`}

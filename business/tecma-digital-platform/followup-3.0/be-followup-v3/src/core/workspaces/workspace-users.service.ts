@@ -59,6 +59,8 @@ export interface WorkspaceUserRow {
   userId: string;
   role: MembershipRole;
   access_scope: AccessScope;
+  /** Colore agenda calendario (#RRGGBB), opzionale */
+  calendarDisplayColor?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -69,16 +71,22 @@ function toRow(d: {
   userId?: string;
   role?: string;
   access_scope?: string;
+  calendarDisplayColor?: string;
   createdAt?: unknown;
   updatedAt?: unknown;
 }): WorkspaceUserRow {
   const scope = d.access_scope === "assigned" ? "assigned" : "all";
+  const color =
+    typeof d.calendarDisplayColor === "string" && /^#[0-9A-Fa-f]{6}$/.test(d.calendarDisplayColor)
+      ? d.calendarDisplayColor
+      : undefined;
   return {
     _id: d._id instanceof ObjectId ? d._id.toHexString() : String(d._id),
     workspaceId: d.workspaceId ?? "",
     userId: d.userId ?? "",
     role: normalizeRoleToSpec(d.role),
     access_scope: scope,
+    ...(color ? { calendarDisplayColor: color } : {}),
     createdAt: typeof d.createdAt === "string" ? d.createdAt : (d.createdAt instanceof Date ? d.createdAt.toISOString() : ""),
     updatedAt: typeof d.updatedAt === "string" ? d.updatedAt : (d.updatedAt instanceof Date ? d.updatedAt.toISOString() : ""),
   };
@@ -151,7 +159,7 @@ export const addWorkspaceUser = async (
 export const updateWorkspaceUser = async (
   workspaceId: string,
   userId: string,
-  body: { role?: MembershipRole; access_scope?: AccessScope }
+  body: { role?: MembershipRole; access_scope?: AccessScope; calendarDisplayColor?: string | null }
 ): Promise<{ workspaceUser: WorkspaceUserRow }> => {
   const uid = userId.trim().toLowerCase();
   if (!uid) throw new HttpError("userId obbligatorio", 400);
@@ -161,13 +169,26 @@ export const updateWorkspaceUser = async (
   const db = getDb();
   const coll = db.collection(COLLECTION);
   const update: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+  const unset: Record<string, 1> = {};
   if (body.role != null && isSpecRole(body.role)) update.role = body.role;
   if (body.access_scope !== undefined) update.access_scope = body.access_scope === "assigned" ? "assigned" : "all";
-  if (Object.keys(update).length <= 1) throw new HttpError("role o access_scope obbligatorio per l'aggiornamento", 400);
+  if (body.calendarDisplayColor !== undefined) {
+    if (body.calendarDisplayColor === null || body.calendarDisplayColor === "") {
+      unset.calendarDisplayColor = 1;
+    } else if (typeof body.calendarDisplayColor === "string" && /^#[0-9A-Fa-f]{6}$/.test(body.calendarDisplayColor)) {
+      update.calendarDisplayColor = body.calendarDisplayColor;
+    } else {
+      throw new HttpError("calendarDisplayColor deve essere #RRGGBB", 400);
+    }
+  }
+  if (Object.keys(update).length <= 1 && Object.keys(unset).length === 0) {
+    throw new HttpError("role, access_scope o calendarDisplayColor obbligatori per l'aggiornamento", 400);
+  }
 
+  const updateOp = Object.keys(unset).length > 0 ? { $set: update, $unset: unset } : { $set: update };
   const result = await coll.findOneAndUpdate(
     { workspaceId, userId: uid },
-    { $set: update },
+    updateOp,
     { returnDocument: "after" }
   );
   if (!result || !result._id) throw new HttpError("Utente non trovato in questo workspace", 404);

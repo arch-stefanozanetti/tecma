@@ -1,14 +1,28 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import moment from "moment";
 import "moment/locale/it";
-import { ChevronLeft, ChevronRight, Calendar, Clock, MapPin, Building2, Plus, SlidersHorizontal } from "lucide-react";
+import {
+  Bell,
+  Building2,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Mail,
+  MapPin,
+  Plus,
+  SlidersHorizontal,
+  User,
+} from "lucide-react";
 import { followupApi } from "../../api/followupApi";
-import type { CalendarEvent } from "../../types/domain";
+import type { CalendarEvent, WorkspaceUserRow } from "../../types/domain";
 import { useWorkspace } from "../../auth/projectScope";
 import { useIsMobile } from "../shared/useIsMobile";
 import { cn } from "../../lib/utils";
+import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
+import { Separator } from "../../components/ui/separator";
 import {
   SidePanel,
   SidePanelBody,
@@ -25,8 +39,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
-import { CalendarEventFormDrawer } from "./CalendarEventFormDrawer";
+import { CalendarEventFormDrawer, type CalendarEventFormPrefill } from "./CalendarEventFormDrawer";
 import { useToast } from "../../contexts/ToastContext";
+import {
+  ACTIVITY_STATUS_LABELS,
+  ACTIVITY_TYPE_LABELS,
+  CALENDAR_ACTIVITY_STATUSES,
+  CALENDAR_ACTIVITY_TYPES,
+  OUTCOME_LABELS,
+} from "./calendarConstants";
+import { Checkbox } from "../../components/ui/checkbox";
 
 moment.locale("it");
 moment.updateLocale("it", { week: { dow: 1, doy: 4 } });
@@ -34,6 +56,8 @@ moment.updateLocale("it", { week: { dow: 1, doy: 4 } });
 const HOUR_HEIGHT = 46;
 const TIME_COL_WIDTH = 50;
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
+/** Allineamento click sulla griglia (minuti da mezzanotte). */
+const SLOT_SNAP_MINUTES = 30;
 
 type ViewType = "day" | "week" | "month";
 
@@ -61,10 +85,83 @@ const SOURCE_OPTIONS: { value: CalendarEvent["source"]; label: string }[] = [
   { value: "CUSTOM_SERVICE", label: "Servizio" },
 ];
 
+function statusAccentColor(status: CalendarEvent["activityStatus"] | undefined): string {
+  switch (status) {
+    case "confirmed":
+      return "#2e872b";
+    case "pending":
+      return "#ff7e21";
+    case "lowReliability":
+    case "canceled":
+      return "#ca4a46";
+    default:
+      return "transparent";
+  }
+}
+
+/** Barra sinistra: stato (se presente) o colore vendor o canale `source`. */
+function mergeEventCardColors(
+  event: CalendarEvent,
+  vendorHex: string | undefined
+): Pick<CSSProperties, "background" | "borderLeft" | "color"> {
+  const { border, bg, text } = sourceColor(event.source);
+  const st = statusAccentColor(event.activityStatus);
+  const hasStatus = event.activityStatus && event.activityStatus !== "none" && st !== "transparent";
+  const leftColor = hasStatus ? st : vendorHex || border;
+  const bgStyle =
+    vendorHex && !hasStatus
+      ? (`linear-gradient(90deg, ${vendorHex} 0, ${vendorHex} 3px, ${bg} 3px)` as const)
+      : bg;
+  return {
+    borderLeft: `4px solid ${leftColor}`,
+    background: bgStyle,
+    color: text,
+  };
+}
+
+function capitalizeFirstIt(s: string): string {
+  if (!s) return s;
+  return s.charAt(0).toLocaleUpperCase("it-IT") + s.slice(1);
+}
+
+function activityStatusBadgeVariant(
+  status: NonNullable<CalendarEvent["activityStatus"]> | undefined
+): "success" | "warning" | "destructive" | "secondary" {
+  switch (status) {
+    case "confirmed":
+      return "success";
+    case "pending":
+      return "warning";
+    case "lowReliability":
+    case "canceled":
+      return "destructive";
+    default:
+      return "secondary";
+  }
+}
+
 interface CalendarPageProps {
   workspaceId?: string;
   projectIds?: string[];
 }
+
+const EventDrawerDetailRow = ({
+  label,
+  children,
+  icon,
+}: {
+  label: string;
+  children: React.ReactNode;
+  icon?: ReactNode;
+}) => (
+  <div className="flex gap-3 text-sm">
+    {icon != null ? <span className="mt-0.5 flex-shrink-0 text-muted-foreground">{icon}</span> : null}
+    <div className="min-w-0 flex-1">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <div className="mt-0.5 text-foreground">{children}</div>
+    </div>
+  </div>
+);
 
 // ─── Event Drawer (solo lettura + Modifica + Elimina) ─────────────────────────
 const EventDrawer = ({
@@ -76,6 +173,8 @@ const EventDrawer = ({
   canEditEvent,
   canDeleteEvent,
   projectLabelById,
+  clientNameById,
+  apartmentLabelById,
 }: {
   event: CalendarEvent | null;
   open: boolean;
@@ -85,14 +184,28 @@ const EventDrawer = ({
   canEditEvent: boolean;
   canDeleteEvent: boolean;
   projectLabelById: Map<string, string>;
+  clientNameById: Map<string, string>;
+  apartmentLabelById: Map<string, string>;
 }) => {
   const [deleting, setDeleting] = useState(false);
   const { toastError } = useToast();
   if (!event) return null;
-  const startM = moment(event.startsAt);
-  const endM = moment(event.endsAt);
+  const startM = moment(event.startsAt).locale("it");
+  const endM = moment(event.endsAt).locale("it");
   const { border, bg } = sourceColor(event.source);
   const canDelete = event.workspaceId !== "legacy";
+  const at = event.activityType ? ACTIVITY_TYPE_LABELS[event.activityType] : null;
+  const statusKey = event.activityStatus ?? "none";
+  const ast = ACTIVITY_STATUS_LABELS[statusKey];
+  const oc = event.outcome ? OUTCOME_LABELS[event.outcome] : null;
+
+  const aptIds = (event.apartmentIds?.length ? event.apartmentIds : event.apartmentId ? [event.apartmentId] : []).filter(
+    Boolean
+  ) as string[];
+  const aptLines =
+    aptIds.length > 0
+      ? aptIds.map((id) => apartmentLabelById.get(id) ?? id)
+      : [];
 
   const handleDelete = async () => {
     if (!canDelete || !onDelete) return;
@@ -109,48 +222,164 @@ const EventDrawer = ({
     }
   };
 
+  const dateLine = capitalizeFirstIt(startM.format("dddd D MMMM YYYY"));
+
   return (
     <SidePanel variant="operational" open={open} onOpenChange={(o) => !o && onClose()}>
-      <SidePanelContent side="right" size="md">
+      <SidePanelContent side="right" size="lg" className="flex flex-col">
         <SidePanelHeader actions={<SidePanelClose />}>
-          <SidePanelTitle className="flex items-center gap-2">
-            <span className="inline-block h-3 w-3 rounded-full flex-shrink-0" style={{ background: border }} />
-            {event.title}
-          </SidePanelTitle>
-        </SidePanelHeader>
-        <SidePanelBody className="space-y-3">
-          <div className="flex items-center gap-3 text-sm">
-            <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span className="capitalize">{startM.format("dddd D MMMM YYYY")}</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm">
-            <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span>{startM.format("HH:mm")} – {endM.format("HH:mm")}</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm">
-            <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span>{projectLabelById.get(event.projectId) ?? event.projectId}</span>
-          </div>
-          <div className="pt-1">
-            <span
-              className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
-              style={{ background: bg, color: border, border: `1px solid ${border}` }}
+          <div className="space-y-2 pr-2">
+            <Badge
+              variant="outline"
+              className="border font-normal"
+              style={{ borderColor: border, color: border, backgroundColor: bg }}
             >
               {sourceLabel[event.source]}
-            </span>
+            </Badge>
+            <SidePanelTitle className="text-left text-lg font-semibold leading-snug tracking-tight">
+              {event.title}
+            </SidePanelTitle>
           </div>
+        </SidePanelHeader>
+        <SidePanelBody className="flex-1 space-y-6 overflow-y-auto text-sm">
+          <div className="rounded-xl border border-border bg-muted/30 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-background shadow-sm ring-1 ring-border">
+                <Calendar className="h-5 w-5 text-primary" aria-hidden />
+              </div>
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="text-sm font-medium leading-tight text-foreground">{dateLine}</p>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Clock className="h-4 w-4 flex-shrink-0" aria-hidden />
+                  <span className="text-base font-semibold tabular-nums text-foreground">
+                    {event.allDay ? "Tutto il giorno" : `${startM.format("HH:mm")} – ${endM.format("HH:mm")}`}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <section className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dettaglio attività</h3>
+            <div className="space-y-3 rounded-xl border border-border bg-background p-4">
+              <EventDrawerDetailRow label="Tipo di attività">{at ?? "—"}</EventDrawerDetailRow>
+              <Separator className="my-1" />
+              <EventDrawerDetailRow label="Status">
+                <Badge variant={activityStatusBadgeVariant(event.activityStatus)} className="font-normal">
+                  {ast}
+                </Badge>
+              </EventDrawerDetailRow>
+              {oc != null ? (
+                <>
+                  <Separator className="my-1" />
+                  <EventDrawerDetailRow label="Esito">{oc}</EventDrawerDetailRow>
+                </>
+              ) : null}
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Collegamenti</h3>
+            <div className="space-y-4 rounded-xl border border-border bg-background p-4">
+              <EventDrawerDetailRow label="Progetto" icon={<Building2 className="h-4 w-4" />}>
+                {projectLabelById.get(event.projectId) ?? event.projectId}
+              </EventDrawerDetailRow>
+              {event.clientId ? (
+                <>
+                  <Separator />
+                  <EventDrawerDetailRow label="Cliente" icon={<User className="h-4 w-4" />}>
+                    {clientNameById.get(event.clientId) ?? event.clientId}
+                  </EventDrawerDetailRow>
+                </>
+              ) : null}
+              {aptLines.length > 0 ? (
+                <>
+                  <Separator />
+                  <EventDrawerDetailRow label="Immobili" icon={<MapPin className="h-4 w-4" />}>
+                    <ul className="list-inside list-disc space-y-1">
+                      {aptLines.map((line, i) => (
+                        <li key={`${aptIds[i]}-${i}`} className="text-sm">
+                          {line}
+                        </li>
+                      ))}
+                    </ul>
+                  </EventDrawerDetailRow>
+                </>
+              ) : null}
+              {event.assignedUserId ? (
+                <>
+                  <Separator />
+                  <EventDrawerDetailRow label="Assegnatario" icon={<Mail className="h-4 w-4" />}>
+                    <span className="break-all">{event.assignedUserId}</span>
+                  </EventDrawerDetailRow>
+                </>
+              ) : null}
+            </div>
+          </section>
+
+          {(event.notesInternal || event.notesClientVisible || event.additionalInfo) && (
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Note e informazioni</h3>
+              <div className="space-y-3">
+                {event.notesInternal ? (
+                  <div className="rounded-xl border border-border bg-muted/40 p-4">
+                    <p className="text-xs font-semibold text-muted-foreground">Note interne</p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{event.notesInternal}</p>
+                  </div>
+                ) : null}
+                {event.notesClientVisible ? (
+                  <div className="rounded-xl border border-border p-4">
+                    <p className="text-xs font-semibold text-muted-foreground">Note visibili al cliente</p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{event.notesClientVisible}</p>
+                  </div>
+                ) : null}
+                {event.additionalInfo ? (
+                  <div className="rounded-xl border border-border p-4">
+                    <p className="text-xs font-semibold text-muted-foreground">Informazioni aggiuntive</p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{event.additionalInfo}</p>
+                  </div>
+                ) : null}
+              </div>
+            </section>
+          )}
+
+          {event.notifyClientOnActivityUpdate ? (
+            <div className="flex items-start gap-2 rounded-lg border border-dashed border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+              <Bell className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden />
+              <span>
+                Notifiche aggiornamenti al cliente: <span className="font-medium text-foreground">attivate</span> (invio
+                email in roadmap).
+              </span>
+            </div>
+          ) : null}
         </SidePanelBody>
-        <SidePanelFooter>
-          {onEdit && canEditEvent && (
-            <Button variant="outline" size="sm" className="flex-1" onClick={() => { onClose(); onEdit(); }}>
+        <SidePanelFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <Button type="button" variant="outline" className="min-h-11 w-full sm:w-auto sm:min-w-[120px]" onClick={onClose}>
+            Chiudi
+          </Button>
+          {onEdit && canEditEvent ? (
+            <Button
+              type="button"
+              className="min-h-11 w-full sm:w-auto sm:min-w-[120px]"
+              onClick={() => {
+                onClose();
+                onEdit();
+              }}
+            >
               Modifica
             </Button>
-          )}
-          {canDelete && onDelete && canDeleteEvent && (
-            <Button variant="outline" size="sm" className="flex-1 text-destructive hover:bg-destructive/10" onClick={handleDelete} disabled={deleting}>
+          ) : null}
+          {canDelete && onDelete && canDeleteEvent ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11 w-full border-destructive/40 text-destructive hover:bg-destructive/10 sm:w-auto sm:min-w-[120px]"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
               {deleting ? "Eliminazione..." : "Elimina"}
             </Button>
-          )}
+          ) : null}
         </SidePanelFooter>
       </SidePanelContent>
     </SidePanel>
@@ -162,20 +391,30 @@ const EventCard = ({
   event,
   style,
   onClick,
+  vendorColorByUserId,
 }: {
   event: CalendarEvent;
-  style: React.CSSProperties;
+  style: CSSProperties;
   onClick: (ev: CalendarEvent) => void;
+  vendorColorByUserId: Map<string, string>;
 }) => {
-  const { border, bg, text } = sourceColor(event.source);
+  const v =
+    event.assignedUserId != null
+      ? vendorColorByUserId.get(event.assignedUserId.toLowerCase())
+      : undefined;
+  const chroma = mergeEventCardColors(event, v);
   const startM = moment(event.startsAt);
   const endM = moment(event.endsAt);
   return (
     <button
       type="button"
-      className="absolute overflow-hidden rounded px-1.5 py-0.5 text-left text-xs transition-opacity hover:opacity-80"
-      style={{ ...style, borderLeft: `2px solid ${border}`, background: bg, color: text }}
-      onClick={() => onClick(event)}
+      data-calendar-event-card
+      className="absolute overflow-hidden rounded px-1.5 py-0.5 text-left text-xs transition-opacity hover:opacity-80 z-20"
+      style={{ ...style, ...chroma }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick(event);
+      }}
     >
       <div className="truncate font-medium leading-tight">{event.title}</div>
       <div className="truncate opacity-70">{startM.format("HH:mm")}–{endM.format("HH:mm")}</div>
@@ -188,10 +427,16 @@ const TimeGrid = ({
   days,
   events,
   onEventClick,
+  onEmptySlotClick,
+  canCreate,
+  vendorColorByUserId,
 }: {
   days: moment.Moment[];
   events: CalendarEvent[];
   onEventClick: (ev: CalendarEvent) => void;
+  onEmptySlotClick: (startLocal: moment.Moment) => void;
+  canCreate: boolean;
+  vendorColorByUserId: Map<string, string>;
 }) => {
   const nowRef = useRef<HTMLDivElement>(null);
   const now = moment();
@@ -232,11 +477,32 @@ const TimeGrid = ({
         return (
           <div
             key={colIdx}
-            className={cn("relative border-l border-border", isToday && "bg-blue-50/30")}
+            className={cn(
+              "relative border-l border-border",
+              isToday && "bg-blue-50/30",
+              canCreate && "cursor-pointer"
+            )}
             style={{
               gridColumn: colIdx + 2,
               gridRow: `1 / ${HOURS.length + 1}`,
               height: HOUR_HEIGHT * 24,
+            }}
+            title={canCreate ? "Clicca per creare un evento in questo orario" : undefined}
+            onClick={(e) => {
+              if (!canCreate) return;
+              if ((e.target as HTMLElement).closest("[data-calendar-event-card]")) return;
+              const col = e.currentTarget;
+              const rect = col.getBoundingClientRect();
+              const y = e.clientY - rect.top;
+              const dayHeight = HOUR_HEIGHT * 24;
+              const clampedY = Math.max(0, Math.min(y, dayHeight - 0.001));
+              const minutesFloat = (clampedY / dayHeight) * (24 * 60);
+              const snapped = Math.min(
+                24 * 60 - SLOT_SNAP_MINUTES,
+                Math.round(minutesFloat / SLOT_SNAP_MINUTES) * SLOT_SNAP_MINUTES
+              );
+              const start = day.clone().startOf("day").add(snapped, "minutes");
+              onEmptySlotClick(start);
             }}
           >
             {HOURS.map((h) => (
@@ -249,7 +515,7 @@ const TimeGrid = ({
             {isToday && (
               <div
                 ref={todayIdx === colIdx ? nowRef : undefined}
-                className="absolute left-0 right-0 z-10 flex items-center"
+                className="absolute left-0 right-0 z-10 flex items-center pointer-events-none"
                 style={{ top: ((now.hours() * 60 + now.minutes()) / 60) * HOUR_HEIGHT }}
               >
                 <div className="h-2 w-2 rounded-full bg-primary -ml-1 flex-shrink-0" />
@@ -268,6 +534,7 @@ const TimeGrid = ({
                   event={ev}
                   style={{ top, left: 2, right: 2, height }}
                   onClick={onEventClick}
+                  vendorColorByUserId={vendorColorByUserId}
                 />
               );
             })}
@@ -283,10 +550,16 @@ const MonthView = ({
   currentDate,
   events,
   onEventClick,
+  onEmptyDayClick,
+  canCreate,
+  vendorColorByUserId,
 }: {
   currentDate: moment.Moment;
   events: CalendarEvent[];
   onEventClick: (ev: CalendarEvent) => void;
+  onEmptyDayClick: (dayStart: moment.Moment) => void;
+  canCreate: boolean;
+  vendorColorByUserId: Map<string, string>;
 }) => {
   const today = moment().startOf("day");
   const gridStart = currentDate.clone().startOf("month").startOf("week");
@@ -314,8 +587,15 @@ const MonthView = ({
               className={cn(
                 "min-h-[100px] border-b border-r border-border p-2",
                 !isCurrentMonth && "bg-muted/50 opacity-50",
-                isToday && "bg-blue-50/40"
+                isToday && "bg-blue-50/40",
+                canCreate && "cursor-pointer hover:bg-muted/40"
               )}
+              title={canCreate ? "Clicca per creare un evento (ore 9:00)" : undefined}
+              onClick={(e) => {
+                if (!canCreate) return;
+                if ((e.target as HTMLElement).closest("[data-calendar-event-pill]")) return;
+                onEmptyDayClick(day.clone().hour(9).minute(0).second(0));
+              }}
             >
               <span
                 className={cn(
@@ -327,14 +607,22 @@ const MonthView = ({
               </span>
               <div className="mt-1 space-y-0.5">
                 {dayEvents.slice(0, 3).map((ev) => {
-                  const { border, bg, text } = sourceColor(ev.source);
+                  const v =
+                    ev.assignedUserId != null
+                      ? vendorColorByUserId.get(ev.assignedUserId.toLowerCase())
+                      : undefined;
+                  const chroma = mergeEventCardColors(ev, v);
                   return (
                     <button
                       key={ev._id}
                       type="button"
+                      data-calendar-event-pill
                       className="w-full truncate rounded px-1.5 py-0.5 text-left text-[10px] font-medium transition-opacity hover:opacity-80"
-                      style={{ borderLeft: `2px solid ${border}`, background: bg, color: text }}
-                      onClick={() => onEventClick(ev)}
+                      style={chroma}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEventClick(ev);
+                      }}
                     >
                       {ev.title}
                     </button>
@@ -357,7 +645,7 @@ export const CalendarPage = (_props: CalendarPageProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const { workspaceId, selectedProjectIds, projects, hasPermission } = useWorkspace();
+  const { workspaceId, selectedProjectIds, projects, hasPermission, email: userEmail } = useWorkspace();
   const projectLabelById = useMemo(() => {
     const map = new Map<string, string>();
     for (const p of projects ?? []) {
@@ -368,6 +656,8 @@ export const CalendarPage = (_props: CalendarPageProps) => {
   const canCreateCalendar = hasPermission("calendar.create");
   const canUpdateCalendar = hasPermission("calendar.update");
   const canDeleteCalendar = hasPermission("calendar.delete");
+  const canReadAllVendors = hasPermission("calendar.readAllVendors");
+  const canAssignAny = hasPermission("calendar.assignAny");
   const [view, setView] = useState<ViewType>(() => (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches ? "day" : "week"));
   const [currentDate, setCurrentDate] = useState(moment());
   useEffect(() => {
@@ -385,16 +675,99 @@ export const CalendarPage = (_props: CalendarPageProps) => {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filterSource, setFilterSource] = useState<"all" | CalendarEvent["source"]>("all");
   const [filterProjectId, setFilterProjectId] = useState<string>("all");
+  /** Orario scelto da click su griglia / giorno (create). */
+  const [createPrefill, setCreatePrefill] = useState<CalendarEventFormPrefill | undefined>(undefined);
+  const [workspaceUsers, setWorkspaceUsers] = useState<WorkspaceUserRow[]>([]);
+  const [clientsLiteRows, setClientsLiteRows] = useState<Array<{ _id: string; fullName: string }>>([]);
+  const [agendaMode, setAgendaMode] = useState<"me" | "all" | "users">("me");
+  const [agendaPickUsers, setAgendaPickUsers] = useState<string[]>([]);
+  const [filterActivityKind, setFilterActivityKind] = useState<"all" | NonNullable<CalendarEvent["activityType"]>>("all");
+  const [filterActivityState, setFilterActivityState] = useState<"all" | NonNullable<CalendarEvent["activityStatus"]>>("all");
+  const [eventDrawerApartmentLabels, setEventDrawerApartmentLabels] = useState<Map<string, string>>(() => new Map());
 
   const hasScope = Boolean(workspaceId && selectedProjectIds.length > 0);
 
-  const filteredEvents = useMemo(() => {
-    return events.filter((ev) => {
-      if (filterSource !== "all" && ev.source !== filterSource) return false;
-      if (filterProjectId !== "all" && ev.projectId !== filterProjectId) return false;
-      return true;
-    });
-  }, [events, filterSource, filterProjectId]);
+  useEffect(() => {
+    if (!workspaceId) {
+      setWorkspaceUsers([]);
+      return;
+    }
+    followupApi
+      .listWorkspaceUsers(workspaceId)
+      .then((r) => setWorkspaceUsers(r.data ?? []))
+      .catch(() => setWorkspaceUsers([]));
+  }, [workspaceId]);
+
+  useEffect(() => {
+    if (!workspaceId || selectedProjectIds.length === 0) {
+      setClientsLiteRows([]);
+      return;
+    }
+    followupApi
+      .queryClientsLite(workspaceId, selectedProjectIds)
+      .then((r) => setClientsLiteRows(r.data ?? []))
+      .catch(() => setClientsLiteRows([]));
+  }, [workspaceId, selectedProjectIds]);
+
+  const clientNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of clientsLiteRows) {
+      m.set(c._id, c.fullName);
+    }
+    return m;
+  }, [clientsLiteRows]);
+
+  const vendorColorByUserId = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const u of workspaceUsers) {
+      const col = u.calendarDisplayColor?.trim();
+      if (col && /^#[0-9A-Fa-f]{6}$/.test(col)) {
+        m.set(u.userId.trim().toLowerCase(), col);
+      }
+    }
+    return m;
+  }, [workspaceUsers]);
+
+  useEffect(() => {
+    if (!dialogOpen || !selectedEvent || !workspaceId) {
+      setEventDrawerApartmentLabels(new Map());
+      return;
+    }
+    const aptIds = [
+      ...(selectedEvent.apartmentIds ?? []),
+      ...(selectedEvent.apartmentId ? [selectedEvent.apartmentId] : []),
+    ].filter(Boolean) as string[];
+    if (aptIds.length === 0) {
+      setEventDrawerApartmentLabels(new Map());
+      return;
+    }
+    let cancelled = false;
+    followupApi.apartments
+      .queryApartments({
+        workspaceId,
+        projectIds: [selectedEvent.projectId],
+        page: 1,
+        perPage: 500,
+        searchText: "",
+        sort: { field: "code", direction: 1 },
+        filters: {},
+      })
+      .then((res) => {
+        if (cancelled) return;
+        const m = new Map<string, string>();
+        for (const a of res.data ?? []) {
+          const label = [a.code, a.name].filter(Boolean).join(" — ") || a._id;
+          m.set(a._id, label);
+        }
+        setEventDrawerApartmentLabels(m);
+      })
+      .catch(() => {
+        if (!cancelled) setEventDrawerApartmentLabels(new Map());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dialogOpen, selectedEvent, workspaceId]);
 
   const queryDateRange = useMemo(() => {
     if (view === "day") {
@@ -412,13 +785,43 @@ export const CalendarPage = (_props: CalendarPageProps) => {
     return { from, to };
   }, [currentDate, view]);
 
+  const filteredEvents = useMemo(() => {
+    return events.filter((ev) => {
+      if (filterSource !== "all" && ev.source !== filterSource) return false;
+      if (filterProjectId !== "all" && ev.projectId !== filterProjectId) return false;
+      return true;
+    });
+  }, [events, filterSource, filterProjectId]);
+
+  const serverCalendarFilters = useMemo(() => {
+    const dateFrom = queryDateRange.from.toISOString();
+    const dateTo = queryDateRange.to.toISOString();
+    const f: Record<string, unknown> = { dateFrom, dateTo };
+    if (filterActivityKind !== "all") f.activityType = filterActivityKind;
+    if (filterActivityState !== "all") f.activityStatus = filterActivityState;
+    if (canReadAllVendors) {
+      const em = userEmail.trim().toLowerCase();
+      if (agendaMode === "me" && em) f.assignedUserIds = [em];
+      else if (agendaMode === "users" && agendaPickUsers.length > 0) {
+        f.assignedUserIds = agendaPickUsers.map((x) => x.trim().toLowerCase()).filter(Boolean);
+      }
+    }
+    return f;
+  }, [
+    queryDateRange,
+    canReadAllVendors,
+    agendaMode,
+    agendaPickUsers,
+    userEmail,
+    filterActivityKind,
+    filterActivityState,
+  ]);
+
   useEffect(() => {
     let ignore = false;
     if (!workspaceId || selectedProjectIds.length === 0) return;
     setIsLoading(true);
     setError(null);
-    const dateFrom = queryDateRange.from.toISOString();
-    const dateTo = queryDateRange.to.toISOString();
     followupApi
       .queryCalendar({
         workspaceId,
@@ -427,7 +830,7 @@ export const CalendarPage = (_props: CalendarPageProps) => {
         perPage: 200,
         searchText: "",
         sort: { field: "startsAt", direction: 1 },
-        filters: { dateFrom, dateTo }
+        filters: serverCalendarFilters,
       })
       .then((res) => {
         const data = res?.data ?? [];
@@ -436,7 +839,7 @@ export const CalendarPage = (_props: CalendarPageProps) => {
       .catch((e) => { if (!ignore) setError(e instanceof Error ? e.message : "Errore caricamento eventi"); })
       .finally(() => { if (!ignore) setIsLoading(false); });
     return () => { ignore = true; };
-  }, [workspaceId, selectedProjectIds, queryDateRange, refreshKey]);
+  }, [workspaceId, selectedProjectIds, serverCalendarFilters, refreshKey]);
 
   const handleEventClick = (ev: CalendarEvent) => {
     setSelectedEvent(ev);
@@ -444,8 +847,21 @@ export const CalendarPage = (_props: CalendarPageProps) => {
   };
 
   const handleOpenNewEvent = () => {
+    setCreatePrefill(undefined);
     setEventToEdit(null);
     setEventFormMode("create");
+    setEventFormOpen(true);
+  };
+
+  const openCreateAtSlot = (start: moment.Moment) => {
+    if (!canCreateCalendar) return;
+    const end = start.clone().add(1, "hour");
+    setEventToEdit(null);
+    setEventFormMode("create");
+    setCreatePrefill({
+      startsAt: start.toISOString(),
+      endsAt: end.toISOString(),
+    });
     setEventFormOpen(true);
   };
 
@@ -556,6 +972,49 @@ export const CalendarPage = (_props: CalendarPageProps) => {
         </div>
       </div>
 
+      {hasScope && canReadAllVendors && (
+        <div className="flex flex-wrap items-center gap-3 border-b border-border bg-white px-6 py-2">
+          <span className="text-xs font-medium text-muted-foreground">Agenda</span>
+          <Select
+            value={agendaMode}
+            onValueChange={(v) => setAgendaMode(v as "me" | "all" | "users")}
+          >
+            <SelectTrigger className="h-9 w-[220px] rounded-lg border-border text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="me">Solo i miei eventi</SelectItem>
+              <SelectItem value="all">Tutti i vendor</SelectItem>
+              <SelectItem value="users">Utenti selezionati…</SelectItem>
+            </SelectContent>
+          </Select>
+          {agendaMode === "users" && (
+            <div className="flex max-w-2xl flex-wrap gap-x-4 gap-y-2">
+              {workspaceUsers.map((u) => {
+                const id = u.userId.trim().toLowerCase();
+                const checked = agendaPickUsers.includes(id);
+                return (
+                  <label key={u._id} className="flex cursor-pointer items-center gap-1.5 text-xs">
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(c) => {
+                        setAgendaPickUsers((prev) => {
+                          if (c === true) return [...new Set([...prev, id])];
+                          return prev.filter((x) => x !== id);
+                        });
+                      }}
+                    />
+                    <span className="max-w-[200px] truncate" title={u.userId}>
+                      {u.userId}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {!hasScope && (
         <div className="mx-6 mt-6 rounded-chrome border border-amber-200 bg-amber-50 px-4 py-4 shadow-sm">
           <p className="text-sm font-medium text-amber-900">
@@ -587,7 +1046,14 @@ export const CalendarPage = (_props: CalendarPageProps) => {
 
       {/* Calendar body */}
       {hasScope && view === "month" && (
-        <MonthView currentDate={currentDate} events={filteredEvents} onEventClick={handleEventClick} />
+        <MonthView
+          currentDate={currentDate}
+          events={filteredEvents}
+          onEventClick={handleEventClick}
+          onEmptyDayClick={openCreateAtSlot}
+          canCreate={canCreateCalendar}
+          vendorColorByUserId={vendorColorByUserId}
+        />
       )}
       {hasScope && view !== "month" && (
         <>
@@ -622,6 +1088,9 @@ export const CalendarPage = (_props: CalendarPageProps) => {
               days={view === "week" ? weekDays : [currentDate]}
               events={filteredEvents}
               onEventClick={handleEventClick}
+              onEmptySlotClick={openCreateAtSlot}
+              canCreate={canCreateCalendar}
+              vendorColorByUserId={vendorColorByUserId}
             />
           </div>
         </>
@@ -667,6 +1136,48 @@ export const CalendarPage = (_props: CalendarPageProps) => {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Tipo attività</label>
+              <Select
+                value={filterActivityKind}
+                onValueChange={(v) =>
+                  setFilterActivityKind(v as "all" | NonNullable<CalendarEvent["activityType"]>)
+                }
+              >
+                <SelectTrigger className="min-h-11 rounded-lg border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutti</SelectItem>
+                  {CALENDAR_ACTIVITY_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {ACTIVITY_TYPE_LABELS[t]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Status attività</label>
+              <Select
+                value={filterActivityState}
+                onValueChange={(v) =>
+                  setFilterActivityState(v as "all" | NonNullable<CalendarEvent["activityStatus"]>)
+                }
+              >
+                <SelectTrigger className="min-h-11 rounded-lg border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutti</SelectItem>
+                  {CALENDAR_ACTIVITY_STATUSES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {ACTIVITY_STATUS_LABELS[s]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </SidePanelBody>
           <SidePanelFooter>
             <Button variant="outline" onClick={() => setFiltersOpen(false)}>
@@ -676,6 +1187,10 @@ export const CalendarPage = (_props: CalendarPageProps) => {
               onClick={() => {
                 setFilterSource("all");
                 setFilterProjectId("all");
+                setFilterActivityKind("all");
+                setFilterActivityState("all");
+                setAgendaMode("me");
+                setAgendaPickUsers([]);
               }}
             >
               Reset filtri
@@ -693,16 +1208,25 @@ export const CalendarPage = (_props: CalendarPageProps) => {
         canEditEvent={canUpdateCalendar}
         canDeleteEvent={canDeleteCalendar}
         projectLabelById={projectLabelById}
+        clientNameById={clientNameById}
+        apartmentLabelById={eventDrawerApartmentLabels}
       />
       <CalendarEventFormDrawer
         mode={eventFormMode}
         event={eventToEdit}
         defaultDate={currentDate}
+        prefill={eventFormMode === "create" ? createPrefill : undefined}
         workspaceId={workspaceId ?? ""}
         projectIds={selectedProjectIds}
         projects={projects}
+        workspaceUsers={workspaceUsers}
+        currentUserEmail={userEmail}
+        canAssignAny={canAssignAny}
         open={eventFormOpen}
-        onClose={() => setEventFormOpen(false)}
+        onClose={() => {
+          setEventFormOpen(false);
+          setCreatePrefill(undefined);
+        }}
         onSaved={handleEventFormSaved}
       />
     </div>

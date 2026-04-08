@@ -5,6 +5,7 @@ import type { NotificationRow, NotificationType } from "../../types/domain";
 import { cn } from "../../lib/utils";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { DateInput } from "../../components/ui/date-input";
 import {
   Select,
   SelectContent,
@@ -165,20 +166,22 @@ export function InboxPage({ workspaceId, onSectionChange, navigate }: InboxPageP
           </Select>
           <div className="flex items-center gap-2">
             <label className="text-sm text-muted-foreground whitespace-nowrap">Da</label>
-            <Input
-              type="date"
+            <DateInput
+              aria-label="Notifiche da data"
               value={dateFrom}
+              max={dateTo || undefined}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="w-[140px]"
+              className="w-[min(100%,11rem)] min-w-[9.5rem]"
             />
           </div>
           <div className="flex items-center gap-2">
             <label className="text-sm text-muted-foreground whitespace-nowrap">A</label>
-            <Input
-              type="date"
+            <DateInput
+              aria-label="Notifiche a data"
               value={dateTo}
+              min={dateFrom || undefined}
               onChange={(e) => setDateTo(e.target.value)}
-              className="w-[140px]"
+              className="w-[min(100%,11rem)] min-w-[9.5rem]"
             />
           </div>
           {unreadInList > 0 && (

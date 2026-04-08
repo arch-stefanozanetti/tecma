@@ -7,6 +7,7 @@ import { RotateCcw, Search, X } from "lucide-react";
 import { Accordion, AccordionItem } from "../../components/ui/accordion";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { DateInput } from "../../components/ui/date-input";
 import {
   Select,
   SelectContent,
@@ -120,19 +121,23 @@ export function ClientsFiltersDrawerContent({
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Data da</label>
-              <Input
-                type="date"
+              <DateInput
+                aria-label="Data inizio intervallo"
                 className="h-10 w-full"
+                inputSize="default"
                 value={timeFrame.fromDate}
+                max={timeFrame.toDate || undefined}
                 onChange={(e) => updateTimeFrame({ fromDate: e.target.value })}
               />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Data a</label>
-              <Input
-                type="date"
+              <DateInput
+                aria-label="Data fine intervallo"
                 className="h-10 w-full"
+                inputSize="default"
                 value={timeFrame.toDate}
+                min={timeFrame.fromDate || undefined}
                 onChange={(e) => updateTimeFrame({ toDate: e.target.value })}
               />
             </div>

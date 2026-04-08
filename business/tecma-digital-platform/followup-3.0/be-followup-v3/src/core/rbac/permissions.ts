@@ -36,11 +36,15 @@ export const PERMISSIONS = {
   REQUESTS_APPROVE: "requests.approve",
 
   CALENDAR_READ: "calendar.read",
+  /** Leggere eventi di tutti i vendor / filtri agenda multi-utente */
+  CALENDAR_READ_ALL_VENDORS: "calendar.readAllVendors",
   CALENDAR_CREATE: "calendar.create",
   CALENDAR_UPDATE: "calendar.update",
   CALENDAR_DELETE: "calendar.delete",
   CALENDAR_EXPORT: "calendar.export",
   CALENDAR_ASSIGN: "calendar.assign",
+  /** Creare/modificare eventi assegnati ad altri utenti */
+  CALENDAR_ASSIGN_ANY: "calendar.assignAny",
   CALENDAR_APPROVE: "calendar.approve",
 
   REPORTS_READ: "reports.read",
@@ -103,6 +107,7 @@ export const BUILTIN_ROLE_PERMISSIONS: Record<string, string[] | typeof PERMISSI
     PERMISSIONS.REQUESTS_CREATE,
     PERMISSIONS.REQUESTS_UPDATE,
     PERMISSIONS.CALENDAR_READ,
+    PERMISSIONS.CALENDAR_READ_ALL_VENDORS,
     PERMISSIONS.CALENDAR_CREATE,
     PERMISSIONS.CALENDAR_UPDATE,
     PERMISSIONS.CALENDAR_DELETE,

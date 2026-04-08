@@ -9,6 +9,7 @@ import { queryApartments } from "../apartments/apartments.service.js";
 import type { EntityAssignmentListViewer } from "../workspaces/entity-assignment-query.util.js";
 import { queryAssociations } from "../future/future.service.js";
 import { createCalendarEvent } from "../calendar/calendar.service.js";
+import { PERMISSIONS } from "../rbac/permissions.js";
 
 export type AgentToolContext = {
   workspaceId: string;
@@ -203,16 +204,19 @@ export async function executeAgentTool(
       const p = CreateCalendarSchema.parse(args);
       assertWorkspace(ctx, p.workspaceId);
       if (!ctx.projectIds.includes(p.projectId)) throw new HttpError("projectId not in workspace scope", 400);
-      return createCalendarEvent({
-        workspaceId: p.workspaceId,
-        projectId: p.projectId,
-        title: p.title,
-        startsAt: p.startsAt,
-        endsAt: p.endsAt,
-        source: "CUSTOM_SERVICE",
-        ...(p.clientId?.trim() && { clientId: p.clientId.trim() }),
-        ...(p.apartmentId?.trim() && { apartmentId: p.apartmentId.trim() })
-      });
+      return createCalendarEvent(
+        {
+          workspaceId: p.workspaceId,
+          projectId: p.projectId,
+          title: p.title,
+          startsAt: p.startsAt,
+          endsAt: p.endsAt,
+          source: "CUSTOM_SERVICE",
+          ...(p.clientId?.trim() && { clientId: p.clientId.trim() }),
+          ...(p.apartmentId?.trim() && { apartmentId: p.apartmentId.trim() }),
+        },
+        { userEmail: ctx.actorEmail, permissions: [PERMISSIONS.ALL] }
+      );
     }
     case "create_task_from_suggestion": {
       const p = CreateTaskSchema.parse(args);

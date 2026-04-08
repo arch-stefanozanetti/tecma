@@ -23,6 +23,29 @@ export const STATUS_LABEL: Record<string, string> = {
 
 export const statusLabel = (raw: string): string => STATUS_LABEL[raw] ?? raw;
 
+/** Azioni rapide profilo cliente → scritte in audit (`client.*`) e mostrate in timeline. */
+export const CLIENT_QUICK_AUDIT_ACTIONS = [
+  "client.mail_received",
+  "client.mail_sent",
+  "client.call_completed",
+  "client.meeting_scheduled",
+] as const;
+
+export const CLIENT_QUICK_ACTION_LABEL: Record<(typeof CLIENT_QUICK_AUDIT_ACTIONS)[number], string> = {
+  "client.mail_received": "Mail ricevuta",
+  "client.mail_sent": "Mail inviata",
+  "client.call_completed": "Chiamata fatta",
+  "client.meeting_scheduled": "Meeting fissato",
+};
+
+export function clientQuickActionLabel(action: string): string {
+  return CLIENT_QUICK_ACTION_LABEL[action as keyof typeof CLIENT_QUICK_ACTION_LABEL] ?? action;
+}
+
+export function isClientQuickAuditAction(action: string): boolean {
+  return (CLIENT_QUICK_AUDIT_ACTIONS as readonly string[]).includes(action);
+}
+
 /** Campi usati per la profilazione (match): più sono compilati, migliore il match. */
 export const PROFILATION_FIELDS: (keyof ClientRow)[] = [
   "email",

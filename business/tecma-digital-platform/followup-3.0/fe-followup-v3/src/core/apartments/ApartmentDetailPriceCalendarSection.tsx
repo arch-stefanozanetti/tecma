@@ -1,5 +1,5 @@
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { DateInput } from "../../components/ui/date-input";
 import { PriceAvailabilityGrid, type MatrixUnit, type MatrixCell } from "../prices/PriceAvailabilityGrid";
 import { followupApi } from "../../api/followupApi";
 
@@ -40,11 +40,25 @@ export function ApartmentDetailPriceCalendarSection({
       <div className="flex flex-wrap items-end gap-2">
         <div>
           <label className="text-xs font-medium text-foreground block mb-1">Da</label>
-          <Input type="date" className="h-8 w-36" value={from} onChange={(e: React.ChangeEvent<HTMLInputElement>) => onFromChange(e.target.value)} />
+          <DateInput
+            aria-label="Periodo da"
+            inputSize="sm"
+            className="w-40 min-w-[10rem]"
+            value={from}
+            max={to || undefined}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onFromChange(e.target.value)}
+          />
         </div>
         <div>
           <label className="text-xs font-medium text-foreground block mb-1">A</label>
-          <Input type="date" className="h-8 w-36" value={to} onChange={(e: React.ChangeEvent<HTMLInputElement>) => onToChange(e.target.value)} />
+          <DateInput
+            aria-label="Periodo a"
+            inputSize="sm"
+            className="w-40 min-w-[10rem]"
+            value={to}
+            min={from || undefined}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onToChange(e.target.value)}
+          />
         </div>
         <Button type="button" variant="outline" size="sm" onClick={onLoadMatrix} disabled={loading}>
           {loading ? "Caricamento..." : "Carica calendario"}

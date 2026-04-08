@@ -7,6 +7,7 @@ import { followupApi } from "../../api/followupApi";
 import { useWorkspace } from "../../auth/projectScope";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { DateInput } from "../../components/ui/date-input";
 import {
   Select,
   SelectContent,
@@ -164,20 +165,22 @@ export const AuditLogPage = () => {
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Da data</label>
-            <Input
-              type="date"
+            <DateInput
+              aria-label="Audit da data"
               value={filters.dateFrom}
+              max={filters.dateTo || undefined}
               onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value }))}
-              className="w-36"
+              className="w-40 min-w-[10rem]"
             />
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">A data</label>
-            <Input
-              type="date"
+            <DateInput
+              aria-label="Audit a data"
               value={filters.dateTo}
+              min={filters.dateFrom || undefined}
               onChange={(e) => setFilters((f) => ({ ...f, dateTo: e.target.value }))}
-              className="w-36"
+              className="w-40 min-w-[10rem]"
             />
           </div>
           <div className="flex items-end gap-2">

@@ -7,6 +7,15 @@ import { PERMISSIONS } from "../../core/rbac/permissions.js";
 import { canAccess } from "../../core/access/canAccess.js";
 import { HttpError } from "../../types/http.js";
 
+function calendarCtx(req: { user?: { email?: string; permissions?: string[] } }): {
+  userEmail: string;
+  permissions: string[];
+} {
+  const email = req.user?.email?.trim().toLowerCase();
+  if (!email) throw new HttpError("Unauthorized", 401);
+  return { userEmail: email, permissions: req.user?.permissions ?? [] };
+}
+
 export const calendarRoutes = Router();
 
 function toAccessUser(req: { user?: { sub?: string; email?: string; system_role?: string | null; isTecmaAdmin?: boolean } }): { sub: string; email: string; system_role?: string | null; isTecmaAdmin?: boolean } | null {
@@ -19,13 +28,13 @@ calendarRoutes.post(
   "/calendar/events/query",
   requirePermission(PERMISSIONS.CALENDAR_READ),
   requireCanAccessWorkspace("workspaceId"),
-  handleAsync((req) => queryCalendarEvents(req.body))
+  handleAsync((req) => queryCalendarEvents(req.body, calendarCtx(req)))
 );
 calendarRoutes.post(
   "/calendar/events",
   requirePermission(PERMISSIONS.CALENDAR_CREATE),
   requireCanAccessProject("workspaceId", "projectId"),
-  handleAsync((req) => createCalendarEvent(req.body))
+  handleAsync((req) => createCalendarEvent(req.body, calendarCtx(req)))
 );
 calendarRoutes.patch(
   "/calendar/events/:id",
@@ -40,7 +49,7 @@ calendarRoutes.patch(
       const ok = await canAccess(user, { type: "workspace", workspaceId });
       if (!ok) throw new HttpError("Accesso al workspace non consentito", 403);
     }
-    return updateCalendarEvent(req.params.id, req.body);
+    return updateCalendarEvent(req.params.id, req.body, calendarCtx(req));
   })
 );
 calendarRoutes.delete(
