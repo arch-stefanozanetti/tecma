@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { ObjectId } from "mongodb";
 import { getDb } from "../../config/db.js";
 import { ensureProjectInWorkspace, toIsoDate } from "./project-access.js";
 import {
@@ -8,6 +7,10 @@ import {
   deepMergeRawProject,
   type AdvancedOverrideRow,
 } from "./legacy-raw-project-merge.js";
+import {
+  buildTzPatchFromIdentityFields,
+  tzProjectFilter,
+} from "./project-canonical-sync.js";
 
 const COLLECTION_PROJECT_LEGACY_OVERRIDES = "tz_project_legacy_overrides";
 const COLLECTION_TZ_PROJECTS = "tz_projects";
@@ -214,13 +217,6 @@ function buildRawProjectPatchFromInput(input: ProjectLegacyOverridesInput): Reco
   return patch;
 }
 
-function tzProjectFilter(projectId: string): Record<string, unknown> {
-  const idFilter = ObjectId.isValid(projectId) ? new ObjectId(projectId) : projectId;
-  return {
-    $or: [{ _id: idFilter as never }, { _id: projectId as never }, { legacyProjectId: projectId }],
-  };
-}
-
 function rowFromDoc(doc: Record<string, unknown>, projectId: string, updatedAt: string): ProjectLegacyOverridesRow {
   return {
     projectId,
@@ -331,6 +327,9 @@ export const putProjectLegacyOverrides = async (
 
   if (Object.keys(patch).length > 0 || (adv && adv.length > 0)) {
     const tzColl = db.collection<Record<string, unknown>>(COLLECTION_TZ_PROJECTS);
+    const tzPatch = buildTzPatchFromIdentityFields(
+      (input.identityFields as Record<string, unknown> | undefined) ?? undefined
+    );
     const projDoc = await tzColl.findOne(tzProjectFilter(projectId));
     const legacyPayload =
       typeof projDoc?.legacyPayload === "object" && projDoc?.legacyPayload !== null
@@ -355,10 +354,20 @@ export const putProjectLegacyOverrides = async (
 
     await tzColl.updateOne(tzProjectFilter(projectId), {
       $set: {
+        ...tzPatch,
         legacyPayload: newLegacyPayload,
         updatedAt: now,
       },
     });
+  } else {
+    const tzPatch = buildTzPatchFromIdentityFields(
+      (input.identityFields as Record<string, unknown> | undefined) ?? undefined
+    );
+    if (Object.keys(tzPatch).length > 0) {
+      await db.collection(COLLECTION_TZ_PROJECTS).updateOne(tzProjectFilter(projectId), {
+        $set: { ...tzPatch, updatedAt: now },
+      });
+    }
   }
 
   return getProjectLegacyOverrides(projectId, workspaceId, isAdmin);

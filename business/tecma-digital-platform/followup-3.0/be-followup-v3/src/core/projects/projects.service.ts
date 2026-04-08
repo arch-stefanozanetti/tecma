@@ -7,6 +7,8 @@ import { ObjectId } from "mongodb";
 import { getDb } from "../../config/db.js";
 import { HttpError } from "../../types/http.js";
 import { ensureProjectInWorkspace } from "./project-access.js";
+import { buildRawProjectPatchFromTzUpdate, tzProjectFilter } from "./project-canonical-sync.js";
+import { assertJsonSize, deepMergeRawProject } from "./legacy-raw-project-merge.js";
 
 const COLLECTION_TZ_PROJECTS = "tz_projects";
 
@@ -134,9 +136,7 @@ export const updateProject = async (
   const db = getDb();
   const coll = db.collection<Record<string, unknown>>(COLLECTION_TZ_PROJECTS);
 
-  const idFilter = ObjectId.isValid(projectId) ? new ObjectId(projectId) : projectId;
-  const filter =
-    ({ $or: [{ _id: idFilter as never }, { _id: projectId as never }, { legacyProjectId: projectId }] }) as never;
+  const filter = tzProjectFilter(projectId) as never;
 
   const updateDoc: Record<string, unknown> = { updatedAt: new Date().toISOString() };
   if (input.name !== undefined) updateDoc.name = input.name.trim();
@@ -160,6 +160,29 @@ export const updateProject = async (
 
   const res = await coll.updateOne(filter, { $set: updateDoc });
   if (res.matchedCount === 0) throw new HttpError("Project not found", 404);
+
+  const rawPatch = buildRawProjectPatchFromTzUpdate(updateDoc);
+  if (Object.keys(rawPatch).length > 0) {
+    const projDoc = await coll.findOne(filter);
+    const legacyPayload =
+      typeof projDoc?.legacyPayload === "object" && projDoc?.legacyPayload !== null
+        ? (projDoc.legacyPayload as Record<string, unknown>)
+        : {};
+    const existingRaw =
+      typeof legacyPayload.rawProject === "object" && legacyPayload.rawProject !== null
+        ? (legacyPayload.rawProject as Record<string, unknown>)
+        : {};
+    const mergedRaw = deepMergeRawProject(existingRaw, rawPatch);
+    assertJsonSize(mergedRaw);
+    const nextLegacyPayload = { ...legacyPayload, rawProject: mergedRaw };
+    assertJsonSize(nextLegacyPayload);
+    await coll.updateOne(filter, {
+      $set: {
+        legacyPayload: nextLegacyPayload,
+        updatedAt: updateDoc.updatedAt,
+      },
+    });
+  }
 
   const updated = await coll.findOne(filter);
   if (!updated) throw new HttpError("Project not found", 404);

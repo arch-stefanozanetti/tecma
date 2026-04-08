@@ -72,6 +72,7 @@ describe("putProjectLegacyOverrides", () => {
         nested: { a: 1 },
       }),
     });
+    expect(setArg.displayName).toBe("Nuovo");
   });
 
   it("non aggiorna tz_projects se solo flag booleani senza patch raw", async () => {

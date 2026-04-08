@@ -10,6 +10,62 @@ export type LegacyToolRow = {
   enabled: boolean;
 };
 
+export type ManifestIconDraft = {
+  src: string;
+  type: string;
+  sizes: string;
+};
+
+export type ManifestConfigDraft = {
+  name: string;
+  shortName: string;
+  startUrl: string;
+  display: string;
+  themeColor: string;
+  backgroundColor: string;
+  lang: string;
+  orientation: string;
+  icons: ManifestIconDraft[];
+};
+
+export type RentAssetContextDraft = {
+  minMonthsToStay: string;
+  daysToBeReady: string;
+  monthsInAdvance: string;
+  quoteExpirePeriod: string;
+  proposalExpirePeriod: string;
+  depositMonths: string;
+  agencyFeePercent: string;
+  paymentPeriodInMonth: string;
+  iva: string;
+  ivaFee: string;
+  skipReservationPayment: boolean;
+  skipProposalPayment: boolean;
+  skipOnboarding: boolean;
+  isTotalRateWithoutExpenses: boolean;
+  showCondoExpenses: boolean;
+  showTaxVatAmount: boolean;
+  checkInDays: string;
+  singleUsePacks: string;
+  monthsToExclude: string;
+};
+
+export type JobsNotificationRow = {
+  days: string;
+  types: string;
+};
+
+export type JobsConfigDraft = {
+  notification: JobsNotificationRow[];
+  notificationVendor: JobsNotificationRow[];
+};
+
+export type FollowupConfigDraft = {
+  dashboardConfigRows: Array<{ key: string; enabled: boolean }>;
+  enabledStatusRows: Array<{ key: string; enabled: boolean }>;
+  languages: string;
+};
+
 export type LegacyOverridesDraft = {
   enabledTools: {
     quotations: boolean;
@@ -83,15 +139,15 @@ export type LegacyOverridesDraft = {
   };
   pageTitleRows: Array<{ key: string; value: string }>;
   legacyEnabledTools: LegacyToolRow[];
-  manifestJson: string;
-  myLivingJson: string;
-  rentAssetJson: string;
-  myhomeJson: string;
-  jobsConfigJson: string;
-  followupJson: string;
-  floorPlanningConfigJson: string;
-  neurosalesJson: string;
-  legacyPolicyFlagsJson: string;
+  manifestConfig: ManifestConfigDraft;
+  myLivingConfig: Record<string, unknown>;
+  rentAssetContext: RentAssetContextDraft;
+  myhomeConfig: Record<string, unknown>;
+  jobsConfig: JobsConfigDraft;
+  followupConfig: FollowupConfigDraft;
+  floorPlanningConfig: Record<string, unknown>;
+  neurosalesConfig: Record<string, unknown>;
+  legacyPolicyFlags: Record<string, unknown>;
   businessPlatformJson: string;
   domainWhitelist: string;
   projectFlagsJson: string;
@@ -122,6 +178,9 @@ const readLegacyNumber = (rawProject: Record<string, unknown> | null | undefined
 };
 
 const str = (v: unknown): string => (typeof v === "string" ? v : v != null ? String(v) : "");
+const numStr = (v: unknown): string => (typeof v === "number" ? String(v) : "");
+const boolVal = (v: unknown, fallback = false): boolean => (typeof v === "boolean" ? v : fallback);
+const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
 export function emptyLegacyOverridesDraft(): LegacyOverridesDraft {
   return {
@@ -193,15 +252,52 @@ export function emptyLegacyOverridesDraft(): LegacyOverridesDraft {
     },
     pageTitleRows: [],
     legacyEnabledTools: [],
-    manifestJson: "",
-    myLivingJson: "",
-    rentAssetJson: "",
-    myhomeJson: "",
-    jobsConfigJson: "",
-    followupJson: "",
-    floorPlanningConfigJson: "",
-    neurosalesJson: "",
-    legacyPolicyFlagsJson: "",
+    manifestConfig: {
+      name: "",
+      shortName: "",
+      startUrl: "",
+      display: "",
+      themeColor: "",
+      backgroundColor: "",
+      lang: "",
+      orientation: "",
+      icons: [],
+    },
+    myLivingConfig: {},
+    rentAssetContext: {
+      minMonthsToStay: "",
+      daysToBeReady: "",
+      monthsInAdvance: "",
+      quoteExpirePeriod: "",
+      proposalExpirePeriod: "",
+      depositMonths: "",
+      agencyFeePercent: "",
+      paymentPeriodInMonth: "",
+      iva: "",
+      ivaFee: "",
+      skipReservationPayment: false,
+      skipProposalPayment: false,
+      skipOnboarding: false,
+      isTotalRateWithoutExpenses: false,
+      showCondoExpenses: false,
+      showTaxVatAmount: false,
+      checkInDays: "",
+      singleUsePacks: "",
+      monthsToExclude: "",
+    },
+    myhomeConfig: {},
+    jobsConfig: {
+      notification: [],
+      notificationVendor: [],
+    },
+    followupConfig: {
+      dashboardConfigRows: [],
+      enabledStatusRows: [],
+      languages: "",
+    },
+    floorPlanningConfig: {},
+    neurosalesConfig: {},
+    legacyPolicyFlags: {},
     businessPlatformJson: "",
     domainWhitelist: "",
     projectFlagsJson: "",
@@ -241,6 +337,87 @@ function safeStringifyJson(label: string, value: unknown): string {
   }
 }
 
+const toObject = (value: unknown): Record<string, unknown> => (isObject(value) ? value : {});
+
+const toManifest = (raw: unknown): ManifestConfigDraft => {
+  const o = toObject(raw);
+  const icons = Array.isArray(o.icons)
+    ? o.icons.map((i) => {
+        const io = toObject(i);
+        return { src: str(io.src), type: str(io.type), sizes: str(io.sizes) };
+      })
+    : [];
+  return {
+    name: str(o.name),
+    shortName: str(o.shortName),
+    startUrl: str(o.startUrl),
+    display: str(o.display),
+    themeColor: str(o.themeColor),
+    backgroundColor: str(o.backgroundColor),
+    lang: str(o.lang),
+    orientation: str(o.orientation),
+    icons,
+  };
+};
+
+const toRentAsset = (raw: unknown): RentAssetContextDraft => {
+  const o = toObject(raw);
+  return {
+    minMonthsToStay: numStr(o.minMonthsToStay),
+    daysToBeReady: numStr(o.daysToBeReady),
+    monthsInAdvance: numStr(o.monthsInAdvance),
+    quoteExpirePeriod: numStr(o.quoteExpirePeriod),
+    proposalExpirePeriod: numStr(o.proposalExpirePeriod),
+    depositMonths: numStr(o.depositMonths),
+    agencyFeePercent: numStr(o.agencyFeePercent),
+    paymentPeriodInMonth: numStr(o.paymentPeriodInMonth),
+    iva: numStr(o.iva),
+    ivaFee: numStr(o.ivaFee),
+    skipReservationPayment: boolVal(o.skipReservationPayment),
+    skipProposalPayment: boolVal(o.skipProposalPayment),
+    skipOnboarding: boolVal(o.skipOnboarding),
+    isTotalRateWithoutExpenses: boolVal(o.isTotalRateWithoutExpenses),
+    showCondoExpenses: boolVal(o.showCondoExpenses),
+    showTaxVatAmount: boolVal(o.showTaxVatAmount),
+    checkInDays: Array.isArray(o.checkInDays) ? o.checkInDays.map((x) => str(x)).join(", ") : "",
+    singleUsePacks: Array.isArray(o.singleUsePacks) ? o.singleUsePacks.map((x) => str(x)).join(", ") : "",
+    monthsToExclude: Array.isArray(o.monthsToExclude) ? o.monthsToExclude.map((x) => str(x)).join(", ") : "",
+  };
+};
+
+const toJobsConfig = (raw: unknown): JobsConfigDraft => {
+  const o = toObject(raw);
+  const lease = toObject(o.leaseExpiry);
+  const toRows = (arr: unknown): JobsNotificationRow[] =>
+    Array.isArray(arr)
+      ? arr.map((v) => {
+          const ro = toObject(v);
+          return {
+            days: numStr(ro.days),
+            types: Array.isArray(ro.types) ? ro.types.map((t) => str(t)).join(", ") : "",
+          };
+        })
+      : [];
+  return {
+    notification: toRows(lease.notification),
+    notificationVendor: toRows(lease.notificationVendor),
+  };
+};
+
+const toFollowupConfig = (raw: unknown): FollowupConfigDraft => {
+  const o = toObject(raw);
+  const dashboard = toObject(o.dashboardConfig);
+  const enabledStatus = toObject(o.enabledStatus);
+  return {
+    dashboardConfigRows: Object.entries(dashboard).map(([k, v]) => ({ key: k, enabled: boolVal(v) })),
+    enabledStatusRows: Object.entries(enabledStatus).map(([k, v]) => ({
+      key: k,
+      enabled: boolVal(toObject(v).enabled),
+    })),
+    languages: Array.isArray(o.languages) ? o.languages.map((x) => str(x)).join(", ") : "",
+  };
+};
+
 export type LegacyOverridesApiRow = {
   enabledTools?: LegacyOverridesDraft["enabledTools"];
   floorPlanning?: LegacyOverridesDraft["floorPlanning"];
@@ -277,25 +454,28 @@ export type LegacyOverridesApiRow = {
 
 export function buildLegacyOverridesDraftFromSources(
   legacyOverrides: LegacyOverridesApiRow | null | undefined,
-  rawProject: Record<string, unknown> | null
+  rawProject: Record<string, unknown> | null,
+  canonicalProject?: Record<string, unknown>
 ): LegacyOverridesDraft {
   const base = emptyLegacyOverridesDraft();
   const ov = legacyOverrides;
 
+  const fromCanonical = (k: string): string => str(canonicalProject?.[k]);
+
   const mergeIdentity = (fromRaw: (k: string) => string): LegacyOverridesDraft["identityFields"] => ({
-    name: str(ov?.identityFields?.name) || fromRaw("name"),
+    name: fromCanonical("name") || str(ov?.identityFields?.name) || fromRaw("name"),
     code: str(ov?.identityFields?.code) || fromRaw("code"),
-    hostKey: str(ov?.identityFields?.hostKey) || fromRaw("hostKey"),
-    assetKey: str(ov?.identityFields?.assetKey) || fromRaw("assetKey"),
-    displayName: str(ov?.identityFields?.displayName) || fromRaw("displayName"),
-    payoff: str(ov?.identityFields?.payoff) || fromRaw("payoff"),
-    city: str(ov?.identityFields?.city) || fromRaw("city"),
-    contactPhone: str(ov?.identityFields?.contactPhone) || fromRaw("contactPhone"),
-    contactEmail: str(ov?.identityFields?.contactEmail) || fromRaw("contactEmail"),
+    hostKey: fromCanonical("hostKey") || str(ov?.identityFields?.hostKey) || fromRaw("hostKey"),
+    assetKey: fromCanonical("assetKey") || str(ov?.identityFields?.assetKey) || fromRaw("assetKey"),
+    displayName: fromCanonical("displayName") || str(ov?.identityFields?.displayName) || fromRaw("displayName"),
+    payoff: fromCanonical("payoff") || str(ov?.identityFields?.payoff) || fromRaw("payoff"),
+    city: fromCanonical("city") || str(ov?.identityFields?.city) || fromRaw("city"),
+    contactPhone: fromCanonical("contactPhone") || str(ov?.identityFields?.contactPhone) || fromRaw("contactPhone"),
+    contactEmail: fromCanonical("contactEmail") || str(ov?.identityFields?.contactEmail) || fromRaw("contactEmail"),
     contactForm: str(ov?.identityFields?.contactForm) || fromRaw("contactForm"),
     storeAddress: str(ov?.identityFields?.storeAddress) || fromRaw("storeAddress"),
-    customDomain: str(ov?.identityFields?.customDomain) || fromRaw("customDomain"),
-    broker: str(ov?.identityFields?.broker) || fromRaw("broker"),
+    customDomain: fromCanonical("customDomain") || str(ov?.identityFields?.customDomain) || fromRaw("customDomain"),
+    broker: fromCanonical("broker") || str(ov?.identityFields?.broker) || fromRaw("broker"),
     area: ((): LegacyOverridesDraft["identityFields"]["area"] => {
       const oa = ov?.identityFields?.area;
       if (oa === "sale" || oa === "rent") return oa;
@@ -303,7 +483,8 @@ export function buildLegacyOverridesDraftFromSources(
       if (ra === "sale" || ra === "rent") return ra;
       return "";
     })(),
-    defaultLang: str(ov?.identityFields?.defaultLang) || str(rawProject?.defaultLang) || "it-IT",
+    defaultLang:
+      fromCanonical("defaultLang") || str(ov?.identityFields?.defaultLang) || str(rawProject?.defaultLang) || "it-IT",
     mailLanguages:
       Array.isArray(ov?.identityFields?.mailLanguages) && ov.identityFields.mailLanguages.length
         ? ov.identityFields.mailLanguages.join(", ")
@@ -317,9 +498,13 @@ export function buildLegacyOverridesDraftFromSources(
           ? (rawProject.disabledLanguages as string[]).join(", ")
           : "",
     accountManagerEnabled:
-      ov?.identityFields?.accountManagerEnabled ?? (rawProject?.accountManagerEnabled === true),
+      (typeof canonicalProject?.accountManagerEnabled === "boolean" ? canonicalProject.accountManagerEnabled : undefined) ??
+      ov?.identityFields?.accountManagerEnabled ??
+      (rawProject?.accountManagerEnabled === true),
     automaticQuoteEnabled:
-      ov?.identityFields?.automaticQuoteEnabled ?? (rawProject?.automaticQuoteEnabled === true),
+      (typeof canonicalProject?.automaticQuoteEnabled === "boolean" ? canonicalProject.automaticQuoteEnabled : undefined) ??
+      ov?.identityFields?.automaticQuoteEnabled ??
+      (rawProject?.automaticQuoteEnabled === true),
     googleRecaptchaSecret: str(ov?.identityFields?.googleRecaptchaSecret) || str(rawProject?.googleRecaptchaSecret),
     hCaptchaSecret: str(ov?.identityFields?.hCaptchaSecret) || str(rawProject?.hCaptchaSecret),
     AQcode: str(ov?.identityFields?.AQcode) || str(rawProject?.AQcode),
@@ -397,32 +582,15 @@ export function buildLegacyOverridesDraftFromSources(
       ov?.legacyEnabledTools && ov.legacyEnabledTools.length > 0
         ? ov.legacyEnabledTools
         : toolsFromRaw(rawProject?.enabledTools),
-    manifestJson:
-      ov?.manifestConfig !== undefined ? safeStringifyJson("manifest", ov.manifestConfig) : safeStringifyJson("manifest", rawProject?.manifestConfig),
-    myLivingJson:
-      ov?.myLivingConfig !== undefined ? safeStringifyJson("myLiving", ov.myLivingConfig) : safeStringifyJson("myLiving", rawProject?.myLivingConfig),
-    rentAssetJson:
-      ov?.rentAssetContext !== undefined
-        ? safeStringifyJson("rent", ov.rentAssetContext)
-        : safeStringifyJson("rent", rawProject?.rentAssetContext),
-    myhomeJson:
-      ov?.myhomeConfig !== undefined ? safeStringifyJson("myhome", ov.myhomeConfig) : safeStringifyJson("myhome", rawProject?.myhomeConfig),
-    jobsConfigJson:
-      ov?.jobsConfig !== undefined ? safeStringifyJson("jobs", ov.jobsConfig) : safeStringifyJson("jobs", rawProject?.jobsConfig),
-    followupJson:
-      ov?.followupConfig !== undefined ? safeStringifyJson("followup", ov.followupConfig) : safeStringifyJson("followup", rawProject?.followupConfig),
-    floorPlanningConfigJson:
-      ov?.floorPlanningConfig !== undefined
-        ? safeStringifyJson("fp", ov.floorPlanningConfig)
-        : safeStringifyJson("fp", rawProject?.floorPlanningConfig),
-    neurosalesJson:
-      ov?.neurosalesConfig !== undefined
-        ? safeStringifyJson("neuro", ov.neurosalesConfig)
-        : safeStringifyJson("neuro", rawProject?.neurosalesConfig),
-    legacyPolicyFlagsJson:
-      ov?.legacyPolicyFlags !== undefined
-        ? safeStringifyJson("policy", ov.legacyPolicyFlags)
-        : safeStringifyJson("policy", rawProject?.policyFlags),
+    manifestConfig: toManifest(ov?.manifestConfig !== undefined ? ov.manifestConfig : rawProject?.manifestConfig),
+    myLivingConfig: toObject(ov?.myLivingConfig !== undefined ? ov.myLivingConfig : rawProject?.myLivingConfig),
+    rentAssetContext: toRentAsset(ov?.rentAssetContext !== undefined ? ov.rentAssetContext : rawProject?.rentAssetContext),
+    myhomeConfig: toObject(ov?.myhomeConfig !== undefined ? ov.myhomeConfig : rawProject?.myhomeConfig),
+    jobsConfig: toJobsConfig(ov?.jobsConfig !== undefined ? ov.jobsConfig : rawProject?.jobsConfig),
+    followupConfig: toFollowupConfig(ov?.followupConfig !== undefined ? ov.followupConfig : rawProject?.followupConfig),
+    floorPlanningConfig: toObject(ov?.floorPlanningConfig !== undefined ? ov.floorPlanningConfig : rawProject?.floorPlanningConfig),
+    neurosalesConfig: toObject(ov?.neurosalesConfig !== undefined ? ov.neurosalesConfig : rawProject?.neurosalesConfig),
+    legacyPolicyFlags: toObject(ov?.legacyPolicyFlags !== undefined ? ov.legacyPolicyFlags : rawProject?.policyFlags),
     businessPlatformJson:
       ov?.businessPlatformConfig !== undefined
         ? safeStringifyJson("bp", ov.businessPlatformConfig)
@@ -463,6 +631,14 @@ function splitComma(s: string): string[] {
     .filter(Boolean);
 }
 
+const parseNumberOptional = (raw: string, label: string): { ok: true; value: number | undefined } | { ok: false; error: string } => {
+  const t = raw.trim();
+  if (t === "") return { ok: true, value: undefined };
+  const n = Number(t);
+  if (!Number.isFinite(n)) return { ok: false, error: `Valore numerico non valido in ${label}` };
+  return { ok: true, value: n };
+};
+
 export function buildPutPayloadFromDraft(
   d: LegacyOverridesDraft
 ):
@@ -476,27 +652,103 @@ export function buildPutPayloadFromDraft(
   }
 
   const jsonBlocks: Array<[string, string, string]> = [
-    ["Manifest", d.manifestJson, "manifestConfig"],
-    ["MyLiving", d.myLivingJson, "myLivingConfig"],
-    ["Rent asset", d.rentAssetJson, "rentAssetContext"],
-    ["MyHome config", d.myhomeJson, "myhomeConfig"],
-    ["Jobs config", d.jobsConfigJson, "jobsConfig"],
-    ["FollowUp config", d.followupJson, "followupConfig"],
-    ["FloorPlanning config", d.floorPlanningConfigJson, "floorPlanningConfig"],
-    ["Neurosales config", d.neurosalesJson, "neurosalesConfig"],
-    ["Policy flags (raw)", d.legacyPolicyFlagsJson, "legacyPolicyFlags"],
     ["Business platform", d.businessPlatformJson, "businessPlatformConfig"],
     ["Project flags", d.projectFlagsJson, "projectFlags"],
     ["Proposal template", d.proposalTemplateJson, "proposalTemplate"],
     ["IBAN", d.ibanJson, "iban"],
   ];
-
   const parsedJson: Record<string, unknown> = {};
   for (const [label, json, apiKey] of jsonBlocks) {
     const r = parseJsonField(json, label);
     if (!r.ok) return r;
     if (r.value !== undefined) parsedJson[apiKey] = r.value;
   }
+
+  const manifestConfig = {
+    name: d.manifestConfig.name,
+    shortName: d.manifestConfig.shortName,
+    startUrl: d.manifestConfig.startUrl,
+    display: d.manifestConfig.display,
+    themeColor: d.manifestConfig.themeColor,
+    backgroundColor: d.manifestConfig.backgroundColor,
+    lang: d.manifestConfig.lang,
+    orientation: d.manifestConfig.orientation,
+    icons: d.manifestConfig.icons.map((i) => ({ src: i.src, type: i.type, sizes: i.sizes })),
+  };
+
+  const numKeys = [
+    "minMonthsToStay",
+    "daysToBeReady",
+    "monthsInAdvance",
+    "quoteExpirePeriod",
+    "proposalExpirePeriod",
+    "depositMonths",
+    "agencyFeePercent",
+    "paymentPeriodInMonth",
+    "iva",
+    "ivaFee",
+  ] as const;
+  const parsedRentNum: Record<string, number | undefined> = {};
+  for (const k of numKeys) {
+    const r = parseNumberOptional(d.rentAssetContext[k], `Rent asset context.${k}`);
+    if (!r.ok) return r;
+    parsedRentNum[k] = r.value;
+  }
+  const rentAssetContext: Record<string, unknown> = {
+    ...parsedRentNum,
+    skipReservationPayment: d.rentAssetContext.skipReservationPayment,
+    skipProposalPayment: d.rentAssetContext.skipProposalPayment,
+    skipOnboarding: d.rentAssetContext.skipOnboarding,
+    isTotalRateWithoutExpenses: d.rentAssetContext.isTotalRateWithoutExpenses,
+    showCondoExpenses: d.rentAssetContext.showCondoExpenses,
+    showTaxVatAmount: d.rentAssetContext.showTaxVatAmount,
+    checkInDays: splitComma(d.rentAssetContext.checkInDays),
+    singleUsePacks: splitComma(d.rentAssetContext.singleUsePacks),
+    monthsToExclude: splitComma(d.rentAssetContext.monthsToExclude),
+  };
+
+  const rowToJob = (row: JobsNotificationRow, label: string) => {
+    const days = parseNumberOptional(row.days, label);
+    if (!days.ok) return days;
+    return {
+      ok: true as const,
+      value: {
+        ...(days.value !== undefined ? { days: days.value } : {}),
+        types: splitComma(row.types),
+      },
+    };
+  };
+  const notification: Array<Record<string, unknown>> = [];
+  for (const [idx, row] of d.jobsConfig.notification.entries()) {
+    const parsed = rowToJob(row, `Jobs notification[${idx}].days`);
+    if (!parsed.ok) return parsed;
+    notification.push(parsed.value);
+  }
+  const notificationVendor: Array<Record<string, unknown>> = [];
+  for (const [idx, row] of d.jobsConfig.notificationVendor.entries()) {
+    const parsed = rowToJob(row, `Jobs notificationVendor[${idx}].days`);
+    if (!parsed.ok) return parsed;
+    notificationVendor.push(parsed.value);
+  }
+  const jobsConfig = { leaseExpiry: { notification, notificationVendor } };
+
+  const dashboardConfig: Record<string, boolean> = {};
+  for (const row of d.followupConfig.dashboardConfigRows) {
+    const key = row.key.trim();
+    if (!key) continue;
+    dashboardConfig[key] = row.enabled;
+  }
+  const enabledStatus: Record<string, { enabled: boolean }> = {};
+  for (const row of d.followupConfig.enabledStatusRows) {
+    const key = row.key.trim();
+    if (!key) continue;
+    enabledStatus[key] = { enabled: row.enabled };
+  }
+  const followupConfig = {
+    dashboardConfig,
+    enabledStatus,
+    languages: splitComma(d.followupConfig.languages),
+  };
 
   const identityFields: Record<string, unknown> = {
     name: d.identityFields.name || undefined,
@@ -551,6 +803,15 @@ export function buildPutPayloadFromDraft(
     pageTitles: Object.keys(pageTitles).length ? pageTitles : undefined,
     legacyEnabledTools: d.legacyEnabledTools.length ? d.legacyEnabledTools : undefined,
     domainWhitelist: splitComma(d.domainWhitelist),
+    manifestConfig,
+    myLivingConfig: d.myLivingConfig,
+    rentAssetContext,
+    myhomeConfig: d.myhomeConfig,
+    jobsConfig,
+    followupConfig,
+    floorPlanningConfig: d.floorPlanningConfig,
+    neurosalesConfig: d.neurosalesConfig,
+    legacyPolicyFlags: d.legacyPolicyFlags,
     ...parsedJson,
   };
 

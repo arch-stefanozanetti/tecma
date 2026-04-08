@@ -34,6 +34,8 @@ import { scaleOutRoutes } from "./v1/scale-out.routes.js";
 import { opsRoutes } from "./v1/ops.routes.js";
 import { complianceRoutes } from "./v1/compliance.routes.js";
 import { gdprUserRoutes } from "./v1/gdpr-user.routes.js";
+import { storageRoutes } from "./v1/storage.routes.js";
+import { experimentalRoutes } from "./v1/experimental.routes.js";
 
 export const v1Router = Router();
 
@@ -79,3 +81,5 @@ v1Router.use("/", scaleOutRoutes);
 v1Router.use("/", opsRoutes);
 v1Router.use("/", complianceRoutes);
 v1Router.use("/", gdprUserRoutes);
+v1Router.use("/", storageRoutes);
+v1Router.use("/", experimentalRoutes);

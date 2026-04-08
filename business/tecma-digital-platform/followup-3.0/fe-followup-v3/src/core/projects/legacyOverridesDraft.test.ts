@@ -5,19 +5,21 @@ describe("buildPutPayloadFromDraft", () => {
     const { buildPutPayloadFromDraft, emptyLegacyOverridesDraft } = await import("./legacyOverridesDraft");
     const d = emptyLegacyOverridesDraft();
     d.identityFields.displayName = "Test";
-    d.manifestJson = JSON.stringify({ name: "PWA" }, null, 2);
+    d.manifestConfig.name = "PWA";
+    d.rentAssetContext.iva = "0.1";
     const r = buildPutPayloadFromDraft(d);
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.payload.identityFields).toMatchObject({ displayName: "Test" });
-      expect(r.payload.manifestConfig).toEqual({ name: "PWA" });
+      expect(r.payload.manifestConfig).toMatchObject({ name: "PWA" });
+      expect(r.payload.rentAssetContext).toMatchObject({ iva: 0.1 });
     }
   });
 
-  it("rifiuta JSON invalido", async () => {
+  it("rifiuta valori numerici invalidi", async () => {
     const { buildPutPayloadFromDraft, emptyLegacyOverridesDraft } = await import("./legacyOverridesDraft");
     const d = emptyLegacyOverridesDraft();
-    d.neurosalesJson = "{not json";
+    d.rentAssetContext.iva = "abc";
     const r = buildPutPayloadFromDraft(d);
     expect(r.ok).toBe(false);
   });

@@ -75,7 +75,8 @@ const bootstrap = async () => {
       credentials: true
     })
   );
-  app.use(express.json({ limit: "2mb" }));
+  /** Limite elevato per payload con screenshot base64 (Experimental / Pascal AI render). */
+  app.use(express.json({ limit: "12mb" }));
 
   app.use("/v1/portal", customerPortalPublicRoutes);
   app.use("/v1/portal", requireAuth, customerPortalRoutes);

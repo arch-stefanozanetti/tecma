@@ -62,6 +62,9 @@ import {
   emptyLegacyOverridesDraft,
   type LegacyOverridesDraft,
 } from "./legacyOverridesDraft";
+import { NestedValueEditor } from "./components/legacy/NestedValueEditor";
+import { EmailRichEditor } from "../settings/EmailRichEditor";
+import { ImageAssetField } from "../../components/assets/ImageAssetField";
 
 const SectionTitle = ({
   label,
@@ -280,7 +283,8 @@ export const ProjectDetailPage = () => {
       setLegacyOverridesDraft(
         buildLegacyOverridesDraftFromSources(
           legacyOverrides as Parameters<typeof buildLegacyOverridesDraftFromSources>[0],
-          rawProject
+          rawProject,
+          proj as unknown as Record<string, unknown>
         )
       );
     } catch (e) {
@@ -515,15 +519,15 @@ export const ProjectDetailPage = () => {
     identityFields?: Partial<LegacyOverridesDraft["identityFields"]>;
     pageTitleRows?: LegacyOverridesDraft["pageTitleRows"];
     legacyEnabledTools?: LegacyOverridesDraft["legacyEnabledTools"];
-    manifestJson?: string;
-    myLivingJson?: string;
-    rentAssetJson?: string;
-    myhomeJson?: string;
-    jobsConfigJson?: string;
-    followupJson?: string;
-    floorPlanningConfigJson?: string;
-    neurosalesJson?: string;
-    legacyPolicyFlagsJson?: string;
+    manifestConfig?: Partial<LegacyOverridesDraft["manifestConfig"]>;
+    myLivingConfig?: LegacyOverridesDraft["myLivingConfig"];
+    rentAssetContext?: Partial<LegacyOverridesDraft["rentAssetContext"]>;
+    myhomeConfig?: LegacyOverridesDraft["myhomeConfig"];
+    jobsConfig?: LegacyOverridesDraft["jobsConfig"];
+    followupConfig?: LegacyOverridesDraft["followupConfig"];
+    floorPlanningConfig?: LegacyOverridesDraft["floorPlanningConfig"];
+    neurosalesConfig?: LegacyOverridesDraft["neurosalesConfig"];
+    legacyPolicyFlags?: LegacyOverridesDraft["legacyPolicyFlags"];
     businessPlatformJson?: string;
     domainWhitelist?: string;
     projectFlagsJson?: string;
@@ -543,21 +547,47 @@ export const ProjectDetailPage = () => {
       identityFields: { ...prev.identityFields, ...patch.identityFields },
       pageTitleRows: patch.pageTitleRows ?? prev.pageTitleRows,
       legacyEnabledTools: patch.legacyEnabledTools ?? prev.legacyEnabledTools,
-      manifestJson: patch.manifestJson ?? prev.manifestJson,
-      myLivingJson: patch.myLivingJson ?? prev.myLivingJson,
-      rentAssetJson: patch.rentAssetJson ?? prev.rentAssetJson,
-      myhomeJson: patch.myhomeJson ?? prev.myhomeJson,
-      jobsConfigJson: patch.jobsConfigJson ?? prev.jobsConfigJson,
-      followupJson: patch.followupJson ?? prev.followupJson,
-      floorPlanningConfigJson: patch.floorPlanningConfigJson ?? prev.floorPlanningConfigJson,
-      neurosalesJson: patch.neurosalesJson ?? prev.neurosalesJson,
-      legacyPolicyFlagsJson: patch.legacyPolicyFlagsJson ?? prev.legacyPolicyFlagsJson,
+      manifestConfig: { ...prev.manifestConfig, ...patch.manifestConfig },
+      myLivingConfig: patch.myLivingConfig ?? prev.myLivingConfig,
+      rentAssetContext: { ...prev.rentAssetContext, ...patch.rentAssetContext },
+      myhomeConfig: patch.myhomeConfig ?? prev.myhomeConfig,
+      jobsConfig: patch.jobsConfig ?? prev.jobsConfig,
+      followupConfig: patch.followupConfig ?? prev.followupConfig,
+      floorPlanningConfig: patch.floorPlanningConfig ?? prev.floorPlanningConfig,
+      neurosalesConfig: patch.neurosalesConfig ?? prev.neurosalesConfig,
+      legacyPolicyFlags: patch.legacyPolicyFlags ?? prev.legacyPolicyFlags,
       businessPlatformJson: patch.businessPlatformJson ?? prev.businessPlatformJson,
       domainWhitelist: patch.domainWhitelist ?? prev.domainWhitelist,
       projectFlagsJson: patch.projectFlagsJson ?? prev.projectFlagsJson,
       proposalTemplateJson: patch.proposalTemplateJson ?? prev.proposalTemplateJson,
       ibanJson: patch.ibanJson ?? prev.ibanJson,
     }));
+
+  const splitCommaList = (raw: string): string[] =>
+    raw
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+
+  const safeParseObject = (raw: string): Record<string, unknown> => {
+    try {
+      const parsed = JSON.parse(raw || "{}") as unknown;
+      return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const safeParseArray = (raw: string): unknown[] => {
+    try {
+      const parsed = JSON.parse(raw || "[]") as unknown;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
 
   const handleSaveLegacyOverrides = async () => {
     if (!pid || !wsId) return;
@@ -579,6 +609,22 @@ export const ProjectDetailPage = () => {
   };
 
   const goBack = () => navigate(wsId ? `/?section=projects` : "/?section=projects");
+
+  const businessPlatformObj = safeParseObject(legacyOverridesDraft.businessPlatformJson);
+  const businessLanguages = Array.isArray(businessPlatformObj.languages)
+    ? (businessPlatformObj.languages as unknown[]).map((x) => String(x)).join(", ")
+    : "";
+  const projectFlagsObj = safeParseObject(legacyOverridesDraft.projectFlagsJson);
+  const leadGenerationEnabled = Boolean(
+    (projectFlagsObj.leadGeneration as { enabled?: boolean } | undefined)?.enabled
+  );
+  const projectPolicyFlagsEnabled = Boolean(
+    (projectFlagsObj.policyFlags as { enabled?: boolean } | undefined)?.enabled
+  );
+  const proposalTemplateItems = safeParseArray(legacyOverridesDraft.proposalTemplateJson).map((x) =>
+    String(x)
+  );
+  const ibanItems = safeParseArray(legacyOverridesDraft.ibanJson).map((x) => String(x));
 
   const handleGrantProjectAccess = async () => {
     if (!pid || !partnerWorkspaceId.trim()) return;
@@ -893,13 +939,13 @@ export const ProjectDetailPage = () => {
             />
             {secBranding && (
               <div className="mt-4 space-y-4">
-                <F label="URL logo" hint="Logo mostrato nell'intestazione delle email (URL pubblico).">
-                  <Input
-                    value={brandingDraft.logoUrl}
-                    onChange={(e) => setBrand({ logoUrl: e.target.value })}
-                    placeholder="https://..."
-                  />
-                </F>
+                <ImageAssetField
+                  workspaceId={workspaceId}
+                  projectId={projectId}
+                  value={brandingDraft.logoUrl}
+                  onChange={(url) => setBrand({ logoUrl: url })}
+                  label="Logo branding"
+                />
                 <F label="Colore primario" hint="Es. #2563eb per bordo e accenti nelle email.">
                   <Input
                     value={brandingDraft.primaryColor}
@@ -1276,107 +1322,11 @@ export const ProjectDetailPage = () => {
                   valido.
                 </p>
 
-                <details className="group rounded-lg border border-border bg-muted/10 p-3 open:bg-muted/20">
-                  <summary className="cursor-pointer text-sm font-semibold text-foreground">
-                    Identità, dominio e contatti (rawProject)
-                  </summary>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    {(
-                      [
-                        ["name", "name"],
-                        ["code", "code"],
-                        ["hostKey", "hostKey"],
-                        ["assetKey", "assetKey"],
-                        ["displayName", "displayName"],
-                        ["payoff", "payoff"],
-                        ["city", "city"],
-                        ["contactPhone", "contactPhone"],
-                        ["contactEmail", "contactEmail"],
-                        ["contactForm", "contactForm"],
-                        ["storeAddress", "storeAddress"],
-                        ["customDomain", "customDomain"],
-                        ["broker", "broker"],
-                        ["AQcode", "AQcode"],
-                        ["defaultLang", "defaultLang"],
-                        ["googleRecaptchaSecret", "googleRecaptchaSecret"],
-                        ["hCaptchaSecret", "hCaptchaSecret"],
-                      ] as const
-                    ).map(([k, field]) => (
-                      <F key={k} label={k}>
-                        <Input
-                          value={legacyOverridesDraft.identityFields[field]}
-                          onChange={(e) =>
-                            setLegacyDraft({
-                              identityFields: { [field]: e.target.value } as Partial<
-                                LegacyOverridesDraft["identityFields"]
-                              >,
-                            })
-                          }
-                          className="font-mono text-sm"
-                        />
-                      </F>
-                    ))}
-                    <F label="area">
-                      <Select
-                        value={legacyOverridesDraft.identityFields.area || "__unset__"}
-                        onValueChange={(v) =>
-                          setLegacyDraft({
-                            identityFields: {
-                              area: v === "__unset__" ? "" : (v as "sale" | "rent"),
-                            },
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="—" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__unset__">—</SelectItem>
-                          <SelectItem value="sale">sale</SelectItem>
-                          <SelectItem value="rent">rent</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </F>
-                    <F label="mailLanguages (comma-separated)">
-                      <Input
-                        value={legacyOverridesDraft.identityFields.mailLanguages}
-                        onChange={(e) => setLegacyDraft({ identityFields: { mailLanguages: e.target.value } })}
-                      />
-                    </F>
-                    <F label="disabledLanguages (comma-separated)">
-                      <Input
-                        value={legacyOverridesDraft.identityFields.disabledLanguages}
-                        onChange={(e) => setLegacyDraft({ identityFields: { disabledLanguages: e.target.value } })}
-                      />
-                    </F>
-                    <F label="languages (comma-separated)">
-                      <Input
-                        value={legacyOverridesDraft.identityFields.languages}
-                        onChange={(e) => setLegacyDraft({ identityFields: { languages: e.target.value } })}
-                      />
-                    </F>
-                    <div className="sm:col-span-2 flex flex-wrap gap-6">
-                      {(
-                        [
-                          ["accountManagerEnabled", "Account manager"],
-                          ["automaticQuoteEnabled", "Preventivo automatico"],
-                        ] as const
-                      ).map(([k, label]) => (
-                        <label key={k} className="flex items-center gap-2 text-sm">
-                          <Checkbox
-                            checked={legacyOverridesDraft.identityFields[k]}
-                            onCheckedChange={(v) =>
-                              setLegacyDraft({
-                                identityFields: { [k]: Boolean(v) } as Partial<LegacyOverridesDraft["identityFields"]>,
-                              })
-                            }
-                          />
-                          {label}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </details>
+                <div className="rounded-lg border border-border bg-muted/10 p-3 text-xs text-muted-foreground">
+                  Campi identità/dominio/contatti sono unificati nel blocco “Identità progetto” e salvati come
+                  fonte primaria su <span className="font-mono">tz_projects</span>, con mirror automatico su
+                  <span className="font-mono"> legacyPayload.rawProject</span>.
+                </div>
 
                 <details className="group rounded-lg border border-border bg-muted/10 p-3">
                   <summary className="cursor-pointer text-sm font-semibold text-foreground">Page titles</summary>
@@ -1542,60 +1492,327 @@ export const ProjectDetailPage = () => {
                 </details>
 
                 <details className="group rounded-lg border border-border bg-muted/10 p-3">
-                  <summary className="cursor-pointer text-sm font-semibold text-foreground">
-                    Manifest, MyLiving, Rent, MyHome, Jobs, FollowUp, FloorPlanning
-                  </summary>
-                  <div className="mt-3 space-y-4">
-                    {(
-                      [
-                        ["manifestJson", "manifestConfig", "Manifest (PWA)"],
-                        ["myLivingJson", "myLivingConfig", "MyLiving config"],
-                        ["rentAssetJson", "rentAssetContext", "Rent asset context"],
-                        ["myhomeJson", "myhomeConfig", "MyHome (drilldown, …)"],
-                        ["jobsConfigJson", "jobsConfig", "Jobs config"],
-                        ["followupJson", "followupConfig", "FollowUp config (legacy dashboard)"],
-                        ["floorPlanningConfigJson", "floorPlanningConfig", "FloorPlanning config (flowWeb, quotation, …)"],
-                      ] as const
-                    ).map(([draftKey, _apiKey, label]) => (
-                      <F key={draftKey} label={label}>
-                        <Textarea
-                          rows={draftKey === "followupJson" || draftKey === "floorPlanningConfigJson" ? 10 : 6}
-                          className="font-mono text-xs"
-                          value={legacyOverridesDraft[draftKey]}
-                          onChange={(e) => setLegacyDraft({ [draftKey]: e.target.value })}
-                        />
+                  <summary className="cursor-pointer text-sm font-semibold text-foreground">Manifest (PWA)</summary>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <F label="name">
+                      <Input value={legacyOverridesDraft.manifestConfig.name} onChange={(e) => setLegacyDraft({ manifestConfig: { name: e.target.value } })} />
+                    </F>
+                    <F label="shortName">
+                      <Input value={legacyOverridesDraft.manifestConfig.shortName} onChange={(e) => setLegacyDraft({ manifestConfig: { shortName: e.target.value } })} />
+                    </F>
+                    <F label="startUrl">
+                      <Input value={legacyOverridesDraft.manifestConfig.startUrl} onChange={(e) => setLegacyDraft({ manifestConfig: { startUrl: e.target.value } })} />
+                    </F>
+                    <F label="display">
+                      <Input value={legacyOverridesDraft.manifestConfig.display} onChange={(e) => setLegacyDraft({ manifestConfig: { display: e.target.value } })} />
+                    </F>
+                    <F label="themeColor">
+                      <Input value={legacyOverridesDraft.manifestConfig.themeColor} onChange={(e) => setLegacyDraft({ manifestConfig: { themeColor: e.target.value } })} />
+                    </F>
+                    <F label="backgroundColor">
+                      <Input value={legacyOverridesDraft.manifestConfig.backgroundColor} onChange={(e) => setLegacyDraft({ manifestConfig: { backgroundColor: e.target.value } })} />
+                    </F>
+                    <F label="lang">
+                      <Input value={legacyOverridesDraft.manifestConfig.lang} onChange={(e) => setLegacyDraft({ manifestConfig: { lang: e.target.value } })} />
+                    </F>
+                    <F label="orientation">
+                      <Input value={legacyOverridesDraft.manifestConfig.orientation} onChange={(e) => setLegacyDraft({ manifestConfig: { orientation: e.target.value } })} />
+                    </F>
+                    <div className="sm:col-span-2 space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">icons</p>
+                      {legacyOverridesDraft.manifestConfig.icons.map((icon, idx) => (
+                        <div key={`manifest-icon-${idx}`} className="grid gap-2 rounded border border-border p-2 sm:grid-cols-12">
+                          <div className="sm:col-span-6">
+                            <ImageAssetField
+                              workspaceId={workspaceId}
+                              projectId={projectId}
+                              value={icon.src}
+                              label={`icon ${idx + 1}`}
+                              onChange={(url) => {
+                                const next = [...legacyOverridesDraft.manifestConfig.icons];
+                                next[idx] = { ...next[idx], src: url };
+                                setLegacyDraft({ manifestConfig: { icons: next } });
+                              }}
+                            />
+                          </div>
+                          <Input className="sm:col-span-3 h-8 text-xs" value={icon.type} placeholder="type" onChange={(e) => {
+                            const next = [...legacyOverridesDraft.manifestConfig.icons];
+                            next[idx] = { ...next[idx], type: e.target.value };
+                            setLegacyDraft({ manifestConfig: { icons: next } });
+                          }} />
+                          <Input className="sm:col-span-2 h-8 text-xs" value={icon.sizes} placeholder="sizes" onChange={(e) => {
+                            const next = [...legacyOverridesDraft.manifestConfig.icons];
+                            next[idx] = { ...next[idx], sizes: e.target.value };
+                            setLegacyDraft({ manifestConfig: { icons: next } });
+                          }} />
+                          <Button type="button" variant="outline" className="sm:col-span-1 h-8" onClick={() => {
+                            const next = legacyOverridesDraft.manifestConfig.icons.filter((_, i) => i !== idx);
+                            setLegacyDraft({ manifestConfig: { icons: next } });
+                          }}>−</Button>
+                        </div>
+                      ))}
+                      <Button type="button" variant="outline" size="sm" onClick={() => setLegacyDraft({
+                        manifestConfig: {
+                          icons: [...legacyOverridesDraft.manifestConfig.icons, { src: "", type: "", sizes: "" }],
+                        },
+                      })}>Aggiungi icona</Button>
+                    </div>
+                  </div>
+                </details>
+
+                <details className="group rounded-lg border border-border bg-muted/10 p-3">
+                  <summary className="cursor-pointer text-sm font-semibold text-foreground">Rent asset context</summary>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    {([
+                      "minMonthsToStay","daysToBeReady","monthsInAdvance","quoteExpirePeriod","proposalExpirePeriod",
+                      "depositMonths","agencyFeePercent","paymentPeriodInMonth","iva","ivaFee",
+                    ] as const).map((k) => (
+                      <F key={k} label={k}>
+                        <Input type="number" value={legacyOverridesDraft.rentAssetContext[k]} onChange={(e) => setLegacyDraft({ rentAssetContext: { [k]: e.target.value } })} />
                       </F>
+                    ))}
+                    {([
+                      ["skipReservationPayment","skipReservationPayment"],
+                      ["skipProposalPayment","skipProposalPayment"],
+                      ["skipOnboarding","skipOnboarding"],
+                      ["isTotalRateWithoutExpenses","isTotalRateWithoutExpenses"],
+                      ["showCondoExpenses","showCondoExpenses"],
+                      ["showTaxVatAmount","showTaxVatAmount"],
+                    ] as const).map(([k,label]) => (
+                      <label key={k} className="flex items-center gap-2 text-sm">
+                        <Checkbox checked={legacyOverridesDraft.rentAssetContext[k]} onCheckedChange={(v) => setLegacyDraft({ rentAssetContext: { [k]: Boolean(v) } })} />
+                        {label}
+                      </label>
+                    ))}
+                    <F label="checkInDays (comma-separated)"><Input value={legacyOverridesDraft.rentAssetContext.checkInDays} onChange={(e) => setLegacyDraft({ rentAssetContext: { checkInDays: e.target.value } })} /></F>
+                    <F label="singleUsePacks (comma-separated)"><Input value={legacyOverridesDraft.rentAssetContext.singleUsePacks} onChange={(e) => setLegacyDraft({ rentAssetContext: { singleUsePacks: e.target.value } })} /></F>
+                    <F label="monthsToExclude (comma-separated)"><Input value={legacyOverridesDraft.rentAssetContext.monthsToExclude} onChange={(e) => setLegacyDraft({ rentAssetContext: { monthsToExclude: e.target.value } })} /></F>
+                  </div>
+                </details>
+
+                <details className="group rounded-lg border border-border bg-muted/10 p-3">
+                  <summary className="cursor-pointer text-sm font-semibold text-foreground">Jobs config</summary>
+                  <div className="mt-3 space-y-3">
+                    {([
+                      ["notification", "notifica cliente"],
+                      ["notificationVendor", "notifica vendor"],
+                    ] as const).map(([key, label]) => (
+                      <div key={key} className="space-y-2 rounded border border-border p-2">
+                        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+                        {legacyOverridesDraft.jobsConfig[key].map((row, idx) => (
+                          <div key={`${key}-${idx}`} className="grid gap-2 sm:grid-cols-12">
+                            <Input className="sm:col-span-3 h-8 text-xs" type="number" value={row.days} placeholder="days" onChange={(e) => {
+                              const next = { ...legacyOverridesDraft.jobsConfig };
+                              next[key] = next[key].map((r, i) => (i === idx ? { ...r, days: e.target.value } : r));
+                              setLegacyDraft({ jobsConfig: next });
+                            }} />
+                            <Input className="sm:col-span-8 h-8 text-xs" value={row.types} placeholder="types (email, push)" onChange={(e) => {
+                              const next = { ...legacyOverridesDraft.jobsConfig };
+                              next[key] = next[key].map((r, i) => (i === idx ? { ...r, types: e.target.value } : r));
+                              setLegacyDraft({ jobsConfig: next });
+                            }} />
+                            <Button type="button" variant="outline" className="sm:col-span-1 h-8" onClick={() => {
+                              const next = { ...legacyOverridesDraft.jobsConfig };
+                              next[key] = next[key].filter((_, i) => i !== idx);
+                              setLegacyDraft({ jobsConfig: next });
+                            }}>−</Button>
+                          </div>
+                        ))}
+                        <Button type="button" variant="outline" size="sm" onClick={() => {
+                          const next = { ...legacyOverridesDraft.jobsConfig };
+                          next[key] = [...next[key], { days: "", types: "" }];
+                          setLegacyDraft({ jobsConfig: next });
+                        }}>Aggiungi riga</Button>
+                      </div>
                     ))}
                   </div>
                 </details>
 
                 <details className="group rounded-lg border border-border bg-muted/10 p-3">
+                  <summary className="cursor-pointer text-sm font-semibold text-foreground">FollowUp config (legacy dashboard)</summary>
+                  <div className="mt-3 space-y-3">
+                    <F label="languages (comma-separated)">
+                      <Input value={legacyOverridesDraft.followupConfig.languages} onChange={(e) => setLegacyDraft({ followupConfig: { ...legacyOverridesDraft.followupConfig, languages: e.target.value } })} />
+                    </F>
+                    <div className="rounded border border-border p-2">
+                      <p className="mb-2 text-xs font-medium text-muted-foreground">dashboardConfig</p>
+                      {legacyOverridesDraft.followupConfig.dashboardConfigRows.map((row, idx) => (
+                        <div key={`dash-${idx}`} className="mb-2 grid gap-2 sm:grid-cols-12">
+                          <Input className="sm:col-span-8 h-8 font-mono text-xs" value={row.key} onChange={(e) => {
+                            const next = { ...legacyOverridesDraft.followupConfig };
+                            next.dashboardConfigRows = next.dashboardConfigRows.map((r, i) => (i === idx ? { ...r, key: e.target.value } : r));
+                            setLegacyDraft({ followupConfig: next });
+                          }} />
+                          <label className="sm:col-span-3 flex items-center gap-2 text-xs">
+                            <Checkbox checked={row.enabled} onCheckedChange={(v) => {
+                              const next = { ...legacyOverridesDraft.followupConfig };
+                              next.dashboardConfigRows = next.dashboardConfigRows.map((r, i) => (i === idx ? { ...r, enabled: Boolean(v) } : r));
+                              setLegacyDraft({ followupConfig: next });
+                            }} />
+                            enabled
+                          </label>
+                          <Button type="button" variant="outline" className="sm:col-span-1 h-8" onClick={() => {
+                            const next = { ...legacyOverridesDraft.followupConfig };
+                            next.dashboardConfigRows = next.dashboardConfigRows.filter((_, i) => i !== idx);
+                            setLegacyDraft({ followupConfig: next });
+                          }}>−</Button>
+                        </div>
+                      ))}
+                      <Button type="button" variant="outline" size="sm" onClick={() => setLegacyDraft({
+                        followupConfig: {
+                          ...legacyOverridesDraft.followupConfig,
+                          dashboardConfigRows: [...legacyOverridesDraft.followupConfig.dashboardConfigRows, { key: "", enabled: true }],
+                        },
+                      })}>Aggiungi dashboard key</Button>
+                    </div>
+                    <div className="rounded border border-border p-2">
+                      <p className="mb-2 text-xs font-medium text-muted-foreground">enabledStatus</p>
+                      {legacyOverridesDraft.followupConfig.enabledStatusRows.map((row, idx) => (
+                        <div key={`status-${idx}`} className="mb-2 grid gap-2 sm:grid-cols-12">
+                          <Input className="sm:col-span-8 h-8 font-mono text-xs" value={row.key} onChange={(e) => {
+                            const next = { ...legacyOverridesDraft.followupConfig };
+                            next.enabledStatusRows = next.enabledStatusRows.map((r, i) => (i === idx ? { ...r, key: e.target.value } : r));
+                            setLegacyDraft({ followupConfig: next });
+                          }} />
+                          <label className="sm:col-span-3 flex items-center gap-2 text-xs">
+                            <Checkbox checked={row.enabled} onCheckedChange={(v) => {
+                              const next = { ...legacyOverridesDraft.followupConfig };
+                              next.enabledStatusRows = next.enabledStatusRows.map((r, i) => (i === idx ? { ...r, enabled: Boolean(v) } : r));
+                              setLegacyDraft({ followupConfig: next });
+                            }} />
+                            enabled
+                          </label>
+                          <Button type="button" variant="outline" className="sm:col-span-1 h-8" onClick={() => {
+                            const next = { ...legacyOverridesDraft.followupConfig };
+                            next.enabledStatusRows = next.enabledStatusRows.filter((_, i) => i !== idx);
+                            setLegacyDraft({ followupConfig: next });
+                          }}>−</Button>
+                        </div>
+                      ))}
+                      <Button type="button" variant="outline" size="sm" onClick={() => setLegacyDraft({
+                        followupConfig: {
+                          ...legacyOverridesDraft.followupConfig,
+                          enabledStatusRows: [...legacyOverridesDraft.followupConfig.enabledStatusRows, { key: "", enabled: true }],
+                        },
+                      })}>Aggiungi status</Button>
+                    </div>
+                  </div>
+                </details>
+
+                <details className="group rounded-lg border border-border bg-muted/10 p-3">
                   <summary className="cursor-pointer text-sm font-semibold text-foreground">
-                    Neurosales, Policy (raw), Business platform, Project flags, Proposal, IBAN
+                    Sezioni annidate (editor visuale no-JSON)
                   </summary>
                   <div className="mt-3 space-y-4">
-                    <F label="Neurosales config (JSON profondo)">
-                      <Textarea
-                        rows={12}
-                        className="font-mono text-xs"
-                        value={legacyOverridesDraft.neurosalesJson}
-                        onChange={(e) => setLegacyDraft({ neurosalesJson: e.target.value })}
-                      />
-                    </F>
-                    <F label="Policy flags (oggetto multilingua raw, es. ita[])">
-                      <Textarea
-                        rows={8}
-                        className="font-mono text-xs"
-                        value={legacyOverridesDraft.legacyPolicyFlagsJson}
-                        onChange={(e) => setLegacyDraft({ legacyPolicyFlagsJson: e.target.value })}
-                      />
-                    </F>
-                    <F label="Business platform config">
-                      <Textarea
-                        rows={4}
-                        className="font-mono text-xs"
-                        value={legacyOverridesDraft.businessPlatformJson}
-                        onChange={(e) => setLegacyDraft({ businessPlatformJson: e.target.value })}
+                    <F label="MyLiving config"><NestedValueEditor value={legacyOverridesDraft.myLivingConfig} onChange={(next) => setLegacyDraft({ myLivingConfig: next })} /></F>
+                    <F label="MyHome config"><NestedValueEditor value={legacyOverridesDraft.myhomeConfig} onChange={(next) => setLegacyDraft({ myhomeConfig: next })} /></F>
+                    <F label="FloorPlanning config"><NestedValueEditor value={legacyOverridesDraft.floorPlanningConfig} onChange={(next) => setLegacyDraft({ floorPlanningConfig: next })} /></F>
+                    <F label="Neurosales config"><NestedValueEditor value={legacyOverridesDraft.neurosalesConfig} onChange={(next) => setLegacyDraft({ neurosalesConfig: next })} /></F>
+                    <div className="space-y-2 rounded border border-border p-2">
+                      <p className="text-xs font-medium text-muted-foreground">Policy flags multilingua</p>
+                      {Object.entries(legacyOverridesDraft.legacyPolicyFlags).map(([lang, rows]) => {
+                        const items = Array.isArray(rows) ? rows : [];
+                        return (
+                          <div key={`policy-${lang}`} className="space-y-2 rounded border border-border/60 p-2">
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{lang}</p>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const next = { ...legacyOverridesDraft.legacyPolicyFlags };
+                                  next[lang] = [...items, { id: "", text: "", textDesc: "", required: false }];
+                                  setLegacyDraft({ legacyPolicyFlags: next });
+                                }}
+                              >
+                                Aggiungi policy
+                              </Button>
+                            </div>
+                            {items.map((row, idx) => {
+                              const current = (typeof row === "object" && row !== null ? row : {}) as Record<string, unknown>;
+                              return (
+                                <div key={`policy-${lang}-${idx}`} className="space-y-2 rounded border border-border/50 p-2">
+                                  <div className="grid gap-2 sm:grid-cols-3">
+                                    <F label="id">
+                                      <Input
+                                        value={String(current.id ?? "")}
+                                        onChange={(e) => {
+                                          const clone = [...items];
+                                          const base = (typeof clone[idx] === "object" && clone[idx] !== null ? clone[idx] : {}) as Record<string, unknown>;
+                                          clone[idx] = { ...base, id: e.target.value };
+                                          setLegacyDraft({ legacyPolicyFlags: { ...legacyOverridesDraft.legacyPolicyFlags, [lang]: clone } });
+                                        }}
+                                      />
+                                    </F>
+                                    <F label="textDesc">
+                                      <Input
+                                        value={String(current.textDesc ?? "")}
+                                        onChange={(e) => {
+                                          const clone = [...items];
+                                          const base = (typeof clone[idx] === "object" && clone[idx] !== null ? clone[idx] : {}) as Record<string, unknown>;
+                                          clone[idx] = { ...base, textDesc: e.target.value };
+                                          setLegacyDraft({ legacyPolicyFlags: { ...legacyOverridesDraft.legacyPolicyFlags, [lang]: clone } });
+                                        }}
+                                      />
+                                    </F>
+                                    <label className="mt-6 flex items-center gap-2 text-xs">
+                                      <Checkbox
+                                        checked={Boolean(current.required)}
+                                        onCheckedChange={(v) => {
+                                          const clone = [...items];
+                                          const base = (typeof clone[idx] === "object" && clone[idx] !== null ? clone[idx] : {}) as Record<string, unknown>;
+                                          clone[idx] = { ...base, required: Boolean(v) };
+                                          setLegacyDraft({ legacyPolicyFlags: { ...legacyOverridesDraft.legacyPolicyFlags, [lang]: clone } });
+                                        }}
+                                      />
+                                      required
+                                    </label>
+                                  </div>
+                                  <F label="text (HTML editor)">
+                                    <EmailRichEditor
+                                      editorKey={`policy-${lang}-${idx}`}
+                                      variant="body"
+                                      html={String(current.text ?? "")}
+                                      onChange={(html) => {
+                                        const clone = [...items];
+                                        const base = (typeof clone[idx] === "object" && clone[idx] !== null ? clone[idx] : {}) as Record<string, unknown>;
+                                        clone[idx] = { ...base, text: html };
+                                        setLegacyDraft({ legacyPolicyFlags: { ...legacyOverridesDraft.legacyPolicyFlags, [lang]: clone } });
+                                      }}
+                                    />
+                                  </F>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      const clone = items.filter((_, i) => i !== idx);
+                                      setLegacyDraft({ legacyPolicyFlags: { ...legacyOverridesDraft.legacyPolicyFlags, [lang]: clone } });
+                                    }}
+                                  >
+                                    Rimuovi policy
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <F label="Business platform languages (comma-separated)">
+                      <Input
+                        value={businessLanguages}
+                        onChange={(e) =>
+                          setLegacyDraft({
+                            businessPlatformJson: JSON.stringify(
+                              { ...businessPlatformObj, languages: splitCommaList(e.target.value) },
+                              null,
+                              2
+                            ),
+                          })
+                        }
+                        className="font-mono text-sm"
                       />
                     </F>
                     <F label="domainWhitelist (comma-separated host)">
@@ -1605,30 +1822,106 @@ export const ProjectDetailPage = () => {
                         className="font-mono text-sm"
                       />
                     </F>
-                    <F label="projectFlags">
-                      <Textarea
-                        rows={4}
-                        className="font-mono text-xs"
-                        value={legacyOverridesDraft.projectFlagsJson}
-                        onChange={(e) => setLegacyDraft({ projectFlagsJson: e.target.value })}
-                      />
-                    </F>
-                    <F label="proposalTemplate">
-                      <Textarea
-                        rows={4}
-                        className="font-mono text-xs"
-                        value={legacyOverridesDraft.proposalTemplateJson}
-                        onChange={(e) => setLegacyDraft({ proposalTemplateJson: e.target.value })}
-                      />
-                    </F>
-                    <F label="iban (array JSON)">
-                      <Textarea
-                        rows={3}
-                        className="font-mono text-xs"
-                        value={legacyOverridesDraft.ibanJson}
-                        onChange={(e) => setLegacyDraft({ ibanJson: e.target.value })}
-                      />
-                    </F>
+                    <div className="grid gap-2 sm:grid-cols-2 rounded border border-border p-2">
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={leadGenerationEnabled}
+                          onCheckedChange={(v) =>
+                            setLegacyDraft({
+                              projectFlagsJson: JSON.stringify(
+                                {
+                                  ...projectFlagsObj,
+                                  leadGeneration: { enabled: Boolean(v) },
+                                  policyFlags: { enabled: projectPolicyFlagsEnabled },
+                                },
+                                null,
+                                2
+                              ),
+                            })
+                          }
+                        />
+                        projectFlags.leadGeneration.enabled
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={projectPolicyFlagsEnabled}
+                          onCheckedChange={(v) =>
+                            setLegacyDraft({
+                              projectFlagsJson: JSON.stringify(
+                                {
+                                  ...projectFlagsObj,
+                                  leadGeneration: { enabled: leadGenerationEnabled },
+                                  policyFlags: { enabled: Boolean(v) },
+                                },
+                                null,
+                                2
+                              ),
+                            })
+                          }
+                        />
+                        projectFlags.policyFlags.enabled
+                      </label>
+                    </div>
+                    <div className="space-y-2 rounded border border-border p-2">
+                      <p className="text-xs font-medium text-muted-foreground">proposalTemplate</p>
+                      {proposalTemplateItems.map((item, idx) => (
+                        <div key={`proposal-${idx}`} className="grid gap-2 sm:grid-cols-12">
+                          <Input
+                            className="sm:col-span-11 h-8 text-xs"
+                            value={item}
+                            onChange={(e) => {
+                              const clone = [...proposalTemplateItems];
+                              clone[idx] = e.target.value;
+                              setLegacyDraft({ proposalTemplateJson: JSON.stringify(clone, null, 2) });
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="sm:col-span-1 h-8"
+                            onClick={() => {
+                              const clone = proposalTemplateItems.filter((_, i) => i !== idx);
+                              setLegacyDraft({ proposalTemplateJson: JSON.stringify(clone, null, 2) });
+                            }}
+                          >
+                            −
+                          </Button>
+                        </div>
+                      ))}
+                      <Button type="button" variant="outline" size="sm" onClick={() => setLegacyDraft({
+                        proposalTemplateJson: JSON.stringify([...proposalTemplateItems, ""], null, 2),
+                      })}>Aggiungi item</Button>
+                    </div>
+                    <div className="space-y-2 rounded border border-border p-2">
+                      <p className="text-xs font-medium text-muted-foreground">iban</p>
+                      {ibanItems.map((item, idx) => (
+                        <div key={`iban-${idx}`} className="grid gap-2 sm:grid-cols-12">
+                          <Input
+                            className="sm:col-span-11 h-8 text-xs font-mono"
+                            value={item}
+                            onChange={(e) => {
+                              const clone = [...ibanItems];
+                              clone[idx] = e.target.value;
+                              setLegacyDraft({ ibanJson: JSON.stringify(clone, null, 2) });
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="sm:col-span-1 h-8"
+                            onClick={() => {
+                              const clone = ibanItems.filter((_, i) => i !== idx);
+                              setLegacyDraft({ ibanJson: JSON.stringify(clone, null, 2) });
+                            }}
+                          >
+                            −
+                          </Button>
+                        </div>
+                      ))}
+                      <Button type="button" variant="outline" size="sm" onClick={() => setLegacyDraft({
+                        ibanJson: JSON.stringify([...ibanItems, ""], null, 2),
+                      })}>Aggiungi IBAN</Button>
+                    </div>
                   </div>
                 </details>
 
