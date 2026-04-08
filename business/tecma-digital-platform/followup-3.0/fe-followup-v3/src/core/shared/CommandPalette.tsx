@@ -58,6 +58,12 @@ const SECTION_COMMANDS: CommandSectionItem[] = [
   },
   {
     kind: "section",
+    id: "coima",
+    label: "Assessment COIMA / BTS",
+    hint: "Gap requisiti COIMA vs Tecma Followup 3.0 (admin)",
+  },
+  {
+    kind: "section",
     id: "tecmaEntitlements",
     label: "Entitlement workspace (Tecma)",
     hint: "Moduli commerciali sul workspace corrente",
@@ -131,7 +137,8 @@ export const CommandPalette = ({
         item.id === "emailFlows" ||
         item.id === "audit" ||
         item.id === "productDiscovery" ||
-        item.id === "executiveOverview"
+        item.id === "executiveOverview" ||
+        item.id === "coima"
       ) {
         if (!isAdmin) return false;
       }

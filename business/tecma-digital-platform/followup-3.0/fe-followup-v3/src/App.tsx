@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
-import { Routes, Route, useLocation, useSearchParams, useNavigate, Navigate } from "react-router-dom";
+import { Routes, Route, useLocation, useSearchParams, useNavigate, Navigate, useParams } from "react-router-dom";
 import { clearProjectScope, loadProjectScope, saveProjectScope, updateSelectedProjectIds } from "./auth/projectScope";
 import { followupApi } from "./api/followupApi";
 import { getRefreshToken, setTokens } from "./api/http";
@@ -47,6 +47,9 @@ import { CustomerPortalPage } from "./core/customer-portal/CustomerPortalPage";
 import { ProjectsPage } from "./core/projects/ProjectsPage";
 import { InboxPage } from "./core/shared/InboxPage";
 import { Customer360Page } from "./core/customer360/Customer360Page";
+import { CoimaGapPage } from "./core/coima/CoimaGapPage";
+import { ExperimentalHubPage } from "./core/experimental/ExperimentalHubPage";
+import { ExperimentalExperimentPage } from "./core/experimental/ExperimentalExperimentPage";
 import { isSectionEnabledByFeature, isPriceAvailabilityRelevant } from "./core/features";
 import {
   SECTIONS,
@@ -71,6 +74,24 @@ const ApartmentDetailPage = lazy(() =>
 const ExecutiveOverviewPage = lazy(() =>
   import("./core/executive/ExecutiveOverviewPage").then((module) => ({ default: module.ExecutiveOverviewPage }))
 );
+
+function ExperimentalRouteContent({
+  isTecmaAdmin,
+  editorUrl,
+}: {
+  isTecmaAdmin: boolean;
+  editorUrl: string;
+}): ReactNode {
+  const { experimentId } = useParams<{ experimentId: string }>();
+  if (!isTecmaAdmin) {
+    return (
+      <PageSimple title="Accesso negato" description="Solo superadmin Tecma possono aprire l'area Experimental.">
+        <p className="text-sm text-muted-foreground">Verifica il ruolo sull'account o contatta Tecma.</p>
+      </PageSimple>
+    );
+  }
+  return <ExperimentalExperimentPage experimentId={experimentId} editorUrl={editorUrl} />;
+}
 
 function PermissionGated({
   permission,
@@ -281,6 +302,24 @@ const renderSection = (
     );
   }
 
+  if (section === "experimental") {
+    if (!isTecmaAdmin) {
+      return (
+        <PageSimple title="Accesso negato" description="Solo superadmin Tecma possono aprire l'area Experimental.">
+          <p className="text-sm text-muted-foreground">Verifica il ruolo sull'account o contatta Tecma.</p>
+        </PageSimple>
+      );
+    }
+    return (
+      <PageSimple
+        title="Experimental"
+        description="Area sperimentale riservata ai superadmin Tecma. Le funzionalita qui presenti possono cambiare o essere rimosse."
+      >
+        <ExperimentalHubPage onOpenExperiment={(experimentId) => navigate?.(`/experimental/${experimentId}`)} />
+      </PageSimple>
+    );
+  }
+
   if (section === "executiveOverview") {
     if (!isAdmin) {
       return (
@@ -302,6 +341,20 @@ const renderSection = (
         </Suspense>
       </PageSimple>
     );
+  }
+
+  if (section === "coima") {
+    if (!isAdmin) {
+      return (
+        <PageSimple
+          title="Accesso negato"
+          description="Solo amministratori workspace possono aprire l’assessment COIMA / BTS."
+        >
+          <p className="text-sm text-muted-foreground">Verifica il ruolo sull’account o contatta un amministratore.</p>
+        </PageSimple>
+      );
+    }
+    return <CoimaGapPage />;
   }
 
   if (section === "audit") {
@@ -489,6 +542,8 @@ export const App = () => {
   const effectiveSection: Section =
     pathname.startsWith("/clients") ? "clients"
     : pathname.startsWith("/apartments") ? "apartments"
+    : pathname.startsWith("/experimental") ? "experimental"
+    : pathname.startsWith("/coima") ? "coima"
     : section;
 
   useEffect(() => {
@@ -502,6 +557,14 @@ export const App = () => {
     }
     if (pathname.startsWith("/projects")) {
       setSection("projects");
+      return;
+    }
+    if (pathname.startsWith("/experimental")) {
+      setSection("experimental");
+      return;
+    }
+    if (pathname.startsWith("/coima")) {
+      setSection("coima");
       return;
     }
     if (pathname === "/account/security") {
@@ -765,6 +828,17 @@ export const App = () => {
               }
             />
             <Route path="/automations" element={<Navigate to="/integrations?tab=regole" replace />} />
+            <Route
+              path="/experimental/:experimentId"
+              element={
+                <PageTemplate {...templateProps}>
+                  <ExperimentalRouteContent
+                    isTecmaAdmin={projectScope.isTecmaAdmin === true}
+                    editorUrl={import.meta.env.VITE_EXPERIMENTAL_EDITOR_URL?.trim() || "/experimental/editor"}
+                  />
+                </PageTemplate>
+              }
+            />
             <Route
               path="/*"
               element={

@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BarChart2,
   BookOpen,
+  ClipboardList,
   Database,
   Building2,
   CalendarDays,
@@ -48,9 +49,11 @@ export type Section =
   | "inbox"
   | "customer360"
   | "productDiscovery"
+  | "experimental"
   | "tecmaEntitlements"
   | "accountSecurity"
-  | "executiveOverview";
+  | "executiveOverview"
+  | "coima";
 
 export const SECTIONS: Section[] = [
   "cockpit",
@@ -80,9 +83,11 @@ export const SECTIONS: Section[] = [
   "integrations",
   "priceAvailability",
   "productDiscovery",
+  "experimental",
   "tecmaEntitlements",
   "accountSecurity",
   "executiveOverview",
+  "coima",
 ];
 
 /** Path puliti per le sezioni; le altre usano ?section=X */
@@ -106,9 +111,11 @@ export const SECTION_TO_PATH: Partial<Record<Section, string>> = {
   integrations: "/integrations",
   priceAvailability: "/prices",
   productDiscovery: "/product-discovery",
+  experimental: "/experimental",
   tecmaEntitlements: "/tecma/entitlements",
   accountSecurity: "/account/security",
   executiveOverview: "/executive",
+  coima: "/coima",
 };
 
 export const PATH_TO_SECTION: Record<string, Section> = Object.fromEntries(
@@ -193,10 +200,19 @@ export const NAV_ITEMS: NavItemConfig[] = [
   { id: "users", label: "User", icon: UserCircle, adminOnly: true, compact: true, group: "admin" },
   { id: "emailFlows", label: "Email", icon: Mail, adminOnly: true, compact: true, group: "admin" },
   { id: "productDiscovery", label: "Product Discovery", icon: Layers, adminOnly: true, compact: true, group: "admin" },
+  { id: "experimental", label: "Experimental", icon: Layers, tecmaAdminOnly: true, compact: true, group: "admin" },
   {
     id: "executiveOverview",
     label: "Panoramica strategica",
     icon: BookOpen,
+    adminOnly: true,
+    compact: true,
+    group: "admin",
+  },
+  {
+    id: "coima",
+    label: "Assessment COIMA / BTS",
+    icon: ClipboardList,
     adminOnly: true,
     compact: true,
     group: "admin",
