@@ -197,9 +197,9 @@ describe("workflow-engine.service", () => {
     expect(getStateByCode(detail, "missing")).toBeNull();
   });
 
-  it("isTransitionAllowedForWorkspace returns null when no workflow detail", async () => {
+  it("isTransitionAllowedForWorkspace returns false when no workflow detail (hard-cut)", async () => {
     mocks.workflowsFindOneMock.mockResolvedValueOnce(null);
-    expect(await isTransitionAllowedForWorkspace("ws1", "sell", "new", "offer")).toBeNull();
+    expect(await isTransitionAllowedForWorkspace("ws1", "sell", "new", "offer")).toBe(false);
   });
 
   it("createWorkflow/state/transition persist docs and map rows", async () => {

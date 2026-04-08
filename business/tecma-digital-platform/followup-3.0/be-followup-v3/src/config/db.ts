@@ -36,7 +36,12 @@ export const connectDb = async (): Promise<Db> => {
     connectedDbName = null;
   }
 
-  client = new MongoClient(uri);
+  client = new MongoClient(uri, {
+    /** Evita hang indefiniti su rete/Atlas; le richieste reali restano bound da pool. */
+    serverSelectionTimeoutMS: 10_000,
+    connectTimeoutMS: 10_000,
+    maxPoolSize: 20
+  });
   await client.connect();
   db = client.db(name);
   connectedUri = uri;
