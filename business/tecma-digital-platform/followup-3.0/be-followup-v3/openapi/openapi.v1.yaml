@@ -143,6 +143,10 @@
     {
       "name": "ai",
       "description": "Suggerimenti AI e action drafts"
+    },
+    {
+      "name": "tecma",
+      "description": "Diagnostica e operazioni riservate Tecma admin"
     }
   ],
   "paths": {
@@ -155,6 +159,127 @@
         "responses": {
           "200": {
             "description": "Service healthy"
+          }
+        }
+      }
+    },
+    "/tecma/storage/assets-diagnostics": {
+      "get": {
+        "tags": [
+          "tecma",
+          "assets"
+        ],
+        "operationId": "getTecmaAssetsStorageDiagnostics",
+        "summary": "Diagnostica configurazione S3 asset (Tecma admin)",
+        "description": "Stato bucket e regione da variabili d'ambiente (nessun segreto in risposta). Con query probe=1 esegue HeadBucket sul bucket configurato per verifica rete/IAM.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "probe",
+            "in": "query",
+            "required": false,
+            "description": "Se 1 o true, esegue HeadBucket AWS sul bucket asset",
+            "schema": {
+              "type": "string"
+            },
+            "example": "1"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Oggetto data con env e opzionalmente esito probe",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "required": [
+                        "env"
+                      ],
+                      "properties": {
+                        "env": {
+                          "type": "object",
+                          "required": [
+                            "configured",
+                            "bucket",
+                            "bucketSource",
+                            "region",
+                            "awsCredentialsConfigured"
+                          ],
+                          "properties": {
+                            "configured": {
+                              "type": "boolean",
+                              "description": "Almeno un bucket configurato"
+                            },
+                            "bucket": {
+                              "type": "string",
+                              "nullable": true,
+                              "description": "Nome bucket effettivo"
+                            },
+                            "bucketSource": {
+                              "type": "string",
+                              "enum": [
+                                "ASSETS_S3_BUCKET",
+                                "EMAIL_FLOW_S3_BUCKET",
+                                "none"
+                              ],
+                              "description": "Variabile d'ambiente usata per il bucket"
+                            },
+                            "region": {
+                              "type": "string",
+                              "description": "Regione client S3"
+                            },
+                            "awsCredentialsConfigured": {
+                              "type": "boolean",
+                              "description": "Presenza chiavi AWS in env (valori non esposti)"
+                            }
+                          }
+                        },
+                        "probe": {
+                          "type": "object",
+                          "properties": {
+                            "attempted": {
+                              "type": "boolean",
+                              "description": "Se è stata effettuata una chiamata HeadBucket"
+                            },
+                            "ok": {
+                              "type": "boolean",
+                              "description": "Esito HeadBucket se attempted"
+                            },
+                            "errorCode": {
+                              "type": "string",
+                              "description": "Codice errore AWS se fallito"
+                            },
+                            "message": {
+                              "type": "string",
+                              "description": "Messaggio errore sintetico"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "403": {
+            "description": "Richiesto ruolo Tecma admin"
+          },
+          "500": {
+            "description": "Errore server"
           }
         }
       }

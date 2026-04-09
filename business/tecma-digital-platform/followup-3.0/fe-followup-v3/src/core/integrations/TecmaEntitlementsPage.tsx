@@ -56,6 +56,9 @@ export function TecmaEntitlementsPage({ workspaceId, isTecmaAdmin = false }: Tec
   /** Stato persistito da inviare al PATCH (non l’effettivo “implicit”). */
   const [draftStatus, setDraftStatus] = useState<Partial<Record<WorkspaceEntitlementFeature, WorkspaceEntitlementStatus>>>({});
   const [draftNotes, setDraftNotes] = useState<Partial<Record<WorkspaceEntitlementFeature, string>>>({});
+  const [storageDiagLoading, setStorageDiagLoading] = useState(false);
+  const [storageDiagError, setStorageDiagError] = useState("");
+  const [storageDiagJson, setStorageDiagJson] = useState("");
 
   useEffect(() => {
     setTargetWorkspaceId(workspaceId);
@@ -97,6 +100,20 @@ export function TecmaEntitlementsPage({ workspaceId, isTecmaAdmin = false }: Tec
   useEffect(() => {
     void load();
   }, [load]);
+
+  const loadStorageDiag = async (probe: boolean) => {
+    setStorageDiagLoading(true);
+    setStorageDiagError("");
+    try {
+      const res = await followupApi.getTecmaAssetsStorageDiagnostics({ probe });
+      setStorageDiagJson(JSON.stringify(res.data, null, 2));
+    } catch (e) {
+      setStorageDiagJson("");
+      setStorageDiagError(e instanceof Error ? e.message : "Diagnostica non disponibile");
+    } finally {
+      setStorageDiagLoading(false);
+    }
+  };
 
   const saveFeature = async (feature: WorkspaceEntitlementFeature) => {
     const status = draftStatus[feature];
@@ -231,6 +248,43 @@ export function TecmaEntitlementsPage({ workspaceId, isTecmaAdmin = false }: Tec
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="mt-10 rounded-lg border border-border bg-muted/20 p-4">
+        <h2 className="text-sm font-semibold text-foreground">Storage asset (S3)</h2>
+        <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+          Verifica allineata a <code className="rounded bg-muted px-1">ASSETS_S3_BUCKET</code> (o fallback{" "}
+          <code className="rounded bg-muted px-1">EMAIL_FLOW_S3_BUCKET</code>) come in <code className="rounded bg-muted px-1">assets-s3.service</code>.
+          Nessun segreto nella risposta.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="min-h-11"
+            disabled={storageDiagLoading}
+            onClick={() => void loadStorageDiag(false)}
+          >
+            Stato da variabili
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="min-h-11"
+            disabled={storageDiagLoading}
+            onClick={() => void loadStorageDiag(true)}
+          >
+            Verifica rete (HeadBucket)
+          </Button>
+        </div>
+        {storageDiagError ? <p className="mt-2 text-sm text-destructive">{storageDiagError}</p> : null}
+        {storageDiagJson ? (
+          <pre className="mt-3 max-h-56 overflow-auto rounded-md border border-border bg-background p-3 text-xs text-muted-foreground">
+            {storageDiagJson}
+          </pre>
+        ) : null}
       </div>
     </div>
   );

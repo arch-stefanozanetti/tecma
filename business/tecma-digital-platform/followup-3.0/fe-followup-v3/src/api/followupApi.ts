@@ -592,6 +592,29 @@ export const followupApi = {
       `/workspaces/${encodeURIComponent(workspaceId)}/entitlements/${encodeURIComponent(feature)}`,
       payload
     ),
+  /** Diagnostica S3 asset (solo Tecma admin). `probe` esegue HeadBucket sul bucket configurato. */
+  getTecmaAssetsStorageDiagnostics: (params?: { probe?: boolean }) => {
+    const q = new URLSearchParams();
+    if (params?.probe) q.set("probe", "1");
+    const suffix = q.toString() ? `?${q.toString()}` : "";
+    return getJson<{
+      data: {
+        env: {
+          configured: boolean;
+          bucket: string | null;
+          bucketSource: "ASSETS_S3_BUCKET" | "EMAIL_FLOW_S3_BUCKET" | "none";
+          region: string;
+          awsCredentialsConfigured: boolean;
+        };
+        probe?: {
+          attempted: boolean;
+          ok: boolean;
+          errorCode?: string;
+          message?: string;
+        };
+      };
+    }>(`/tecma/storage/assets-diagnostics${suffix}`);
+  },
   listPlatformApiKeys: (workspaceId: string) =>
     getJson<{ data: Array<{ _id: string; label: string; projectIds: string[]; scopes: string[]; quotaPerDay: number | null; active: boolean; lastUsedAt?: string; createdAt: string; updatedAt: string }> }>(
       `/workspaces/${encodeURIComponent(workspaceId)}/platform-api-keys`

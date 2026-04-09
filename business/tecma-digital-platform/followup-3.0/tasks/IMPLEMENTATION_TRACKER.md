@@ -19,7 +19,7 @@ Legenda stato: `[x]` fatto (baseline o verificato in repo) · `[ ]` da fare o in
 | [x] | `connectors-showcase-ux` | A,C | Vetrina connettori per utenti senza modulo | Incluso in integrazioni |
 | [x] | `tecma-activation-audit` | A | Console Tecma + audit attivazioni | `TecmaEntitlementsPage` + `workspace.entitlement.updated` (payload con `notesChanged`); audit lettura liste via GET esistente |
 | [ ] | `csv-mapping` | A,B | CSV legacy → `tz_*` | Deliverable [FASE1_CSV_MAPPING](../docs/deliverables/FASE1_CSV_MAPPING.md) — attende CSV |
-| [ ] | `s3-verify` | A,B | Presigned S3 | [FASE3_S3_VERIFICATION](../docs/deliverables/FASE3_S3_VERIFICATION.md) |
+| [x] | `s3-verify` | A,B | Presigned S3 + verifica operativa | [FASE3_S3_VERIFICATION](../docs/deliverables/FASE3_S3_VERIFICATION.md) — servizio già in `assets-s3.service`; **2026-04-08:** `GET /tecma/storage/assets-diagnostics` + UI Tecma entitlements; checklist manuale IAM/upload su staging resta in FASE3 |
 | [ ] | `digital-quote` | A,B | Quote, PDF, magic link | [FASE2_DIGITAL_QUOTE](../docs/deliverables/FASE2_DIGITAL_QUOTE.md) |
 | [ ] | `reports-dashboards` | A,C | Report avanzati, dashboard condivisibili | [FASE4](../docs/deliverables/FASE4_REPORTS_DASHBOARDS.md) — base UI report in app |
 | [ ] | `calendar-sync` | A,B | Gmail/Outlook reali oltre UI calendario | [FASE5](../docs/deliverables/FASE5_CALENDAR_SYNC.md) |

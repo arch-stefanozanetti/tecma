@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { Request } from "express";
 import { z } from "zod";
 import { handleAsync } from "../asyncHandler.js";
+import { requireTecmaAdmin } from "../authMiddleware.js";
 import { requireCanAccessWorkspace } from "../accessMiddleware.js";
 import { requirePermission } from "../permissionMiddleware.js";
 import { getClientIp } from "../requestMeta.js";
@@ -12,8 +13,20 @@ import {
   createStorageUploadUrl,
   listStorageObjects,
 } from "../../core/storage/storage.service.js";
+import { getAssetsStorageDiagnostics } from "../../core/assets/storage-diagnostics.service.js";
 
 export const storageRoutes = Router();
+
+storageRoutes.get(
+  "/tecma/storage/assets-diagnostics",
+  requireTecmaAdmin,
+  handleAsync(async (req) => {
+    const raw = req.query.probe;
+    const probe = raw === "1" || raw === "true" || raw === "yes";
+    const result = await getAssetsStorageDiagnostics({ probe });
+    return { data: result };
+  })
+);
 const withWorkspaceAccess = requireCanAccessWorkspace("workspaceId");
 const resolveAudit = (req: Request) => ({
   actorUserId: typeof req.user?.sub === "string" ? req.user.sub : undefined,
