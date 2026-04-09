@@ -19,7 +19,7 @@
 
 | Ciclo | Focus | ID tracker principali | Dipendenze |
 |-------|--------|------------------------|------------|
-| **1** | Chiusura entitlements + messaggistica commerciale + audit attivazioni (slice FASE02) | `commercial-entitlements`, `tecma-activation-audit` | — |
+| **1** | Chiusura entitlements + messaggistica commerciale + audit attivazioni (slice FASE02) | `commercial-entitlements`, `tecma-activation-audit` | — · **Fatto 2026-04-08:** link commerciale in `ApiTab` + drawer connettori; `notesChanged` in audit PATCH; `.env.example` documentato |
 | **2** | Storage S3 end-to-end (presigned, checklist FASE3) | `s3-verify` | Env AWS, bucket |
 | **3** | Modello quote + mapping dati ([FASE1_CSV_MAPPING](../docs/deliverables/FASE1_CSV_MAPPING.md)) dove CSV disponibili; altrimenti schema/API quote senza ETL completo | `csv-mapping` (parziale) | Opzionale parallelismo con ciclo 2 |
 | **4** | Preventivo digitale: token, pubblico, PDF, magic link | `digital-quote` | Ciclo 2 (+ allineamento modello da ciclo 3) |

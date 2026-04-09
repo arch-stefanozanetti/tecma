@@ -15,9 +15,9 @@ Legenda stato: `[x]` fatto (baseline o verificato in repo) · `[ ]` da fare o in
 |-------|-----|-----|------|---------------------|
 | [x] | `close-phase0` | A,C | Workspace, `tz_workspace_user_projects`, entity assignments, cockpit aggregato, platform clients lite, matching routes | `be-followup-v3` routes + `fe-followup-v3` |
 | [x] | `user-access-granularity` | A,B | RBAC granulare, wizard utenti, permission catalog, audit membership | `permissions.ts`, Utenti UI |
-| [~] | `commercial-entitlements` | A,B,C | Entitlement vs RBAC; Public API / Twilio / Mailchimp/AC gated | BE entitlement + `IntegrationsPage`, `ConnettoriTab`, `workspaceEntitlementUi.tsx` — *restano:* uniformare messaggi “contatta Tecma”, audit note lettura dove previsto in FASE02 |
+| [x] | `commercial-entitlements` | A,B,C | Entitlement vs RBAC; Public API / Twilio / Mailchimp/AC gated | BE + FE; ciclo 1 (2026-04-08): link `VITE_TECMA_COMMERCIAL_*` in tab API + drawer Twilio/MC/AC; audit `notesChanged` su PATCH entitlement. Gate nuove integrazioni a pagamento: vedi matrice in docs. |
 | [x] | `connectors-showcase-ux` | A,C | Vetrina connettori per utenti senza modulo | Incluso in integrazioni |
-| [~] | `tecma-activation-audit` | A | Console Tecma + audit attivazioni | Parziale: verificare milestone FASE02 |
+| [x] | `tecma-activation-audit` | A | Console Tecma + audit attivazioni | `TecmaEntitlementsPage` + `workspace.entitlement.updated` (payload con `notesChanged`); audit lettura liste via GET esistente |
 | [ ] | `csv-mapping` | A,B | CSV legacy → `tz_*` | Deliverable [FASE1_CSV_MAPPING](../docs/deliverables/FASE1_CSV_MAPPING.md) — attende CSV |
 | [ ] | `s3-verify` | A,B | Presigned S3 | [FASE3_S3_VERIFICATION](../docs/deliverables/FASE3_S3_VERIFICATION.md) |
 | [ ] | `digital-quote` | A,B | Quote, PDF, magic link | [FASE2_DIGITAL_QUOTE](../docs/deliverables/FASE2_DIGITAL_QUOTE.md) |

@@ -36,6 +36,7 @@ import { followupApi } from "../../api/followupApi";
 import { useToast } from "../../contexts/ToastContext";
 import type { WebhookConfigRow, AutomationEventType, WorkspaceEntitlementEffectiveRow } from "../../types/domain";
 import { connectorEntitlementFootnote, workspaceFeatureEntitled } from "./workspaceEntitlementUi";
+import { commercialContactInlineNode } from "./tecmaCommercialContact";
 import { cn } from "../../lib/utils";
 import {
   LOOKER_CONNECTOR_STORAGE_KEY,
@@ -1329,6 +1330,7 @@ export function ConnettoriTab({
                     className="mt-2 text-sm"
                   >
                     Non puoi salvare una nuova configurazione né inviare prove finché Tecma non abilita il servizio. Puoi comunque rimuovere una config esistente.
+                    {commercialContactInlineNode()}
                   </Alert>
                 )}
                 {twilioDrawerError && <p className="text-sm text-destructive">{twilioDrawerError}</p>}
@@ -1488,6 +1490,7 @@ export function ConnettoriTab({
                 {!mailchimpSaveOk && (
                   <Alert variant="warning" title="Modulo Mailchimp o Integrazioni non attivo" className="mt-2 text-sm">
                     Non puoi salvare una nuova API key senza Integrazioni e Mailchimp abilitati da Tecma. Puoi rimuovere una config esistente.
+                    {commercialContactInlineNode()}
                   </Alert>
                 )}
                 {mailchimpDrawerError && <p className="text-sm text-destructive">{mailchimpDrawerError}</p>}
@@ -1521,6 +1524,7 @@ export function ConnettoriTab({
                 {!activeCampaignSaveOk && (
                   <Alert variant="warning" title="Modulo ActiveCampaign o Integrazioni non attivo" className="mt-2 text-sm">
                     Non puoi salvare una nuova API key senza Integrazioni e ActiveCampaign abilitati da Tecma. Puoi rimuovere una config esistente.
+                    {commercialContactInlineNode()}
                   </Alert>
                 )}
                 {activeCampaignDrawerError && <p className="text-sm text-destructive">{activeCampaignDrawerError}</p>}

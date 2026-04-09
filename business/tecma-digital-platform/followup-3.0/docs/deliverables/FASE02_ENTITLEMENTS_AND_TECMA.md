@@ -41,7 +41,9 @@ Spec in [PIANO_GLOBALE_FOLLOWUP_3.md](../PIANO_GLOBALE_FOLLOWUP_3.md) §5.
 | 2026-03-21 | **Catalogo** `workspace-feature-catalog.ts` (default per assenza riga + inclusione in `GET /workspaces/:id` → `features`). Chiavi UI: `aiApprovals`, `reports`, `integrations`. Enforcement route intelligence (report/AI), connettori, automazioni, comunicazioni, webhook. `GET /workspaces` elenco completo per Tecma admin; `GET .../entitlements` con `requirePermissionOrTecmaAdmin`. Console Tecma: selettore workspace + wiring `isTecmaAdmin` in `App`/`PageTemplate`/`CommandPalette`. Runbook deploy: `docs/plans/DEPLOY_ENVIRONMENTS.md`. |
 | 2026-03-21 | **Marketing “vero”:** step workflow `mailchimp` / `activecampaign` con upsert liste (Mailchimp Marketing API + ActiveCampaign v3); risoluzione email contatto da payload evento; segreti connettore cifrati; FE salvataggio AC con **apiBaseUrl** obbligatorio al primo save; OpenAPI POST/GET ActiveCampaign aggiornati; esempi step in tab API. **Outlook dev:** `GET /v1/connectors/outlook/auth` risponde JSON 503 (non HTML) se manca `OUTLOOK_REDIRECT_URI`; variabili documentate in `be-followup-v3/.env.example`. |
 
-**Prossimi passi:** opzionale copy ulteriore; **link commerciale** configurabile via `VITE_TECMA_COMMERCIAL_CONTACT_URL` / `LABEL` anche in tab **API** e drawer **Twilio / Mailchimp / AC** (oltre hub e footnote card). **Note** già in GET e console Tecma; gate sistematico per **nuove** integrazioni a pagamento (matrice + test HTTP).
+| 2026-04-08 | **Ciclo 1:** link commerciale `VITE_TECMA_COMMERCIAL_CONTACT_URL` / `LABEL` in tab **API** (`ApiTab`) e alert drawer **Twilio / Mailchimp / AC** (`ConnettoriTab`); variabili in `fe-followup-v3/.env.example`; audit PATCH arricchito con `notesChanged` nel payload. Restano: gate sistematico per **nuove** integrazioni a pagamento (matrice + test HTTP) dove serve nuova capability. |
+
+**Prossimi passi:** gate sistematico per **nuove** integrazioni a pagamento (matrice + test HTTP) ove si aggiungono capability; copy ulteriore solo se emerge da UX.
 
 ## Matrice route ↔ feature e checklist release
 

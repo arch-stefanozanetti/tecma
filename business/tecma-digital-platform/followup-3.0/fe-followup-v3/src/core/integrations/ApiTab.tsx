@@ -3,6 +3,7 @@ import { FileText, Copy, ExternalLink, RefreshCw, Shield, Trash2, KeyRound, File
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { followupApi } from "../../api/followupApi";
+import { commercialContactInlineNode } from "./tecmaCommercialContact";
 
 const PUBLIC_ENDPOINTS: Array<{
   method: string;
@@ -423,7 +424,8 @@ export function ApiTab({
             <div className="mt-3 rounded-lg border border-amber-500/50 bg-amber-50/90 p-3 text-sm text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/25 dark:text-amber-50">
               <p className="font-medium">Modulo Public API non attivo su questo workspace</p>
               <p className="mt-1 text-xs opacity-90">
-                Non è possibile creare né ruotare le platform API key finché Tecma non abilita il servizio. Le chiavi già emesse restano elencate; per revoche o supporto contatta Tecma.
+                Non è possibile creare né ruotare le platform API key finché Tecma non abilita il servizio. Le chiavi già emesse restano elencate; per revoche o supporto contatta il referente commerciale o il supporto Tecma.
+                {commercialContactInlineNode()}
               </p>
             </div>
           )}

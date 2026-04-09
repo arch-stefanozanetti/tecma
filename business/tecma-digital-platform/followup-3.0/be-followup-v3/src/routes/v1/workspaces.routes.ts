@@ -563,6 +563,7 @@ workspacesRoutes.patch(
           previousStatus: prev?.status ?? null,
           status: row.status,
           billingMode: row.billingMode,
+          notesChanged: (prev?.notes ?? "") !== row.notes,
         },
       }),
       { operation: "audit.workspace.entitlement.updated", workspaceId, userId: req.user?.sub }
