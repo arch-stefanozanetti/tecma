@@ -1,6 +1,6 @@
 # Fase 1 — Mapping legacy → FollowUp 3.0 (data_first)
 
-**Stato:** matrice operativa — colonne **legacy** da compilare con i nomi reali dei CSV/export o dei documenti Mongo read-only; la colonna **Destinazione** riflette il modello attuale nel codice (baseline repo).
+**Stato:** matrice operativa — colonne **legacy** da compilare con i nomi reali dei CSV/export o dei documenti Mongo read-only; la colonna **Destinazione** riflette il modello attuale nel codice (baseline repo). **Quote:** mapping esplicito `asset.quotes` → `tz_quotes` + due modalità (migrato vs digitale) documentato sotto (Ciclo 3, 2026-04-14).
 
 **Correlati:** [LEGACY_MONGO_INVENTORY.md](./LEGACY_MONGO_INVENTORY.md), [PILOT_ETL_RUNBOOK.md](./PILOT_ETL_RUNBOOK.md), [PIANO_GLOBALE_FOLLOWUP_3.md](../PIANO_GLOBALE_FOLLOWUP_3.md) §6.
 
@@ -11,7 +11,7 @@
 - [x] Inventario sorgenti Mongo read-only disponibile in [LEGACY_MONGO_INVENTORY.md](./LEGACY_MONGO_INVENTORY.md)
 - [ ] CSV o export **clienti** (campione + dizionario colonne) **oppure** campioni documenti da `client.clients`
 - [ ] CSV o export **appartamenti** **oppure** campioni da `asset.apartments_view` / `asset.appartments`
-- [ ] Export **quote / preventivi** legacy (standard/custom) da `asset.quotes`
+- [x] Sorgente **quote** disponibile in lettura: collection Mongo **`asset.quotes`** (stesso contenuto utilizzabile per CSV export se necessario); campione + schema in sezione Field coverage e tabella mapping sotto.
 - [ ] Export **utenti** legacy (email, ruolo, legame progetto) da `user.users` per [RBAC_LEGACY_TO_WORKSPACE_MAPPING.md](./RBAC_LEGACY_TO_WORKSPACE_MAPPING.md)
 
 ## Volumetria reale (snapshot 2026-03-26)
@@ -123,13 +123,51 @@ Riferimento codice: `ApartmentCreateSchema` e `RawApartment` in [`apartments.ser
 
 ## Quote / preventivi → `tz_quotes` + campi su `tz_requests`
 
-Riferimento seed: [`seedFullDemo.ts`](../../be-followup-v3/src/utils/seedFullDemo.ts) (`status`, `quoteNumber`, `expiryOn`, `customQuote`, riferimenti su richiesta).
+Riferimenti codice:
+
+- **Preventivo digitale (nuovo):** [`quotes.service.ts`](../../be-followup-v3/src/core/quotes/quotes.service.ts) — `createDigitalQuote`, `tokenHash`, `pdfStorageKey`, `totalPrice`, `requestId`, `clientId`.
+- **Migrazione pilota legacy:** [`migrate-legacy-pilot.ts`](../../be-followup-v3/scripts/migration/migrate-legacy-pilot.ts) — upsert da `asset.quotes` con blocco `migration.*`.
+- Seed demo: [`seedFullDemo.ts`](../../be-followup-v3/src/utils/seedFullDemo.ts).
+
+### Due modalità sulla stessa collection `tz_quotes`
+
+| Modalità | Origine | Campi distintivi | Flusso pubblico / PDF |
+|----------|---------|------------------|------------------------|
+| **Digitale** | `POST /v1/requests/:requestId/quotes` → `createDigitalQuote` | `requestId`, `clientId`, `tokenHash` (hash SHA-256 del token), `totalPrice`, `pdfStorageKey`, `status` tipicamente `sent` | Sì: URL `/v1/public/quotes/:token`, PDF su S3 |
+| **Migrato** | Script pilota `asset.quotes` → `tz_quotes` | `migration.legacyId`, `migration.legacyCollection`, `migration.runId`, `legacyClientId`, `legacyApartmentId`, `customQuote` snapshot; **nessun** `tokenHash` finché non si rigenera un flusso digitale | No, finché non si crea una nuova quote digitale collegata alla trattativa |
+
+Le quote migrate non espongono il magic link storico: per offrire pagina pubblica + PDF occorre il flusso digitale (nuovo record o estensione prodotto non ancora nel pilota).
+
+### Mapping esplicito `asset.quotes` → `tz_quotes` (pilota migrazione)
+
+Campi lato legacy letti dallo script (nomi tipici dal dominio `asset`; verificare su campione Mongo se divergenti):
+
+| Campo / percorso legacy (`asset.quotes`) | Tipo | Destinazione `tz_quotes` | Note |
+|------------------------------------------|------|---------------------------|------|
+| `_id` | ObjectId | — | Tracciato in `migration.legacyId`; nuovo `_id` generato su insert |
+| `project_id` | ObjectId | `projectId` (via mappa legacy→target) | Obbligatorio per scope workspace |
+| `quoteNumber` | string | `quoteNumber` | Fallback `LQ-{suffix}` in script |
+| `status` | string | `status` | Default `draft` se assente |
+| `expiryOn` | date/string | `expiryOn` | Può essere `null` |
+| `customQuote` | object | `customQuote` | Snapshot JSON completo legacy (P1+ dettagli economici) |
+| `client` | ObjectId | `legacyClientId` | Hex string; risoluzione `clientId` post-migrazione avviene con allineamento `tz_requests` / clienti |
+| `appartment` | ObjectId | `legacyApartmentId` | Naming storico legacy (typo noto) |
+| — | — | `workspaceId` | Da contesto workspace pilota |
+| — | — | `migration` | `{ legacySourceDb, legacyCollection: "quotes", legacyId, runId }` |
+
+Campi **non** popolati dalla migrazione pilota ma presenti sul flusso digitale: `requestId`, `tokenHash`, `totalPrice` (top-level), `pdfStorageKey`, `createdBy`. Il totale economico P0 per UI/report: in migrazione, se presente in legacy, viene impostato `totalPrice` tramite [`extractLegacyQuoteTotalPrice`](../../be-followup-v3/src/core/quotes/legacy-quote-total.ts) (top-level o `customQuote.totalPrice` / `customQuote.total`).
+
+**Lista CRM:** `POST /v1/quotes/query` (permesso `requests.read`) restituisce righe `QuoteListRow` senza esporre `tokenHash`.
+
+### Allineamento `tz_requests`
+
+Dopo migrazione richieste, lo script collega `quote_id` legacy → id `tz_quotes` tramite mappa `legacyQuoteToTarget` e aggiorna la trattativa (`quoteId`, ecc. dove previsto nel loop richieste). Verificare coerenza con [`requests.service.ts`](../../be-followup-v3/src/core/requests/requests.service.ts) per stati `quote` e snapshot prezzo.
 
 | Campo legacy | Tipo | Note | Destinazione | Priorità |
 |-------------|------|------|--------------|----------|
-| id preventivo legacy | string | entry point trattative SELL | `tz_quotes._id` o campo `legacyQuoteId` + link `requestId` | P0 |
+| id preventivo legacy | string | entry point trattative SELL | `tz_quotes._id` o traccia `migration.legacyId` + `request.quoteId` dopo join migrazione | P0 |
 | numero | string | | `quoteNumber` | P0 |
-| totale | number | | `customQuote.totalPrice` o struttura estesa | P0 |
+| totale | number | | `totalPrice` (digitale) o `customQuote.*` (migrato) | P0 |
 | scadenza | date | | `expiryOn` | P1 |
 | stato | enum | | `status` + allineamento `quoteStatus` su `tz_requests` | P0 |
 

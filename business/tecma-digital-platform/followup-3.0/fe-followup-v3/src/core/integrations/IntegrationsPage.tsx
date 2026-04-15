@@ -25,6 +25,7 @@ import type { WorkspaceEntitlementEffectiveRow } from "../../types/domain";
 import { workspaceFeatureEntitled } from "./workspaceEntitlementUi";
 import { commercialContactInlineNode } from "./tecmaCommercialContact";
 import { MarketingBigDataConnectorsPanel } from "./MarketingBigDataConnectorsPanel";
+import { trackProductEvent } from "../../telemetry/trackProductEvent";
 
 interface IntegrationsPageProps {
   workspaceId: string;
@@ -81,6 +82,14 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
       .getWorkspaceEntitlements(workspaceId)
       .then((r) => setWorkspaceEntitlements(r.data ?? []))
       .catch(() => setWorkspaceEntitlements(undefined));
+  }, [workspaceId]);
+
+  useEffect(() => {
+    if (!workspaceId) return;
+    trackProductEvent("integr.page.view", {
+      section: "integrations",
+      workspace_id: workspaceId,
+    });
   }, [workspaceId]);
 
   const loadOutlookStatus = useCallback(() => {
@@ -406,6 +415,7 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
               workspaceId={workspaceId}
               readOnly={integrationsReadOnly}
               refreshKey={marketingConnectorRefreshKey}
+              oauthTelemetrySurface="integrations"
             />
           </TabsContent>
           <TabsContent value="comunicazioni" className="mt-6" role="tabpanel">

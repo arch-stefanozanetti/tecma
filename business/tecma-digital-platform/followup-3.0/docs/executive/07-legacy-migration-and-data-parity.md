@@ -1,6 +1,6 @@
 # Migrazione dati e parità con il legacy
 
-**Ultimo aggiornamento:** 2026-03-26  
+**Ultimo aggiornamento:** 2026-04-13  
 **Pubblico:** CTO, CEO, Product  
 **Indice:** [README.md](README.md)
 

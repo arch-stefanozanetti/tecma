@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, Home, Calendar, FileText, User, ClipboardList, History, UserPlus, Trash2, Mail, Phone, CalendarCheck, ExternalLink, TrendingUp, Upload, Link2, Loader2 } from "lucide-react";
 import { followupApi } from "../../api/followupApi";
+import { trackProductEvent } from "../../telemetry/trackProductEvent";
 import { useWorkspace } from "../../auth/projectScope";
 import type {
   AdditionalInfoRow,
@@ -166,6 +167,11 @@ export const ClientDetailPage = () => {
     setActionLogging(type);
     try {
       await followupApi.clients.createClientAction(clientId, type, workspaceId);
+      trackProductEvent("task.client.log_action", {
+        action_type: type,
+        section: "clients",
+        workspace_id: workspaceId,
+      });
       await followupApi.getAuditForEntity("client", clientId, workspaceId ?? "", 100).then((r) => setAuditEvents(r.data ?? []));
       toastSuccess("Attività registrata: comparirà in Timeline.");
     } catch (err) {

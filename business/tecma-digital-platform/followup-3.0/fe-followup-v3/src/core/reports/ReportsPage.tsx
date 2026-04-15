@@ -17,7 +17,7 @@ import {
 } from "recharts";
 import { followupApi } from "../../api/followupApi";
 import { HttpApiError } from "../../api/http";
-import { useWorkspace } from "../../auth/projectScope";
+import { updateSelectedProjectIds, useWorkspace } from "../../auth/projectScope";
 import { Alert } from "../../components/ui/alert";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -79,7 +79,8 @@ const PERSONA_REPORT_PRESETS: Record<
 
 export const ReportsPage = () => {
   const navigate = useNavigate();
-  const { workspaceId, selectedProjectIds, hasPermission } = useWorkspace();
+  const { workspaceId, selectedProjectIds, projects, hasPermission } = useWorkspace();
+  const canUseReports = hasPermission("reports.read");
   const canExportReports = hasPermission("reports.export");
   const [reportType, setReportType] = useState<ReportType>("pipeline");
   const [dateFrom, setDateFrom] = useState("");
@@ -102,6 +103,19 @@ export const ReportsPage = () => {
   const [agentActiveRequests, setAgentActiveRequests] = useState(0);
   const [agentHotLeads, setAgentHotLeads] = useState(0);
   const [showCriticalityBreakdown, setShowCriticalityBreakdown] = useState(false);
+  const [, setScopeBump] = useState(0);
+  const [savedDefinitions, setSavedDefinitions] = useState<
+    Array<{
+      _id: string;
+      name: string;
+      reportType: string;
+      projectIds: string[];
+      dateFrom: string | null;
+      dateTo: string | null;
+    }>
+  >([]);
+  const [saveFavoriteName, setSaveFavoriteName] = useState("");
+  const [savedDefsLoading, setSavedDefsLoading] = useState(false);
 
   const topStatusFromAi = (() => {
     if (aiTableData.length === 0) return "";
@@ -175,6 +189,16 @@ export const ReportsPage = () => {
       .then((res) => setSharedSnapshots(res.data ?? []))
       .catch(() => setSharedSnapshots([]));
   }, [workspaceId, shareUrl]);
+
+  useEffect(() => {
+    if (!workspaceId || !canUseReports) return;
+    setSavedDefsLoading(true);
+    followupApi
+      .listReportDefinitions(workspaceId)
+      .then((res) => setSavedDefinitions(res.data ?? []))
+      .catch(() => setSavedDefinitions([]))
+      .finally(() => setSavedDefsLoading(false));
+  }, [workspaceId, canUseReports]);
 
   useEffect(() => {
     if (personaView === "owner") {
@@ -282,6 +306,19 @@ export const ReportsPage = () => {
     }
   };
 
+  const handleShareSavedDefinition = async (reportDefinitionId: string) => {
+    if (!workspaceId) return;
+    try {
+      const res = await followupApi.shareReportDefinitionSnapshot({ workspaceId, reportDefinitionId });
+      const absolute = `${window.location.origin}/r/${res.data.token}`;
+      setShareUrl(absolute);
+      await navigator.clipboard.writeText(absolute);
+    } catch (error) {
+      console.error(error);
+      setShareUrl("Errore nella creazione del link dal preferito");
+    }
+  };
+
   const handleRevokeSnapshot = async (snapshotId: string) => {
     if (!workspaceId) return;
     try {
@@ -305,6 +342,50 @@ export const ReportsPage = () => {
     a.download = `report-${reportType}-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const refreshSavedDefinitions = () => {
+    if (!workspaceId || !canUseReports) return;
+    void followupApi.listReportDefinitions(workspaceId).then((res) => setSavedDefinitions(res.data ?? []));
+  };
+
+  const applySavedDefinition = (def: (typeof savedDefinitions)[0]) => {
+    const rt = def.reportType as ReportType;
+    if (REPORT_LABELS[rt]) setReportType(rt);
+    setDateFrom(def.dateFrom ? def.dateFrom.slice(0, 10) : "");
+    setDateTo(def.dateTo ? def.dateTo.slice(0, 10) : "");
+    const valid = new Set(projects.map((p) => p.id));
+    const nextIds = def.projectIds.filter((id) => valid.has(id));
+    updateSelectedProjectIds(nextIds.length > 0 ? nextIds : selectedProjectIds);
+    setScopeBump((n) => n + 1);
+  };
+
+  const saveCurrentAsFavorite = async () => {
+    if (!workspaceId || selectedProjectIds.length === 0 || !saveFavoriteName.trim()) return;
+    try {
+      await followupApi.createReportDefinition({
+        workspaceId,
+        name: saveFavoriteName.trim(),
+        reportType,
+        projectIds: selectedProjectIds,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
+      });
+      setSaveFavoriteName("");
+      refreshSavedDefinitions();
+    } catch {
+      /* toast optional */
+    }
+  };
+
+  const deleteSavedDefinition = async (id: string) => {
+    if (!workspaceId) return;
+    try {
+      await followupApi.deleteReportDefinition(id, workspaceId);
+      refreshSavedDefinitions();
+    } catch {
+      /* ignore */
+    }
   };
 
   const isKpiSummary = reportType === "kpi_summary";
@@ -541,6 +622,79 @@ export const ReportsPage = () => {
         <p className="mt-1 text-sm text-muted-foreground">
           Pipeline, KPI sintetici, clienti per stato, appartamenti per disponibilità.
         </p>
+        {canUseReports && workspaceId && (
+          <section className="mt-6 rounded-xl border border-border bg-card/40 px-4 py-4 shadow-sm">
+            <h2 className="text-sm font-semibold text-foreground">Preferiti salvati</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Salva la combinazione tipo report, progetti e intervallo date per riaprirla con un clic (FASE 4 — definizioni persistite).
+            </p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+              <div className="flex-1 min-w-[12rem]">
+                <label className="mb-1 block text-xs font-medium text-muted-foreground" htmlFor="report-favorite-name">
+                  Nome preferito
+                </label>
+                <Input
+                  id="report-favorite-name"
+                  value={saveFavoriteName}
+                  onChange={(e) => setSaveFavoriteName(e.target.value)}
+                  placeholder="es. KPI mensile — progetto X"
+                  className="h-10"
+                />
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="shrink-0"
+                disabled={!saveFavoriteName.trim() || selectedProjectIds.length === 0}
+                onClick={() => void saveCurrentAsFavorite()}
+              >
+                Salva vista corrente
+              </Button>
+            </div>
+            {savedDefsLoading ? (
+              <p className="mt-3 text-xs text-muted-foreground">Caricamento preferiti…</p>
+            ) : savedDefinitions.length === 0 ? (
+              <p className="mt-3 text-xs text-muted-foreground">Nessun preferito salvato.</p>
+            ) : (
+              <ul className="mt-3 space-y-2">
+                {savedDefinitions.map((def) => (
+                  <li
+                    key={def._id}
+                    className="flex flex-col gap-2 rounded-lg border border-border bg-background/80 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{def.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {REPORT_LABELS[def.reportType as ReportType] ?? def.reportType}
+                        {def.dateFrom || def.dateTo
+                          ? ` · ${def.dateFrom?.slice(0, 10) ?? "…"} → ${def.dateTo?.slice(0, 10) ?? "…"}`
+                          : " · senza filtro date"}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={() => applySavedDefinition(def)}>
+                        Applica
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        title="Crea uno snapshot read-only dei dati del report e copia il link pubblico"
+                        onClick={() => void handleShareSavedDefinition(def._id)}
+                      >
+                        Link pubblico
+                      </Button>
+                      <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => void deleteSavedDefinition(def._id)}>
+                        Elimina
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
         {loadError && (
           <div className="mt-4">
             <Alert
@@ -747,9 +901,11 @@ export const ReportsPage = () => {
 
         <div className="mt-6 flex flex-wrap gap-4 items-end">
           <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Tipo report</label>
+            <label htmlFor="report-type-select" className="block text-xs font-medium text-muted-foreground mb-1">
+              Tipo report
+            </label>
             <Select value={reportType} onValueChange={(v) => setReportType(v as ReportType)}>
-              <SelectTrigger className="min-h-11 w-56">
+              <SelectTrigger id="report-type-select" className="min-h-11 w-56">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

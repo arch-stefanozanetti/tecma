@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { trackProductEvent } from "../telemetry/trackProductEvent";
 import { Snackbar } from "../components/ui/snackbar";
 import type { AlertVariant } from "../components/ui/alert";
 
@@ -74,6 +75,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const toastError = useCallback((message: string, description?: ReactNode) => {
     toast({ title: message, description, variant: "error" });
   }, [toast]);
+
+  useEffect(() => {
+    if (!state.open || state.variant !== "error") return;
+    trackProductEvent("error.ui.shown", {
+      error_code: "toast",
+      context: "toast",
+      outcome: "error",
+    });
+  }, [state.open, state.variant]);
 
   const toastSuccess = useCallback((message: string, description?: ReactNode) => {
     toast({ title: message, description, variant: "success" });

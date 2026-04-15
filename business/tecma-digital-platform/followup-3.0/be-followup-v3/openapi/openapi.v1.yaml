@@ -2018,6 +2018,140 @@
         }
       }
     },
+    "/quotes/query": {
+      "post": {
+        "tags": [
+          "quotes"
+        ],
+        "summary": "Elenco paginato preventivi (tz_quotes: migrati e digitali)",
+        "operationId": "queryQuotes",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "workspaceId",
+                  "projectIds"
+                ],
+                "properties": {
+                  "workspaceId": {
+                    "type": "string",
+                    "description": "Workspace Mongo id"
+                  },
+                  "projectIds": {
+                    "type": "array",
+                    "description": "Progetti inclusi nella query",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "page": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1,
+                    "description": "Pagina 1-based"
+                  },
+                  "perPage": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 200,
+                    "default": 25,
+                    "description": "Elementi per pagina"
+                  },
+                  "sort": {
+                    "type": "object",
+                    "properties": {
+                      "field": {
+                        "type": "string",
+                        "description": "createdAt, updatedAt, quoteNumber, status, totalPrice"
+                      },
+                      "direction": {
+                        "type": "integer",
+                        "enum": [
+                          1,
+                          -1
+                        ],
+                        "description": "1 asc, -1 desc"
+                      }
+                    }
+                  },
+                  "filters": {
+                    "type": "object",
+                    "properties": {
+                      "requestId": {
+                        "type": "string",
+                        "description": "Filtra per trattativa collegata"
+                      },
+                      "status": {
+                        "type": "string",
+                        "description": "Filtra per stato quote esatto"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista quote paginata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data",
+                    "pagination"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/QuoteListRow"
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "integer"
+                        },
+                        "perPage": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "totalPages": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validazione body non valida"
+          },
+          "401": {
+            "description": "Token mancante o non valido"
+          },
+          "500": {
+            "description": "Errore interno"
+          }
+        }
+      }
+    },
     "/requests/{id}": {
       "get": {
         "tags": [
@@ -7192,6 +7326,376 @@
         }
       }
     },
+    "/reports/share-definition": {
+      "post": {
+        "tags": [
+          "reports"
+        ],
+        "operationId": "shareReportDefinitionSnapshot",
+        "summary": "Crea snapshot condivisibile (magic link) da un preferito salvato (report deterministico)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "workspaceId",
+                  "reportDefinitionId"
+                ],
+                "properties": {
+                  "workspaceId": {
+                    "type": "string",
+                    "description": "Workspace su cui creare lo snapshot"
+                  },
+                  "reportDefinitionId": {
+                    "type": "string",
+                    "description": "ID della definizione in tz_report_definitions"
+                  },
+                  "expiresInHours": {
+                    "type": "integer",
+                    "description": "Scadenza link in ore",
+                    "example": 72
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Magic link creato (stesso formato di /reports/share)"
+          }
+        }
+      }
+    },
+    "/report-definitions": {
+      "get": {
+        "tags": [
+          "reports"
+        ],
+        "operationId": "listReportDefinitions",
+        "summary": "Elenco definizioni report salvate per workspace",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Workspace Mongo",
+            "example": "ws_demo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista definizioni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ReportDefinition"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "reports"
+        ],
+        "operationId": "createReportDefinition",
+        "summary": "Salva una definizione report (preferito) per workspace",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "workspaceId",
+                  "name",
+                  "reportType",
+                  "projectIds"
+                ],
+                "properties": {
+                  "workspaceId": {
+                    "type": "string",
+                    "description": "Workspace Mongo",
+                    "example": "ws_demo"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Etichetta mostrata in UI",
+                    "example": "KPI mensile progetto A"
+                  },
+                  "reportType": {
+                    "type": "string",
+                    "enum": [
+                      "pipeline",
+                      "clients_by_status",
+                      "apartments_by_availability",
+                      "kpi_summary",
+                      "activity_per_period",
+                      "conversions_per_project",
+                      "avg_times"
+                    ],
+                    "description": "Tipo report allineato a POST /reports/{reportType}"
+                  },
+                  "projectIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Progetti inclusi nella vista salvata",
+                    "example": [
+                      "proj_1"
+                    ]
+                  },
+                  "dateFrom": {
+                    "type": "string",
+                    "description": "Filtro data inizio (opzionale)",
+                    "example": "2026-01-01"
+                  },
+                  "dateTo": {
+                    "type": "string",
+                    "description": "Filtro data fine (opzionale)",
+                    "example": "2026-01-31"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Definizione creata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReportDefinition"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload non valido"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      }
+    },
+    "/report-definitions/{id}": {
+      "patch": {
+        "tags": [
+          "reports"
+        ],
+        "operationId": "updateReportDefinition",
+        "summary": "Aggiorna una definizione report salvata",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ObjectId definizione",
+            "example": "507f1f77bcf86cd799439011"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "workspaceId"
+                ],
+                "properties": {
+                  "workspaceId": {
+                    "type": "string",
+                    "description": "Workspace (consistenza accesso)",
+                    "example": "ws_demo"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Nuova etichetta"
+                  },
+                  "reportType": {
+                    "type": "string",
+                    "enum": [
+                      "pipeline",
+                      "clients_by_status",
+                      "apartments_by_availability",
+                      "kpi_summary",
+                      "activity_per_period",
+                      "conversions_per_project",
+                      "avg_times"
+                    ]
+                  },
+                  "projectIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "dateFrom": {
+                    "type": "string",
+                    "description": "Stringa vuota per rimuovere filtro"
+                  },
+                  "dateTo": {
+                    "type": "string",
+                    "description": "Stringa vuota per rimuovere filtro"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Definizione aggiornata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReportDefinition"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payload non valido"
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "404": {
+            "description": "Definizione non trovata"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "reports"
+        ],
+        "operationId": "deleteReportDefinition",
+        "summary": "Elimina una definizione report salvata",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ObjectId definizione",
+            "example": "507f1f77bcf86cd799439011"
+          },
+          {
+            "name": "workspaceId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Workspace Mongo",
+            "example": "ws_demo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Eliminazione confermata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "deleted": {
+                          "type": "boolean",
+                          "description": "True se rimossa"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Non autenticato"
+          },
+          "404": {
+            "description": "Definizione non trovata"
+          },
+          "500": {
+            "description": "Errore server"
+          }
+        }
+      }
+    },
     "/public/reports/{token}": {
       "get": {
         "tags": [
@@ -8888,6 +9392,82 @@
           }
         }
       },
+      "ReportDefinition": {
+        "type": "object",
+        "description": "Preferito report: tipo, progetti e filtri data salvati per workspace",
+        "required": [
+          "_id",
+          "workspaceId",
+          "name",
+          "reportType",
+          "projectIds",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "_id": {
+            "type": "string",
+            "description": "ObjectId Mongo della definizione",
+            "example": "507f1f77bcf86cd799439011"
+          },
+          "workspaceId": {
+            "type": "string",
+            "description": "Workspace Mongo",
+            "example": "ws_demo"
+          },
+          "name": {
+            "type": "string",
+            "description": "Etichetta in UI",
+            "example": "Pipeline Q1"
+          },
+          "reportType": {
+            "type": "string",
+            "description": "Chiave report coerente con POST /reports/{reportType}",
+            "enum": [
+              "pipeline",
+              "clients_by_status",
+              "apartments_by_availability",
+              "kpi_summary",
+              "activity_per_period",
+              "conversions_per_project",
+              "avg_times"
+            ]
+          },
+          "projectIds": {
+            "type": "array",
+            "description": "Progetti inclusi nella vista salvata",
+            "items": {
+              "type": "string",
+              "description": "Project id"
+            }
+          },
+          "dateFrom": {
+            "type": "string",
+            "nullable": true,
+            "description": "Filtro data inizio opzionale (ISO o YYYY-MM-DD)"
+          },
+          "dateTo": {
+            "type": "string",
+            "nullable": true,
+            "description": "Filtro data fine opzionale"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creazione record"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Ultimo aggiornamento"
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true,
+            "description": "User id JWT (sub) che ha creato la definizione"
+          }
+        }
+      },
       "RequestRow": {
         "type": "object",
         "required": [
@@ -8960,6 +9540,80 @@
           },
           "quoteTotalPrice": {
             "type": "number"
+          }
+        }
+      },
+      "QuoteListRow": {
+        "type": "object",
+        "description": "Riga quote per liste CRM (senza esporre tokenHash)",
+        "required": [
+          "_id",
+          "workspaceId",
+          "projectId",
+          "quoteNumber",
+          "status",
+          "hasDigitalLink",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "_id": {
+            "type": "string",
+            "description": "Id documento tz_quotes"
+          },
+          "workspaceId": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Presente per flusso digitale"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "quoteNumber": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "totalPrice": {
+            "type": "number"
+          },
+          "expiryOn": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "hasDigitalLink": {
+            "type": "boolean",
+            "description": "True se esiste token pubblico (preventivo digitale)"
+          },
+          "pdfStorageKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "legacyClientId": {
+            "type": "string",
+            "nullable": true
+          },
+          "legacyApartmentId": {
+            "type": "string",
+            "nullable": true
+          },
+          "migrationLegacyId": {
+            "type": "string",
+            "description": "Id quote legacy se migrata"
           }
         }
       },

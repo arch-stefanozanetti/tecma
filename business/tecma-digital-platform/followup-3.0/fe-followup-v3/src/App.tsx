@@ -58,6 +58,7 @@ import type { ProjectAccessProject } from "./types/domain";
 import { PwaInstallPrompt } from "./components/pwa/PwaInstallPrompt";
 import { PwaUpdatePrompt } from "./components/pwa/PwaUpdatePrompt";
 import { NetworkStatusBanner } from "./components/pwa/NetworkStatusBanner";
+import { ProductTelemetryBridge } from "./telemetry/ProductTelemetryBridge";
 
 const ClientDetailPage = lazy(() =>
   import("./core/clients/ClientDetailPage").then((module) => ({ default: module.ClientDetailPage }))
@@ -802,6 +803,11 @@ export const App = () => {
 
       appContent = (
         <>
+          <ProductTelemetryBridge
+            pathname={pathname}
+            effectiveSection={effectiveSection}
+            workspaceId={projectScope.workspaceId ?? ""}
+          />
           <CommandPalette
             isOpen={commandPaletteOpen}
             onClose={() => setCommandPaletteOpen(false)}

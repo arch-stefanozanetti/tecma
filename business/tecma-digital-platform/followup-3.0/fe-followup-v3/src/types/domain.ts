@@ -179,7 +179,10 @@ export interface CalendarEvent {
   title: string;
   startsAt: string;
   endsAt: string;
-  source: "FOLLOWUP_SELL" | "FOLLOWUP_RENT" | "CUSTOM_SERVICE";
+  /** `OUTLOOK` = solo merge UI da Microsoft Graph (non persistito su `tz_events`). */
+  source: "FOLLOWUP_SELL" | "FOLLOWUP_RENT" | "CUSTOM_SERVICE" | "OUTLOOK";
+  /** Apertura in Outlook sul web (solo `source === "OUTLOOK"`). */
+  outlookWebLink?: string;
   clientId?: string;
   apartmentId?: string;
   activityType?: CalendarActivityType;
@@ -490,6 +493,26 @@ export interface RequestRow {
   quoteNumber?: string;
   quoteExpiryOn?: string;
   quoteTotalPrice?: number;
+}
+
+/** Riga elenco preventivi (`tz_quotes`, migrati + digitali). */
+export interface QuoteListRow {
+  _id: string;
+  workspaceId: string;
+  projectId: string;
+  requestId?: string;
+  clientId?: string;
+  quoteNumber: string;
+  status: string;
+  totalPrice?: number;
+  expiryOn?: string;
+  hasDigitalLink: boolean;
+  pdfStorageKey?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  legacyClientId?: string | null;
+  legacyApartmentId?: string | null;
+  migrationLegacyId?: string;
 }
 
 /** Transizione di stato di una trattativa (timeline). */

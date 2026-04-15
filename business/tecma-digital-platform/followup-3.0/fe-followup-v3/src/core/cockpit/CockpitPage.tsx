@@ -28,6 +28,7 @@ import { Button } from "../../components/ui/button";
 import { cn } from "../../lib/utils";
 import { PrioritySuggestionsList, type PriorityActionItem } from "./PrioritySuggestionsList";
 import { AgentExecutionResultSheet, type AgentExecutionResult } from "./AgentExecutionResultSheet";
+import { trackProductEvent } from "../../telemetry/trackProductEvent";
 
 moment.locale("it");
 
@@ -126,6 +127,16 @@ export const CockpitPage = ({ workspaceId, projectIds, projects: projectsProp, o
   const [recentRequests, setRecentRequests] = useState<RequestRow[]>([]);
   const [metricsTick, setMetricsTick] = useState(0);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const n = projectIds.length;
+    const project_count = n === 0 ? 0 : n === 1 ? 1 : 2;
+    trackProductEvent("cockpit.page.view", {
+      section: "cockpit",
+      workspace_id: workspaceId,
+      project_count,
+    });
+  }, [workspaceId, projectIds.length]);
 
   const applySuggestionsResponse = useCallback(
     (res: { data?: AiSuggestion[]; aiConfigured?: boolean; llmUsed?: boolean | null }, fromCache: boolean) => {

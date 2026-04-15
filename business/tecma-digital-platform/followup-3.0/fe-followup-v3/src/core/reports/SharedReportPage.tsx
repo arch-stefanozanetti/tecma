@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import { followupApi } from "../../api/followupApi";
 import { Button } from "../../components/ui/button";
 import { AppBarChart } from "../../components/charts/AppBarChart";
@@ -11,6 +11,9 @@ type SharedResponse = {
   found: boolean;
   query?: string;
   response?: {
+    kind?: string;
+    definitionName?: string;
+    reportType?: string;
     answer?: string;
     tableData?: Array<Record<string, unknown>>;
     chartSpec?: Record<string, unknown>;
@@ -18,8 +21,16 @@ type SharedResponse = {
   expiresAt?: string;
 };
 
+function tokenFromPath(pathname: string, param?: string): string | undefined {
+  if (param && param.length > 0) return param;
+  const m = pathname.match(/\/r\/([^/?#]+)/);
+  return m?.[1];
+}
+
 export const SharedReportPage = () => {
-  const { token } = useParams<{ token: string }>();
+  const { pathname } = useLocation();
+  const { token: tokenParam } = useParams<{ token: string }>();
+  const token = tokenFromPath(pathname, tokenParam);
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<SharedResponse | null>(null);
 
@@ -83,7 +94,19 @@ export const SharedReportPage = () => {
         <div className="rounded-lg border border-border bg-card p-5">
           <h1 className="text-xl font-semibold text-foreground">Report condiviso</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Query: <span className="font-medium text-foreground">{data.query ?? "-"}</span>
+            {data.response?.kind === "definition" ? (
+              <>
+                Preferito salvato:{" "}
+                <span className="font-medium text-foreground">{data.response.definitionName ?? data.query ?? "-"}</span>
+                {data.response.reportType ? (
+                  <span className="text-muted-foreground"> ({String(data.response.reportType)})</span>
+                ) : null}
+              </>
+            ) : (
+              <>
+                Query: <span className="font-medium text-foreground">{data.query ?? "-"}</span>
+              </>
+            )}
           </p>
           {data.expiresAt && (
             <p className="mt-1 text-xs text-muted-foreground">

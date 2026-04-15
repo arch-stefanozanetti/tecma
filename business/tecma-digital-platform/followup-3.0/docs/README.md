@@ -62,6 +62,7 @@ Sezione **navigabile** (executive summary, perché rebuild, stadio operativo per
 | [REFACTORING.md](REFACTORING.md) | Refactoring strutturale (sprint): split project-config BE, route v1, IntegrationsPage (catalog/tab), pagine FE (costanti/hook/componenti), toast per errori API. |
 | [CURSOR_MCP_TWILIO.md](CURSOR_MCP_TWILIO.md) | Twilio reale in Followup vs server MCP `@twilio-alpha/mcp` in Cursor: cosa fa ciascuno, esempio config (senza segreti in repo). |
 | [plans/README.md](plans/README.md) | Punta al piano globale (cartella `plans/` senza altri file di piano). |
+| **Telemetry prodotto (neuro-oriented)** | **[telemetry/EVENT_CATALOG.md](telemetry/EVENT_CATALOG.md)** (catalogo eventi), **[telemetry/TELEMETRY_RUNBOOK.md](telemetry/TELEMETRY_RUNBOOK.md)** (operatività + privacy), **[telemetry/KPI_AND_DASHBOARDS.md](telemetry/KPI_AND_DASHBOARDS.md)**, **[telemetry/UX_HYPOTHESES_BACKLOG.md](telemetry/UX_HYPOTHESES_BACKLOG.md)**. |
 
 ---
 

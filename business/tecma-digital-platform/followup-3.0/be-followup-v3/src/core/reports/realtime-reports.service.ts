@@ -3,9 +3,18 @@ import { z } from "zod";
 import { ObjectId } from "mongodb";
 import { getDb } from "../../config/db.js";
 import { logger } from "../../observability/logger.js";
-import { runApartmentsByAvailabilityReport, runClientsByStatusReport, runKpiSummaryReport, runPipelineReport } from "./reports.service.js";
+import {
+  runApartmentsByAvailabilityReport,
+  runClientsByStatusReport,
+  runKpiSummaryReport,
+  runPipelineReport,
+  runReport,
+} from "./reports.service.js";
+import { getReportDefinitionById } from "./report-definitions.service.js";
+import { HttpError } from "../../types/http.js";
 import { publishRealtimeEvent } from "../realtime/realtime-bus.service.js";
 import { REALTIME_PAYLOAD_VERSION } from "../realtime/realtime-events.js";
+import { recordSecurityEvent } from "../compliance/security-audit.service.js";
 
 type SupportedRealtimeReport = "pipeline" | "clients_by_status" | "apartments_by_availability" | "kpi_summary";
 
@@ -24,6 +33,12 @@ const ShareSnapshotSchema = z.object({
   workspaceId: z.string().min(1),
   projectIds: z.array(z.string().min(1)).min(1),
   query: z.string().min(3),
+  expiresInHours: z.number().int().min(1).max(168).optional(),
+});
+
+const ShareDefinitionSchema = z.object({
+  workspaceId: z.string().min(1),
+  reportDefinitionId: z.string().min(1),
   expiresInHours: z.number().int().min(1).max(168).optional(),
 });
 
@@ -301,6 +316,7 @@ export async function createReportSnapshot(rawInput: unknown): Promise<{ data: {
       projectIds: input.projectIds,
       query: input.query,
       response: aiResult.data,
+      snapshotKind: "ai",
       createdAt: new Date().toISOString(),
       expiresAt,
       revokedAt: null,
@@ -316,7 +332,66 @@ export async function createReportSnapshot(rawInput: unknown): Promise<{ data: {
   };
 }
 
-export async function getReportSnapshotByToken(token: string): Promise<{ data: Record<string, unknown> }> {
+/**
+ * Snapshot read-only da un preferito salvato (report deterministico, senza LLM).
+ */
+export async function createReportDefinitionSnapshot(
+  rawInput: unknown
+): Promise<{ data: { token: string; url: string; expiresAt: string; snapshotId: string } }> {
+  const input = ShareDefinitionSchema.parse(rawInput);
+  const def = await getReportDefinitionById(input.reportDefinitionId, input.workspaceId);
+  if (!def) throw new HttpError("Report definition not found", 404);
+
+  const reportBody: Record<string, unknown> = {
+    workspaceId: def.workspaceId,
+    projectIds: def.projectIds,
+  };
+  if (def.dateFrom) reportBody.dateFrom = def.dateFrom;
+  if (def.dateTo) reportBody.dateTo = def.dateTo;
+
+  const reportResult = await runReport(def.reportType, reportBody);
+  const tableData = Array.isArray(reportResult.data) ? reportResult.data : [];
+
+  const responsePayload: Record<string, unknown> = {
+    kind: "definition",
+    reportType: def.reportType,
+    definitionName: def.name,
+    tableData,
+    answer: `Snapshot del preferito «${def.name}» (${def.reportType}).`,
+  };
+
+  const token = crypto.randomBytes(24).toString("base64url");
+  const tokenHash = hashToken(token);
+  const expiresAt = new Date(Date.now() + (input.expiresInHours ?? 72) * 60 * 60 * 1000).toISOString();
+  const inserted = await getDb()
+    .collection(SNAPSHOT_COLLECTION)
+    .insertOne({
+      tokenHash,
+      workspaceId: def.workspaceId,
+      projectIds: def.projectIds,
+      query: def.name,
+      response: responsePayload,
+      snapshotKind: "definition",
+      reportDefinitionId: def._id,
+      createdAt: new Date().toISOString(),
+      expiresAt,
+      revokedAt: null,
+    });
+
+  return {
+    data: {
+      token,
+      url: `/v1/public/reports/${token}`,
+      expiresAt,
+      snapshotId: inserted.insertedId.toHexString(),
+    },
+  };
+}
+
+export async function getReportSnapshotByToken(
+  token: string,
+  meta?: { ip?: string; userAgent?: string }
+): Promise<{ data: Record<string, unknown> }> {
   const tokenHash = hashToken(token);
   const now = new Date().toISOString();
   const doc = await getDb()
@@ -325,6 +400,15 @@ export async function getReportSnapshotByToken(token: string): Promise<{ data: R
   if (!doc) {
     return { data: { found: false } };
   }
+  const snapshotId = doc._id instanceof ObjectId ? doc._id.toHexString() : String(doc._id ?? "");
+  void recordSecurityEvent({
+    action: "security.report_snapshot.accessed",
+    entityType: "report_snapshot",
+    entityId: snapshotId,
+    workspaceId: typeof doc.workspaceId === "string" ? doc.workspaceId : undefined,
+    ip: meta?.ip,
+    userAgent: meta?.userAgent,
+  });
   return {
     data: {
       found: true,
@@ -356,6 +440,7 @@ export async function listReportSnapshots(rawInput: unknown): Promise<{ data: Ar
       workspaceId: row.workspaceId,
       projectIds: row.projectIds,
       query: row.query,
+      snapshotKind: typeof row.snapshotKind === "string" ? row.snapshotKind : "ai",
       createdAt: row.createdAt,
       expiresAt: row.expiresAt,
       revokedAt: row.revokedAt ?? null,

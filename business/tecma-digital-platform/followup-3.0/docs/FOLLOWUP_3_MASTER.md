@@ -1,6 +1,6 @@
 # Followup 3.0 — Documento maestro (prodotto e wave)
 
-**Ultimo aggiornamento:** 2026-03-25  
+**Ultimo aggiornamento:** 2026-04-13  
 **Piano globale unico (backlog, fasi, checklist):** [PIANO_GLOBALE_FOLLOWUP_3.md](PIANO_GLOBALE_FOLLOWUP_3.md).  
 **Uso di questo file:** visione, principi e wave; per priorità e implementazione aggiornare solo il piano globale.
 
@@ -187,21 +187,23 @@ Dettagli: [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), [DESIGN_SYSTEM_COMPONENTS_WAVES.
 
 ---
 
-### Wave 7 — AI e automazioni (dopo foundation solida)
+### Wave 7 — AI e automazioni (dopo foundation solida) (stato: **in corso**)
 
 **Obiettivo:** Suggerimenti e automazioni solo dopo che core e UX sono stabili. Human-in-the-loop e policy chiare.
 
 **Task:**
 
-1. **Suggerimenti read-only:**  
+1. **Suggerimenti read-only (baseline chiusa):**  
    Primi suggerimenti operativi (es. “cosa fare oggi”, priorità) senza scrittura automatica. UI minimale (card o lista) con CTA “Esegui” che porta l’utente all’azione.  
    *Acceptance:* almeno un tipo di suggerimento visibile in cockpit/home; nessuna modifica dati senza azione esplicita utente.
 
-2. **Approvazioni e audit:**  
+2. **Approvazioni e audit (aperto):**  
    Per eventuali azioni “draft” (es. invio reminder, creazione task) introdurre step di approvazione e tracciamento.  
    *Acceptance:* azioni ad alto impatto richiedono conferma; evento registrato.
 
 **Deliverable Wave 7:** Primo step AI/automazioni senza compromettere semplicità; base per estensioni successive (MCP, connettori).
+
+**Allineamento piano globale (2026-04-13):** nel piano globale (§3.3) la baseline “suggerimenti cockpit aggregati” risulta implementata; la chiusura completa della wave dipende dalla parte human-in-the-loop con approvazioni/audit.
 
 ---
 
@@ -215,7 +217,7 @@ Dettagli: [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md), [DESIGN_SYSTEM_COMPONENTS_WAVES.
 | 4    | Requests / rent+sell | Wave 1, 3   | Completata |
 | 5    | API riusabili        | Wave 1, 4   | Completata |
 | 6    | Hardening auth       | Wave 1      | Completata |
-| 7    | AI e automazioni     | Wave 1–3    | Da fare    |
+| 7    | AI e automazioni     | Wave 1–3    | In corso (baseline cockpit chiusa) |
 
 - **Wave 6** può essere anticipata subito dopo Wave 1 se si vuole massima sicurezza prima di espandere feature.
 - **Wave 2** e **Wave 3** in sequenza (prima design system, poi UX core) per evitare drift visivo.

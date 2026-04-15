@@ -35,8 +35,31 @@ export const requestsApi = {
   ) => patchJson<{ action: RequestActionRow }>(`/requests/actions/${actionId}`, payload),
   deleteRequestAction: (actionId: string) => deleteJson<{ deleted: boolean }>(`/requests/actions/${actionId}`),
   createRequest: (payload: RequestCreateInput) => postJson<{ request: RequestRow }>("/requests", payload),
-  updateRequestStatus: (requestId: string, payload: { status: string; reason?: string }) =>
-    patchJson<{ request: RequestRow }>(`/requests/${requestId}/status`, payload),
+  updateRequestStatus: (
+    requestId: string,
+    payload: {
+      status: string;
+      reason?: string;
+      quoteId?: string;
+      quoteNumber?: string;
+      quoteTotalPrice?: number;
+      quoteExpiryOn?: string;
+      quoteStatus?: string;
+    }
+  ) => patchJson<{ request: RequestRow }>(`/requests/${requestId}/status`, payload),
+  createDigitalQuote: (
+    requestId: string,
+    payload: { workspaceId: string; projectId: string; totalPrice: number; expiryOn: string }
+  ) =>
+    postJson<{
+      data: {
+        quoteId: string;
+        quoteNumber: string;
+        publicUrl: string;
+        expiryOn: string;
+        request: RequestRow;
+      };
+    }>(`/requests/${encodeURIComponent(requestId)}/quotes`, payload),
   queryClientsLite: (workspaceId: string, projectIds: string[]) =>
     postJson<{ data: Array<Pick<ClientRow, "_id" | "fullName" | "email" | "projectId">> }>("/clients/lite/query", {
       workspaceId,

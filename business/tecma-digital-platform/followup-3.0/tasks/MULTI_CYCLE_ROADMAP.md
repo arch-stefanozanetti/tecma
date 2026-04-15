@@ -21,10 +21,10 @@
 |-------|--------|------------------------|------------|
 | **1** | Chiusura entitlements + messaggistica commerciale + audit attivazioni (slice FASE02) | `commercial-entitlements`, `tecma-activation-audit` | — · **Fatto 2026-04-08:** link commerciale in `ApiTab` + drawer connettori; `notesChanged` in audit PATCH; `.env.example` documentato |
 | **2** | Storage S3 end-to-end (presigned, checklist FASE3) | `s3-verify` | Env AWS, bucket · **Fatto 2026-04-08:** diagnostica Tecma + API; checklist manuale Render/IAM/upload in FASE3 |
-| **3** | Modello quote + mapping dati ([FASE1_CSV_MAPPING](../docs/deliverables/FASE1_CSV_MAPPING.md)) dove CSV disponibili; altrimenti schema/API quote senza ETL completo | `csv-mapping` (parziale) | Opzionale parallelismo con ciclo 2 |
-| **4** | Preventivo digitale: token, pubblico, PDF, magic link | `digital-quote` | Ciclo 2 (+ allineamento modello da ciclo 3) |
-| **5** | Report e dashboard condivisibili (estensione oltre UI base) | `reports-dashboards` | Permessi report stabili |
-| **6** | Calendario: sync reale Gmail/Outlook oltre UI | `calendar-sync` | OAuth / segreti, modello eventi |
+| **3** | Modello quote + mapping dati ([FASE1_CSV_MAPPING](../docs/deliverables/FASE1_CSV_MAPPING.md)) dove CSV disponibili; altrimenti schema/API quote senza ETL completo | `csv-mapping` (parziale — **quote track 2026-04-14**) | Opzionale parallelismo con ciclo 2 |
+| **4** | Preventivo digitale: token, pubblico, PDF, magic link | `digital-quote` | Ciclo 2 (+ allineamento modello da ciclo 3) · **2026-04-14:** implementazione repo completa (UI, API, PDF S3, pubblico); test unitari `quotes.service.test`; chiusura ciclo = QA staging su [FASE2](../docs/deliverables/FASE2_DIGITAL_QUOTE.md) |
+| **5** | Report e dashboard condivisibili (estensione oltre UI base) | `reports-dashboards` | Permessi report stabili · **2026-04-14:** slice «preferiti» + `tz_report_definitions` avviata; chiusura ciclo quando FASE4 DoD aggiornato |
+| **6** | Calendario: sync reale Gmail/Outlook oltre UI | `calendar-sync` | OAuth / segreti, modello eventi · **2026-04-14:** slice Outlook in calendario (merge Graph + banner); restano Gmail, job sync, token lifecycle |
 | **7** | Connettori UX dedicati (FASE6) | `connectors-ux` | Entitlement (ciclo 1) |
 | **8** | Inbox: contratto, preferenze, empty state | `inbox-contract` | — |
 | **9** | Parità visiva ITD + checklist mobile | `visual-parity`, `ux-mobile` | Design system / token |

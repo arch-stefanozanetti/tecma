@@ -14,6 +14,7 @@ import {
   updateRequestAction,
   deleteRequestAction,
 } from "../../core/requests/request-actions.service.js";
+import { createDigitalQuote } from "../../core/quotes/quotes.service.js";
 import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
 import { requireCanAccessWorkspace, requireCanAccessProject } from "../accessMiddleware.js";
@@ -111,6 +112,26 @@ requestsRoutes.post(
     });
   }
   return result;
+  })
+);
+
+requestsRoutes.post(
+  "/requests/:requestId/quotes",
+  requirePermission(PERMISSIONS.REQUESTS_UPDATE),
+  requireCanAccessProject("workspaceId", "projectId"),
+  handleAsync(async (req) => {
+    const body = z
+      .object({
+        workspaceId: z.string().min(1),
+        projectId: z.string().min(1),
+        totalPrice: z.number().nonnegative(),
+        expiryOn: z.string().min(1),
+      })
+      .parse(req.body);
+    return createDigitalQuote(
+      { ...body, requestId: req.params.requestId },
+      { userId: req.user?.sub }
+    );
   })
 );
 

@@ -517,6 +517,7 @@ export const BigDataPage = () => {
             workspaceId={workspaceId}
             readOnly={integrationsReadOnly}
             className="!mt-4"
+            oauthTelemetrySurface="bigdata"
           />
         )}
 

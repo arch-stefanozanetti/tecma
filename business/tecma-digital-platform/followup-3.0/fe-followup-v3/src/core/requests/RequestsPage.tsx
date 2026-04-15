@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Link2, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { followupApi } from "../../api/followupApi";
+import { resolveApiBaseUrl } from "../../api/http";
 import type {
   RequestRow,
   RequestStatus,
@@ -9,6 +10,7 @@ import type {
   ClientRole,
   RequestTransitionRow,
   RequestActionRow,
+  QuoteListRow,
 } from "../../types/domain";
 import { useWorkspace } from "../../auth/projectScope";
 import { useIsMobile } from "../shared/useIsMobile";
@@ -45,6 +47,7 @@ import {
 } from "./requestsPageConstants";
 import { RequestsActionDrawer } from "./RequestsActionDrawer";
 import { RequestsBoardSection } from "./RequestsBoardSection";
+import { trackProductEvent } from "../../telemetry/trackProductEvent";
 
 const permTitle = (id: string) => `Permesso richiesto: ${id}`;
 
@@ -55,7 +58,16 @@ export const RequestsPage = () => {
   const { workspaceId, selectedProjectIds, projects, hasPermission } = useWorkspace();
   const canRequestsCreate = hasPermission("requests.create");
   const canRequestsUpdate = hasPermission("requests.update");
-  const { toastError } = useToast();
+  const canRequestsRead = hasPermission("requests.read");
+
+  useEffect(() => {
+    if (!workspaceId) return;
+    trackProductEvent("flow.request.board_view", {
+      section: "requests",
+      workspace_id: workspaceId,
+    });
+  }, [workspaceId]);
+  const { toastError, toastSuccess } = useToast();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -89,6 +101,16 @@ export const RequestsPage = () => {
   const [actionDrawerMode, setActionDrawerMode] = useState<"create" | "edit">("create");
   const [editingAction, setEditingAction] = useState<RequestActionRow | null>(null);
   const [deletingActionId, setDeletingActionId] = useState<string | null>(null);
+  const defaultQuoteExpiry = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().slice(0, 10);
+  };
+  const [quoteFormTotal, setQuoteFormTotal] = useState("");
+  const [quoteFormExpiry, setQuoteFormExpiry] = useState(defaultQuoteExpiry);
+  const [quoteSaving, setQuoteSaving] = useState(false);
+  /** URL assoluto API del link pubblico, mostrato solo dopo creazione in questa sessione. */
+  const [quotePublicLinkByRequestId, setQuotePublicLinkByRequestId] = useState<Record<string, string>>({});
   const projectIdForWorkflow = selectedProjectIds[0];
   const workflowConfigRent = useWorkflowConfig(workspaceId, "rent", projectIdForWorkflow);
   const workflowConfigSell = useWorkflowConfig(workspaceId, "sell", projectIdForWorkflow);
@@ -133,6 +155,16 @@ export const RequestsPage = () => {
       .catch(() => setRequestActions([]))
       .finally(() => setActionsLoading(false));
   }, [workspaceId, selectedRequest?._id]);
+
+  useEffect(() => {
+    if (!selectedRequest?._id) return;
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    setQuoteFormExpiry(d.toISOString().slice(0, 10));
+    setQuoteFormTotal(
+      selectedRequest.quoteTotalPrice != null ? String(selectedRequest.quoteTotalPrice) : ""
+    );
+  }, [selectedRequest?._id, selectedRequest?.quoteTotalPrice]);
 
   // Apri drawer dettaglio se arriviamo da scheda cliente con openRequestId
   useEffect(() => {
@@ -248,6 +280,26 @@ export const RequestsPage = () => {
     filters,
     enabled: !!(workspaceId && selectedProjectIds.length > 0),
   });
+
+  const {
+    data: quoteRows,
+    total: quotesTotal,
+    page: quotesPage,
+    setPage: setQuotesPage,
+    isLoading: quotesLoading,
+    error: quotesError,
+    refetch: refetchQuotes,
+  } = usePaginatedList<QuoteListRow>({
+    loader: (q) => followupApi.quotes.queryQuotes(q),
+    workspaceId: workspaceId ?? "",
+    projectIds: selectedProjectIds,
+    defaultSortField: "createdAt",
+    defaultPerPage: REQUESTS_PER_PAGE,
+    filters: {},
+    enabled: !!(workspaceId && selectedProjectIds.length > 0 && canRequestsRead),
+  });
+
+  const quotesTotalPages = Math.max(1, Math.ceil(quotesTotal / REQUESTS_PER_PAGE));
 
   const handleSearch = () => {
     setCommittedSearch(search);
@@ -441,6 +493,51 @@ export const RequestsPage = () => {
     }
   };
 
+  const quotePublicLink =
+    selectedRequest && quotePublicLinkByRequestId[selectedRequest._id]
+      ? quotePublicLinkByRequestId[selectedRequest._id]
+      : null;
+
+  const canOfferDigitalQuote =
+    !!selectedRequest &&
+    !!workspaceId &&
+    canRequestsUpdate &&
+    hasWorkflowReady &&
+    (getWorkflowConfig(selectedRequest.type).allowedNextStatuses(selectedRequest.status) ?? []).includes(
+      "quote"
+    ) &&
+    !(selectedRequest.status === "quote" && selectedRequest.quoteId);
+
+  const handleCreateDigitalQuote = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRequest || !workspaceId || !canOfferDigitalQuote) return;
+    const total = parseFloat(quoteFormTotal.replace(",", "."));
+    if (Number.isNaN(total) || total < 0) {
+      toastError("Inserisci un importo valido.");
+      return;
+    }
+    setQuoteSaving(true);
+    try {
+      const { data } = await followupApi.requests.createDigitalQuote(selectedRequest._id, {
+        workspaceId,
+        projectId: selectedRequest.projectId,
+        totalPrice: total,
+        expiryOn: quoteFormExpiry,
+      });
+      const base = resolveApiBaseUrl().replace(/\/$/, "");
+      const abs = `${base}${data.publicUrl}`;
+      setQuotePublicLinkByRequestId((prev) => ({ ...prev, [selectedRequest._id]: abs }));
+      setSelectedRequest(data.request);
+      refetch();
+      void refetchQuotes();
+      toastSuccess("Preventivo creato", "Copia il link pubblico e condividilo con il cliente.");
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Errore durante la creazione del preventivo.");
+    } finally {
+      setQuoteSaving(false);
+    }
+  };
+
   return (
     <div className="min-h-full bg-app font-body text-foreground">
       <div className="px-5 pb-10 pt-8 lg:px-20">
@@ -492,6 +589,88 @@ export const RequestsPage = () => {
           onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
           onLastPage={() => setPage(totalPages)}
         />
+
+        {canRequestsRead && workspaceId && selectedProjectIds.length > 0 && (
+          <section className="mt-10 rounded-xl border border-border bg-card/40 px-4 py-5 shadow-sm lg:px-6">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-base font-semibold text-foreground">Preventivi</h2>
+              <Button type="button" variant="outline" size="sm" onClick={() => refetchQuotes()}>
+                Aggiorna elenco
+              </Button>
+            </div>
+            {quotesError && (
+              <p className="mb-3 text-sm text-destructive">{quotesError}</p>
+            )}
+            {quotesLoading ? (
+              <p className="text-sm text-muted-foreground">Caricamento…</p>
+            ) : quoteRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nessun preventivo in elenco per i progetti selezionati.</p>
+            ) : (
+              <>
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <table className="w-full min-w-[640px] text-left text-sm">
+                    <thead className="border-b border-border bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">Numero</th>
+                        <th className="px-3 py-2 font-medium">Stato</th>
+                        <th className="px-3 py-2 font-medium">Importo</th>
+                        <th className="px-3 py-2 font-medium">Scadenza</th>
+                        <th className="px-3 py-2 font-medium">Link digitale</th>
+                        <th className="px-3 py-2 font-medium">Aggiornato</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {quoteRows.map((row) => (
+                        <tr key={row._id} className="border-b border-border/80 last:border-0">
+                          <td className="px-3 py-2.5 font-medium text-foreground">{row.quoteNumber}</td>
+                          <td className="px-3 py-2.5 text-muted-foreground">{row.status}</td>
+                          <td className="px-3 py-2.5">
+                            {row.totalPrice != null
+                              ? row.totalPrice.toLocaleString("it-IT", { style: "currency", currency: "EUR" })
+                              : "—"}
+                          </td>
+                          <td className="px-3 py-2.5 text-muted-foreground">
+                            {row.expiryOn ? formatDate(row.expiryOn) : "—"}
+                          </td>
+                          <td className="px-3 py-2.5">{row.hasDigitalLink ? "Sì" : "No"}</td>
+                          <td className="px-3 py-2.5 text-muted-foreground">{formatDate(row.updatedAt)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {quotesTotal > REQUESTS_PER_PAGE && (
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+                    <span>
+                      Pagina {quotesPage} di {quotesTotalPages} · {quotesTotal} totali
+                    </span>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={quotesPage <= 1}
+                        onClick={() => setQuotesPage((p) => Math.max(1, p - 1))}
+                      >
+                        Precedente
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={quotesPage >= quotesTotalPages}
+                        onClick={() => setQuotesPage((p) => Math.min(quotesTotalPages, p + 1))}
+                      >
+                        Successiva
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        )}
+
         {workflowBlockingMessage && (
           <div className="mt-4 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             {workflowBlockingMessage} Configura prima i workflow (progetto/workspace) per usare la pagina Trattative.
@@ -624,6 +803,86 @@ export const RequestsPage = () => {
                     )}
                   </div>
                 </section>
+
+                {(quotePublicLink || canOfferDigitalQuote) && (
+                  <section className="space-y-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Preventivo digitale
+                    </h3>
+                    {quotePublicLink && (
+                      <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+                        <p className="text-xs text-muted-foreground">
+                          Link pubblico (salvalo: non sarà più recuperabile da qui dopo aver chiuso il drawer).
+                        </p>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                          <input
+                            readOnly
+                            className="min-h-10 flex-1 rounded-md border border-border bg-background px-3 text-xs font-mono text-foreground"
+                            value={quotePublicLink}
+                            aria-label="URL pubblico preventivo"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="shrink-0 gap-1"
+                            onClick={() => {
+                              void navigator.clipboard.writeText(quotePublicLink);
+                              toastSuccess("Link copiato");
+                            }}
+                          >
+                            <Link2 className="h-3.5 w-3.5" />
+                            Copia
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {canOfferDigitalQuote && (
+                      <form
+                        onSubmit={handleCreateDigitalQuote}
+                        className="rounded-lg border border-border bg-muted/10 p-4 space-y-3"
+                      >
+                        <p className="text-sm text-muted-foreground">
+                          Genera un PDF su storage, porta la trattativa in stato «Preventivo» e ottieni un link pubblico
+                          per il cliente.
+                        </p>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-muted-foreground" htmlFor="quote-total">
+                              Importo (€)
+                            </label>
+                            <input
+                              id="quote-total"
+                              type="text"
+                              inputMode="decimal"
+                              className="min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm"
+                              value={quoteFormTotal}
+                              onChange={(ev) => setQuoteFormTotal(ev.target.value)}
+                              placeholder="es. 125000"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-muted-foreground" htmlFor="quote-expiry">
+                              Scadenza
+                            </label>
+                            <input
+                              id="quote-expiry"
+                              type="date"
+                              className="min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm"
+                              value={quoteFormExpiry}
+                              onChange={(ev) => setQuoteFormExpiry(ev.target.value)}
+                              required
+                            />
+                          </div>
+                        </div>
+                        <Button type="submit" disabled={quoteSaving} className="w-full sm:w-auto">
+                          {quoteSaving ? "Creazione…" : "Genera preventivo e link"}
+                        </Button>
+                      </form>
+                    )}
+                  </section>
+                )}
 
                 {/* Blocco 2 – Cronologia stati */}
                 <section>

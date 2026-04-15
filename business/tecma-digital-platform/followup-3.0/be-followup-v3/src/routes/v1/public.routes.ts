@@ -17,6 +17,7 @@ import { completeMetaMarketingOAuth } from "../../core/connectors/marketing-meta
 import { openApiV1 } from "../../docs/openapi.js";
 import { getCurrentPrivacyPolicy } from "../../core/gdpr/legal-documents.service.js";
 import { getReportSnapshotByToken } from "../../core/reports/realtime-reports.service.js";
+import { getQuotePublicByToken } from "../../core/quotes/quotes.service.js";
 import { HttpError } from "../../types/http.js";
 import { ENV, isProductionLike } from "../../config/env.js";
 import { handleAsync, sendError } from "../asyncHandler.js";
@@ -133,7 +134,18 @@ publicRoutes.get("/public/listings", publicApiRateLimiter, handleAsync((req) => 
 publicRoutes.get(
   "/public/reports/:token",
   publicApiRateLimiter,
-  handleAsync((req) => getReportSnapshotByToken(req.params.token))
+  handleAsync((req) =>
+    getReportSnapshotByToken(req.params.token, {
+      ip: getClientIp(req) ?? undefined,
+      userAgent: req.get("user-agent") ?? undefined,
+    })
+  )
+);
+
+publicRoutes.get(
+  "/public/quotes/:token",
+  publicApiRateLimiter,
+  handleAsync((req) => getQuotePublicByToken(req.params.token))
 );
 
 function marketingIntegrationsRedirect(extra: string): string {

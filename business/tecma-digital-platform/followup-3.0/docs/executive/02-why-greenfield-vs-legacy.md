@@ -1,6 +1,6 @@
 # Perché un rebuild controllato (e perché ora)
 
-**Ultimo aggiornamento:** 2026-03-25  
+**Ultimo aggiornamento:** 2026-04-13  
 **Indice:** [README.md](README.md)
 
 ---

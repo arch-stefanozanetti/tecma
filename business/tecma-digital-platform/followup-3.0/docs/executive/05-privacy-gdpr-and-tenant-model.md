@@ -1,6 +1,6 @@
 # Privacy, GDPR (alto livello) e modello multi-tenant
 
-**Ultimo aggiornamento:** 2026-03-25  
+**Ultimo aggiornamento:** 2026-04-13  
 **Indice sezione:** [README.md](README.md)
 
 ---

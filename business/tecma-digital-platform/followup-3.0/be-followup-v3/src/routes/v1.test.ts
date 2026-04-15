@@ -118,6 +118,78 @@ vi.mock("../core/requests/requests.service.js", () => ({
   })
 }));
 
+vi.mock("../core/quotes/quotes.service.js", () => ({
+  queryQuotes: vi.fn().mockImplementation(async (rawInput: unknown) => {
+    ListQuerySchema.parse(rawInput);
+    return {
+      data: [
+        {
+          _id: "q1",
+          workspaceId: "ws1",
+          projectId: "p1",
+          requestId: "r1",
+          quoteNumber: "Q-2026-ABC",
+          status: "sent",
+          totalPrice: 125000,
+          hasDigitalLink: true,
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      pagination: { page: 1, perPage: 10, total: 1, totalPages: 1 },
+    };
+  }),
+  getQuotePublicByToken: vi.fn().mockImplementation(async (token: string) => {
+    if (!token || token === "missing") return { data: { found: false } };
+    return {
+      data: {
+        found: true,
+        quoteNumber: "Q-2026-ABC",
+        totalPrice: 125000,
+        expiryOn: "2026-12-31T23:59:59.000Z",
+        pdfDownloadUrl: "https://example.test/signed.pdf",
+        pdfExpiresAt: "2026-12-31T23:59:59.000Z",
+      },
+    };
+  }),
+  createDigitalQuote: vi.fn(),
+}));
+
+vi.mock("../core/reports/report-definitions.service.js", () => ({
+  listReportDefinitions: vi.fn().mockResolvedValue({
+    data: [
+      {
+        _id: "def1",
+        workspaceId: "ws1",
+        name: "Test",
+        reportType: "pipeline",
+        projectIds: ["p1"],
+        dateFrom: null,
+        dateTo: null,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        createdBy: "u1",
+      },
+    ],
+  }),
+  createReportDefinition: vi.fn().mockResolvedValue({
+    data: {
+      _id: "def_new",
+      workspaceId: "ws1",
+      name: "Nuovo",
+      reportType: "kpi_summary",
+      projectIds: ["p1"],
+      dateFrom: null,
+      dateTo: null,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      createdBy: "u1",
+    },
+  }),
+  updateReportDefinition: vi.fn(),
+  deleteReportDefinition: vi.fn().mockResolvedValue({ data: { deleted: true } }),
+}));
+
 vi.mock("../core/assets/assets.service.js", () => ({
   getUploadUrl: vi.fn(),
   createAsset: vi.fn(),
@@ -187,6 +259,15 @@ describe("v1 routes", () => {
       expect(res.body.paths["/public/listings"]?.post).toBeDefined();
       expect(res.body.paths["/public/listings"].post.summary).toContain("Public");
     });
+    it("documents report-definitions paths", async () => {
+      const res = await st().get("/v1/openapi.json");
+      expect(res.status).toBe(200);
+      expect(res.body.paths["/report-definitions"]?.get?.operationId).toBe("listReportDefinitions");
+      expect(res.body.paths["/report-definitions"]?.post?.operationId).toBe("createReportDefinition");
+      expect(res.body.paths["/report-definitions/{id}"]?.patch?.operationId).toBe("updateReportDefinition");
+      expect(res.body.paths["/report-definitions/{id}"]?.delete?.operationId).toBe("deleteReportDefinition");
+      expect(res.body.components?.schemas?.ReportDefinition).toBeDefined();
+    });
   });
 
   describe("POST /v1/public/listings", () => {
@@ -212,6 +293,23 @@ describe("v1 routes", () => {
         .send({ workspaceId: "dev-1" });
       expect(res.status).toBe(400);
       expect(res.body.error).toBeDefined();
+    });
+  });
+
+  describe("GET /v1/public/quotes/:token", () => {
+    it("returns 200 and found=true payload without JWT when token is valid", async () => {
+      const res = await st().get("/v1/public/quotes/ok-token");
+      expect(res.status).toBe(200);
+      expect(res.body.data).toBeDefined();
+      expect(res.body.data.found).toBe(true);
+      expect(res.body.data.quoteNumber).toBe("Q-2026-ABC");
+      expect(typeof res.body.data.totalPrice).toBe("number");
+    });
+
+    it("returns 200 and found=false when token does not resolve", async () => {
+      const res = await st().get("/v1/public/quotes/missing");
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ data: { found: false } });
     });
   });
 
@@ -339,6 +437,78 @@ describe("v1 routes", () => {
         .send({ workspaceId: "ws1", projectIds: [] });
       expect(res.status).toBe(400);
       expect(res.body.error).toBeDefined();
+    });
+  });
+
+  describe("POST /v1/quotes/query", () => {
+    const validBody = {
+      workspaceId: "ws1",
+      projectIds: ["p1"],
+      page: 1,
+      perPage: 10
+    };
+
+    it("returns 401 when no token", async () => {
+      const res = await st().post("/v1/quotes/query").send(validBody);
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBeDefined();
+    });
+
+    it("returns 200 with paginated quote list when JWT is present", async () => {
+      const token = makeToken();
+      const res = await st()
+        .post("/v1/quotes/query")
+        .set("Authorization", `Bearer ${token}`)
+        .send(validBody);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data[0]?.quoteNumber).toBe("Q-2026-ABC");
+      expect(res.body.pagination).toEqual({ page: 1, perPage: 10, total: 1, totalPages: 1 });
+    });
+
+    it("returns 400 when body is invalid", async () => {
+      const token = makeToken();
+      const res = await st()
+        .post("/v1/quotes/query")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ workspaceId: "ws1", projectIds: [] });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBeDefined();
+    });
+  });
+
+  describe("GET /v1/report-definitions", () => {
+    it("returns 401 when no token", async () => {
+      const res = await st().get("/v1/report-definitions").query({ workspaceId: "ws1" });
+      expect(res.status).toBe(401);
+    });
+
+    it("returns 200 with data array when JWT present", async () => {
+      const token = makeToken();
+      const res = await st()
+        .get("/v1/report-definitions")
+        .query({ workspaceId: "ws1" })
+        .set("Authorization", `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data[0]?.name).toBe("Test");
+    });
+  });
+
+  describe("POST /v1/report-definitions", () => {
+    it("returns 200 when body is valid", async () => {
+      const token = makeToken();
+      const res = await st()
+        .post("/v1/report-definitions")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          workspaceId: "ws1",
+          name: "Nuovo",
+          reportType: "kpi_summary",
+          projectIds: ["p1"],
+        });
+      expect(res.status).toBe(200);
+      expect(res.body.data?.name).toBe("Nuovo");
     });
   });
 

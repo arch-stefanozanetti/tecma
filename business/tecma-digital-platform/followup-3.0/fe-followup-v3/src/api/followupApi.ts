@@ -133,12 +133,14 @@ import type {
 import { clientsApi } from "./domains/clientsApi";
 import { apartmentsApi } from "./domains/apartmentsApi";
 import { requestsApi } from "./domains/requestsApi";
+import { quotesApi } from "./domains/quotesApi";
 import { projectsApi } from "./domains/projectsApi";
 
 export const followupApi = {
   clients: clientsApi,
   apartments: apartmentsApi,
   requests: requestsApi,
+  quotes: quotesApi,
   projects: projectsApi,
   getApartmentPriceCalendar: apartmentsApi.getApartmentPriceCalendar,
   upsertApartmentPriceCalendar: apartmentsApi.upsertApartmentPriceCalendar,
@@ -334,6 +336,8 @@ export const followupApi = {
     }>("/reports/ai-query", body),
   shareAiReportQuery: (body: { workspaceId: string; projectIds: string[]; query: string; expiresInHours?: number }) =>
     postJson<{ data: { token: string; url: string; expiresAt: string; snapshotId: string } }>("/reports/share", body),
+  shareReportDefinitionSnapshot: (body: { workspaceId: string; reportDefinitionId: string; expiresInHours?: number }) =>
+    postJson<{ data: { token: string; url: string; expiresAt: string; snapshotId: string } }>("/reports/share-definition", body),
   listSharedAiReportQueries: (workspaceId: string, limit = 20) =>
     getJson<{
       data: Array<{
@@ -341,6 +345,7 @@ export const followupApi = {
         workspaceId: string;
         projectIds: string[];
         query: string;
+        snapshotKind?: string;
         createdAt: string;
         expiresAt: string;
         revokedAt: string | null;
@@ -350,6 +355,36 @@ export const followupApi = {
     postJson<{ data: { revoked: boolean } }>(`/reports/share/${encodeURIComponent(snapshotId)}/revoke`, {
       workspaceId,
     }),
+  listReportDefinitions: (workspaceId: string) =>
+    getJson<{
+      data: Array<{
+        _id: string;
+        workspaceId: string;
+        name: string;
+        reportType: string;
+        projectIds: string[];
+        dateFrom: string | null;
+        dateTo: string | null;
+        createdAt: string;
+        updatedAt: string;
+        createdBy: string | null;
+      }>;
+    }>(`/report-definitions?workspaceId=${encodeURIComponent(workspaceId)}`),
+  createReportDefinition: (payload: {
+    workspaceId: string;
+    name: string;
+    reportType: string;
+    projectIds: string[];
+    dateFrom?: string;
+    dateTo?: string;
+  }) => postJson<{ data: { _id: string; name: string; reportType: string; projectIds: string[]; dateFrom: string | null; dateTo: string | null } }>(
+    "/report-definitions",
+    payload
+  ),
+  deleteReportDefinition: (id: string, workspaceId: string) =>
+    deleteJson<{ data: { deleted: boolean } }>(
+      `/report-definitions/${encodeURIComponent(id)}?workspaceId=${encodeURIComponent(workspaceId)}`
+    ),
   getSharedAiReportQuery: (token: string) =>
     getJson<{ data: { found: boolean; query?: string; response?: Record<string, unknown>; expiresAt?: string } }>(
       `/public/reports/${encodeURIComponent(token)}`
@@ -830,8 +865,18 @@ export const followupApi = {
   deleteWorkflowTransition: (transitionId: string) =>
     deleteJson<{ deleted: boolean }>(`/workflows/transitions/${encodeURIComponent(transitionId)}`),
   createRequest: (payload: RequestCreateInput) => postJson<{ request: RequestRow }>("/requests", payload),
-  updateRequestStatus: (requestId: string, payload: { status: string; reason?: string; quoteId?: string }) =>
-    patchJson<{ request: RequestRow }>(`/requests/${requestId}/status`, payload),
+  updateRequestStatus: (
+    requestId: string,
+    payload: {
+      status: string;
+      reason?: string;
+      quoteId?: string;
+      quoteNumber?: string;
+      quoteTotalPrice?: number;
+      quoteExpiryOn?: string;
+      quoteStatus?: string;
+    }
+  ) => patchJson<{ request: RequestRow }>(`/requests/${requestId}/status`, payload),
   getProjectsByEmail: (email: string, workspaceId?: string) =>
     postJson<ProjectAccessResponse>("/session/projects-by-email", {
       email,

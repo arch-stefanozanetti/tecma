@@ -7,6 +7,7 @@ import { canAccess } from "../../core/access/canAccess.js";
 import { getModelSample } from "../../core/inspect/inspect.service.js";
 import { runReport } from "../../core/reports/reports.service.js";
 import {
+  createReportDefinitionSnapshot,
   createReportSnapshot,
   getRealtimeReport,
   listReportSnapshots,
@@ -19,7 +20,14 @@ import { createAiActionDraft, queryAiActionDrafts, decideAiActionDraft } from ".
 import { executeSuggestionWithAgent } from "../../core/ai/suggestion-agent.service.js";
 import { requirePermission } from "../permissionMiddleware.js";
 import { PERMISSIONS } from "../../core/rbac/permissions.js";
+import { requireCanAccessWorkspace } from "../accessMiddleware.js";
 import { requireWorkspaceEntitled, workspaceIdFromBodyOrQuery } from "../workspaceEntitlementMiddleware.js";
+import {
+  createReportDefinition,
+  deleteReportDefinition,
+  listReportDefinitions,
+  updateReportDefinition,
+} from "../../core/reports/report-definitions.service.js";
 import { isWorkspaceEntitledToFeature } from "../../core/workspaces/workspace-entitlements.service.js";
 
 export const intelligenceRoutes = Router();
@@ -40,6 +48,48 @@ intelligenceRoutes.post(
   requirePermission(PERMISSIONS.REPORTS_READ),
   requireWorkspaceEntitled("reports", workspaceIdFromBodyOrQuery),
   handleAsync((req) => runReport(req.params.reportType, req.body))
+);
+
+intelligenceRoutes.get(
+  "/report-definitions",
+  requirePermission(PERMISSIONS.REPORTS_READ),
+  requireCanAccessWorkspace(),
+  handleAsync((req) => {
+    const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+    if (!workspaceId) throw new HttpError("workspaceId query required", 400);
+    return listReportDefinitions(workspaceId);
+  })
+);
+
+intelligenceRoutes.post(
+  "/report-definitions",
+  requirePermission(PERMISSIONS.REPORTS_READ),
+  requireCanAccessWorkspace(),
+  handleAsync((req) => {
+    const userId = req.user?.sub;
+    return createReportDefinition(req.body, { userId });
+  })
+);
+
+intelligenceRoutes.patch(
+  "/report-definitions/:id",
+  requirePermission(PERMISSIONS.REPORTS_READ),
+  requireCanAccessWorkspace(),
+  handleAsync((req) => {
+    const userId = req.user?.sub;
+    return updateReportDefinition(req.params.id, { ...req.body, workspaceId: req.body?.workspaceId }, { userId });
+  })
+);
+
+intelligenceRoutes.delete(
+  "/report-definitions/:id",
+  requirePermission(PERMISSIONS.REPORTS_READ),
+  requireCanAccessWorkspace(),
+  handleAsync((req) => {
+    const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+    if (!workspaceId) throw new HttpError("workspaceId query required", 400);
+    return deleteReportDefinition(req.params.id, workspaceId);
+  })
 );
 
 intelligenceRoutes.get(
@@ -94,6 +144,13 @@ intelligenceRoutes.post(
   "/reports/share",
   requirePermission(PERMISSIONS.REPORTS_READ),
   handleAsync((req) => createReportSnapshot(req.body))
+);
+
+intelligenceRoutes.post(
+  "/reports/share-definition",
+  requirePermission(PERMISSIONS.REPORTS_READ),
+  requireWorkspaceEntitled("reports", workspaceIdFromBodyOrQuery),
+  handleAsync((req) => createReportDefinitionSnapshot(req.body))
 );
 
 intelligenceRoutes.get(

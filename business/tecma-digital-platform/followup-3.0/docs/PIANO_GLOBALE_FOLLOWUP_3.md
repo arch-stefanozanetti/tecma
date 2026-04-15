@@ -1,6 +1,6 @@
 # Followup 3.0 — piano globale (unico)
 
-**Ultimo aggiornamento:** 2026-03-21 (Fase 0.2 — enforcement esteso marketing + doc Outlook/.env)  
+**Ultimo aggiornamento:** 2026-04-14 (allineamento checklist ↔ tracker, Ciclo 3 mapping quote)  
 **Uso:** questo è l’**unico documento di piano** per Followup 3.0. Aggiornare solo questo file per priorità, fasi e checklist.  
 **Correlati (non sono “piani”):** visione e wave in [FOLLOWUP_3_MASTER.md](./FOLLOWUP_3_MASTER.md); deploy in [RENDER_DEPLOY.md](./RENDER_DEPLOY.md); runbook e design system negli altri file in `docs/`.
 
@@ -21,14 +21,14 @@
 |----|------|--------|
 | `close-phase0` | Workspace users, `tz_workspace_user_projects`, entity assignments, Wave 7 AI aggregata, auth API connettori | **Chiuso baseline repo (2026-03-20):** §3.1–§3.2 implementati; §3.3 FE accordion + BE aggregato presenti; §3.4 `POST /v1/platform/clients/lite/query` + scope `platform.clients.read`; §3.5 route matching registrate. Review integrazione continua in CI. |
 | `user-access-granularity` | Creazione utenza + RBAC granulare (modulo / azione / progetto) | **Chiuso baseline 0.1 (2026-03-20):** sweep JWT su route sensibili; mount **assets** + **client-documents**; session/realtime/contracts hardening; wizard **4 passi** Utenti + `GET /rbac/roles/:roleKey/effective-permissions` + preset override; matrice da **permission-catalog**; audit membership workspace + **user_project** add/remove; router `future`/`workflow` documentati come non montati. OpenAPI RBAC principale documentato; estensioni future: altre mutazioni in audit, allineamento BSS gateway. [FASE01](./deliverables/FASE01_USER_ACCESS_RBAC.md) |
-| `commercial-entitlements` | Entitlement commerciale vs RBAC; solo Tecma attiva connettori/API | **Quasi chiuso slice prodotto (2026-03-21):** come sopra + enforcement **crea/ruota** Platform API key (`publicApi`), **salva** Twilio (`twilio`); step automazioni **mailchimp / activecampaign** con sync liste (API key + AC `apiBaseUrl`); OpenAPI + FE Connettori/ApiTab. **Restano:** rifiniture copy vetrina “contatta Tecma”, audit lettura note già in GET/FE Tecma, gate su ogni futura integrazione a pagamento, rollout graduale commerciale. [FASE02](./deliverables/FASE02_ENTITLEMENTS_AND_TECMA.md) |
+| `commercial-entitlements` | Entitlement commerciale vs RBAC; solo Tecma attiva connettori/API | **Chiuso baseline prodotto (tracker allineato 2026-04-14):** enforcement Platform API key / Twilio / Mailchimp-AC; FE Connettori + tab API + audit PATCH; link commerciali in tab API. **Follow-up non bloccanti:** copy vetrina “contatta Tecma”, eventuali estensioni audit lettura, **gate esplicito** su ogni nuova integrazione a pagamento, rollout commerciale graduale. [FASE02](./deliverables/FASE02_ENTITLEMENTS_AND_TECMA.md) |
 | `connectors-showcase-ux` | Vetrina connettori/API per utenti non Tecma | Incluso in FASE02 (sezione UX vetrina) |
 | `tecma-activation-audit` | Console Tecma + audit attivazioni + fatturazione manuale | Incluso in FASE02 (milestone audit + console) |
-| `csv-mapping` | CSV legacy → mapping cliente / appartamento / quote → `tz_*` + API/UI | Template: [deliverables/FASE1_CSV_MAPPING.md](./deliverables/FASE1_CSV_MAPPING.md) — compilare quando disponibili i CSV |
-| `s3-verify` | `ASSETS_S3_BUCKET` + AWS + presigned upload/download | Checklist: [deliverables/FASE3_S3_VERIFICATION.md](./deliverables/FASE3_S3_VERIFICATION.md) |
-| `digital-quote` | Stato trattativa → quote, PDF, magic link, bucket | Roadmap: [deliverables/FASE2_DIGITAL_QUOTE.md](./deliverables/FASE2_DIGITAL_QUOTE.md) |
-| `reports-dashboards` | Report, dashboard condivisibili, AI (pattern API key workspace) | Roadmap: [deliverables/FASE4_REPORTS_DASHBOARDS.md](./deliverables/FASE4_REPORTS_DASHBOARDS.md) |
-| `calendar-sync` | Eventi unificati timeline/calendario; Gmail/Outlook reali | Roadmap: [deliverables/FASE5_CALENDAR_SYNC.md](./deliverables/FASE5_CALENDAR_SYNC.md) |
+| `csv-mapping` | CSV legacy → mapping cliente / appartamento / quote → `tz_*` + API/UI | **[~] Ciclo 3 (2026-04-14):** mapping **quote** `asset.quotes` → `tz_quotes` documentato in [FASE1_CSV_MAPPING.md](./deliverables/FASE1_CSV_MAPPING.md); migrazione pilota arricchita `totalPrice`; `POST /v1/quotes/query` + OpenAPI. Restano matrici cliente/appartamento/CSV export dove non coperte da Mongo read-only. |
+| `s3-verify` | `ASSETS_S3_BUCKET` + AWS + presigned upload/download | **Baseline repo verificata** (servizio `assets-s3`, diagnostica Tecma dove presente). **Resta** checklist manuale deploy/IAM/staging: [deliverables/FASE3_S3_VERIFICATION.md](./deliverables/FASE3_S3_VERIFICATION.md). |
+| `digital-quote` | Stato trattativa → quote, PDF, magic link, bucket | **Parziale:** `createDigitalQuote`, PDF su S3, route pubblica token, aggiornamento trattativa — in codice; DoD completa [FASE2_DIGITAL_QUOTE.md](./deliverables/FASE2_DIGITAL_QUOTE.md) (es. tutti i bullet UI/QA) ancora da spuntare. Vedi [IMPLEMENTATION_TRACKER.md](../tasks/IMPLEMENTATION_TRACKER.md). |
+| `reports-dashboards` | Report, dashboard condivisibili, AI (pattern API key workspace) | **[~] 2026-04-14:** definizioni report persistite (`tz_report_definitions`) + API + preferiti in UI Report. Roadmap restante: [FASE4](./deliverables/FASE4_REPORTS_DASHBOARDS.md) |
+| `calendar-sync` | Eventi unificati timeline/calendario; Gmail/Outlook reali | **[~] 2026-04-14:** Outlook OAuth + eventi Graph in `CalendarPage`; restano Gmail/sync job/token lifecycle per DoD completo. [FASE5](./deliverables/FASE5_CALENDAR_SYNC.md) · [tracker](../tasks/IMPLEMENTATION_TRACKER.md) |
 | `connectors-ux` | Twilio dedicato; dummy real-estate; Mailchimp/AC (+ MCP opzionale) | Roadmap: [deliverables/FASE6_CONNECTORS_UX.md](./deliverables/FASE6_CONNECTORS_UX.md) |
 | `inbox-contract` | Contratto notifiche, empty state, preferenze | Contratto: [deliverables/FASE7_INBOX_CONTRACT.md](./deliverables/FASE7_INBOX_CONTRACT.md) |
 | `visual-parity` | Resa visiva vs `tecma-fe-apps/fe-tecma-itd` | Checklist: [deliverables/FASE8_VISUAL_PARITY.md](./deliverables/FASE8_VISUAL_PARITY.md) |
@@ -37,6 +37,23 @@
 | `matching-be` | Opzionale: `GET /v1/matching/.../candidates` | |
 | `dialog-drawer` | Opzionale: residui Dialog → Drawer | |
 | `ux-liste-card-toggle` | Opzionale: card/toggle liste Clienti e Appartamenti | |
+
+---
+
+## 2.1 Priorita FASE 1-8 (valore business + dipendenze)
+
+Ordine decisionale per backlog commerciale/prodotto, da usare quando serve scegliere cosa entra nel prossimo ciclo:
+
+1. **FASE 1 (CSV mapping legacy):** sblocca onboarding clienti reali e riduce rischio dati; prerequisito per quote affidabili.
+2. **FASE 3 (S3/storage):** abilita output documentali e allegati robusti; dipendenza tecnica per PDF/magic link.
+3. **FASE 2 (preventivo digitale):** impatto diretto su conversione trattativa (offerta, firma, follow-up commerciale).
+4. **FASE 4 (report/dashboard):** rende visibile il ROI a management e rete vendita, abilita controllo KPI per workspace.
+5. **FASE 5 (calendar sync reale):** aumenta adozione quotidiana riducendo doppio lavoro tra CRM e calendari esterni.
+6. **FASE 6 (connettori/comunicazioni):** estende acquisizione e nurturing, ma va dopo baseline dati/processi stabile.
+7. **FASE 7 (inbox contract):** migliora execution operativa e riduce task persi; valore massimo quando i flussi sopra sono attivi.
+8. **FASE 8 (visual parity):** importante per percezione premium e coerenza, ma dopo i blocchi che impattano ricavi e delivery.
+
+Nota: la priorita puo essere anticipata solo con eccezione esplicita concordata (vincoli cliente o compliance non differibile).
 
 ---
 
@@ -65,6 +82,8 @@
 ### 3.3 Wave 7 — Suggerimenti cockpit aggregati
 
 **Implementato (baseline repo):** BE orchestrator con `aggregatedKind` / `aggregatedItems`; FE `PrioritySuggestionsList` con toggle dettaglio aggregato (`priority-aggregated-toggle`), cap `MAX_AGGREGATED_DETAIL_VISIBLE`, test Vitest dedicati.
+
+**Allineamento Wave 7 (2026-04-13):** questa sezione copre la componente “suggerimenti read-only” della Wave 7. Resta aperta la chiusura del ramo **human-in-the-loop** per azioni draft ad alto impatto (approvazione esplicita + audit evento).
 
 - Obiettivo: ridurre card duplicate aggregando per `aggregatedKind` (max ~8 gruppi), con `aggregatedItems`, accordion in UI, sostituzione pending stesso-kind al refresh.
 - Kind stabili esempio: `stale_proposal_7d`, `inactive_client_20d`, `available_unit`, `no_critical_signal`.

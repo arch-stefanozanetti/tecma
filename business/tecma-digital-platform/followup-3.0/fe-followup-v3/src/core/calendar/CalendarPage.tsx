@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import moment from "moment";
 import "moment/locale/it";
 import {
@@ -14,6 +14,7 @@ import {
   Plus,
   SlidersHorizontal,
   User,
+  ExternalLink,
 } from "lucide-react";
 import { followupApi } from "../../api/followupApi";
 import type { CalendarEvent, WorkspaceUserRow } from "../../types/domain";
@@ -49,6 +50,7 @@ import {
   OUTCOME_LABELS,
 } from "./calendarConstants";
 import { Checkbox } from "../../components/ui/checkbox";
+import { Alert } from "../../components/ui/alert";
 
 moment.locale("it");
 moment.updateLocale("it", { week: { dow: 1, doy: 4 } });
@@ -70,6 +72,7 @@ const VIEW_LABELS: Record<ViewType, string> = {
 const sourceColor = (source: CalendarEvent["source"]) => {
   if (source === "FOLLOWUP_SELL") return { border: "#6266ef", bg: "#eef0ff", text: "#4347c4" };
   if (source === "FOLLOWUP_RENT") return { border: "#1bc47d", bg: "#e8fbf2", text: "#0d8e58" };
+  if (source === "OUTLOOK") return { border: "#0078d4", bg: "#e8f4fc", text: "#005a9e" };
   return { border: "#f59e0b", bg: "#fffbeb", text: "#b45309" };
 };
 
@@ -77,13 +80,38 @@ const sourceLabel: Record<CalendarEvent["source"], string> = {
   FOLLOWUP_SELL: "Vendita",
   FOLLOWUP_RENT: "Affitto",
   CUSTOM_SERVICE: "Servizio",
+  OUTLOOK: "Outlook",
 };
 
 const SOURCE_OPTIONS: { value: CalendarEvent["source"]; label: string }[] = [
   { value: "FOLLOWUP_SELL", label: "Vendita" },
   { value: "FOLLOWUP_RENT", label: "Affitto" },
   { value: "CUSTOM_SERVICE", label: "Servizio" },
+  { value: "OUTLOOK", label: "Outlook" },
 ];
+
+function graphDateTimeToIso(s: string): string {
+  const m = moment(s);
+  return m.isValid() ? m.toISOString() : new Date(s).toISOString();
+}
+
+function mapOutlookApiToCalendarEvent(
+  o: { id: string; subject: string; start: string; end: string; isAllDay?: boolean; webLink?: string },
+  workspaceId: string,
+  projectId: string
+): CalendarEvent {
+  return {
+    _id: `outlook:${o.id}`,
+    workspaceId,
+    projectId,
+    title: o.subject?.trim() || "(Outlook)",
+    startsAt: graphDateTimeToIso(o.start),
+    endsAt: graphDateTimeToIso(o.end),
+    source: "OUTLOOK",
+    allDay: Boolean(o.isAllDay),
+    outlookWebLink: o.webLink,
+  };
+}
 
 function statusAccentColor(status: CalendarEvent["activityStatus"] | undefined): string {
   switch (status) {
@@ -193,7 +221,8 @@ const EventDrawer = ({
   const startM = moment(event.startsAt).locale("it");
   const endM = moment(event.endsAt).locale("it");
   const { border, bg } = sourceColor(event.source);
-  const canDelete = event.workspaceId !== "legacy";
+  const isOutlookExternal = event.source === "OUTLOOK";
+  const canDelete = event.workspaceId !== "legacy" && !isOutlookExternal;
   const at = event.activityType ? ACTIVITY_TYPE_LABELS[event.activityType] : null;
   const statusKey = event.activityStatus ?? "none";
   const ast = ACTIVITY_STATUS_LABELS[statusKey];
@@ -261,21 +290,38 @@ const EventDrawer = ({
 
           <section className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dettaglio attività</h3>
-            <div className="space-y-3 rounded-xl border border-border bg-background p-4">
-              <EventDrawerDetailRow label="Tipo di attività">{at ?? "—"}</EventDrawerDetailRow>
-              <Separator className="my-1" />
-              <EventDrawerDetailRow label="Status">
-                <Badge variant={activityStatusBadgeVariant(event.activityStatus)} className="font-normal">
-                  {ast}
-                </Badge>
-              </EventDrawerDetailRow>
-              {oc != null ? (
-                <>
-                  <Separator className="my-1" />
-                  <EventDrawerDetailRow label="Esito">{oc}</EventDrawerDetailRow>
-                </>
-              ) : null}
-            </div>
+            {isOutlookExternal ? (
+              <div className="rounded-xl border border-border bg-background p-4 text-sm text-muted-foreground">
+                Evento letto da Microsoft Outlook. Non è modificabile da Followup; usa Outlook per modifiche o eliminazioni.
+                {event.outlookWebLink ? (
+                  <a
+                    href={event.outlookWebLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 flex items-center gap-2 font-medium text-primary underline underline-offset-2 hover:no-underline"
+                  >
+                    <ExternalLink className="h-4 w-4 shrink-0" aria-hidden />
+                    Apri in Outlook
+                  </a>
+                ) : null}
+              </div>
+            ) : (
+              <div className="space-y-3 rounded-xl border border-border bg-background p-4">
+                <EventDrawerDetailRow label="Tipo di attività">{at ?? "—"}</EventDrawerDetailRow>
+                <Separator className="my-1" />
+                <EventDrawerDetailRow label="Status">
+                  <Badge variant={activityStatusBadgeVariant(event.activityStatus)} className="font-normal">
+                    {ast}
+                  </Badge>
+                </EventDrawerDetailRow>
+                {oc != null ? (
+                  <>
+                    <Separator className="my-1" />
+                    <EventDrawerDetailRow label="Esito">{oc}</EventDrawerDetailRow>
+                  </>
+                ) : null}
+              </div>
+            )}
           </section>
 
           <section className="space-y-3">
@@ -658,6 +704,7 @@ export const CalendarPage = (_props: CalendarPageProps) => {
   const canDeleteCalendar = hasPermission("calendar.delete");
   const canReadAllVendors = hasPermission("calendar.readAllVendors");
   const canAssignAny = hasPermission("calendar.assignAny");
+  const canReadIntegrations = hasPermission("integrations.read");
   const [view, setView] = useState<ViewType>(() => (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches ? "day" : "week"));
   const [currentDate, setCurrentDate] = useState(moment());
   useEffect(() => {
@@ -684,8 +731,32 @@ export const CalendarPage = (_props: CalendarPageProps) => {
   const [filterActivityKind, setFilterActivityKind] = useState<"all" | NonNullable<CalendarEvent["activityType"]>>("all");
   const [filterActivityState, setFilterActivityState] = useState<"all" | NonNullable<CalendarEvent["activityStatus"]>>("all");
   const [eventDrawerApartmentLabels, setEventDrawerApartmentLabels] = useState<Map<string, string>>(() => new Map());
+  /** Stato collegamento Outlook (solo con integrations.read); "disconnected" → banner verso Integrazioni. */
+  const [outlookLinkStatus, setOutlookLinkStatus] = useState<"idle" | "loading" | "connected" | "disconnected">("idle");
+  /** Eventi Microsoft Graph (merge in sola lettura; caricati insieme a `queryCalendar`). */
+  const [outlookEvents, setOutlookEvents] = useState<CalendarEvent[]>([]);
 
   const hasScope = Boolean(workspaceId && selectedProjectIds.length > 0);
+
+  useEffect(() => {
+    if (!canReadIntegrations) {
+      setOutlookLinkStatus("idle");
+      return;
+    }
+    let cancelled = false;
+    setOutlookLinkStatus("loading");
+    followupApi
+      .getOutlookStatus()
+      .then((r) => {
+        if (!cancelled) setOutlookLinkStatus(r.connected ? "connected" : "disconnected");
+      })
+      .catch(() => {
+        if (!cancelled) setOutlookLinkStatus("idle");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [canReadIntegrations]);
 
   useEffect(() => {
     if (!workspaceId) {
@@ -785,13 +856,21 @@ export const CalendarPage = (_props: CalendarPageProps) => {
     return { from, to };
   }, [currentDate, view]);
 
+  const displayEvents = useMemo(() => {
+    const merged = [...events, ...outlookEvents];
+    merged.sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+    return merged;
+  }, [events, outlookEvents]);
+
   const filteredEvents = useMemo(() => {
-    return events.filter((ev) => {
+    return displayEvents.filter((ev) => {
       if (filterSource !== "all" && ev.source !== filterSource) return false;
       if (filterProjectId !== "all" && ev.projectId !== filterProjectId) return false;
+      if (filterActivityKind !== "all" && ev.source === "OUTLOOK") return false;
+      if (filterActivityState !== "all" && ev.source === "OUTLOOK") return false;
       return true;
     });
-  }, [events, filterSource, filterProjectId]);
+  }, [displayEvents, filterSource, filterProjectId, filterActivityKind, filterActivityState]);
 
   const serverCalendarFilters = useMemo(() => {
     const dateFrom = queryDateRange.from.toISOString();
@@ -800,7 +879,7 @@ export const CalendarPage = (_props: CalendarPageProps) => {
     if (filterActivityKind !== "all") f.activityType = filterActivityKind;
     if (filterActivityState !== "all") f.activityStatus = filterActivityState;
     if (canReadAllVendors) {
-      const em = userEmail.trim().toLowerCase();
+      const em = (userEmail ?? "").trim().toLowerCase();
       if (agendaMode === "me" && em) f.assignedUserIds = [em];
       else if (agendaMode === "users" && agendaPickUsers.length > 0) {
         f.assignedUserIds = agendaPickUsers.map((x) => x.trim().toLowerCase()).filter(Boolean);
@@ -822,24 +901,46 @@ export const CalendarPage = (_props: CalendarPageProps) => {
     if (!workspaceId || selectedProjectIds.length === 0) return;
     setIsLoading(true);
     setError(null);
-    followupApi
-      .queryCalendar({
-        workspaceId,
-        projectIds: selectedProjectIds,
-        page: 1,
-        perPage: 200,
-        searchText: "",
-        sort: { field: "startsAt", direction: 1 },
-        filters: serverCalendarFilters,
+    const dateFrom = String(serverCalendarFilters.dateFrom ?? "");
+    const dateTo = String(serverCalendarFilters.dateTo ?? "");
+    const projectId = selectedProjectIds[0] ?? "";
+
+    const tzPromise = followupApi.queryCalendar({
+      workspaceId,
+      projectIds: selectedProjectIds,
+      page: 1,
+      perPage: 200,
+      searchText: "",
+      sort: { field: "startsAt", direction: 1 },
+      filters: serverCalendarFilters,
+    });
+
+    const outlookPromise =
+      outlookLinkStatus === "connected" && canReadIntegrations
+        ? followupApi.getOutlookCalendarEvents(dateFrom, dateTo, workspaceId)
+        : Promise.resolve({ data: [] as Array<{ id: string; subject: string; start: string; end: string; isAllDay?: boolean; webLink?: string }> });
+
+    Promise.all([tzPromise, outlookPromise])
+      .then(([calRes, outRes]) => {
+        if (ignore) return;
+        setEvents(calRes?.data ?? []);
+        const raw = outRes?.data ?? [];
+        setOutlookEvents(raw.map((o) => mapOutlookApiToCalendarEvent(o, workspaceId, projectId)));
       })
-      .then((res) => {
-        const data = res?.data ?? [];
-        if (!ignore) setEvents(data);
+      .catch((e) => {
+        if (!ignore) {
+          setError(e instanceof Error ? e.message : "Errore caricamento eventi");
+          setEvents([]);
+          setOutlookEvents([]);
+        }
       })
-      .catch((e) => { if (!ignore) setError(e instanceof Error ? e.message : "Errore caricamento eventi"); })
-      .finally(() => { if (!ignore) setIsLoading(false); });
-    return () => { ignore = true; };
-  }, [workspaceId, selectedProjectIds, serverCalendarFilters, refreshKey]);
+      .finally(() => {
+        if (!ignore) setIsLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [workspaceId, selectedProjectIds, serverCalendarFilters, refreshKey, outlookLinkStatus, canReadIntegrations]);
 
   const handleEventClick = (ev: CalendarEvent) => {
     setSelectedEvent(ev);
@@ -938,6 +1039,26 @@ export const CalendarPage = (_props: CalendarPageProps) => {
           </Button>
         </div>
       </div>
+
+      {outlookLinkStatus === "disconnected" ? (
+        <div className="border-b border-border bg-white px-6 py-2">
+          <Alert
+            variant="info"
+            title="Outlook non collegato"
+            className="text-sm"
+            action={
+              <Link
+                to="/integrations?tab=connettori"
+                className="font-medium text-primary underline underline-offset-2 hover:no-underline"
+              >
+                Apri Integrazioni
+              </Link>
+            }
+          >
+            Collega il calendario Microsoft in Integrazioni per sincronizzare gli impegni con Followup.
+          </Alert>
+        </div>
+      ) : null}
 
       {/* Nav header */}
       <div className="flex items-center justify-between border-b border-border bg-white px-6 py-2">
@@ -1096,7 +1217,7 @@ export const CalendarPage = (_props: CalendarPageProps) => {
         </>
       )}
 
-      {hasScope && !isLoading && !error && events.length === 0 && (
+      {hasScope && !isLoading && !error && displayEvents.length === 0 && (
         <div className="mx-6 mt-4 rounded-chrome border border-border bg-muted/30 px-4 py-3 text-center text-sm text-muted-foreground">
           Nessun evento in questo periodo. Prova a cambiare vista o data, oppure crea un nuovo evento.
         </div>
@@ -1205,8 +1326,8 @@ export const CalendarPage = (_props: CalendarPageProps) => {
         onClose={() => setDialogOpen(false)}
         onEdit={handleOpenEditEvent}
         onDelete={handleEventFormSaved}
-        canEditEvent={canUpdateCalendar}
-        canDeleteEvent={canDeleteCalendar}
+        canEditEvent={canUpdateCalendar && selectedEvent?.source !== "OUTLOOK"}
+        canDeleteEvent={canDeleteCalendar && selectedEvent?.source !== "OUTLOOK"}
         projectLabelById={projectLabelById}
         clientNameById={clientNameById}
         apartmentLabelById={eventDrawerApartmentLabels}

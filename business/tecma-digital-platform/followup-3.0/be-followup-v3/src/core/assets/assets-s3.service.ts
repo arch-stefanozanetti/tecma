@@ -155,6 +155,24 @@ export async function getPresignedGetUrl(
   return { downloadUrl, expiresAt };
 }
 
+/** Upload buffer server-side (es. PDF generato) senza URL presigned. */
+export async function putObjectBuffer(
+  key: string,
+  body: Buffer,
+  contentType: string
+): Promise<void> {
+  const client = getClient();
+  const bucket = getBucket();
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+    })
+  );
+}
+
 export async function deleteObject(key: string): Promise<void> {
   const client = getClient();
   const bucket = getBucket();

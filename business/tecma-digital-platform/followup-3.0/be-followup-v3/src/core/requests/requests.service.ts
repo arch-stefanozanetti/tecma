@@ -336,6 +336,11 @@ const RequestStatusChangeSchema = z.object({
   status: z.enum(["new", "contacted", "viewing", "quote", "offer", "won", "lost"]),
   reason: z.string().max(500).optional(),
   quoteId: z.string().optional(),
+  /** Snapshot preventivo digitale (se presenti insieme alla transizione in "quote"). */
+  quoteNumber: z.string().max(80).optional(),
+  quoteTotalPrice: z.number().nonnegative().optional(),
+  quoteExpiryOn: z.string().min(1).optional(),
+  quoteStatus: z.string().max(40).optional(),
 });
 
 /**
@@ -428,8 +433,25 @@ export const updateRequestStatus = async (
     update.statusChangeReason = body.reason.trim();
     update.statusChangedAt = now;
   }
-  if (newStatus === "quote" && body.quoteId && ObjectId.isValid(body.quoteId)) {
-    update.quoteId = body.quoteId;
+  if (newStatus === "quote") {
+    if (body.quoteId && ObjectId.isValid(body.quoteId)) {
+      update.quoteId = body.quoteId;
+    }
+    if (body.quoteNumber !== undefined && body.quoteNumber.trim() !== "") {
+      update.quoteNumber = body.quoteNumber.trim();
+    }
+    if (body.quoteTotalPrice !== undefined) {
+      update.quoteTotalPrice = body.quoteTotalPrice;
+    }
+    if (body.quoteExpiryOn !== undefined && body.quoteExpiryOn.trim() !== "") {
+      const exp = new Date(body.quoteExpiryOn.trim());
+      if (!Number.isNaN(exp.valueOf())) {
+        update.quoteExpiryOn = exp.toISOString();
+      }
+    }
+    if (body.quoteStatus !== undefined && body.quoteStatus.trim() !== "") {
+      update.quoteStatus = body.quoteStatus.trim();
+    }
   }
 
   const client = getMongoClient();

@@ -9,6 +9,7 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 import { cn } from "../../lib/utils";
+import { trackProductEvent } from "../../telemetry/trackProductEvent";
 
 type Props = {
   workspaceId: string;
@@ -17,6 +18,8 @@ type Props = {
   className?: string;
   /** Incrementare dopo redirect OAuth da Integrazioni per ricaricare lo stato. */
   refreshKey?: number;
+  /** Superficie UI per `integr.marketing.oauth_click`. */
+  oauthTelemetrySurface?: "integrations" | "project_detail" | "bigdata";
 };
 
 export const MarketingBigDataConnectorsPanel = ({
@@ -24,6 +27,7 @@ export const MarketingBigDataConnectorsPanel = ({
   readOnly,
   className,
   refreshKey = 0,
+  oauthTelemetrySurface = "integrations",
 }: Props) => {
   const { toastError, toastSuccess } = useToast();
   const [loading, setLoading] = useState(true);
@@ -67,6 +71,12 @@ export const MarketingBigDataConnectorsPanel = ({
   const startGoogleOAuth = async () => {
     setConnecting("google");
     try {
+      trackProductEvent("integr.marketing.oauth_click", {
+        surface: oauthTelemetrySurface,
+        provider: "google",
+        workspace_id: workspaceId,
+        section: "integrations",
+      });
       const { url } = await followupApi.getMarketingGoogleOAuthUrl(workspaceId);
       window.location.href = url;
     } catch (e) {
@@ -80,6 +90,12 @@ export const MarketingBigDataConnectorsPanel = ({
   const startMetaOAuth = async () => {
     setConnecting("meta");
     try {
+      trackProductEvent("integr.marketing.oauth_click", {
+        surface: oauthTelemetrySurface,
+        provider: "meta",
+        workspace_id: workspaceId,
+        section: "integrations",
+      });
       const { url } = await followupApi.getMarketingMetaOAuthUrl(workspaceId);
       window.location.href = url;
     } catch (e) {

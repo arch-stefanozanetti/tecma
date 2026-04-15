@@ -39,6 +39,10 @@ interface ImportMetaEnv {
    * `https://github.com/org/repo/blob/main/path/followup-3.0` — per aprire i link .md dalla Panoramica strategica.
    */
   readonly VITE_FOLLOWUP_DOCS_BASE_URL?: string;
+  /** PostHog project API key (pubblico). Se assente, la telemetry prodotto è disattivata. */
+  readonly VITE_PUBLIC_POSTHOG_KEY?: string;
+  /** Host PostHog EU (default https://eu.i.posthog.com). */
+  readonly VITE_PUBLIC_POSTHOG_HOST?: string;
 }
 
 interface ImportMeta {

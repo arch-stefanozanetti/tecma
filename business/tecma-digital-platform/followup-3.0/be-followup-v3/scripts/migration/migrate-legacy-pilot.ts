@@ -4,6 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { MongoClient, ObjectId, type Document, type WithId } from "mongodb";
 
+import { extractLegacyQuoteTotalPrice } from "../../src/core/quotes/legacy-quote-total.js";
+
 type ProjectIdStrategy = "preserve_legacy_objectid_hex" | "map_to_new_id";
 
 type MappingProject = {
@@ -669,6 +671,8 @@ async function main(): Promise<void> {
       if (!projectId) continue;
       const legacyId = toHexId(q._id);
       const ts = nowIso();
+      const qRec = q as Record<string, unknown>;
+      const totalPrice = extractLegacyQuoteTotalPrice(qRec);
       if (!dryRun) {
         const result = await targetDb.collection("tz_quotes").findOneAndUpdate(
           {
@@ -687,6 +691,7 @@ async function main(): Promise<void> {
               customQuote: q.customQuote ?? null,
               legacyClientId: q.client ? toHexId(q.client) : null,
               legacyApartmentId: q.appartment ? toHexId(q.appartment) : null,
+              ...(totalPrice !== undefined ? { totalPrice } : {}),
               updatedAt: ts,
               migration: {
                 legacySourceDb: sourceAssetDbName,
