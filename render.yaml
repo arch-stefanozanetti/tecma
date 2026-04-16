@@ -3,7 +3,8 @@
 # Dopo deploy BE, imposta su FE: VITE_API_BASE_URL = URL del servizio BE (es. https://followup-3-be.onrender.com)
 #
 # Non sono definiti qui: il Web Service Docker manuale "tecma" (root + Dockerfile) — vedi docs/RENDER_DEPLOY.md §2b.
-# buildFilter: evita deploy BE/FE su ogni push (es. solo docs o Dockerfile root); allinea il Blueprint da Dashboard dopo modifica.
+# buildFilter: niente deploy se il push tocca solo file fuori da questi path (es. docs generiche).
+# Eccezione: RENDER_FOLLOWUP_ENV.md è in lista così gli aggiornamenti variabili FE/BE possono ridistribuire il sito.
 version: "1"
 services:
   - type: web
@@ -16,6 +17,7 @@ services:
       paths:
         - render.yaml
         - business/tecma-digital-platform/followup-3.0/be-followup-v3/**
+        - business/tecma-digital-platform/followup-3.0/docs/RENDER_FOLLOWUP_ENV.md
         - scripts/render-build-be.sh
     # Stesso script usato in CI: single source of truth (scripts/render-build-be.sh)
     buildCommand: bash ../../../../scripts/render-build-be.sh
@@ -49,6 +51,7 @@ services:
       paths:
         - render.yaml
         - business/tecma-digital-platform/followup-3.0/fe-followup-v3/**
+        - business/tecma-digital-platform/followup-3.0/docs/RENDER_FOLLOWUP_ENV.md
         - business/tecma-digital-platform/design-system/**
         - scripts/render-build-fe.sh
     # Stesso script usato in CI: single source of truth (scripts/render-build-fe.sh)

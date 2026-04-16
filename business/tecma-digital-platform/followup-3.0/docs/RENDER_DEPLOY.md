@@ -56,7 +56,7 @@ Nel repo **tecma**, alla root, è presente [`render.yaml`](../../../../render.ya
 | `followup-3-be` | Web (Node)  | `business/tecma-digital-platform/followup-3.0/be-followup-v3` |
 | `followup-3-fe` | Static site | `business/tecma-digital-platform/followup-3.0/fe-followup-v3` |
 
-**Build filter (monorepo):** in `render.yaml`, `buildFilter.paths` limita gli **auto-deploy** ai file che impattano davvero BE o FE (più gli script di build). Dopo una modifica a `render.yaml`, in Dashboard → **Blueprint** / servizio → **Manual Sync** se Render lo richiede, così i filtri si applicano ai servizi esistenti.
+**Build filter (monorepo):** in `render.yaml`, `buildFilter.paths` limita gli **auto-deploy** ai file che impattano davvero BE o FE (più gli script di build). **Un push che modifica solo altri file** (es. molti `.md` sotto `docs/` che non sono in lista) **non** avvia un nuovo deploy: usa **Manual Deploy** sul servizio in Dashboard, oppure includi un path coperto dal filtro (es. `render.yaml` o `RENDER_FOLLOWUP_ENV.md` è elencato per ridistribuire dopo aggiornamenti variabili documentati). Dopo una modifica a `render.yaml`, in Dashboard → **Blueprint** / servizio → **Manual Sync** se Render lo richiede, così i filtri si applicano ai servizi esistenti.
 
 **Chi deve fare il Blueprint (non automatizzabile dall’agent):**  
 Collegare il repo e il primo deploy richiedono **login su render.com**, **autorizzazione GitHub** e **inserimento dei segreti** (`MONGO_URI`, `AUTH_JWT_SECRET`, …). Nessun tool può farlo al posto tuo senza esporre quei segreti. Con **Render MCP** (API key già in Cursor) puoi invece, *dopo* che i servizi esistono, chiedere in chat di aggiornare env (es. `VITE_API_BASE_URL`) o leggere log — non sostituisce il wizard Blueprint iniziale.
