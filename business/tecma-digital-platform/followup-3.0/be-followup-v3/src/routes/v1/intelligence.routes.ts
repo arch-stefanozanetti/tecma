@@ -149,7 +149,7 @@ intelligenceRoutes.post(
 intelligenceRoutes.post(
   "/reports/share-definition",
   requirePermission(PERMISSIONS.REPORTS_READ),
-  requireWorkspaceEntitled("reports", workspaceIdFromBodyOrQuery),
+  requireCanAccessWorkspace(),
   handleAsync((req) => createReportDefinitionSnapshot(req.body))
 );
 

@@ -1,6 +1,6 @@
-# Fase 8 — Parità visiva vs fe-tecma-itd
+# Fase 8 — Parità visiva rispetto al design system ITD
 
-**Riferimento:** `tecma/business/tecma-digital-platform/tecma-fe-apps/fe-tecma-itd`.
+**Riferimento implementativo (app di confronto):** `tecma/business/tecma-digital-platform/tecma-fe-apps/fe-tecma-itd`.
 
 ## Metodo
 

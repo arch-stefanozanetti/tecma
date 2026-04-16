@@ -80,6 +80,7 @@ import {
   createWorkflowState,
   createWorkflowTransition,
   deleteWorkflow,
+  deleteWorkflowState,
   deleteWorkflowTransition,
   getStateByCode,
   getWorkflowForWorkspaceAndType,
@@ -247,5 +248,58 @@ describe("workflow-engine.service", () => {
     expect(mocks.transitionsCollection.deleteMany).toHaveBeenCalled();
     expect(mocks.statesCollection.deleteMany).toHaveBeenCalled();
     expect(mocks.workflowsCollection.deleteOne).toHaveBeenCalled();
+  });
+
+  it("deleteWorkflow throws 404 for invalid or missing workflow id", async () => {
+    await expect(deleteWorkflow("bad")).rejects.toThrow("Workflow non trovato");
+    mocks.workflowsFindOneMock.mockResolvedValueOnce(null);
+    await expect(deleteWorkflow(new ObjectId().toHexString())).rejects.toThrow("Workflow non trovato");
+  });
+
+  it("deleteWorkflow throws 409 when workflow is referenced by requests", async () => {
+    const workflowId = new ObjectId();
+    mocks.workflowsFindOneMock.mockResolvedValueOnce({
+      _id: workflowId,
+      workspaceId: "ws1",
+      name: "Flow",
+      type: "sell",
+      createdAt: "x",
+      updatedAt: "x",
+    });
+
+    // Override tz_requests to return a positive count
+    const originalCollection = vi.fn();
+    const { getDb } = await import("../../config/db.js");
+    const db = getDb();
+    const origCollection = db.collection.bind(db);
+    vi.spyOn(db, "collection").mockImplementation((name: string) => {
+      if (name === "tz_requests") return { countDocuments: () => Promise.resolve(3) } as ReturnType<typeof origCollection>;
+      return origCollection(name);
+    });
+
+    mocks.statesFindMock.mockReturnValueOnce({
+      toArray: () => Promise.resolve([]),
+    } as unknown as ReturnType<typeof mocks.statesFindMock>);
+
+    await expect(deleteWorkflow(workflowId.toHexString())).rejects.toThrow(
+      /referenziato da trattative/
+    );
+  });
+
+  it("deleteWorkflowState throws 409 when state has runtime references", async () => {
+    const stateId = new ObjectId();
+
+    // Override tz_requests to return a positive count for the state
+    const { getDb } = await import("../../config/db.js");
+    const db = getDb();
+    const origCollection = db.collection.bind(db);
+    vi.spyOn(db, "collection").mockImplementation((name: string) => {
+      if (name === "tz_requests") return { countDocuments: () => Promise.resolve(5) } as ReturnType<typeof origCollection>;
+      return origCollection(name);
+    });
+
+    await expect(deleteWorkflowState(stateId.toHexString())).rejects.toThrow(
+      /Impossibile eliminare lo stato/
+    );
   });
 });

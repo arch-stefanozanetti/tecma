@@ -1,6 +1,6 @@
 # Documentazione Followup 3.0
 
-Indice della documentazione di progetto. **Piano unico (checklist, fasi, backlog):** [PIANO_GLOBALE_FOLLOWUP_3.md](PIANO_GLOBALE_FOLLOWUP_3.md). Visione e wave: [FOLLOWUP_3_MASTER.md](FOLLOWUP_3_MASTER.md).
+Indice della documentazione di progetto. **Piano unico (checklist, fasi, backlog):** [PIANO_GLOBALE_FOLLOWUP_3.md](PIANO_GLOBALE_FOLLOWUP_3.md). Visione e wave: [FOLLOWUP_3_MASTER.md](FOLLOWUP_3_MASTER.md). Tracciabilità funzioni → backlog Jira (TECMA): [JIRA_TRACEABILITY_FOLLOWUP_3.md](JIRA_TRACEABILITY_FOLLOWUP_3.md).
 
 ---
 
@@ -16,6 +16,8 @@ Sezione **navigabile** (executive summary, perché rebuild, stadio operativo per
 |------|-----------|
 | **[PIANO_GLOBALE_FOLLOWUP_3.md](PIANO_GLOBALE_FOLLOWUP_3.md)** | **Unico piano operativo:** checklist, fasi 0–8, workspace/segregazione, Millennium, AI aggregata, entitlement, dati legacy, roadmap implementativa. |
 | **[FOLLOWUP_3_MASTER.md](FOLLOWUP_3_MASTER.md)** | North Star, principi, visione, cosa non fare, riferimento followup-nova, wave 1–7 in ordine vincolante, regole non negoziabili. |
+| **[JIRA_TRACEABILITY_FOLLOWUP_3.md](JIRA_TRACEABILITY_FOLLOWUP_3.md)** | Catalogo funzioni, matrice priorità (FASE + tag A/B/C), blueprint Epic/Story/Spike/Task per backlog TECMA (non sostituisce il piano globale). |
+| **[FOLLOWUP_3_FUNZIONALITA_COMPLETE_E_AI_JIRA.md](FOLLOWUP_3_FUNZIONALITA_COMPLETE_E_AI_JIRA.md)** | Pagina unica funzionalità complete (incl. Big Data, trattative, Customer 360, prezzi/disponibilità, integrazioni/automazioni, workspace) + flusso interfaccia AI per creare issue Jira e check Done/Closed. |
 
 ### Migrazione legacy → `tz_*` (deliverable)
 

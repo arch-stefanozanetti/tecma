@@ -310,12 +310,27 @@ export const ReportsPage = () => {
     if (!workspaceId) return;
     try {
       const res = await followupApi.shareReportDefinitionSnapshot({ workspaceId, reportDefinitionId });
-      const absolute = `${window.location.origin}/r/${res.data.token}`;
+      const token = res?.data?.token;
+      if (!token) {
+        setShareUrl("Errore: risposta API senza token.");
+        return;
+      }
+      const absolute = `${window.location.origin}/r/${token}`;
       setShareUrl(absolute);
-      await navigator.clipboard.writeText(absolute);
+      try {
+        await navigator.clipboard.writeText(absolute);
+      } catch {
+        /* clipboard non disponibile (es. permessi): l'URL resta mostrato sotto */
+      }
     } catch (error) {
       console.error(error);
-      setShareUrl("Errore nella creazione del link dal preferito");
+      const msg =
+        error instanceof HttpApiError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Errore sconosciuto";
+      setShareUrl(`Errore link pubblico: ${msg}`);
     }
   };
 

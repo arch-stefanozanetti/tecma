@@ -267,6 +267,10 @@ export interface ClientRow {
   additionalInfo?: Record<string, unknown>;
   nProposals?: number;
   nReserved?: number;
+  /** Ultimo stato verifica AML/KYC (normalizzato). */
+  amlStatus?: string;
+  /** Id ultimo check AML interno. */
+  amlCheckId?: string;
 }
 
 export interface ClientCreateInput {

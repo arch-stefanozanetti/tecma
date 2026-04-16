@@ -68,6 +68,12 @@ const SECTION_COMMANDS: CommandSectionItem[] = [
     label: "Entitlement workspace (Tecma)",
     hint: "Moduli commerciali sul workspace corrente",
   },
+  {
+    kind: "section",
+    id: "productBlueprint",
+    label: "Product Blueprint (Jira)",
+    hint: "Catalogo PRD e pubblicazione issue su Jira (Tecma)",
+  },
 ];
 
 const ENTITY_LIMIT = 5;
@@ -143,6 +149,7 @@ export const CommandPalette = ({
         if (!isAdmin) return false;
       }
       if (item.id === "tecmaEntitlements" && !isTecmaAdmin) return false;
+      if (item.id === "productBlueprint" && !isTecmaAdmin) return false;
       if (!isSectionEnabledByFeature(item.id, enabledFeatures)) return false;
       if (item.id === "priceAvailability" && projects.length > 0 && selectedProjectIds.length > 0) {
         if (!isPriceAvailabilityRelevant(projects, selectedProjectIds)) return false;

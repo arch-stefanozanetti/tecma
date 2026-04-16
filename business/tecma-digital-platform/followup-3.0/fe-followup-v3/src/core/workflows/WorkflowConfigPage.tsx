@@ -20,11 +20,14 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "../../components/ui/dialog";
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerBody,
+  DrawerFooter,
+  DrawerCloseButton,
+} from "../../components/ui/drawer";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../../components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { WorkflowCanvas } from "./WorkflowCanvas";
@@ -593,183 +596,195 @@ export const WorkflowConfigPage = () => {
         </SheetContent>
       </Sheet>
 
-      <Dialog open={addStateOpen} onOpenChange={setAddStateOpen}>
-        <DialogContent size="small" className="gap-4">
-          <DialogHeader>
-            <DialogTitle>Aggiungi stato</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-3">
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1">Code</label>
-              <Input value={newStateCode} onChange={(e) => setNewStateCode(e.target.value)} placeholder="es. in_lavorazione" className="w-full" />
-            </div>
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1">Label</label>
-              <Input value={newStateLabel} onChange={(e) => setNewStateLabel(e.target.value)} placeholder="In lavorazione" className="w-full" />
-            </div>
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1">Ordine</label>
-              <Input type="number" value={newStateOrder} onChange={(e) => setNewStateOrder(Number(e.target.value) || 0)} className="w-full" />
-            </div>
-            <div>
-              <label className="block text-xs text-muted-foreground mb-1">Lock appartamento</label>
-              <Select value={newStateLock} onValueChange={(v) => setNewStateLock(v as ApartmentLockType)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(["none", "soft", "hard"] as const).map((x) => (
-                    <SelectItem key={x} value={x}>{LOCK_LABEL[x]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={newStateTerminal} onChange={(e) => setNewStateTerminal(e.target.checked)} />
-              Terminale
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={newStateReversible} onChange={(e) => setNewStateReversible(e.target.checked)} />
-              Reversibile
-            </label>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm" className="min-h-11" onClick={() => setAddStateOpen(false)}>Annulla</Button>
-            <Button size="sm" className="min-h-11" onClick={handleAddState} disabled={addingState || !newStateCode.trim()}>
-              {addingState ? "..." : "Aggiungi"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={editStateOpen} onOpenChange={setEditStateOpen}>
-        <DialogContent size="small" className="gap-4">
-          <DialogHeader>
-            <DialogTitle>Modifica stato</DialogTitle>
-          </DialogHeader>
-          {editingState && (
+      <Drawer open={addStateOpen} onOpenChange={setAddStateOpen}>
+        <DrawerContent side="right" size="sm">
+          <DrawerHeader actions={<DrawerCloseButton />}>
+            <DrawerTitle>Aggiungi stato</DrawerTitle>
+          </DrawerHeader>
+          <DrawerBody>
             <div className="grid gap-3">
               <div>
                 <label className="block text-xs text-muted-foreground mb-1">Code</label>
-                <Input
-                  value={editStateCode}
-                  onChange={(e) => setEditStateCode(e.target.value)}
-                  placeholder="es. in_lavorazione"
-                  className="w-full"
-                />
+                <Input value={newStateCode} onChange={(e) => setNewStateCode(e.target.value)} placeholder="es. in_lavorazione" className="w-full" />
               </div>
               <div>
                 <label className="block text-xs text-muted-foreground mb-1">Label</label>
-                <Input value={editStateLabel} onChange={(e) => setEditStateLabel(e.target.value)} className="w-full" />
+                <Input value={newStateLabel} onChange={(e) => setNewStateLabel(e.target.value)} placeholder="In lavorazione" className="w-full" />
               </div>
               <div>
                 <label className="block text-xs text-muted-foreground mb-1">Ordine</label>
-                <Input
-                  type="number"
-                  value={editStateOrder}
-                  onChange={(e) => setEditStateOrder(Number(e.target.value) || 0)}
-                  className="w-full"
-                />
+                <Input type="number" value={newStateOrder} onChange={(e) => setNewStateOrder(Number(e.target.value) || 0)} className="w-full" />
               </div>
               <div>
                 <label className="block text-xs text-muted-foreground mb-1">Lock appartamento</label>
-                <Select value={editStateLock} onValueChange={(v) => setEditStateLock(v as ApartmentLockType)}>
+                <Select value={newStateLock} onValueChange={(v) => setNewStateLock(v as ApartmentLockType)}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {(["none", "soft", "hard"] as const).map((x) => (
-                      <SelectItem key={x} value={x}>
-                        {LOCK_LABEL[x]}
-                      </SelectItem>
+                      <SelectItem key={x} value={x}>{LOCK_LABEL[x]}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={editStateTerminal} onChange={(e) => setEditStateTerminal(e.target.checked)} />
+                <input type="checkbox" checked={newStateTerminal} onChange={(e) => setNewStateTerminal(e.target.checked)} />
                 Terminale
               </label>
               <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={editStateReversible}
-                  onChange={(e) => setEditStateReversible(e.target.checked)}
-                />
+                <input type="checkbox" checked={newStateReversible} onChange={(e) => setNewStateReversible(e.target.checked)} />
                 Reversibile
               </label>
             </div>
-          )}
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm" className="min-h-11" onClick={() => setEditStateOpen(false)}>
-              Annulla
-            </Button>
-            <Button
-              size="sm"
-              className="min-h-11"
-              onClick={handleSaveEditState}
-              disabled={savingEditState || !editStateCode.trim()}
-            >
-              {savingEditState ? "..." : "Salva"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={addTransOpen} onOpenChange={setAddTransOpen}>
-        <DialogContent size="small" className="gap-4">
-          <DialogHeader>
-            <DialogTitle>Aggiungi transizione</DialogTitle>
-          </DialogHeader>
-          {detail && (
-            <div className="grid gap-3">
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">Da stato</label>
-                <Select value={newTransFrom} onValueChange={setNewTransFrom}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Seleziona" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {detail.states.map((s) => (
-                      <SelectItem key={s._id} value={s._id}>{s.code}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="block text-xs text-muted-foreground mb-1">A stato</label>
-                <Select value={newTransTo} onValueChange={setNewTransTo}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Seleziona" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {detail.states.map((s) => (
-                      <SelectItem key={s._id} value={s._id}>{s.code}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          </DrawerBody>
+          <DrawerFooter>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" className="min-h-11" onClick={() => setAddStateOpen(false)}>Annulla</Button>
+              <Button size="sm" className="min-h-11" onClick={handleAddState} disabled={addingState || !newStateCode.trim()}>
+                {addingState ? "..." : "Aggiungi"}
+              </Button>
             </div>
-          )}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" size="sm" className="min-h-11" onClick={() => setAddTransOpen(false)}>Annulla</Button>
-            <Button
-              size="sm"
-              className="min-h-11"
-              onClick={handleAddTransition}
-              disabled={
-                addingTrans ||
-                !newTransFrom ||
-                !newTransTo ||
-                newTransFrom === newTransTo ||
-                (!!detail && detail.transitions.some((t) => t.fromStateId === newTransFrom && t.toStateId === newTransTo))
-              }
-            >
-              {addingTrans ? "..." : "Aggiungi"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+
+      <Drawer open={editStateOpen} onOpenChange={setEditStateOpen}>
+        <DrawerContent side="right" size="sm">
+          <DrawerHeader actions={<DrawerCloseButton />}>
+            <DrawerTitle>Modifica stato</DrawerTitle>
+          </DrawerHeader>
+          <DrawerBody>
+            {editingState && (
+              <div className="grid gap-3">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Code</label>
+                  <Input
+                    value={editStateCode}
+                    onChange={(e) => setEditStateCode(e.target.value)}
+                    placeholder="es. in_lavorazione"
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Label</label>
+                  <Input value={editStateLabel} onChange={(e) => setEditStateLabel(e.target.value)} className="w-full" />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Ordine</label>
+                  <Input
+                    type="number"
+                    value={editStateOrder}
+                    onChange={(e) => setEditStateOrder(Number(e.target.value) || 0)}
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Lock appartamento</label>
+                  <Select value={editStateLock} onValueChange={(v) => setEditStateLock(v as ApartmentLockType)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(["none", "soft", "hard"] as const).map((x) => (
+                        <SelectItem key={x} value={x}>
+                          {LOCK_LABEL[x]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={editStateTerminal} onChange={(e) => setEditStateTerminal(e.target.checked)} />
+                  Terminale
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={editStateReversible}
+                    onChange={(e) => setEditStateReversible(e.target.checked)}
+                  />
+                  Reversibile
+                </label>
+              </div>
+            )}
+          </DrawerBody>
+          <DrawerFooter>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" className="min-h-11" onClick={() => setEditStateOpen(false)}>
+                Annulla
+              </Button>
+              <Button
+                size="sm"
+                className="min-h-11"
+                onClick={handleSaveEditState}
+                disabled={savingEditState || !editStateCode.trim()}
+              >
+                {savingEditState ? "..." : "Salva"}
+              </Button>
+            </div>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+
+      <Drawer open={addTransOpen} onOpenChange={setAddTransOpen}>
+        <DrawerContent side="right" size="sm">
+          <DrawerHeader actions={<DrawerCloseButton />}>
+            <DrawerTitle>Aggiungi transizione</DrawerTitle>
+          </DrawerHeader>
+          <DrawerBody>
+            {detail && (
+              <div className="grid gap-3">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Da stato</label>
+                  <Select value={newTransFrom} onValueChange={setNewTransFrom}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Seleziona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {detail.states.map((s) => (
+                        <SelectItem key={s._id} value={s._id}>{s.code}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">A stato</label>
+                  <Select value={newTransTo} onValueChange={setNewTransTo}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Seleziona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {detail.states.map((s) => (
+                        <SelectItem key={s._id} value={s._id}>{s.code}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+          </DrawerBody>
+          <DrawerFooter>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" className="min-h-11" onClick={() => setAddTransOpen(false)}>Annulla</Button>
+              <Button
+                size="sm"
+                className="min-h-11"
+                onClick={handleAddTransition}
+                disabled={
+                  addingTrans ||
+                  !newTransFrom ||
+                  !newTransTo ||
+                  newTransFrom === newTransTo ||
+                  (!!detail && detail.transitions.some((t) => t.fromStateId === newTransFrom && t.toStateId === newTransTo))
+                }
+              >
+                {addingTrans ? "..." : "Aggiungi"}
+              </Button>
+            </div>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 };

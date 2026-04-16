@@ -7,6 +7,7 @@ import { ENV, isProductionLike } from "./config/env.js";
 import { connectDb } from "./config/db.js";
 import { ensureCoreIndexes } from "./config/ensureIndexes.js";
 import { v1Router } from "./routes/v1.js";
+import { sumsubWebhookRouter } from "./routes/sumsub-webhook.routes.js";
 import { customerPortalPublicRoutes, customerPortalRoutes } from "./routes/v1/customer-portal.routes.js";
 import { ensureDefaultRoleDefinitions } from "./core/rbac/roleDefinitions.service.js";
 import { ensureDefaultPrivacyPolicy } from "./core/gdpr/legal-documents.service.js";
@@ -74,6 +75,12 @@ const bootstrap = async () => {
       origin: buildCorsOriginChecker(),
       credentials: true
     })
+  );
+  /** Webhook Sumsub: body raw per verifica firma HMAC (prima di express.json). */
+  app.use(
+    "/v1/webhooks/sumsub/:workspaceId",
+    express.raw({ type: "application/json", limit: "2mb" }),
+    sumsubWebhookRouter
   );
   /** Limite elevato per payload con screenshot base64 (Experimental / Pascal AI render). */
   app.use(express.json({ limit: "12mb" }));

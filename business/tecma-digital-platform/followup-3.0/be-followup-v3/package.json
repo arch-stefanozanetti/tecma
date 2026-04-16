@@ -1,6 +1,6 @@
 {
   "name": "be-followup-v3",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -38,6 +38,7 @@
     "migrate:role-definitions:reconcile": "tsx src/utils/reconcileRoleDefinitionsWithBuiltin.ts",
     "check:no-legacy-runtime": "bash scripts/check-no-legacy-runtime.sh",
     "check:route-guards": "node scripts/check-route-guards.mjs",
+    "docs:capability-index": "tsx scripts/generate-capability-index.ts",
     "script:tecma-admin-testzanetti": "MONGO_DB_NAME=test-zanetti tsx scripts/set-tecma-admin-by-domain.ts",
     "test:mutation:critical": "stryker run stryker.critical.conf.json"
   },

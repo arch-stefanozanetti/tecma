@@ -37,6 +37,7 @@ import { SharedReportPage } from "./core/reports/SharedReportPage";
 import { ReleasesPage } from "./core/releases/ReleasesPage";
 import { IntegrationsPage } from "./core/integrations/IntegrationsPage";
 import { TecmaEntitlementsPage } from "./core/integrations/TecmaEntitlementsPage";
+import { ProductBlueprintPage } from "./core/tecma/ProductBlueprintPage";
 import { CustomerPortalPage } from "./core/customer-portal/CustomerPortalPage";
 import { ProjectsPage } from "./core/projects/ProjectsPage";
 import { InboxPage } from "./core/shared/InboxPage";
@@ -285,6 +286,24 @@ const renderSection = (
     return (
       <PageSimple title="Entitlement workspace" description="Attiva o sospendi moduli commerciali e UI per ogni workspace (audit sul backend).">
         <TecmaEntitlementsPage workspaceId={workspaceId} isTecmaAdmin />
+      </PageSimple>
+    );
+  }
+
+  if (section === "productBlueprint") {
+    if (!isTecmaAdmin) {
+      return (
+        <PageSimple title="Accesso negato" description="Solo amministratori Tecma possono aprire Product Blueprint e pubblicare su Jira.">
+          <p className="text-sm text-muted-foreground">Verifica il ruolo sull’account o contatta Tecma.</p>
+        </PageSimple>
+      );
+    }
+    return (
+      <PageSimple
+        title="Product Blueprint (Jira)"
+        description="Catalogo funzionalità Followup 3.0: seleziona le righe, anteprima testi PRD, pubblica Story e sub-task su Jira, sincronizza lo stato."
+      >
+        <ProductBlueprintPage />
       </PageSimple>
     );
   }
@@ -569,13 +588,17 @@ export const App = () => {
       .catch(() => setWorkspaceFeatures(undefined));
   }, [projectScope?.workspaceId, accessVersion]);
 
-  // Sezione effettiva: sulle route dettaglio evidenziamo Clienti/Appartamenti in navbar
+  // Sezione effettiva: pathname esatto da PATH_TO_SECTION (sync con useEffect); su "/" solo `section` per ?section=
   const effectiveSection: Section =
-    pathname.startsWith("/clients") ? "clients"
-    : pathname.startsWith("/apartments") ? "apartments"
-    : pathname.startsWith("/experimental") ? "experimental"
-    : pathname.startsWith("/coima") ? "coima"
-    : section;
+    pathname === "/" || pathname === ""
+      ? section
+      : PATH_TO_SECTION[pathname] ??
+        (pathname.startsWith("/clients") ? "clients"
+        : pathname.startsWith("/apartments") ? "apartments"
+        : pathname.startsWith("/projects") ? "projects"
+        : pathname.startsWith("/experimental") ? "experimental"
+        : pathname.startsWith("/coima") ? "coima"
+        : section);
 
   useEffect(() => {
     if (pathname.startsWith("/clients")) {
@@ -788,7 +811,7 @@ export const App = () => {
           ? filteredSelected
           : (projectScope.selectedProjectIds ?? []);
       const sectionContent = renderSection(
-        section,
+        effectiveSection,
         projectScope.workspaceId ?? "",
         effectiveProjectIds,
         onSectionChange,
@@ -879,7 +902,7 @@ export const App = () => {
               path="/*"
               element={
                 <PageTemplate {...templateProps}>
-                  <div key={section} className="contents">
+                  <div key={effectiveSection} className="contents">
                     {sectionContent}
                   </div>
                 </PageTemplate>

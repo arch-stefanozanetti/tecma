@@ -10,10 +10,24 @@ import {
   siWebflow,
   siLooker,
   siSlack,
+  siTypeform,
+  siCalendly,
+  siSendgrid,
+  siStripe,
+  siPaypal,
+  siZendesk,
+  siSnowflake,
+  siGooglebigquery,
+  siMetabase,
+  siGrafana,
+  siDatabricks,
+  siGoogleanalytics,
+  siGooglesheets,
+  siApacheairflow,
+  siDbt,
 } from "simple-icons";
 import { Plug } from "lucide-react";
 import { cn } from "../../lib/utils";
-import type { ConnectorBrandId } from "./integrationsCatalog";
 
 type LogoProps = { className?: string };
 
@@ -51,6 +65,11 @@ function OutlookLogo({ className }: LogoProps) {
   );
 }
 
+/** Fallback marchio non mappato (Google Ads, Zapier, HubSpot, portali…). */
+function PlugBrandLogo({ className }: LogoProps) {
+  return <Plug className={cn("h-8 w-8 shrink-0 text-muted-foreground", className)} aria-hidden />;
+}
+
 /** DocuSign non è in Simple Icons; tratto stilizzato per la card (il titolo fornisce il nome). */
 function DocuSignLogo({ className }: LogoProps) {
   return (
@@ -68,7 +87,8 @@ function DocuSignLogo({ className }: LogoProps) {
   );
 }
 
-const BRAND_MAP: Record<ConnectorBrandId, FC<LogoProps>> = {
+/** Marchi con logo dedicato; qualsiasi altra chiave `brandId` usa il fallback Plug. */
+const BRAND_MAP: Record<string, FC<LogoProps>> = {
   gmail: (p) => <SimpleIconLogo icon={siGmail} {...p} />,
   outlook: OutlookLogo,
   twilio: (p) => <SimpleIconLogo icon={siTwilio} {...p} />,
@@ -80,21 +100,48 @@ const BRAND_MAP: Record<ConnectorBrandId, FC<LogoProps>> = {
   looker_studio: (p) => <SimpleIconLogo icon={siLooker} {...p} />,
   docusign: DocuSignLogo,
   slack: (p) => <SimpleIconLogo icon={siSlack} {...p} />,
+  google_ads: PlugBrandLogo,
+  zapier: PlugBrandLogo,
+  hubspot: PlugBrandLogo,
+  portali_immobiliari: PlugBrandLogo,
+  teams: PlugBrandLogo,
+  pipedrive: PlugBrandLogo,
+  typeform: (p) => <SimpleIconLogo icon={siTypeform} {...p} />,
+  calendly: (p) => <SimpleIconLogo icon={siCalendly} {...p} />,
+  sendgrid: (p) => <SimpleIconLogo icon={siSendgrid} {...p} />,
+  stripe: (p) => <SimpleIconLogo icon={siStripe} {...p} />,
+  paypal: (p) => <SimpleIconLogo icon={siPaypal} {...p} />,
+  zendesk: (p) => <SimpleIconLogo icon={siZendesk} {...p} />,
+  linkedin: PlugBrandLogo,
+  power_bi: PlugBrandLogo,
+  tableau: PlugBrandLogo,
+  snowflake: (p) => <SimpleIconLogo icon={siSnowflake} {...p} />,
+  bigquery: (p) => <SimpleIconLogo icon={siGooglebigquery} {...p} />,
+  metabase: (p) => <SimpleIconLogo icon={siMetabase} {...p} />,
+  grafana: (p) => <SimpleIconLogo icon={siGrafana} {...p} />,
+  databricks: (p) => <SimpleIconLogo icon={siDatabricks} {...p} />,
+  google_analytics: (p) => <SimpleIconLogo icon={siGoogleanalytics} {...p} />,
+  google_sheets_export: (p) => <SimpleIconLogo icon={siGooglesheets} {...p} />,
+  airflow: (p) => <SimpleIconLogo icon={siApacheairflow} {...p} />,
+  dbt: (p) => <SimpleIconLogo icon={siDbt} {...p} />,
+  teamsystem: PlugBrandLogo,
+  adobe_sign: PlugBrandLogo,
+  dropbox_sign: PlugBrandLogo,
+  pandadoc: PlugBrandLogo,
+  yousign: PlugBrandLogo,
+  flywire: PlugBrandLogo,
 };
 
 export function ConnectorBrandLogo({
   brandId,
   className,
 }: {
-  brandId?: ConnectorBrandId;
+  brandId?: string;
   className?: string;
 }) {
   if (!brandId) {
     return <Plug className={cn("h-8 w-8 shrink-0 text-muted-foreground", className)} aria-hidden />;
   }
-  const Cmp = BRAND_MAP[brandId];
-  if (!Cmp) {
-    return <Plug className={cn("h-8 w-8 shrink-0 text-muted-foreground", className)} aria-hidden />;
-  }
+  const Cmp = BRAND_MAP[brandId] ?? PlugBrandLogo;
   return <Cmp className={className} />;
 }

@@ -42,12 +42,19 @@ import {
   LOOKER_CONNECTOR_STORAGE_KEY,
   STATUS_CONFIG,
   ALL_GROUPS,
+  CONNECTOR_CLUSTER_ORDER,
+  CONNECTOR_CLUSTER_LABELS,
+  CONNECTOR_CLUSTER_SECTION_INTRO,
+  getConnectorCluster,
   CONNECTOR_EVENT_LABELS,
   type ConnectorCatalogItem,
+  type ConnectorCluster,
   type ConnectorGroup,
   type ConnectorRelatedTab,
   type N8nConfigSnapshot,
+  type SumsubConfigSnapshot,
 } from "./integrationsCatalog";
+import { resolveApiBaseUrl } from "../../api/http";
 import { ConnectorBrandLogo } from "./ConnectorBrandLogo";
 import { Alert } from "../../components/ui/alert";
 
@@ -242,6 +249,8 @@ export function ConnettoriTab({
   reloadMailchimpStatus,
   reloadActiveCampaignStatus,
   workspaceEntitlements,
+  sumsubConfig = null,
+  loadSumsubConfig,
 }: {
   connectors: ConnectorCatalogItem[];
   setConnectors: React.Dispatch<React.SetStateAction<ConnectorCatalogItem[]>>;
@@ -271,6 +280,8 @@ export function ConnettoriTab({
   reloadActiveCampaignStatus?: () => void;
   /** Per vetrina: stato commerciale per connettori mappati (Twilio, Mailchimp, Looker…). */
   workspaceEntitlements?: WorkspaceEntitlementEffectiveRow[];
+  sumsubConfig?: SumsubConfigSnapshot;
+  loadSumsubConfig?: () => void;
 }) {
   const { toastError, toastSuccess } = useToast();
   const ro = readOnly;
@@ -278,6 +289,7 @@ export function ConnettoriTab({
   const mailchimpSaveOk = integrationsEntitled && mailchimpEntitled;
   const activeCampaignSaveOk = integrationsEntitled && activecampaignEntitled;
   const [search, setSearch] = useState("");
+  const [clusterFilter, setClusterFilter] = useState<"all" | ConnectorCluster>("all");
   const [groupFilter, setGroupFilter] = useState<"all" | ConnectorGroup>("all");
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [setupConnectorId, setSetupConnectorId] = useState<string | null>(null);
@@ -289,8 +301,14 @@ export function ConnettoriTab({
     | "connector_meta_whatsapp"
     | "connector_mailchimp"
     | "connector_activecampaign"
+    | "connector_sumsub"
     | null
   >(null);
+  const [sumsubAppToken, setSumsubAppToken] = useState("");
+  const [sumsubSecretKey, setSumsubSecretKey] = useState("");
+  const [sumsubLevelName, setSumsubLevelName] = useState("");
+  const [sumsubWebhookSecret, setSumsubWebhookSecret] = useState("");
+  const [sumsubSaving, setSumsubSaving] = useState(false);
   const [connectorFormUrl, setConnectorFormUrl] = useState("");
   const [connectorFormSecret, setConnectorFormSecret] = useState("");
   const [connectorFormEvents, setConnectorFormEvents] = useState<AutomationEventType[]>(["request.created", "request.status_changed"]);
@@ -446,13 +464,15 @@ export function ConnettoriTab({
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return connectors.filter((c) => {
+      if (clusterFilter !== "all" && getConnectorCluster(c) !== clusterFilter) return false;
       if (groupFilter !== "all" && c.group !== groupFilter) return false;
       if (!q) return true;
-      return `${c.name} ${c.group} ${c.description} ${c.capabilities.join(" ")}`
+      const clusterLabel = CONNECTOR_CLUSTER_LABELS[getConnectorCluster(c)];
+      return `${c.name} ${c.group} ${clusterLabel} ${c.description} ${c.capabilities.join(" ")}`
         .toLowerCase()
         .includes(q);
     });
-  }, [connectors, search, groupFilter]);
+  }, [connectors, search, groupFilter, clusterFilter]);
 
   const { whatsappFiltered, otherFiltered } = useMemo(() => {
     const wa: ConnectorCatalogItem[] = [];
@@ -467,6 +487,21 @@ export function ConnettoriTab({
     return { whatsappFiltered: wa, otherFiltered: other };
   }, [filtered]);
 
+  /** «Altri connettori» raggruppati per macro-area (cluster). */
+  const otherByCluster = useMemo(() => {
+    const buckets: Record<ConnectorCluster, ConnectorCatalogItem[]> = {} as Record<
+      ConnectorCluster,
+      ConnectorCatalogItem[]
+    >;
+    for (const cl of CONNECTOR_CLUSTER_ORDER) {
+      buckets[cl] = [];
+    }
+    for (const c of otherFiltered) {
+      buckets[getConnectorCluster(c)].push(c);
+    }
+    return buckets;
+  }, [otherFiltered]);
+
   const openConnectorConfig = (
     id:
       | "connector_n8n"
@@ -476,7 +511,16 @@ export function ConnettoriTab({
       | "connector_meta_whatsapp"
       | "connector_mailchimp"
       | "connector_activecampaign"
+      | "connector_sumsub"
   ) => {
+    if (id === "connector_sumsub") {
+      setSumsubAppToken("");
+      setSumsubSecretKey("");
+      setSumsubLevelName(sumsubConfig?.levelName ?? "");
+      setSumsubWebhookSecret("");
+      setConnectorConfigDrawer("connector_sumsub");
+      return;
+    }
     if (id === "connector_twilio") {
       openTwilioDrawer();
       return;
@@ -523,10 +567,30 @@ export function ConnettoriTab({
       id === "connector_twilio" ||
       id === "connector_meta_whatsapp" ||
       id === "connector_mailchimp" ||
-      id === "connector_activecampaign"
+      id === "connector_activecampaign" ||
+      id === "connector_sumsub"
     ) {
       const conn = connectors.find((c) => c.id === id);
       if (conn?.status === "configured") {
+        if (id === "connector_sumsub") {
+          setTogglingId(id);
+          if (!workspaceId) {
+            setTogglingId(null);
+            return;
+          }
+          followupApi
+            .deleteSumsubConnectorConfig(workspaceId)
+            .then(() => {
+              setConnectors((prev) => prev.map((c) => (c.id === id ? { ...c, status: "available" } : c)));
+              loadSumsubConfig?.();
+              toastSuccess("Configurazione Sumsub rimossa.");
+            })
+            .catch((err) => {
+              toastError(err?.message ?? "Errore rimozione Sumsub");
+            })
+            .finally(() => setTogglingId(null));
+          return;
+        }
         if (id === "connector_mailchimp") {
           setTogglingId(id);
           if (!workspaceId) {
@@ -651,6 +715,7 @@ export function ConnettoriTab({
             | "connector_meta_whatsapp"
             | "connector_mailchimp"
             | "connector_activecampaign"
+            | "connector_sumsub"
         );
       }
       return;
@@ -776,6 +841,39 @@ export function ConnettoriTab({
         toastError(err?.message ?? "Errore salvataggio config n8n");
       })
       .finally(() => setConnectorSaving(false));
+  };
+
+  const saveSumsubConnector = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_sumsub") return;
+    if (!integrationsEntitled) {
+      toastError("Integrazioni non abilitate su questo workspace.");
+      return;
+    }
+    const appToken = sumsubAppToken.trim();
+    const secretKey = sumsubSecretKey.trim();
+    const levelName = sumsubLevelName.trim();
+    const webhookSecret = sumsubWebhookSecret.trim();
+    if (!levelName) {
+      toastError("Inserisci il Level name (come in Sumsub).");
+      return;
+    }
+    if (!appToken || !secretKey || !webhookSecret) {
+      toastError("Servono App token, Secret key e Webhook secret (in chiaro al primo salvataggio).");
+      return;
+    }
+    setSumsubSaving(true);
+    followupApi
+      .saveSumsubConnectorConfig(workspaceId, { appToken, secretKey, levelName, webhookSecret })
+      .then(() => {
+        loadSumsubConfig?.();
+        setConnectors((prev) => prev.map((c) => (c.id === "connector_sumsub" ? { ...c, status: "configured" } : c)));
+        setConnectorConfigDrawer(null);
+        toastSuccess("Sumsub salvato. Configura lo stesso URL webhook in Sumsub.");
+      })
+      .catch((err) => {
+        toastError(err?.message ?? "Errore salvataggio Sumsub");
+      })
+      .finally(() => setSumsubSaving(false));
   };
 
   const connectOutlook = () => {
@@ -1081,17 +1179,30 @@ export function ConnettoriTab({
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="h-10 rounded-lg border-border pl-10 text-sm"
-            placeholder="Cerca connettore..."
+            placeholder="Cerca connettore, cluster o categoria…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        <Select value={clusterFilter} onValueChange={(v) => setClusterFilter(v as "all" | ConnectorCluster)}>
+          <SelectTrigger className="h-10 w-[min(100%,220px)] min-w-[180px] rounded-lg border-border text-sm">
+            <SelectValue placeholder="Tutti i cluster" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutti i cluster</SelectItem>
+            {CONNECTOR_CLUSTER_ORDER.map((cl) => (
+              <SelectItem key={cl} value={cl}>
+                {CONNECTOR_CLUSTER_LABELS[cl]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={groupFilter} onValueChange={(v) => setGroupFilter(v as "all" | ConnectorGroup)}>
-          <SelectTrigger className="h-10 w-[200px] rounded-lg border-border text-sm">
+          <SelectTrigger className="h-10 w-[min(100%,220px)] min-w-[180px] rounded-lg border-border text-sm">
             <SelectValue placeholder="Tutti i gruppi" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tutti i gruppi</SelectItem>
+            <SelectItem value="all">Tutte le categorie</SelectItem>
             {ALL_GROUPS.map((g) => (
               <SelectItem key={g} value={g}>
                 {g}
@@ -1101,6 +1212,9 @@ export function ConnettoriTab({
         </Select>
         <span className="text-sm text-muted-foreground">{filtered.length} connettori</span>
       </div>
+      <p className="mt-3 max-w-3xl text-xs text-muted-foreground leading-relaxed">
+        Il catalogo unisce integrazioni configurabili e voci di roadmap: il badge di stato sulla card indica la disponibilità effettiva (molte voci «In arrivo» non hanno ancora un wizard nel portale).
+      </p>
 
       {whatsappFiltered.length > 0 && (
         <>
@@ -1140,24 +1254,50 @@ export function ConnettoriTab({
 
       {otherFiltered.length > 0 && (
         <div className={whatsappFiltered.length > 0 ? "mt-10" : "mt-6"}>
-          {whatsappFiltered.length > 0 && (
-            <h2 className="mb-3 text-base font-semibold text-foreground">Altri connettori</h2>
-          )}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {otherFiltered.map((connector) => (
-              <ConnectorCatalogCard
-                key={connector.id}
-                connector={connector}
-                togglingId={togglingId}
-                setTogglingId={setTogglingId}
-                setupConnectorId={setupConnectorId}
-                setSetupConnectorId={setSetupConnectorId}
-                onOpenTab={onOpenTab}
-                toggleConnector={toggleConnector}
-                readOnly={ro}
-                entitlementFootnote={connectorEntitlementFootnote(workspaceEntitlements, connector.id)}
-              />
-            ))}
+          <div className="mb-6">
+            <h2 className="text-base font-semibold text-foreground">
+              {whatsappFiltered.length > 0 ? "Altri connettori" : "Catalogo connettori"}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Raggruppati per area di prodotto (cluster). Filtra per cluster o per categoria tecnica dalla barra sopra.
+            </p>
+          </div>
+          <div className="space-y-10">
+            {CONNECTOR_CLUSTER_ORDER.map((clusterId) => {
+              const items = otherByCluster[clusterId];
+              if (!items?.length) return null;
+              return (
+                <section key={clusterId} aria-labelledby={`cluster-heading-${clusterId}`}>
+                  <h3
+                    id={`cluster-heading-${clusterId}`}
+                    className="mb-3 border-b border-border pb-2 text-sm font-semibold tracking-tight text-foreground"
+                  >
+                    {CONNECTOR_CLUSTER_LABELS[clusterId]}
+                  </h3>
+                  {CONNECTOR_CLUSTER_SECTION_INTRO[clusterId] && (
+                    <p className="mb-4 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+                      {CONNECTOR_CLUSTER_SECTION_INTRO[clusterId]}
+                    </p>
+                  )}
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {items.map((connector) => (
+                      <ConnectorCatalogCard
+                        key={connector.id}
+                        connector={connector}
+                        togglingId={togglingId}
+                        setTogglingId={setTogglingId}
+                        setupConnectorId={setupConnectorId}
+                        setSetupConnectorId={setSetupConnectorId}
+                        onOpenTab={onOpenTab}
+                        toggleConnector={toggleConnector}
+                        readOnly={ro}
+                        entitlementFootnote={connectorEntitlementFootnote(workspaceEntitlements, connector.id)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
           </div>
         </div>
       )}
@@ -1180,6 +1320,7 @@ export function ConnettoriTab({
               {connectorConfigDrawer === "connector_meta_whatsapp" && "Collega WhatsApp (Meta Cloud API)"}
               {connectorConfigDrawer === "connector_mailchimp" && "Mailchimp — API key"}
               {connectorConfigDrawer === "connector_activecampaign" && "ActiveCampaign — credenziali API"}
+              {connectorConfigDrawer === "connector_sumsub" && "Sumsub — AML / KYC"}
             </DrawerTitle>
           </DrawerHeader>
           <DrawerBody className="space-y-4">
@@ -1236,6 +1377,77 @@ export function ConnettoriTab({
                   />
                 </div>
                 {n8nTestError && <p className="text-sm text-destructive">{n8nTestError}</p>}
+              </>
+            )}
+            {connectorConfigDrawer === "connector_sumsub" && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Credenziali dall&apos;app Sumsub (Development / Production). Il webhook deve puntare al backend FollowUp con il path sotto (sostituisci il base URL con quello del tuo ambiente API).
+                </p>
+                <p className="rounded-md border border-border bg-muted/40 px-2 py-1.5 font-mono text-xs break-all">
+                  {`${resolveApiBaseUrl().replace(/\/$/, "")}/v1/webhooks/sumsub/${workspaceId || "<workspaceId>"}`}
+                </p>
+                <div>
+                  <label htmlFor="sumsub-level" className="text-sm font-medium text-foreground">
+                    Level name
+                  </label>
+                  <Input
+                    id="sumsub-level"
+                    value={sumsubLevelName}
+                    onChange={(e) => setSumsubLevelName(e.target.value)}
+                    placeholder="es. id-and-liveness"
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="sumsub-app-token" className="text-sm font-medium text-foreground">
+                    App token
+                  </label>
+                  <Input
+                    id="sumsub-app-token"
+                    type="password"
+                    value={sumsubAppToken}
+                    onChange={(e) => setSumsubAppToken(e.target.value)}
+                    placeholder={sumsubConfig?.appTokenMasked ? `Configurato (${sumsubConfig.appTokenMasked}); incolla nuovo per aggiornare` : "Da Sumsub → App credentials"}
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="sumsub-secret" className="text-sm font-medium text-foreground">
+                    Secret key (firma API)
+                  </label>
+                  <Input
+                    id="sumsub-secret"
+                    type="password"
+                    value={sumsubSecretKey}
+                    onChange={(e) => setSumsubSecretKey(e.target.value)}
+                    placeholder={sumsubConfig?.secretKeyMasked ? `Configurato (${sumsubConfig.secretKeyMasked})` : "Secret key"}
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="sumsub-wh" className="text-sm font-medium text-foreground">
+                    Webhook secret
+                  </label>
+                  <Input
+                    id="sumsub-wh"
+                    type="password"
+                    value={sumsubWebhookSecret}
+                    onChange={(e) => setSumsubWebhookSecret(e.target.value)}
+                    placeholder={sumsubConfig?.webhookSecretMasked ? `Configurato (${sumsubConfig.webhookSecretMasked})` : "Stesso valore configurato in Sumsub per il webhook"}
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+                {!integrationsEntitled && (
+                  <Alert variant="warning" title="Integrazioni non attive" className="text-sm">
+                    Il salvataggio richiede il modulo Integrazioni abilitato da Tecma.
+                    {commercialContactInlineNode()}
+                  </Alert>
+                )}
               </>
             )}
             {connectorConfigDrawer === "connector_outlook" && (
@@ -1638,6 +1850,17 @@ export function ConnettoriTab({
                   Rimuovi config
                 </Button>
               )}
+            </DrawerFooter>
+          )}
+          {connectorConfigDrawer === "connector_sumsub" && (
+            <DrawerFooter className="flex flex-wrap gap-2">
+              <Button
+                className="min-h-11"
+                onClick={saveSumsubConnector}
+                disabled={sumsubSaving || ro || !integrationsEntitled}
+              >
+                {sumsubSaving ? "Salvataggio…" : "Salva"}
+              </Button>
             </DrawerFooter>
           )}
         </DrawerContent>

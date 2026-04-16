@@ -34,6 +34,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.16.0",
+    date: "2026-04-16",
+    title: "AML/KYC: integrazione Sumsub e catalogo connettori compliance",
+    releaseType: "minor",
+    changes: [
+      {
+        type: "feature",
+        text: "Backend: layer AML astratto (`AmlProvider`), adapter Sumsub (applicant + token SDK + webhook firmato), collezione `tz_aml_checks`, campi `amlStatus`/`amlCheckId` su cliente, API configurazione connettore e avvio verifica.",
+      },
+      {
+        type: "feature",
+        text: "Integrazioni: card Sumsub (config drawer + URL webhook) e connettori Compliance in roadmap (Onfido, ComplyAdvantage, Trulioo, Veriff).",
+      },
+      {
+        type: "improvement",
+        text: "ConnectorBrandLogo: aggiunti fallback per marchi già in catalogo ma senza logo dedicato (Google Ads, Zapier, HubSpot, portali).",
+      },
+    ],
+  },
+  {
     version: "0.15.0",
     date: "2026-03-26",
     title: "Workflow: modale UI, CRUD stati/transizioni, override per progetto",

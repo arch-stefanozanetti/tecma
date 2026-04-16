@@ -12,6 +12,7 @@ import {
   type TabKey,
   type ConnectorCatalogItem,
   type N8nConfigSnapshot,
+  type SumsubConfigSnapshot,
 } from "./integrationsCatalog";
 import { ConnettoriTab } from "./ConnettoriTab";
 import { ComunicazioniTab } from "./ComunicazioniTab";
@@ -45,6 +46,7 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
   const [metaWhatsAppConfigured, setMetaWhatsAppConfigured] = useState(false);
   const [mailchimpConfigured, setMailchimpConfigured] = useState(false);
   const [activeCampaignConfigured, setActiveCampaignConfigured] = useState(false);
+  const [sumsubConfig, setSumsubConfig] = useState<SumsubConfigSnapshot>(null);
   const [autoOpenTwilio, setAutoOpenTwilio] = useState(false);
   const [autoOpenMetaWhatsapp, setAutoOpenMetaWhatsapp] = useState(false);
   const [workspaceEntitlements, setWorkspaceEntitlements] = useState<
@@ -131,6 +133,28 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
       .catch(() => setActiveCampaignConfigured(false));
   }, [workspaceId]);
 
+  const loadSumsubConfig = useCallback(() => {
+    if (!workspaceId) return;
+    followupApi
+      .getSumsubConnectorConfig(workspaceId)
+      .then((r) => {
+        const row = r.config;
+        if (!row?.config) {
+          setSumsubConfig(null);
+          return;
+        }
+        const c = row.config;
+        setSumsubConfig({
+          levelName: c.levelName,
+          appTokenMasked: c.appTokenMasked,
+          secretKeyMasked: c.secretKeyMasked,
+          webhookSecretMasked: c.webhookSecretMasked,
+          webhookPathTemplate: r.webhookPathTemplate,
+        });
+      })
+      .catch(() => setSumsubConfig(null));
+  }, [workspaceId]);
+
   useEffect(() => {
     loadN8nConfig();
   }, [loadN8nConfig]);
@@ -154,6 +178,10 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
   useEffect(() => {
     loadActiveCampaignStatus();
   }, [loadActiveCampaignStatus]);
+
+  useEffect(() => {
+    loadSumsubConfig();
+  }, [loadSumsubConfig]);
 
   useEffect(() => {
     if (searchParams.get("outlook") === "connected") {
@@ -277,6 +305,10 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
         if (c.id === "connector_activecampaign") {
           return { ...c, status: activeCampaignConfigured ? "configured" : "beta" };
         }
+        if (c.id === "connector_sumsub") {
+          const ok = !!sumsubConfig?.levelName && !!sumsubConfig?.appTokenMasked;
+          return { ...c, status: ok ? "configured" : "available" };
+        }
         return c;
       })
     );
@@ -289,6 +321,7 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
     metaWhatsAppConfigured,
     mailchimpConfigured,
     activeCampaignConfigured,
+    sumsubConfig,
   ]);
 
   const setTab = (value: TabKey) => {
@@ -410,6 +443,8 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
               reloadMailchimpStatus={loadMailchimpStatus}
               reloadActiveCampaignStatus={loadActiveCampaignStatus}
               workspaceEntitlements={workspaceEntitlements}
+              sumsubConfig={sumsubConfig}
+              loadSumsubConfig={loadSumsubConfig}
             />
             <MarketingBigDataConnectorsPanel
               workspaceId={workspaceId}

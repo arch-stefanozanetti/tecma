@@ -95,6 +95,10 @@ export interface ClientRow {
   nReserved?: number;
   /** Attribuzione marketing (gclid/fbclid/UTM) per Big Data / offline conversion. */
   marketingAttribution?: MarketingAttributionDoc;
+  /** Ultimo stato verifica AML/KYC (normalizzato). */
+  amlStatus?: string;
+  /** Id ultimo check AML interno (tz_aml_checks). */
+  amlCheckId?: string;
 }
 
 const buildMatch = (q: ListQueryInput) => {
@@ -183,6 +187,8 @@ const queryPrimaryClients = async (
     updatedAt: 1,
     createdAt: 1,
     marketingAttribution: 1,
+    amlStatus: 1,
+    amlCheckId: 1,
   };
 
   if (shouldApplyEntityAssignmentListFilter(viewer)) {
@@ -249,6 +255,8 @@ const queryPrimaryClients = async (
         ...(isMarketingAttributionDoc(rec.marketingAttribution)
           ? { marketingAttribution: rec.marketingAttribution }
           : {}),
+        ...(typeof rec.amlStatus === "string" ? { amlStatus: rec.amlStatus } : {}),
+        ...(typeof rec.amlCheckId === "string" ? { amlCheckId: rec.amlCheckId } : {}),
       };
     });
 
@@ -295,6 +303,8 @@ const queryPrimaryClients = async (
       ...(isMarketingAttributionDoc((item as Record<string, unknown>).marketingAttribution)
         ? { marketingAttribution: (item as Record<string, unknown>).marketingAttribution as MarketingAttributionDoc }
         : {}),
+      ...(typeof rec.amlStatus === "string" ? { amlStatus: rec.amlStatus } : {}),
+      ...(typeof rec.amlCheckId === "string" ? { amlCheckId: rec.amlCheckId } : {}),
     };
   });
 
@@ -339,6 +349,8 @@ const mapDocToClientRow = (item: Record<string, unknown>): ClientRow => {
   if (isMarketingAttributionDoc(item.marketingAttribution)) {
     row.marketingAttribution = item.marketingAttribution;
   }
+  if (typeof item.amlStatus === "string") row.amlStatus = item.amlStatus;
+  if (typeof item.amlCheckId === "string") row.amlCheckId = item.amlCheckId;
   return row;
 };
 

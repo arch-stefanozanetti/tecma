@@ -12,6 +12,7 @@ import {
   Handshake,
   Home,
   Inbox as InboxIcon,
+  Kanban,
   Layers,
   Mail,
   Plug,
@@ -51,6 +52,7 @@ export type Section =
   | "productDiscovery"
   | "experimental"
   | "tecmaEntitlements"
+  | "productBlueprint"
   | "accountSecurity"
   | "executiveOverview"
   | "coima";
@@ -85,6 +87,7 @@ export const SECTIONS: Section[] = [
   "productDiscovery",
   "experimental",
   "tecmaEntitlements",
+  "productBlueprint",
   "accountSecurity",
   "executiveOverview",
   "coima",
@@ -113,6 +116,7 @@ export const SECTION_TO_PATH: Partial<Record<Section, string>> = {
   productDiscovery: "/product-discovery",
   experimental: "/experimental",
   tecmaEntitlements: "/tecma/entitlements",
+  productBlueprint: "/tecma/product-blueprint",
   accountSecurity: "/account/security",
   executiveOverview: "/executive",
   coima: "/coima",
@@ -142,6 +146,7 @@ export const SECTION_REQUIRED_PERMISSION: Partial<Record<Section, SectionPermiss
   bigData: "reports.read",
   audit: "settings.read",
   tecmaEntitlements: "settings.read",
+  productBlueprint: "settings.read",
   emailFlows: "email_flows.manage",
   aiApprovals: "requests.read",
   createApartment: "apartments.create",
@@ -221,6 +226,14 @@ export const NAV_ITEMS: NavItemConfig[] = [
     id: "tecmaEntitlements",
     label: "Entitlement workspace",
     icon: ShieldCheck,
+    tecmaAdminOnly: true,
+    compact: true,
+    group: "admin",
+  },
+  {
+    id: "productBlueprint",
+    label: "Product Blueprint (Jira)",
+    icon: Kanban,
     tecmaAdminOnly: true,
     compact: true,
     group: "admin",

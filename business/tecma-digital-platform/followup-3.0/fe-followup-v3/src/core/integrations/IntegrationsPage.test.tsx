@@ -13,6 +13,10 @@ vi.mock("../../api/followupApi", () => ({
     getMetaWhatsAppConfig: vi.fn().mockResolvedValue({ config: null }),
     getMailchimpConnectorConfig: vi.fn().mockResolvedValue({ config: null }),
     getActiveCampaignConnectorConfig: vi.fn().mockResolvedValue({ config: null }),
+    getSumsubConnectorConfig: vi.fn().mockResolvedValue({
+      config: null,
+      webhookPathTemplate: "/v1/webhooks/sumsub/:workspaceId",
+    }),
     getMarketingMetaAdsConnectorConfig: vi.fn().mockResolvedValue({ config: null }),
     getMarketingGa4ConnectorConfig: vi.fn().mockResolvedValue({ config: null }),
     getMarketingGoogleAdsConnectorConfig: vi.fn().mockResolvedValue({ config: null }),

@@ -140,6 +140,15 @@ const EnvSchema = z.object({
   MARKETING_FRONTEND_REDIRECT_BASE: z.string().optional().default(""),
   /** HMAC per firmare state OAuth marketing; default AUTH_JWT_SECRET */
   MARKETING_OAUTH_STATE_SECRET: z.string().optional().default(""),
+
+  /** Jira Cloud (PRD / product blueprint) — opzionali; se mancanti, endpoint /v1/jira-prd rispondono 503 */
+  JIRA_HOST: z.string().optional().default(""),
+  JIRA_EMAIL: z.string().optional().default(""),
+  JIRA_API_TOKEN: z.string().optional().default(""),
+  JIRA_PROJECT_KEY: z.string().optional().default(""),
+  /** Es. Story, Task, Sub-task (dipende dal progetto Jira) */
+  JIRA_ISSUE_TYPE_STORY: z.string().optional().default("Story"),
+  JIRA_ISSUE_TYPE_SUBTASK: z.string().optional().default("Sub-task"),
 });
 
 const parsed = EnvSchema.parse({

@@ -42,6 +42,7 @@ import {
   listGa4PropertiesForWorkspaceWithOutcome,
   listMetaAdAccountsForWorkspace,
 } from "../../core/connectors/marketing-discovery.service.js";
+import { deleteSumsubConfig, getSumsubConfig, saveSumsubConfig } from "../../core/aml/aml-config.service.js";
 import { HttpError } from "../../types/http.js";
 import { handleAsync, sendError } from "../asyncHandler.js";
 import { requireAdmin } from "../authMiddleware.js";
@@ -449,5 +450,45 @@ connectorsRoutes.get(
   handleAsync(async (req) => {
     const adAccounts = await listMetaAdAccountsForWorkspace(req.params.workspaceId);
     return { adAccounts };
+  })
+);
+
+/** Sumsub (AML/KYC): credenziali app + secret webhook per workspace. */
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/sumsub/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_READ),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const config = await getSumsubConfig(req.params.workspaceId);
+    return {
+      config: config ?? null,
+      webhookPathTemplate: "/v1/webhooks/sumsub/:workspaceId",
+    };
+  })
+);
+connectorsRoutes.post(
+  "/workspaces/:workspaceId/connectors/sumsub/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_UPDATE),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const body = z
+      .object({
+        appToken: z.string().min(1),
+        secretKey: z.string().min(1),
+        levelName: z.string().min(1),
+        webhookSecret: z.string().min(1),
+      })
+      .parse(req.body);
+    const config = await saveSumsubConfig(req.params.workspaceId, body);
+    return { config };
+  })
+);
+connectorsRoutes.delete(
+  "/workspaces/:workspaceId/connectors/sumsub/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_DELETE),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const deleted = await deleteSumsubConfig(req.params.workspaceId);
+    return { deleted };
   })
 );

@@ -37,6 +37,8 @@ import { complianceRoutes } from "./v1/compliance.routes.js";
 import { gdprUserRoutes } from "./v1/gdpr-user.routes.js";
 import { storageRoutes } from "./v1/storage.routes.js";
 import { experimentalRoutes } from "./v1/experimental.routes.js";
+import { jiraPrdRoutes } from "./v1/jira-prd.routes.js";
+import { amlRoutes } from "./v1/aml.routes.js";
 
 export const v1Router = Router();
 
@@ -85,3 +87,5 @@ v1Router.use("/", complianceRoutes);
 v1Router.use("/", gdprUserRoutes);
 v1Router.use("/", storageRoutes);
 v1Router.use("/", experimentalRoutes);
+v1Router.use("/", jiraPrdRoutes);
+v1Router.use("/", amlRoutes);

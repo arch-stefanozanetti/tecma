@@ -774,6 +774,27 @@ export const followupApi = {
     deleteJson<{ deleted: boolean }>(
       `/workspaces/${encodeURIComponent(workspaceId)}/clients/${encodeURIComponent(clientId)}/documents/${encodeURIComponent(docId)}`
     ),
+  listClientAmlChecks: (workspaceId: string, clientId: string) =>
+    getJson<{
+      data: Array<{
+        _id: string;
+        workspaceId: string;
+        clientId: string;
+        providerId: string;
+        status: string;
+        externalUserId: string;
+        providerApplicantId?: string;
+        createdAt: string;
+        updatedAt: string;
+      }>;
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/clients/${encodeURIComponent(clientId)}/aml/checks`),
+  startClientAmlCheck: (workspaceId: string, clientId: string, body: { providerId: "sumsub" }) =>
+    postJson<{
+      data: {
+        check: { _id: string; status: string; providerId: string; externalUserId: string };
+        sdkAccessToken?: string;
+      };
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/clients/${encodeURIComponent(clientId)}/aml/checks`, body),
   associateProjectToWorkspace: (payload: { workspaceId: string; projectId: string }) =>
     postJson<{ workspaceId: string; projectId: string }>("/workspaces/projects/associate", payload),
   dissociateProjectFromWorkspace: (workspaceId: string, projectId: string) =>
@@ -955,6 +976,57 @@ export const followupApi = {
     postJson<{ executionId?: number; waitingForWebhook?: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/n8n/trigger`, body ?? {}),
   deleteN8nConfig: (workspaceId: string) =>
     deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/n8n/config`),
+  getSumsubConnectorConfig: (workspaceId: string) =>
+    getJson<{
+      config: {
+        _id: string;
+        workspaceId: string;
+        connectorId: string;
+        config: {
+          levelName: string;
+          appTokenMasked?: string;
+          secretKeyMasked?: string;
+          webhookSecretMasked?: string;
+        };
+        updatedAt: string;
+      } | null;
+      webhookPathTemplate: string;
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/sumsub/config`),
+  saveSumsubConnectorConfig: (
+    workspaceId: string,
+    body: { appToken: string; secretKey: string; levelName: string; webhookSecret: string }
+  ) =>
+    postJson<{
+      config: {
+        _id: string;
+        workspaceId: string;
+        connectorId: string;
+        config: {
+          levelName: string;
+          appTokenMasked?: string;
+          secretKeyMasked?: string;
+          webhookSecretMasked?: string;
+        };
+        updatedAt: string;
+      };
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/sumsub/config`, body),
+  deleteSumsubConnectorConfig: (workspaceId: string) =>
+    deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/sumsub/config`),
+  getAmlConnectorCatalog: (workspaceId: string) =>
+    getJson<{
+      data: {
+        providers: Array<{
+          id: string;
+          name: string;
+          kind: string;
+          available: boolean;
+          configured?: boolean;
+          comingSoon?: boolean;
+          capabilities: Record<string, boolean>;
+        }>;
+        disclaimer: string;
+      };
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/aml/catalog`),
   /** Connettore Outlook (OAuth2). Redirect a Microsoft: usa getOutlookAuthRedirect e poi window.location.href = url. */
   getOutlookAuthRedirect: async (workspaceId?: string): Promise<string> => {
     const token = getAccessToken();
@@ -1412,4 +1484,69 @@ export const followupApi = {
   getFeature: (id: string) => getJson<FeatureRow>(`/features/${id}`),
   updateFeature: (id: string, payload: Partial<FeatureRow>) =>
     patchJson<FeatureRow>(`/features/${id}`, payload),
+
+  /** Catalogo PRD Followup 3.0 per pubblicazione issue Jira (solo Tecma Admin). */
+  getJiraPrdCatalog: () =>
+    getJson<{ data: JiraPrdFeatureCatalogEntry[] }>("/jira-prd/catalog"),
+  getJiraPrdStatus: () =>
+    getJson<{
+      data: {
+        jiraConfigured: boolean;
+        jiraBrowseBase: string | null;
+        rows: JiraPrdStatusRow[];
+      };
+    }>("/jira-prd/status"),
+  publishJiraPrd: (body: { idTemaList: string[]; force?: boolean }) =>
+    postJson<{
+      data: {
+        created: Array<{ idTema: string; storyKey: string; subtaskKeys: string[] }>;
+        skipped: Array<{ idTema: string; reason: string }>;
+      };
+    }>("/jira-prd/publish", body),
+};
+
+/** Tipo backlog suggerito (allineato a Story / Spike / Task / technical in Jira TECMA). */
+export type JiraPrdWorkItemKind = "story" | "spike" | "task" | "technical";
+
+/** Voce catalogo Product Blueprint / Jira PRD (allineata al backend). */
+export type JiraPrdFeatureCatalogEntry = {
+  idTema: string;
+  /** product = capability; technical = dettaglio collegato a parentIdTema */
+  kind: "product" | "technical";
+  parentIdTema?: string;
+  /** Epic E1–E14 (JIRA_TRACEABILITY §5 + E14 discovery interni) */
+  epicId: string;
+  epicTitle: string;
+  workItemKind: JiraPrdWorkItemKind;
+  storyRef?: string;
+  designRefs?: string[];
+  areaPrefix: string;
+  title: string;
+  summary: string;
+  prd: {
+    problemJob: string;
+    expectedBehavior: string;
+    nonGoals: string;
+    dataMongo: string;
+    permissionsEntitlement: string;
+    failureModes: string;
+    qaProofs: string;
+  };
+  docLinks: { label: string; href: string }[];
+  disciplines: {
+    frontend: string;
+    backend: string;
+    database: string;
+    uxUi: string;
+    qa: string;
+    test: string;
+  };
+};
+
+export type JiraPrdStatusRow = {
+  idTema: string;
+  storyKey: string | null;
+  subtaskKeys: string[];
+  issues: Array<{ key: string; summary: string; statusName: string; done: boolean }>;
+  allDone: boolean;
 };

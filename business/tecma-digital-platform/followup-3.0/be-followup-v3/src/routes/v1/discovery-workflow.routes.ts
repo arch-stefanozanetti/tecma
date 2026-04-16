@@ -4,6 +4,7 @@ import { handleAsync } from "../asyncHandler.js";
 import { requireAdmin } from "../authMiddleware.js";
 import { requirePermission } from "../permissionMiddleware.js";
 import { PERMISSIONS } from "../../core/rbac/permissions.js";
+import { auditAndDispatchEntityEvent } from "../helpers/auditAndDispatch.js";
 import { getWorkflowConfig } from "../../core/workflow/workflow.service.js";
 import {
   listWorkflowsByWorkspace,
@@ -92,7 +93,23 @@ discoveryWorkflowRoutes.delete(
 discoveryWorkflowRoutes.delete(
   "/workflows/:workflowId",
   requireAdmin,
-  handleAsync((req) => deleteWorkflow(req.params.workflowId))
+  handleAsync(async (req) => {
+    const workflowId = req.params.workflowId;
+    const detail = await getWorkflowWithStatesAndTransitions(workflowId);
+    const result = await deleteWorkflow(workflowId);
+    if (detail) {
+      auditAndDispatchEntityEvent({
+        action: "workflow.deleted",
+        workspaceId: detail.workflow.workspaceId,
+        entityType: "workflow",
+        entityId: workflowId,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+        payload: { name: detail.workflow.name, type: detail.workflow.type },
+        userId: req.user?.sub,
+      });
+    }
+    return result;
+  })
 );
 
 discoveryWorkflowRoutes.get(

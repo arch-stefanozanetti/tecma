@@ -35,16 +35,16 @@ Legenda tag: **A** = piano/FASE, **B** = parità legacy (nel perimetro), **C** =
 | ID piano | Tema | Tag tipici | Dipendenze principali |
 |----------|------|------------|------------------------|
 | `commercial-entitlements` | Entitlement Tecma, API key, connettori gated | A, B, C | RBAC stabile; policy commerciale su chi attiva cosa; audit |
-| `csv-mapping` | CSV → `tz_*` + API/UI | A, B | CSV reali; regole ID progetto/workspace ([LEGACY_PROJECT_WORKSPACE_MAPPING](../deliverables/LEGACY_PROJECT_WORKSPACE_MAPPING.md)) |
+| `csv-mapping` | CSV → dominio operativo + API/UI | A, B | CSV reali; regole ID progetto/workspace ([LEGACY_PROJECT_WORKSPACE_MAPPING](../deliverables/LEGACY_PROJECT_WORKSPACE_MAPPING.md)) |
 | `s3-verify` | Bucket, presigned upload/download | A, B | Env AWS; checklist [FASE3_S3_VERIFICATION](../deliverables/FASE3_S3_VERIFICATION.md) |
 | `digital-quote` | Trattativa → quote, PDF, magic link | A, B | Storage/asset; workflow stati; [FASE2_DIGITAL_QUOTE](../deliverables/FASE2_DIGITAL_QUOTE.md) |
 | `reports-dashboards` | Report, dashboard, pattern API key | A, C | Permessi `reports.*`; modello dati report |
 | `calendar-sync` | Timeline + Gmail/Outlook reali | A, B | OAuth/credenziali; event model unificato; [FASE5](../deliverables/FASE5_CALENDAR_SYNC.md) |
 | `connectors-ux` | Twilio, Mailchimp/AC, dummy RE | A, C | Entitlement; segreti in env |
 | `inbox-contract` | Inbox, preferenze, empty state | A, C | [FASE7_INBOX_CONTRACT](../deliverables/FASE7_INBOX_CONTRACT.md) |
-| `visual-parity` | UI vs `fe-tecma-itd` | A, B | Design system; [FASE8](../deliverables/FASE8_VISUAL_PARITY.md) |
+| `visual-parity` | UI vs design system ITD (ref. `fe-tecma-itd`) | A, B | Design system; [FASE8](../deliverables/FASE8_VISUAL_PARITY.md) |
 | `ux-mobile` | Checklist mobile per pagina | A, C | Layout componenti condivisi |
-| `refactor-api-layer` | Facade FE / domini | A, C | Evitare regressioni: test core + E2E smoke |
+| `refactor-api-layer` | Client API per dominio (FE) | A, C | Evitare regressioni: test core + E2E smoke |
 | Opzionali (`matching-be`, `dialog-drawer`, …) | Affinamenti | C (o A se promossi in checklist) | Coerenza con permessi e OpenAPI |
 
 ---

@@ -50,6 +50,7 @@ import { RequestStatusRoadmap } from "../../components/RequestStatusRoadmap";
 import { useWorkflowConfig } from "../../hooks/useWorkflowConfig";
 import { CalendarEventFormDrawer } from "../calendar/CalendarEventFormDrawer";
 import ClientDetailAnagrafica from "./ClientDetailAnagrafica";
+import { ClientDetailAmlSection } from "./ClientDetailAmlSection";
 import ClientDetailHeader from "./ClientDetailHeader";
 import { ClientProfilationCard } from "./ClientProfilationCard";
 import { ClientDetailAssignmentsSection } from "./ClientDetailAssignmentsSection";
@@ -256,6 +257,12 @@ export const ClientDetailPage = () => {
     if (!clientId || !workspaceId) return;
     followupApi.listClientDocuments(workspaceId, clientId).then((r) => setClientDocuments(r.data ?? []));
   }, [clientId, workspaceId]);
+
+  const refreshClient = useCallback(async () => {
+    if (!clientId || !workspaceId) return;
+    const r = await followupApi.clients.getClientById(clientId, workspaceId);
+    if (r.client) setClient(r.client);
+  }, [clientId, workspaceId, setClient]);
 
   const handleDocumentFilesSelected = useCallback(
     async (files: FileList | null) => {
@@ -849,6 +856,14 @@ export const ClientDetailPage = () => {
 
         {/* Tab Profilo — allineato a scheda cliente e match: Contatti, Profilazione, Dettaglio/Info, Date e ID */}
         <TabsContent value="profilo" className="space-y-6 mt-4">
+          {workspaceId && (
+            <ClientDetailAmlSection
+              workspaceId={workspaceId}
+              clientId={client._id}
+              client={client}
+              onRefreshClient={refreshClient}
+            />
+          )}
           <div className="grid gap-6 sm:grid-cols-2">
           <section className="space-y-4 rounded-lg border border-border bg-card p-4">
             <h2 className="text-sm font-semibold text-foreground">Azioni rapide</h2>
