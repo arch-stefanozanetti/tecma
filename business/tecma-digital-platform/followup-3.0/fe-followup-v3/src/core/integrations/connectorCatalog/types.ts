@@ -11,6 +11,7 @@ export type ConnectorGroup =
   | "Data/BI"
   | "Docs/Signature"
   | "Productivity/Collab"
+  | "AI & Assistants"
   | "Compliance"
   | "Payments & Billing";
 
@@ -24,7 +25,8 @@ export type ConnectorCluster =
   | "docs"
   | "productivity"
   | "compliance"
-  | "automation";
+  | "automation"
+  | "ai";
 
 /** Tab da aprire per completare la configurazione (es. webhook, api). */
 export type ConnectorRelatedTab = "webhook" | "api" | "comunicazioni";
@@ -54,6 +56,7 @@ export const GROUP_TO_CLUSTER: Record<ConnectorGroup, ConnectorCluster> = {
   "Data/BI": "data_bi",
   "Docs/Signature": "docs",
   "Productivity/Collab": "productivity",
+  "AI & Assistants": "ai",
   Compliance: "compliance",
   "Payments & Billing": "payments",
 };

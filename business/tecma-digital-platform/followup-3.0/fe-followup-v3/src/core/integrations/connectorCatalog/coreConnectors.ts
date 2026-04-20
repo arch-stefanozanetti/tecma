@@ -98,11 +98,13 @@ export const coreConnectors: ConnectorCatalogItem[] = [
     id: "connector_webflow",
     name: "Webflow",
     group: "Website/CMS",
-    status: "coming_soon",
+    status: "available",
     brandId: "webflow",
     description: "Pubblicazione listing apartment-first su siti Webflow con sync near real-time.",
     capabilities: ["Listing publish", "Media sync", "Status update"],
     prerequisites: ["Webflow API token", "Collection mapping"],
+    setupSummary:
+      "Data API v2: crea una collection CMS con campi slug tecma-apartment-id, prezzo-eur, stato, modalita, codice-unita, planimetria-url (oltre a name/slug standard). Poi salva token, Site ID e Collection ID qui e avvia «Sync appartamenti» con i progetti selezionati in sidebar.",
   },
   {
     id: "connector_looker",
@@ -437,11 +439,13 @@ export const coreConnectors: ConnectorCatalogItem[] = [
     id: "connector_microsoft_teams",
     name: "Microsoft Teams",
     group: "Productivity/Collab",
-    status: "coming_soon",
+    status: "available",
     brandId: "teams",
     description: "Notifiche e card adattive su canali team per eventi CRM e digest operativi.",
     capabilities: ["Channel posts", "Adaptive cards", "Bot / webhook"],
-    prerequisites: ["Azure AD app", "Teams admin consent"],
+    prerequisites: ["Incoming Webhook URL (canale)"],
+    setupSummary:
+      "In Teams: connettore Incoming Webhook sul canale desiderato, copia l’URL e incollalo qui. È possibile inviare un messaggio di prova dal portale.",
   },
   {
     id: "connector_zendesk",
@@ -507,20 +511,63 @@ export const coreConnectors: ConnectorCatalogItem[] = [
     id: "connector_stripe",
     name: "Stripe",
     group: "Payments & Billing",
-    status: "coming_soon",
+    status: "available",
     brandId: "stripe",
     description: "Allineamento pagamenti, abbonamenti e ricevute con trattative e documentazione commerciale.",
     capabilities: ["Payment status", "Customer link", "Webhook eventi"],
     prerequisites: ["Account Stripe", "Webhook signing secret"],
+    setupSummary:
+      "Salva Secret key (sk_…) e opzionalmente Webhook signing secret (whsec_…) e Publishable key. Configura nel Dashboard Stripe un endpoint verso l’URL mostrato nel drawer (base API + /v1/webhooks/stripe/{workspaceId}).",
   },
   {
     id: "connector_paypal",
     name: "PayPal",
     group: "Payments & Billing",
-    status: "coming_soon",
+    status: "available",
     brandId: "paypal",
     description: "Notifiche IPN / webhooks per incassi e contestazioni collegati a ordini e clienti.",
     capabilities: ["Payment capture", "Refund events", "Dispute hooks"],
     prerequisites: ["Business PayPal", "Webhook / IPN endpoint"],
+    setupSummary:
+      "Client ID e Secret dall’app REST PayPal; opzionale Webhook ID. Endpoint notifiche: base API + /v1/webhooks/paypal/{workspaceId}. In aggiornamento puoi omettere il Secret se non cambia.",
+  },
+  {
+    id: "connector_anthropic_claude",
+    name: "Anthropic Claude (API)",
+    group: "AI & Assistants",
+    status: "available",
+    brandId: "anthropic",
+    description:
+      "Modelli Claude tramite API Anthropic (Messages) per assistenza, bozze e automazioni nel perimetro Tecma. È attivo un solo provider LLM per workspace.",
+    capabilities: ["API Messages", "Suggerimenti cockpit", "Orchestrazione AI"],
+    prerequisites: ["Account Anthropic", "API key (custodia server)"],
+    setupSummary:
+      "Un solo provider tra Claude, OpenAI e Gemini per workspace. Salva la API key nel drawer (mai esposta in chiaro dopo il salvataggio). Per modificare il workspace è richiesto ruolo amministratore.",
+  },
+  {
+    id: "connector_openai",
+    name: "OpenAI (ChatGPT / API)",
+    group: "AI & Assistants",
+    status: "available",
+    brandId: "openai",
+    description:
+      "Modelli GPT tramite API OpenAI per integrazioni assistite e automazioni. Stesso slot LLM condiviso con Claude e Gemini: una chiave attiva per workspace.",
+    capabilities: ["Chat completions", "Suggerimenti cockpit", "Funzioni sperimentali AI"],
+    prerequisites: ["Organizzazione OpenAI", "API key (custodia server)"],
+    setupSummary:
+      "Configura API key nel drawer integrazioni. Il salvataggio e la rimozione richiedono amministratore workspace (come in Impostazioni workspace).",
+  },
+  {
+    id: "connector_google_gemini",
+    name: "Google Gemini (API)",
+    group: "AI & Assistants",
+    status: "available",
+    brandId: "gemini",
+    description:
+      "Modelli Gemini tramite Google AI API per scenari multi-modali e integrazione con ecosistema Google. Condivide la configurazione LLM unica del workspace.",
+    capabilities: ["API generativa", "Suggerimenti cockpit", "Completamenti"],
+    prerequisites: ["Progetto / chiave Google AI", "Policy dati"],
+    setupSummary:
+      "Inserisci la API key Google AI nel drawer. Solo un provider alla volta; per cambiare provider salva la nuova chiave (admin workspace).",
   },
 ];

@@ -12,6 +12,7 @@ import {
   Search,
   RefreshCcw,
   Plug,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -34,7 +35,12 @@ import {
 } from "../../components/ui/drawer";
 import { followupApi } from "../../api/followupApi";
 import { useToast } from "../../contexts/ToastContext";
-import type { WebhookConfigRow, AutomationEventType, WorkspaceEntitlementEffectiveRow } from "../../types/domain";
+import type {
+  WebhookConfigRow,
+  AutomationEventType,
+  WorkspaceEntitlementEffectiveRow,
+  WorkspaceAiConfig,
+} from "../../types/domain";
 import { connectorEntitlementFootnote, workspaceFeatureEntitled } from "./workspaceEntitlementUi";
 import { commercialContactInlineNode } from "./tecmaCommercialContact";
 import { cn } from "../../lib/utils";
@@ -248,6 +254,12 @@ export function ConnettoriTab({
   activecampaignEntitled = true,
   reloadMailchimpStatus,
   reloadActiveCampaignStatus,
+  reloadStripeStatus,
+  reloadPayPalStatus,
+  reloadWebflowStatus,
+  reloadTeamsIncomingStatus,
+  workspaceAiConfig = null,
+  reloadWorkspaceAiConfig,
   workspaceEntitlements,
   sumsubConfig = null,
   loadSumsubConfig,
@@ -278,6 +290,12 @@ export function ConnettoriTab({
   activecampaignEntitled?: boolean;
   reloadMailchimpStatus?: () => void;
   reloadActiveCampaignStatus?: () => void;
+  reloadStripeStatus?: () => void;
+  reloadPayPalStatus?: () => void;
+  reloadWebflowStatus?: () => void;
+  reloadTeamsIncomingStatus?: () => void;
+  workspaceAiConfig?: WorkspaceAiConfig | null;
+  reloadWorkspaceAiConfig?: () => void;
   /** Per vetrina: stato commerciale per connettori mappati (Twilio, Mailchimp, Looker…). */
   workspaceEntitlements?: WorkspaceEntitlementEffectiveRow[];
   sumsubConfig?: SumsubConfigSnapshot;
@@ -301,6 +319,11 @@ export function ConnettoriTab({
     | "connector_meta_whatsapp"
     | "connector_mailchimp"
     | "connector_activecampaign"
+    | "connector_stripe"
+    | "connector_paypal"
+    | "connector_webflow"
+    | "connector_microsoft_teams"
+    | "connector_workspace_ai"
     | "connector_sumsub"
     | null
   >(null);
@@ -354,6 +377,38 @@ export function ConnettoriTab({
   const [activeCampaignHasSavedConfig, setActiveCampaignHasSavedConfig] = useState(false);
   const [activeCampaignSaving, setActiveCampaignSaving] = useState(false);
   const [activeCampaignDrawerError, setActiveCampaignDrawerError] = useState<string | null>(null);
+  const [stripeSecretKey, setStripeSecretKey] = useState("");
+  const [stripeWebhookSecret, setStripeWebhookSecret] = useState("");
+  const [stripePublishableKey, setStripePublishableKey] = useState("");
+  const [stripeHasSavedConfig, setStripeHasSavedConfig] = useState(false);
+  const [stripeSaving, setStripeSaving] = useState(false);
+  const [stripeDrawerError, setStripeDrawerError] = useState<string | null>(null);
+  const [stripeWebhookUrlTemplate, setStripeWebhookUrlTemplate] = useState("/v1/webhooks/stripe/:workspaceId");
+  const [paypalClientId, setPaypalClientId] = useState("");
+  const [paypalClientSecret, setPaypalClientSecret] = useState("");
+  const [paypalWebhookId, setPaypalWebhookId] = useState("");
+  const [paypalMode, setPaypalMode] = useState<"sandbox" | "live">("live");
+  const [paypalHasSavedConfig, setPaypalHasSavedConfig] = useState(false);
+  const [paypalSaving, setPaypalSaving] = useState(false);
+  const [paypalDrawerError, setPaypalDrawerError] = useState<string | null>(null);
+  const [paypalWebhookUrlTemplate, setPaypalWebhookUrlTemplate] = useState("/v1/webhooks/paypal/:workspaceId");
+  const [webflowApiToken, setWebflowApiToken] = useState("");
+  const [webflowSiteId, setWebflowSiteId] = useState("");
+  const [webflowCollectionId, setWebflowCollectionId] = useState("");
+  const [webflowHasSavedConfig, setWebflowHasSavedConfig] = useState(false);
+  const [webflowSaving, setWebflowSaving] = useState(false);
+  const [webflowDrawerError, setWebflowDrawerError] = useState<string | null>(null);
+  const [webflowSyncing, setWebflowSyncing] = useState(false);
+  const [teamsWebhookUrl, setTeamsWebhookUrl] = useState("");
+  const [teamsLabel, setTeamsLabel] = useState("");
+  const [teamsHasSavedConfig, setTeamsHasSavedConfig] = useState(false);
+  const [teamsSaving, setTeamsSaving] = useState(false);
+  const [teamsDrawerError, setTeamsDrawerError] = useState<string | null>(null);
+  const [teamsTestSending, setTeamsTestSending] = useState(false);
+  const [workspaceAiFormProvider, setWorkspaceAiFormProvider] = useState<"claude" | "openai" | "gemini">("claude");
+  const [workspaceAiFormApiKey, setWorkspaceAiFormApiKey] = useState("");
+  const [workspaceAiSaving, setWorkspaceAiSaving] = useState(false);
+  const [workspaceAiDrawerError, setWorkspaceAiDrawerError] = useState<string | null>(null);
 
   const openMetaDrawer = useCallback(() => {
     if (!workspaceId) return;
@@ -453,6 +508,96 @@ export function ConnettoriTab({
       });
   }, [workspaceId]);
 
+  const openStripeDrawer = useCallback(() => {
+    if (!workspaceId) return;
+    setStripeDrawerError(null);
+    followupApi
+      .getStripeConnectorConfig(workspaceId)
+      .then((r) => {
+        setStripeHasSavedConfig(!!r.config);
+        setStripeWebhookUrlTemplate(r.webhookUrlTemplate ?? "/v1/webhooks/stripe/:workspaceId");
+        const pub = r.config?.config?.publishableKey?.trim();
+        setStripePublishableKey(pub ?? "");
+        setStripeSecretKey("");
+        setStripeWebhookSecret("");
+        setConnectorConfigDrawer("connector_stripe");
+      })
+      .catch(() => {
+        setStripeHasSavedConfig(false);
+        setStripeSecretKey("");
+        setStripeWebhookSecret("");
+        setStripePublishableKey("");
+        setConnectorConfigDrawer("connector_stripe");
+      });
+  }, [workspaceId]);
+
+  const openPayPalDrawer = useCallback(() => {
+    if (!workspaceId) return;
+    setPaypalDrawerError(null);
+    followupApi
+      .getPayPalConnectorConfig(workspaceId)
+      .then((r) => {
+        setPaypalHasSavedConfig(!!r.config);
+        setPaypalWebhookUrlTemplate(r.webhookUrlTemplate ?? "/v1/webhooks/paypal/:workspaceId");
+        const cfg = r.config?.config;
+        setPaypalClientId(cfg?.clientId?.trim() ?? "");
+        setPaypalWebhookId(cfg?.webhookId?.trim() ?? "");
+        setPaypalMode(cfg?.mode === "sandbox" ? "sandbox" : "live");
+        setPaypalClientSecret("");
+        setConnectorConfigDrawer("connector_paypal");
+      })
+      .catch(() => {
+        setPaypalHasSavedConfig(false);
+        setPaypalClientId("");
+        setPaypalClientSecret("");
+        setPaypalWebhookId("");
+        setPaypalMode("live");
+        setConnectorConfigDrawer("connector_paypal");
+      });
+  }, [workspaceId]);
+
+  const openWebflowDrawer = useCallback(() => {
+    if (!workspaceId) return;
+    setWebflowDrawerError(null);
+    followupApi
+      .getWebflowConnectorConfig(workspaceId)
+      .then((r) => {
+        setWebflowHasSavedConfig(!!r.config);
+        const cfg = r.config?.config;
+        setWebflowSiteId(cfg?.siteId?.trim() ?? "");
+        setWebflowCollectionId(cfg?.apartmentsCollectionId?.trim() ?? "");
+        setWebflowApiToken("");
+        setConnectorConfigDrawer("connector_webflow");
+      })
+      .catch(() => {
+        setWebflowHasSavedConfig(false);
+        setWebflowSiteId("");
+        setWebflowCollectionId("");
+        setWebflowApiToken("");
+        setConnectorConfigDrawer("connector_webflow");
+      });
+  }, [workspaceId]);
+
+  const openTeamsDrawer = useCallback(() => {
+    if (!workspaceId) return;
+    setTeamsDrawerError(null);
+    followupApi
+      .getTeamsIncomingConnectorConfig(workspaceId)
+      .then((r) => {
+        setTeamsHasSavedConfig(!!r.config);
+        const cfg = r.config?.config;
+        setTeamsWebhookUrl(cfg?.incomingWebhookUrl?.trim() ?? "");
+        setTeamsLabel(cfg?.label?.trim() ?? "");
+        setConnectorConfigDrawer("connector_microsoft_teams");
+      })
+      .catch(() => {
+        setTeamsHasSavedConfig(false);
+        setTeamsWebhookUrl("");
+        setTeamsLabel("");
+        setConnectorConfigDrawer("connector_microsoft_teams");
+      });
+  }, [workspaceId]);
+
   useEffect(() => {
     if (!autoOpenTwilio || twilioAutoOpenDoneRef.current) return;
     if (!workspaceId) return;
@@ -511,6 +656,13 @@ export function ConnettoriTab({
       | "connector_meta_whatsapp"
       | "connector_mailchimp"
       | "connector_activecampaign"
+      | "connector_stripe"
+      | "connector_paypal"
+      | "connector_webflow"
+      | "connector_microsoft_teams"
+      | "connector_anthropic_claude"
+      | "connector_openai"
+      | "connector_google_gemini"
       | "connector_sumsub"
   ) => {
     if (id === "connector_sumsub") {
@@ -535,6 +687,43 @@ export function ConnettoriTab({
     }
     if (id === "connector_activecampaign") {
       openActiveCampaignDrawer();
+      return;
+    }
+    if (id === "connector_stripe") {
+      openStripeDrawer();
+      return;
+    }
+    if (id === "connector_paypal") {
+      openPayPalDrawer();
+      return;
+    }
+    if (id === "connector_webflow") {
+      openWebflowDrawer();
+      return;
+    }
+    if (id === "connector_microsoft_teams") {
+      openTeamsDrawer();
+      return;
+    }
+    if (id === "connector_anthropic_claude") {
+      setWorkspaceAiFormProvider("claude");
+      setWorkspaceAiFormApiKey("");
+      setWorkspaceAiDrawerError(null);
+      setConnectorConfigDrawer("connector_workspace_ai");
+      return;
+    }
+    if (id === "connector_openai") {
+      setWorkspaceAiFormProvider("openai");
+      setWorkspaceAiFormApiKey("");
+      setWorkspaceAiDrawerError(null);
+      setConnectorConfigDrawer("connector_workspace_ai");
+      return;
+    }
+    if (id === "connector_google_gemini") {
+      setWorkspaceAiFormProvider("gemini");
+      setWorkspaceAiFormApiKey("");
+      setWorkspaceAiDrawerError(null);
+      setConnectorConfigDrawer("connector_workspace_ai");
       return;
     }
     const connectorId = id === "connector_n8n" ? "n8n" : id === "connector_outlook" ? "outlook" : null;
@@ -568,6 +757,13 @@ export function ConnettoriTab({
       id === "connector_meta_whatsapp" ||
       id === "connector_mailchimp" ||
       id === "connector_activecampaign" ||
+      id === "connector_stripe" ||
+      id === "connector_paypal" ||
+      id === "connector_webflow" ||
+      id === "connector_microsoft_teams" ||
+      id === "connector_anthropic_claude" ||
+      id === "connector_openai" ||
+      id === "connector_google_gemini" ||
       id === "connector_sumsub"
     ) {
       const conn = connectors.find((c) => c.id === id);
@@ -625,6 +821,111 @@ export function ConnettoriTab({
             })
             .catch((err) => {
               toastError(err?.message ?? "Errore rimozione ActiveCampaign");
+            })
+            .finally(() => setTogglingId(null));
+          return;
+        }
+        if (id === "connector_stripe") {
+          setTogglingId(id);
+          if (!workspaceId) {
+            setTogglingId(null);
+            return;
+          }
+          followupApi
+            .deleteStripeConnectorConfig(workspaceId)
+            .then(() => {
+              setConnectors((prev) => prev.map((c) => (c.id === id ? { ...c, status: "available" } : c)));
+              reloadStripeStatus?.();
+              toastSuccess("Configurazione Stripe rimossa.");
+            })
+            .catch((err) => {
+              toastError(err?.message ?? "Errore rimozione Stripe");
+            })
+            .finally(() => setTogglingId(null));
+          return;
+        }
+        if (id === "connector_paypal") {
+          setTogglingId(id);
+          if (!workspaceId) {
+            setTogglingId(null);
+            return;
+          }
+          followupApi
+            .deletePayPalConnectorConfig(workspaceId)
+            .then(() => {
+              setConnectors((prev) => prev.map((c) => (c.id === id ? { ...c, status: "available" } : c)));
+              reloadPayPalStatus?.();
+              toastSuccess("Configurazione PayPal rimossa.");
+            })
+            .catch((err) => {
+              toastError(err?.message ?? "Errore rimozione PayPal");
+            })
+            .finally(() => setTogglingId(null));
+          return;
+        }
+        if (id === "connector_webflow") {
+          setTogglingId(id);
+          if (!workspaceId) {
+            setTogglingId(null);
+            return;
+          }
+          followupApi
+            .deleteWebflowConnectorConfig(workspaceId)
+            .then(() => {
+              setConnectors((prev) => prev.map((c) => (c.id === id ? { ...c, status: "available" } : c)));
+              reloadWebflowStatus?.();
+              toastSuccess("Configurazione Webflow rimossa.");
+            })
+            .catch((err) => {
+              toastError(err?.message ?? "Errore rimozione Webflow");
+            })
+            .finally(() => setTogglingId(null));
+          return;
+        }
+        if (id === "connector_microsoft_teams") {
+          setTogglingId(id);
+          if (!workspaceId) {
+            setTogglingId(null);
+            return;
+          }
+          followupApi
+            .deleteTeamsIncomingConnectorConfig(workspaceId)
+            .then(() => {
+              setConnectors((prev) => prev.map((c) => (c.id === id ? { ...c, status: "available" } : c)));
+              reloadTeamsIncomingStatus?.();
+              toastSuccess("Webhook Teams rimosso.");
+            })
+            .catch((err) => {
+              toastError(err?.message ?? "Errore rimozione Teams");
+            })
+            .finally(() => setTogglingId(null));
+          return;
+        }
+        if (id === "connector_anthropic_claude" || id === "connector_openai" || id === "connector_google_gemini") {
+          const provider =
+            id === "connector_anthropic_claude" ? "claude" : id === "connector_openai" ? "openai" : "gemini";
+          setTogglingId(id);
+          if (!workspaceId) {
+            setTogglingId(null);
+            return;
+          }
+          followupApi
+            .putWorkspaceAiConfig(workspaceId, { provider, apiKey: "" })
+            .then(() => {
+              setConnectors((prev) =>
+                prev.map((c) =>
+                  c.id === "connector_anthropic_claude" ||
+                  c.id === "connector_openai" ||
+                  c.id === "connector_google_gemini"
+                    ? { ...c, status: "available" }
+                    : c
+                )
+              );
+              reloadWorkspaceAiConfig?.();
+              toastSuccess("Provider AI scollegato dal workspace.");
+            })
+            .catch((err) => {
+              toastError(err?.message ?? "Errore rimozione provider AI");
             })
             .finally(() => setTogglingId(null));
           return;
@@ -715,6 +1016,13 @@ export function ConnettoriTab({
             | "connector_meta_whatsapp"
             | "connector_mailchimp"
             | "connector_activecampaign"
+            | "connector_stripe"
+            | "connector_paypal"
+            | "connector_webflow"
+            | "connector_microsoft_teams"
+            | "connector_anthropic_claude"
+            | "connector_openai"
+            | "connector_google_gemini"
             | "connector_sumsub"
         );
       }
@@ -1078,6 +1386,328 @@ export function ConnettoriTab({
       .finally(() => setActiveCampaignSaving(false));
   };
 
+  const saveStripeConnector = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_stripe") return;
+    const sk = stripeSecretKey.trim();
+    if (!sk) {
+      toastError(stripeHasSavedConfig ? "Inserisci una nuova Secret key (sk_…) per aggiornare." : "Inserisci la Secret key Stripe (sk_…).");
+      return;
+    }
+    if (!integrationsEntitled) {
+      toastError("Integrazioni non attive sul workspace.");
+      return;
+    }
+    setStripeSaving(true);
+    setStripeDrawerError(null);
+    const body: { secretKey: string; webhookSecret?: string; publishableKey?: string } = { secretKey: sk };
+    const wh = stripeWebhookSecret.trim();
+    if (wh) body.webhookSecret = wh;
+    const pk = stripePublishableKey.trim();
+    if (pk) body.publishableKey = pk;
+    followupApi
+      .saveStripeConnectorConfig(workspaceId, body)
+      .then(() => {
+        setStripeHasSavedConfig(true);
+        setStripeSecretKey("");
+        setStripeWebhookSecret("");
+        setConnectors((prev) => prev.map((c) => (c.id === "connector_stripe" ? { ...c, status: "configured" } : c)));
+        reloadStripeStatus?.();
+        toastSuccess("Configurazione Stripe salvata.");
+        setConnectorConfigDrawer(null);
+      })
+      .catch((err) => setStripeDrawerError(err?.message ?? "Salvataggio fallito"))
+      .finally(() => setStripeSaving(false));
+  };
+
+  const removeStripeConnector = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_stripe") return;
+    if (!window.confirm("Rimuovere la configurazione Stripe per questo workspace?")) return;
+    setStripeSaving(true);
+    setStripeDrawerError(null);
+    followupApi
+      .deleteStripeConnectorConfig(workspaceId)
+      .then(() => {
+        setStripeHasSavedConfig(false);
+        setStripeSecretKey("");
+        setStripeWebhookSecret("");
+        setStripePublishableKey("");
+        setConnectors((prev) => prev.map((c) => (c.id === "connector_stripe" ? { ...c, status: "available" } : c)));
+        reloadStripeStatus?.();
+        toastSuccess("Configurazione Stripe rimossa.");
+        setConnectorConfigDrawer(null);
+      })
+      .catch((err) => setStripeDrawerError(err?.message ?? "Rimozione fallita"))
+      .finally(() => setStripeSaving(false));
+  };
+
+  const savePayPalConnector = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_paypal") return;
+    if (!integrationsEntitled) {
+      toastError("Integrazioni non attive sul workspace.");
+      return;
+    }
+    const cid = paypalClientId.trim();
+    if (!cid) {
+      toastError("Inserisci il Client ID PayPal.");
+      return;
+    }
+    const sec = paypalClientSecret.trim();
+    if (!paypalHasSavedConfig && !sec) {
+      toastError("Inserisci il Client Secret (obbligatorio al primo salvataggio).");
+      return;
+    }
+    setPaypalSaving(true);
+    setPaypalDrawerError(null);
+    const body: { clientId: string; clientSecret?: string; webhookId?: string; mode?: "sandbox" | "live" } = {
+      clientId: cid,
+      mode: paypalMode,
+    };
+    if (sec) body.clientSecret = sec;
+    const wid = paypalWebhookId.trim();
+    if (wid) body.webhookId = wid;
+    followupApi
+      .savePayPalConnectorConfig(workspaceId, body)
+      .then(() => {
+        setPaypalHasSavedConfig(true);
+        setPaypalClientSecret("");
+        setConnectors((prev) => prev.map((c) => (c.id === "connector_paypal" ? { ...c, status: "configured" } : c)));
+        reloadPayPalStatus?.();
+        toastSuccess("Configurazione PayPal salvata.");
+        setConnectorConfigDrawer(null);
+      })
+      .catch((err) => setPaypalDrawerError(err?.message ?? "Salvataggio fallito"))
+      .finally(() => setPaypalSaving(false));
+  };
+
+  const removePayPalConnector = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_paypal") return;
+    if (!window.confirm("Rimuovere la configurazione PayPal per questo workspace?")) return;
+    setPaypalSaving(true);
+    setPaypalDrawerError(null);
+    followupApi
+      .deletePayPalConnectorConfig(workspaceId)
+      .then(() => {
+        setPaypalHasSavedConfig(false);
+        setPaypalClientId("");
+        setPaypalClientSecret("");
+        setPaypalWebhookId("");
+        setPaypalMode("live");
+        setConnectors((prev) => prev.map((c) => (c.id === "connector_paypal" ? { ...c, status: "available" } : c)));
+        reloadPayPalStatus?.();
+        toastSuccess("Configurazione PayPal rimossa.");
+        setConnectorConfigDrawer(null);
+      })
+      .catch((err) => setPaypalDrawerError(err?.message ?? "Rimozione fallita"))
+      .finally(() => setPaypalSaving(false));
+  };
+
+  const saveWebflowConnector = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_webflow") return;
+    if (!integrationsEntitled) {
+      toastError("Integrazioni non attive sul workspace.");
+      return;
+    }
+    const tok = webflowApiToken.trim();
+    const sid = webflowSiteId.trim();
+    const col = webflowCollectionId.trim();
+    if (!tok || !sid || !col) {
+      toastError("Compila API token, Site ID e Collection ID appartamenti.");
+      return;
+    }
+    setWebflowSaving(true);
+    setWebflowDrawerError(null);
+    followupApi
+      .saveWebflowConnectorConfig(workspaceId, { apiToken: tok, siteId: sid, apartmentsCollectionId: col })
+      .then(() => {
+        setWebflowHasSavedConfig(true);
+        setWebflowApiToken("");
+        setConnectors((prev) => prev.map((c) => (c.id === "connector_webflow" ? { ...c, status: "configured" } : c)));
+        reloadWebflowStatus?.();
+        toastSuccess("Configurazione Webflow salvata.");
+        setConnectorConfigDrawer(null);
+      })
+      .catch((err) => setWebflowDrawerError(err?.message ?? "Salvataggio fallito"))
+      .finally(() => setWebflowSaving(false));
+  };
+
+  const removeWebflowConnector = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_webflow") return;
+    if (!window.confirm("Rimuovere la configurazione Webflow per questo workspace?")) return;
+    setWebflowSaving(true);
+    setWebflowDrawerError(null);
+    followupApi
+      .deleteWebflowConnectorConfig(workspaceId)
+      .then(() => {
+        setWebflowHasSavedConfig(false);
+        setWebflowApiToken("");
+        setWebflowSiteId("");
+        setWebflowCollectionId("");
+        setConnectors((prev) => prev.map((c) => (c.id === "connector_webflow" ? { ...c, status: "available" } : c)));
+        reloadWebflowStatus?.();
+        toastSuccess("Configurazione Webflow rimossa.");
+        setConnectorConfigDrawer(null);
+      })
+      .catch((err) => setWebflowDrawerError(err?.message ?? "Rimozione fallita"))
+      .finally(() => setWebflowSaving(false));
+  };
+
+  const runWebflowSync = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_webflow") return;
+    if (!projectIds.length) {
+      toastError("Seleziona almeno un progetto nel selettore progetti (sidebar).");
+      return;
+    }
+    setWebflowSyncing(true);
+    setWebflowDrawerError(null);
+    followupApi
+      .syncWebflowApartments(workspaceId, { projectIds })
+      .then((r) => {
+        const res = r.result;
+        const errMsg =
+          res.errors.length > 0 ? ` Prime errori: ${res.errors.slice(0, 3).map((e) => e.message).join("; ")}` : "";
+        toastSuccess(
+          `Sync completato: ${res.synced} processati, creati ${res.created}, aggiornati ${res.updated}.${errMsg}`
+        );
+        if (res.errors.length > 0) {
+          setWebflowDrawerError(`${res.errors.length} errori durante il sync.${errMsg}`);
+        }
+      })
+      .catch((err) => setWebflowDrawerError(err?.message ?? "Sync fallito"))
+      .finally(() => setWebflowSyncing(false));
+  };
+
+  const saveTeamsConnector = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_microsoft_teams") return;
+    if (!integrationsEntitled) {
+      toastError("Integrazioni non attive sul workspace.");
+      return;
+    }
+    const url = teamsWebhookUrl.trim();
+    if (!url) {
+      toastError("Inserisci l’URL del connettore Incoming Webhook.");
+      return;
+    }
+    setTeamsSaving(true);
+    setTeamsDrawerError(null);
+    followupApi
+      .saveTeamsIncomingConnectorConfig(workspaceId, {
+        incomingWebhookUrl: url,
+        ...(teamsLabel.trim() ? { label: teamsLabel.trim() } : {}),
+      })
+      .then(() => {
+        setTeamsHasSavedConfig(true);
+        setConnectors((prev) =>
+          prev.map((c) => (c.id === "connector_microsoft_teams" ? { ...c, status: "configured" } : c))
+        );
+        reloadTeamsIncomingStatus?.();
+        toastSuccess("Webhook Teams salvato.");
+        setConnectorConfigDrawer(null);
+      })
+      .catch((err) => setTeamsDrawerError(err?.message ?? "Salvataggio fallito"))
+      .finally(() => setTeamsSaving(false));
+  };
+
+  const removeTeamsConnector = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_microsoft_teams") return;
+    if (!window.confirm("Rimuovere il webhook Teams per questo workspace?")) return;
+    setTeamsSaving(true);
+    setTeamsDrawerError(null);
+    followupApi
+      .deleteTeamsIncomingConnectorConfig(workspaceId)
+      .then(() => {
+        setTeamsHasSavedConfig(false);
+        setTeamsWebhookUrl("");
+        setTeamsLabel("");
+        setConnectors((prev) =>
+          prev.map((c) => (c.id === "connector_microsoft_teams" ? { ...c, status: "available" } : c))
+        );
+        reloadTeamsIncomingStatus?.();
+        toastSuccess("Webhook Teams rimosso.");
+        setConnectorConfigDrawer(null);
+      })
+      .catch((err) => setTeamsDrawerError(err?.message ?? "Rimozione fallita"))
+      .finally(() => setTeamsSaving(false));
+  };
+
+  const testTeamsWebhook = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_microsoft_teams") return;
+    setTeamsTestSending(true);
+    setTeamsDrawerError(null);
+    followupApi
+      .testTeamsIncomingWebhook(workspaceId)
+      .then(() => toastSuccess("Messaggio di prova inviato al canale Teams."))
+      .catch((err) => setTeamsDrawerError(err?.message ?? "Invio fallito"))
+      .finally(() => setTeamsTestSending(false));
+  };
+
+  const saveWorkspaceAiIntegration = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_workspace_ai") return;
+    if (!isAdmin) {
+      toastError("Solo un amministratore workspace può salvare la chiave API (stesso vincolo delle Impostazioni workspace).");
+      return;
+    }
+    const key = workspaceAiFormApiKey.trim();
+    if (!key) {
+      toastError("Incolla l’API key del provider selezionato.");
+      return;
+    }
+    setWorkspaceAiSaving(true);
+    setWorkspaceAiDrawerError(null);
+    followupApi
+      .putWorkspaceAiConfig(workspaceId, { provider: workspaceAiFormProvider, apiKey: key })
+      .then(() => {
+        setWorkspaceAiFormApiKey("");
+        setConnectors((prev) =>
+          prev.map((c) => {
+            if (c.id === "connector_anthropic_claude") {
+              return { ...c, status: workspaceAiFormProvider === "claude" ? "configured" : "available" };
+            }
+            if (c.id === "connector_openai") {
+              return { ...c, status: workspaceAiFormProvider === "openai" ? "configured" : "available" };
+            }
+            if (c.id === "connector_google_gemini") {
+              return { ...c, status: workspaceAiFormProvider === "gemini" ? "configured" : "available" };
+            }
+            return c;
+          })
+        );
+        reloadWorkspaceAiConfig?.();
+        toastSuccess("Provider AI salvato per il workspace.");
+        setConnectorConfigDrawer(null);
+      })
+      .catch((err) => setWorkspaceAiDrawerError(err?.message ?? "Salvataggio fallito"))
+      .finally(() => setWorkspaceAiSaving(false));
+  };
+
+  const removeWorkspaceAiIntegration = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_workspace_ai") return;
+    if (!isAdmin) {
+      toastError("Solo un amministratore workspace può rimuovere la configurazione AI.");
+      return;
+    }
+    if (!window.confirm("Scollegare il provider AI da questo workspace? I suggerimenti che dipendono dall’LLM smetteranno di usare la tua chiave.")) {
+      return;
+    }
+    setWorkspaceAiSaving(true);
+    setWorkspaceAiDrawerError(null);
+    followupApi
+      .putWorkspaceAiConfig(workspaceId, { provider: workspaceAiFormProvider, apiKey: "" })
+      .then(() => {
+        setConnectors((prev) =>
+          prev.map((c) =>
+            c.id === "connector_anthropic_claude" || c.id === "connector_openai" || c.id === "connector_google_gemini"
+              ? { ...c, status: "available" }
+              : c
+          )
+        );
+        reloadWorkspaceAiConfig?.();
+        toastSuccess("Provider AI rimosso.");
+        setConnectorConfigDrawer(null);
+      })
+      .catch((err) => setWorkspaceAiDrawerError(err?.message ?? "Rimozione fallita"))
+      .finally(() => setWorkspaceAiSaving(false));
+  };
+
   const saveMetaWhatsAppConfig = () => {
     if (!workspaceId || connectorConfigDrawer !== "connector_meta_whatsapp") return;
     if (!metaPhoneNumberId.trim() || !metaAccessToken.trim()) {
@@ -1320,6 +1950,11 @@ export function ConnettoriTab({
               {connectorConfigDrawer === "connector_meta_whatsapp" && "Collega WhatsApp (Meta Cloud API)"}
               {connectorConfigDrawer === "connector_mailchimp" && "Mailchimp — API key"}
               {connectorConfigDrawer === "connector_activecampaign" && "ActiveCampaign — credenziali API"}
+              {connectorConfigDrawer === "connector_stripe" && "Stripe — pagamenti"}
+              {connectorConfigDrawer === "connector_paypal" && "PayPal — REST / webhook"}
+              {connectorConfigDrawer === "connector_webflow" && "Webflow — CMS appartamenti"}
+              {connectorConfigDrawer === "connector_microsoft_teams" && "Microsoft Teams — Incoming Webhook"}
+              {connectorConfigDrawer === "connector_workspace_ai" && "Provider AI (LLM) per workspace"}
               {connectorConfigDrawer === "connector_sumsub" && "Sumsub — AML / KYC"}
             </DrawerTitle>
           </DrawerHeader>
@@ -1777,6 +2412,338 @@ export function ConnettoriTab({
                 </div>
               </>
             )}
+            {connectorConfigDrawer === "connector_stripe" && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Secret key da Stripe Dashboard (Developers → API keys). Per verificare i webhook, aggiungi anche il signing secret (whsec_…) e registra
+                  l&apos;endpoint sotto in Stripe.
+                </p>
+                {!integrationsEntitled && (
+                  <Alert variant="warning" title="Integrazioni non attive" className="text-sm">
+                    Non puoi salvare senza modulo Integrazioni abilitato da Tecma.
+                    {commercialContactInlineNode()}
+                  </Alert>
+                )}
+                {stripeDrawerError && <p className="text-sm text-destructive">{stripeDrawerError}</p>}
+                {workspaceId && (
+                  <p className="rounded-md border border-border bg-muted/40 px-2 py-1.5 font-mono text-xs break-all">
+                    {`${resolveApiBaseUrl().replace(/\/$/, "")}${stripeWebhookUrlTemplate.replace(":workspaceId", workspaceId)}`}
+                  </p>
+                )}
+                <div>
+                  <label htmlFor="stripe-sk" className="text-sm font-medium text-foreground">
+                    Secret key (sk_…)
+                  </label>
+                  <Input
+                    id="stripe-sk"
+                    type="password"
+                    value={stripeSecretKey}
+                    onChange={(e) => setStripeSecretKey(e.target.value)}
+                    placeholder={stripeHasSavedConfig ? "•••• (incolla nuova sk_ per aggiornare)" : "sk_live_… o sk_test_…"}
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="stripe-whsec" className="text-sm font-medium text-foreground">
+                    Webhook signing secret (whsec_…, opzionale)
+                  </label>
+                  <Input
+                    id="stripe-whsec"
+                    type="password"
+                    value={stripeWebhookSecret}
+                    onChange={(e) => setStripeWebhookSecret(e.target.value)}
+                    placeholder="Opzionale al primo salvataggio; incolla per aggiungere o ruotare"
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="stripe-pk" className="text-sm font-medium text-foreground">
+                    Publishable key (pk_…, opzionale)
+                  </label>
+                  <Input
+                    id="stripe-pk"
+                    value={stripePublishableKey}
+                    onChange={(e) => setStripePublishableKey(e.target.value)}
+                    placeholder="pk_live_… — solo riferimento, resta in chiaro dopo il salvataggio"
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+              </>
+            )}
+            {connectorConfigDrawer === "connector_paypal" && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Credenziali REST dall&apos;app PayPal Developer. Registra l&apos;URL webhook qui sotto nel dashboard PayPal. In aggiornamento puoi omettere
+                  il Secret se non è cambiato.
+                </p>
+                {!integrationsEntitled && (
+                  <Alert variant="warning" title="Integrazioni non attive" className="text-sm">
+                    Non puoi salvare senza modulo Integrazioni abilitato da Tecma.
+                    {commercialContactInlineNode()}
+                  </Alert>
+                )}
+                {paypalDrawerError && <p className="text-sm text-destructive">{paypalDrawerError}</p>}
+                {workspaceId && (
+                  <p className="rounded-md border border-border bg-muted/40 px-2 py-1.5 font-mono text-xs break-all">
+                    {`${resolveApiBaseUrl().replace(/\/$/, "")}${paypalWebhookUrlTemplate.replace(":workspaceId", workspaceId)}`}
+                  </p>
+                )}
+                <div>
+                  <label htmlFor="paypal-mode" className="text-sm font-medium text-foreground">
+                    Ambiente
+                  </label>
+                  <Select value={paypalMode} onValueChange={(v) => setPaypalMode(v as "sandbox" | "live")}>
+                    <SelectTrigger id="paypal-mode" className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="live">Live</SelectItem>
+                      <SelectItem value="sandbox">Sandbox</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label htmlFor="paypal-cid" className="text-sm font-medium text-foreground">
+                    Client ID
+                  </label>
+                  <Input
+                    id="paypal-cid"
+                    value={paypalClientId}
+                    onChange={(e) => setPaypalClientId(e.target.value)}
+                    placeholder="Client ID dall’app REST"
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="paypal-sec" className="text-sm font-medium text-foreground">
+                    Client Secret
+                  </label>
+                  <Input
+                    id="paypal-sec"
+                    type="password"
+                    value={paypalClientSecret}
+                    onChange={(e) => setPaypalClientSecret(e.target.value)}
+                    placeholder={
+                      paypalHasSavedConfig
+                        ? "•••• (incolla nuovo secret per aggiornare, o lascia vuoto se invariato)"
+                        : "Secret dall’app REST"
+                    }
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="paypal-wh" className="text-sm font-medium text-foreground">
+                    Webhook ID (opzionale)
+                  </label>
+                  <Input
+                    id="paypal-wh"
+                    value={paypalWebhookId}
+                    onChange={(e) => setPaypalWebhookId(e.target.value)}
+                    placeholder="ID webhook nel Developer Dashboard"
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+              </>
+            )}
+            {connectorConfigDrawer === "connector_webflow" && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Token API (Data API v2), Site ID e ID della collection CMS «Appartamenti». Slug campi richiesti nella collection:{" "}
+                  <span className="font-mono text-xs">tecma-apartment-id</span>, <span className="font-mono text-xs">prezzo-eur</span>,{" "}
+                  <span className="font-mono text-xs">stato</span>, <span className="font-mono text-xs">modalita</span>,{" "}
+                  <span className="font-mono text-xs">codice-unita</span>, <span className="font-mono text-xs">planimetria-url</span>.
+                </p>
+                {!integrationsEntitled && (
+                  <Alert variant="warning" title="Integrazioni non attive" className="text-sm">
+                    Non puoi salvare senza modulo Integrazioni abilitato da Tecma.
+                    {commercialContactInlineNode()}
+                  </Alert>
+                )}
+                {webflowDrawerError && <p className="text-sm text-destructive">{webflowDrawerError}</p>}
+                <div>
+                  <label htmlFor="wf-token" className="text-sm font-medium text-foreground">
+                    API token
+                  </label>
+                  <Input
+                    id="wf-token"
+                    type="password"
+                    value={webflowApiToken}
+                    onChange={(e) => setWebflowApiToken(e.target.value)}
+                    placeholder={webflowHasSavedConfig ? "•••• (incolla nuovo token per aggiornare)" : "Token Webflow"}
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="wf-site" className="text-sm font-medium text-foreground">
+                    Site ID
+                  </label>
+                  <Input
+                    id="wf-site"
+                    value={webflowSiteId}
+                    onChange={(e) => setWebflowSiteId(e.target.value)}
+                    placeholder="ID sito Webflow"
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="wf-coll" className="text-sm font-medium text-foreground">
+                    Collection ID (appartamenti)
+                  </label>
+                  <Input
+                    id="wf-coll"
+                    value={webflowCollectionId}
+                    onChange={(e) => setWebflowCollectionId(e.target.value)}
+                    placeholder="ID collection CMS"
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                  <p className="font-medium text-foreground">Sync verso Webflow</p>
+                  <p className="mt-1">
+                    Vengono usati i progetti attualmente selezionati nella sidebar ({projectIds.length || 0} progetto/i).{" "}
+                    {projectIds.length === 0 && "Seleziona almeno un progetto per sync."}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="mt-3 min-h-11"
+                    onClick={runWebflowSync}
+                    disabled={webflowSyncing || !webflowHasSavedConfig || projectIds.length === 0 || ro}
+                  >
+                    {webflowSyncing ? "Sync in corso…" : "Sync appartamenti → Webflow"}
+                  </Button>
+                  {!webflowHasSavedConfig && (
+                    <p className="mt-2 text-amber-700 dark:text-amber-300">Salva la configurazione prima di eseguire il sync.</p>
+                  )}
+                </div>
+              </>
+            )}
+            {connectorConfigDrawer === "connector_microsoft_teams" && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Crea un connettore <span className="font-medium text-foreground">Incoming Webhook</span> sul canale Teams (⋯ → Connettori → Incoming Webhook)
+                  e incolla qui l&apos;URL completo. L&apos;URL è sensibile: chi lo possiede può inviare messaggi nel canale.
+                </p>
+                {!integrationsEntitled && (
+                  <Alert variant="warning" title="Integrazioni non attive" className="text-sm">
+                    Non puoi salvare senza modulo Integrazioni abilitato da Tecma.
+                    {commercialContactInlineNode()}
+                  </Alert>
+                )}
+                {teamsDrawerError && <p className="text-sm text-destructive">{teamsDrawerError}</p>}
+                <div>
+                  <label htmlFor="teams-url" className="text-sm font-medium text-foreground">
+                    URL Incoming Webhook
+                  </label>
+                  <Input
+                    id="teams-url"
+                    type="url"
+                    value={teamsWebhookUrl}
+                    onChange={(e) => setTeamsWebhookUrl(e.target.value)}
+                    placeholder="https://outlook.office.com/webhook/…"
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="teams-label" className="text-sm font-medium text-foreground">
+                    Etichetta (opzionale)
+                  </label>
+                  <Input
+                    id="teams-label"
+                    value={teamsLabel}
+                    onChange={(e) => setTeamsLabel(e.target.value)}
+                    placeholder="es. Canale vendite"
+                    className="mt-1"
+                    autoComplete="off"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="min-h-11"
+                  onClick={testTeamsWebhook}
+                  disabled={teamsTestSending || !teamsHasSavedConfig || ro}
+                >
+                  {teamsTestSending ? "Invio…" : "Invia messaggio di prova"}
+                </Button>
+                {!teamsHasSavedConfig && (
+                  <p className="text-xs text-muted-foreground">Salva la configurazione prima di inviare una prova.</p>
+                )}
+              </>
+            )}
+            {connectorConfigDrawer === "connector_workspace_ai" && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Un solo provider LLM attivo per workspace (stessa configurazione delle Impostazioni workspace → Provider AI). La chiave è custodita lato server e
+                  non viene mai mostrata in chiaro dopo il salvataggio.
+                </p>
+                {workspaceAiConfig?.configured && workspaceAiConfig.provider && (
+                  <p className="text-sm text-foreground">
+                    Stato attuale:{" "}
+                    <span className="font-medium">
+                      {workspaceAiConfig.provider === "claude"
+                        ? "Claude (Anthropic)"
+                        : workspaceAiConfig.provider === "openai"
+                          ? "OpenAI"
+                          : workspaceAiConfig.provider === "gemini"
+                            ? "Gemini (Google)"
+                            : workspaceAiConfig.provider}
+                    </span>
+                    {workspaceAiConfig.apiKeyMasked && (
+                      <span className="ml-1 text-xs text-muted-foreground">({workspaceAiConfig.apiKeyMasked})</span>
+                    )}
+                  </p>
+                )}
+                {!isAdmin && (
+                  <Alert variant="warning" title="Solo amministratore" className="text-sm">
+                    Salvataggio e rimozione della chiave API richiedono un amministratore workspace (allineato all’API e alla pagina Workspaces).
+                  </Alert>
+                )}
+                {workspaceAiDrawerError && <p className="text-sm text-destructive">{workspaceAiDrawerError}</p>}
+                <div>
+                  <label htmlFor="ai-provider" className="text-sm font-medium text-foreground">
+                    Provider
+                  </label>
+                  <Select
+                    value={workspaceAiFormProvider}
+                    onValueChange={(v) => setWorkspaceAiFormProvider(v as "claude" | "openai" | "gemini")}
+                  >
+                    <SelectTrigger id="ai-provider" className="mt-1 min-h-11">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="claude">Claude (Anthropic)</SelectItem>
+                      <SelectItem value="openai">OpenAI (ChatGPT API)</SelectItem>
+                      <SelectItem value="gemini">Gemini (Google)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label htmlFor="ai-api-key" className="text-sm font-medium text-foreground">
+                    API key
+                  </label>
+                  <Input
+                    id="ai-api-key"
+                    type="password"
+                    value={workspaceAiFormApiKey}
+                    onChange={(e) => setWorkspaceAiFormApiKey(e.target.value)}
+                    placeholder="Incolla la chiave del provider selezionato"
+                    className="mt-1 min-h-11"
+                    autoComplete="off"
+                  />
+                </div>
+              </>
+            )}
           </DrawerBody>
           {connectorConfigDrawer === "connector_n8n" && (
             <DrawerFooter className="flex flex-wrap gap-2">
@@ -1848,6 +2815,82 @@ export function ConnettoriTab({
                   disabled={activeCampaignSaving || ro}
                 >
                   Rimuovi config
+                </Button>
+              )}
+            </DrawerFooter>
+          )}
+          {connectorConfigDrawer === "connector_stripe" && (
+            <DrawerFooter className="flex flex-wrap gap-2">
+              <Button className="min-h-11" onClick={saveStripeConnector} disabled={stripeSaving || ro || !integrationsEntitled}>
+                {stripeSaving ? "Salvataggio…" : "Salva"}
+              </Button>
+              {stripeHasSavedConfig && (
+                <Button variant="outline" className="min-h-11" onClick={removeStripeConnector} disabled={stripeSaving || ro}>
+                  Rimuovi config
+                </Button>
+              )}
+            </DrawerFooter>
+          )}
+          {connectorConfigDrawer === "connector_paypal" && (
+            <DrawerFooter className="flex flex-wrap gap-2">
+              <Button className="min-h-11" onClick={savePayPalConnector} disabled={paypalSaving || ro || !integrationsEntitled}>
+                {paypalSaving ? "Salvataggio…" : "Salva"}
+              </Button>
+              {paypalHasSavedConfig && (
+                <Button variant="outline" className="min-h-11" onClick={removePayPalConnector} disabled={paypalSaving || ro}>
+                  Rimuovi config
+                </Button>
+              )}
+            </DrawerFooter>
+          )}
+          {connectorConfigDrawer === "connector_webflow" && (
+            <DrawerFooter className="flex flex-wrap gap-2">
+              <Button className="min-h-11" onClick={saveWebflowConnector} disabled={webflowSaving || ro || !integrationsEntitled}>
+                {webflowSaving ? "Salvataggio…" : "Salva"}
+              </Button>
+              {webflowHasSavedConfig && (
+                <Button variant="outline" className="min-h-11" onClick={removeWebflowConnector} disabled={webflowSaving || ro}>
+                  Rimuovi config
+                </Button>
+              )}
+            </DrawerFooter>
+          )}
+          {connectorConfigDrawer === "connector_microsoft_teams" && (
+            <DrawerFooter className="flex flex-wrap gap-2">
+              <Button className="min-h-11" onClick={saveTeamsConnector} disabled={teamsSaving || ro || !integrationsEntitled}>
+                {teamsSaving ? "Salvataggio…" : "Salva"}
+              </Button>
+              {teamsHasSavedConfig && (
+                <Button variant="outline" className="min-h-11" onClick={removeTeamsConnector} disabled={teamsSaving || ro}>
+                  Rimuovi config
+                </Button>
+              )}
+            </DrawerFooter>
+          )}
+          {connectorConfigDrawer === "connector_workspace_ai" && (
+            <DrawerFooter className="flex flex-wrap gap-2">
+              <Button
+                className="min-h-11 gap-1"
+                onClick={saveWorkspaceAiIntegration}
+                disabled={workspaceAiSaving || ro || !isAdmin || !workspaceAiFormApiKey.trim()}
+              >
+                {workspaceAiSaving ? (
+                  "Salvataggio…"
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    Salva provider
+                  </>
+                )}
+              </Button>
+              {workspaceAiConfig?.configured && (
+                <Button
+                  variant="outline"
+                  className="min-h-11"
+                  onClick={removeWorkspaceAiIntegration}
+                  disabled={workspaceAiSaving || ro || !isAdmin}
+                >
+                  Scollega provider
                 </Button>
               )}
             </DrawerFooter>

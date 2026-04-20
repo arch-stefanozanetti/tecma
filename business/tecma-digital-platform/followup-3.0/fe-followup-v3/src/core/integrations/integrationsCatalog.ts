@@ -45,6 +45,7 @@ export const CONNECTOR_CLUSTER_LABELS: Record<ConnectorCluster, string> = {
   productivity: "Produttività & collab",
   compliance: "Compliance & KYC",
   automation: "Automazione & orchestrazione",
+  ai: "AI & assistenti",
 };
 
 /** Testo opzionale sotto il titolo di sezione (contesto prodotto per cluster densi). */
@@ -55,6 +56,7 @@ export const CONNECTOR_CLUSTER_SECTION_INTRO: Partial<Record<ConnectorCluster, s
     "Replica in warehouse, BI self-service, orchestrazione ETL e osservabilità: modelli curati e KPI condivisi tra commerciale, marketing e direzione, senza esporre il database operativo.",
   docs:
     "Dalla proposta al contratto firmato e archiviato: firme elettroniche, template legali, integrazione con ERP/DMS (es. TeamSystem) e tracciamento in timeline CRM per audit e conformità.",
+  ai: "Modelli linguistici e protocolli di tool: le chiavi API non devono mai risiedere nel browser; configurazione prevista per workspace lato server, con controlli di accesso e audit. Vedi anche il documento di architettura (spike) nel repo.",
 };
 
 /** Ordine di visualizzazione delle sezioni «Altri connettori». */
@@ -69,6 +71,7 @@ export const CONNECTOR_CLUSTER_ORDER: ConnectorCluster[] = [
   "productivity",
   "compliance",
   "automation",
+  "ai",
 ];
 
 /** Catalogo unificato: connettori core (configurabili / prioritari) + roadmap estesa. */
@@ -114,6 +117,7 @@ export const ALL_GROUPS: ConnectorGroup[] = [
   "Data/BI",
   "Docs/Signature",
   "Productivity/Collab",
+  "AI & Assistants",
   "Compliance",
   "Payments & Billing",
 ];

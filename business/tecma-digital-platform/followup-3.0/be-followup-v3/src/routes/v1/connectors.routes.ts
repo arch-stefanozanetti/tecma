@@ -43,6 +43,28 @@ import {
   listMetaAdAccountsForWorkspace,
 } from "../../core/connectors/marketing-discovery.service.js";
 import { deleteSumsubConfig, getSumsubConfig, saveSumsubConfig } from "../../core/aml/aml-config.service.js";
+import {
+  deleteStripeConfig,
+  getStripeConfig,
+  saveStripeConfig,
+} from "../../core/connectors/stripe-config.service.js";
+import {
+  deletePayPalConfig,
+  getPayPalConfig,
+  savePayPalConfig,
+} from "../../core/connectors/paypal-config.service.js";
+import {
+  deleteWebflowConfig,
+  getWebflowConfig,
+  saveWebflowConfig,
+} from "../../core/connectors/webflow-config.service.js";
+import { syncApartmentsToWebflow, WebflowSyncBodySchema } from "../../core/connectors/webflow-sync.service.js";
+import {
+  deleteTeamsIncomingConfig,
+  getTeamsIncomingConfig,
+  postTeamsIncomingMessage,
+  saveTeamsIncomingConfig,
+} from "../../core/connectors/teams-incoming-webhook.service.js";
 import { HttpError } from "../../types/http.js";
 import { handleAsync, sendError } from "../asyncHandler.js";
 import { requireAdmin } from "../authMiddleware.js";
@@ -489,6 +511,182 @@ connectorsRoutes.delete(
   entitledIntegrationsForParam,
   handleAsync(async (req) => {
     const deleted = await deleteSumsubConfig(req.params.workspaceId);
+    return { deleted };
+  })
+);
+
+/** Stripe */
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/stripe/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_READ),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const config = await getStripeConfig(req.params.workspaceId);
+    return { config: config ?? null, webhookUrlTemplate: "/v1/webhooks/stripe/:workspaceId" };
+  })
+);
+connectorsRoutes.post(
+  "/workspaces/:workspaceId/connectors/stripe/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_UPDATE),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const body = z
+      .object({
+        secretKey: z.string().min(1),
+        webhookSecret: z.string().optional(),
+        publishableKey: z.string().optional(),
+      })
+      .parse(req.body);
+    const config = await saveStripeConfig(req.params.workspaceId, body);
+    return { config };
+  })
+);
+connectorsRoutes.delete(
+  "/workspaces/:workspaceId/connectors/stripe/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_DELETE),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const deleted = await deleteStripeConfig(req.params.workspaceId);
+    return { deleted };
+  })
+);
+
+/** PayPal */
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/paypal/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_READ),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const config = await getPayPalConfig(req.params.workspaceId);
+    return { config: config ?? null, webhookUrlTemplate: "/v1/webhooks/paypal/:workspaceId" };
+  })
+);
+connectorsRoutes.post(
+  "/workspaces/:workspaceId/connectors/paypal/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_UPDATE),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const body = z
+      .object({
+        clientId: z.string().min(1),
+        clientSecret: z.string().optional(),
+        webhookId: z.string().optional(),
+        mode: z.enum(["sandbox", "live"]).optional(),
+      })
+      .parse(req.body);
+    const config = await savePayPalConfig(req.params.workspaceId, {
+      clientId: body.clientId,
+      clientSecret: body.clientSecret ?? "",
+      webhookId: body.webhookId,
+      mode: body.mode,
+    });
+    return { config };
+  })
+);
+connectorsRoutes.delete(
+  "/workspaces/:workspaceId/connectors/paypal/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_DELETE),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const deleted = await deletePayPalConfig(req.params.workspaceId);
+    return { deleted };
+  })
+);
+
+/** Webflow */
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/webflow/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_READ),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const config = await getWebflowConfig(req.params.workspaceId);
+    return { config: config ?? null };
+  })
+);
+connectorsRoutes.post(
+  "/workspaces/:workspaceId/connectors/webflow/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_UPDATE),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const body = z
+      .object({
+        apiToken: z.string().min(1),
+        siteId: z.string().min(1),
+        apartmentsCollectionId: z.string().min(1),
+      })
+      .parse(req.body);
+    const config = await saveWebflowConfig(req.params.workspaceId, body);
+    return { config };
+  })
+);
+connectorsRoutes.delete(
+  "/workspaces/:workspaceId/connectors/webflow/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_DELETE),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const deleted = await deleteWebflowConfig(req.params.workspaceId);
+    return { deleted };
+  })
+);
+connectorsRoutes.post(
+  "/workspaces/:workspaceId/connectors/webflow/sync-apartments",
+  requirePermission(PERMISSIONS.INTEGRATIONS_UPDATE),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const body = WebflowSyncBodySchema.parse(req.body ?? {});
+    const result = await syncApartmentsToWebflow(req.params.workspaceId, body.projectIds);
+    return { result };
+  })
+);
+
+/** Microsoft Teams (Incoming Webhook) */
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/teams-incoming/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_READ),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const config = await getTeamsIncomingConfig(req.params.workspaceId);
+    return { config: config ?? null };
+  })
+);
+connectorsRoutes.post(
+  "/workspaces/:workspaceId/connectors/teams-incoming/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_UPDATE),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const body = z
+      .object({
+        incomingWebhookUrl: z.string().url(),
+        label: z.string().optional(),
+      })
+      .parse(req.body);
+    const config = await saveTeamsIncomingConfig(req.params.workspaceId, body);
+    return { config };
+  })
+);
+connectorsRoutes.post(
+  "/workspaces/:workspaceId/connectors/teams-incoming/test",
+  requirePermission(PERMISSIONS.INTEGRATIONS_UPDATE),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const body = z
+      .object({
+        title: z.string().optional(),
+        text: z.string().optional(),
+      })
+      .parse(req.body ?? {});
+    return postTeamsIncomingMessage(req.params.workspaceId, {
+      title: body.title?.trim() || "FollowUp — test Teams",
+      text: body.text?.trim() || "Messaggio di prova dal portale integrazioni.",
+    });
+  })
+);
+connectorsRoutes.delete(
+  "/workspaces/:workspaceId/connectors/teams-incoming/config",
+  requirePermission(PERMISSIONS.INTEGRATIONS_DELETE),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const deleted = await deleteTeamsIncomingConfig(req.params.workspaceId);
     return { deleted };
   })
 );

@@ -4,8 +4,10 @@ import { CreateApartmentPage } from "./CreateApartmentPage";
 
 vi.mock("../../api/followupApi", () => ({
   followupApi: {
-    queryApartments: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),
-    createApartment: vi.fn().mockResolvedValue({ apartmentId: "apt-1", apartment: {} }),
+    apartments: {
+      queryApartments: vi.fn().mockResolvedValue({ data: [], pagination: { total: 0 } }),
+      createApartment: vi.fn().mockResolvedValue({ apartmentId: "apt-1", apartment: {} }),
+    },
   },
 }));
 

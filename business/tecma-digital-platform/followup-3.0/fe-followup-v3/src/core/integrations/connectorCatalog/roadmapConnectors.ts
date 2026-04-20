@@ -547,4 +547,40 @@ export const roadmapConnectors: ConnectorCatalogItem[] = [
     ["Firma qualificata", "Marca temporale", "API"],
     ["Accordo InfoCert", "Credential"]
   ),
+  roadmap(
+    "connector_azure_openai",
+    "Azure OpenAI Service",
+    "AI & Assistants",
+    "Modelli OpenAI ospitati in **Microsoft Azure** per contesti enterprise: networking privato, regioni, conformità rispetto a policy IT e residenza dati.",
+    ["Deployment in subscription", "Private endpoint", "Monitoraggio quota"],
+    [
+      "Sottoscrizione Azure",
+      "Risorsa Azure OpenAI",
+      "Endpoint e chiavi in Key Vault / backend",
+      "Allineamento con responsabile IT e sicurezza",
+    ],
+    "azure_openai"
+  ),
+  roadmap(
+    "connector_mcp_tool_bridge",
+    "MCP server / tool bridge",
+    "AI & Assistants",
+    "**Model Context Protocol**: protocollo tra host (IDE, orchestratori) e **server di tool** che espongono azioni sicure sui dati. In prodotto si collega tipicamente a **n8n** o a servizi backend dedicati — non è un connettore «in un click» senza definizione di tool, permessi e hosting.",
+    ["Tool server verso CRM/dati", "Integrazione orchestrazione", "Evoluzione con proxy lato BE"],
+    [
+      "Modello di minaccia e permessi per tool",
+      "Hosting del server MCP",
+      "Allineamento RBAC (`integrations.update`) e audit log",
+    ],
+    "mcp"
+  ),
+  roadmap(
+    "connector_mistral_ai",
+    "Mistral AI",
+    "AI & Assistants",
+    "Modelli Mistral tramite API ufficiale per clienti che privilegiano fornitori europei o modelli open-weight in deployment gestito.",
+    ["Chat / completions", "Endpoint EU"],
+    ["Account Mistral", "API key lato server", "Limiti e fatturazione"],
+    "mistral"
+  ),
 ];

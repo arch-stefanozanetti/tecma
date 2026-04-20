@@ -14,6 +14,10 @@ const TARGET_DB = "test-zanetti";
 const SOURCE_DB = "user";
 const SOURCE_COLL = "adminUsers";
 const TARGET_COLL = "tz_users";
+const FORCE_TECMA_ADMIN_EMAILS = new Set([
+  "g.manicone@tecmasolutions.com",
+  "a.nicotra@tecmasolutions.com",
+]);
 
 const EMAILS = [
   "r.cerrone@tecmasolutions.com",
@@ -21,7 +25,9 @@ const EMAILS = [
   "g.recchimuzzi@tecmasolutions.com",
   "d.abbate@tecmasolutions.com",
   "s.trifiletti@tecmasolutions.com",
-  "g.fusco@tecmasolutions.com"
+  "g.fusco@tecmasolutions.com",
+  "g.manicone@tecmasolutions.com",
+  "a.nicotra@tecmasolutions.com",
 ];
 
 type AdminUserDoc = Record<string, unknown> & {
@@ -64,15 +70,26 @@ function toTzFields(doc: AdminUserDoc, email: string): Record<string, unknown> {
   const disabled = Boolean(doc.isDisabled);
   const status =
     pwd && !disabled ? "active" : disabled ? "disabled" : pwd ? "active" : "disabled";
+  const normalizedEmail = normalizeEmail(email);
   const role = String(doc.role || "admin").toLowerCase();
-  return {
-    email: normalizeEmail(email),
+  const base = {
+    email: normalizedEmail,
     password: pwd,
     role,
     isDisabled: disabled,
     status,
     project_ids: mapProjectIds(doc.project_ids),
     updatedAt: new Date()
+  };
+  if (!FORCE_TECMA_ADMIN_EMAILS.has(normalizedEmail)) return base;
+  return {
+    ...base,
+    role: "admin",
+    status: "active",
+    isDisabled: false,
+    system_role: "tecma_admin",
+    isTecmaAdmin: true,
+    permissions_override: ["*"],
   };
 }
 

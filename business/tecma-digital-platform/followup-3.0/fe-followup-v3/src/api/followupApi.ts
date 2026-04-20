@@ -135,6 +135,7 @@ import { apartmentsApi } from "./domains/apartmentsApi";
 import { requestsApi } from "./domains/requestsApi";
 import { quotesApi } from "./domains/quotesApi";
 import { projectsApi } from "./domains/projectsApi";
+import { postDeliveryApi } from "./domains/postDeliveryApi";
 
 export const followupApi = {
   clients: clientsApi,
@@ -142,6 +143,7 @@ export const followupApi = {
   requests: requestsApi,
   quotes: quotesApi,
   projects: projectsApi,
+  postDelivery: postDeliveryApi,
   getApartmentPriceCalendar: apartmentsApi.getApartmentPriceCalendar,
   upsertApartmentPriceCalendar: apartmentsApi.upsertApartmentPriceCalendar,
   queryCalendar: (query: ListQuery) => postJson<PaginatedResponse<CalendarEvent>>("/calendar/events/query", query),
@@ -1247,6 +1249,107 @@ export const followupApi = {
     ),
   deleteActiveCampaignConnectorConfig: (workspaceId: string) =>
     deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/activecampaign/config`),
+  getStripeConnectorConfig: (workspaceId: string) =>
+    getJson<{
+      config: {
+        _id: string;
+        workspaceId: string;
+        connectorId: string;
+        config: { secretKeyMasked?: string; webhookSecretMasked?: string; publishableKey?: string };
+        updatedAt: string;
+      } | null;
+      webhookUrlTemplate: string;
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/stripe/config`),
+  saveStripeConnectorConfig: (
+    workspaceId: string,
+    body: { secretKey: string; webhookSecret?: string; publishableKey?: string }
+  ) =>
+    postJson<{ config: Record<string, unknown> }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/connectors/stripe/config`,
+      body
+    ),
+  deleteStripeConnectorConfig: (workspaceId: string) =>
+    deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/stripe/config`),
+  getPayPalConnectorConfig: (workspaceId: string) =>
+    getJson<{
+      config: {
+        _id: string;
+        workspaceId: string;
+        connectorId: string;
+        config: {
+          clientId: string;
+          clientSecretMasked?: string;
+          webhookId?: string;
+          mode: "sandbox" | "live";
+        };
+        updatedAt: string;
+      } | null;
+      webhookUrlTemplate: string;
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/paypal/config`),
+  savePayPalConnectorConfig: (
+    workspaceId: string,
+    body: { clientId: string; clientSecret?: string; webhookId?: string; mode?: "sandbox" | "live" }
+  ) =>
+    postJson<{ config: Record<string, unknown> }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/connectors/paypal/config`,
+      body
+    ),
+  deletePayPalConnectorConfig: (workspaceId: string) =>
+    deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/paypal/config`),
+  getWebflowConnectorConfig: (workspaceId: string) =>
+    getJson<{
+      config: {
+        _id: string;
+        workspaceId: string;
+        connectorId: string;
+        config: { apiTokenMasked?: string; siteId: string; apartmentsCollectionId: string };
+        updatedAt: string;
+      } | null;
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/webflow/config`),
+  saveWebflowConnectorConfig: (
+    workspaceId: string,
+    body: { apiToken: string; siteId: string; apartmentsCollectionId: string }
+  ) =>
+    postJson<{ config: Record<string, unknown> }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/connectors/webflow/config`,
+      body
+    ),
+  deleteWebflowConnectorConfig: (workspaceId: string) =>
+    deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/webflow/config`),
+  syncWebflowApartments: (workspaceId: string, body: { projectIds: string[] }) =>
+    postJson<{
+      result: {
+        synced: number;
+        created: number;
+        updated: number;
+        errors: Array<{ apartmentId: string; message: string }>;
+      };
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/webflow/sync-apartments`, body),
+  getTeamsIncomingConnectorConfig: (workspaceId: string) =>
+    getJson<{
+      config: {
+        _id: string;
+        workspaceId: string;
+        connectorId: string;
+        config: { incomingWebhookUrl: string; label?: string };
+        updatedAt: string;
+      } | null;
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/teams-incoming/config`),
+  saveTeamsIncomingConnectorConfig: (
+    workspaceId: string,
+    body: { incomingWebhookUrl: string; label?: string }
+  ) =>
+    postJson<{ config: Record<string, unknown> }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/connectors/teams-incoming/config`,
+      body
+    ),
+  deleteTeamsIncomingConnectorConfig: (workspaceId: string) =>
+    deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/teams-incoming/config`),
+  testTeamsIncomingWebhook: (workspaceId: string, body?: { title?: string; text?: string }) =>
+    postJson<{ ok: boolean }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/connectors/teams-incoming/test`,
+      body ?? {}
+    ),
   testMetaWhatsAppMessage: (
     workspaceId: string,
     body: { to: string; templateName: string; languageCode: string; bodyParameters?: string[] }

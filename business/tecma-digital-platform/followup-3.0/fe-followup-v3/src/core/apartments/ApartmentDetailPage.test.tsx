@@ -40,6 +40,10 @@ vi.mock("./useApartmentDetailData", () => ({
 vi.mock("../../api/followupApi", () => ({
   followupApi: {
     apartments: mocks.api,
+    postDelivery: {
+      queryUnitIssues: vi.fn().mockResolvedValue({ data: [], pagination: { page: 1, perPage: 25, total: 0, totalPages: 0 } }),
+      getHandoverForApartment: vi.fn().mockResolvedValue({ handover: null }),
+    },
     getAuditForEntity: mocks.api.getAuditForEntity,
     listEntityAssignments: mocks.api.listEntityAssignments,
     listWorkspaceUsers: mocks.api.listWorkspaceUsers,
@@ -55,6 +59,7 @@ vi.mock("../../auth/projectScope", () => ({
     selectedProjectIds: ["p1"],
     projects: [{ id: "p1", name: "Project 1", displayName: "Project 1" }],
     isAdmin: false,
+    hasPermission: () => true,
   }),
 }));
 

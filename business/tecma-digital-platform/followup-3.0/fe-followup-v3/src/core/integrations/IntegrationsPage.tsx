@@ -4,7 +4,7 @@ import { CheckCircle2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Alert } from "../../components/ui/alert";
 import { useWorkspace } from "../../auth/projectScope";
-import type { WebhookConfigRow } from "../../types/domain";
+import type { WebhookConfigRow, WorkspaceAiConfig } from "../../types/domain";
 import {
   isValidTab,
   CONNECTOR_CATALOG,
@@ -46,6 +46,11 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
   const [metaWhatsAppConfigured, setMetaWhatsAppConfigured] = useState(false);
   const [mailchimpConfigured, setMailchimpConfigured] = useState(false);
   const [activeCampaignConfigured, setActiveCampaignConfigured] = useState(false);
+  const [stripeConfigured, setStripeConfigured] = useState(false);
+  const [paypalConfigured, setPayPalConfigured] = useState(false);
+  const [webflowConfigured, setWebflowConfigured] = useState(false);
+  const [teamsIncomingConfigured, setTeamsIncomingConfigured] = useState(false);
+  const [workspaceAiConfig, setWorkspaceAiConfig] = useState<WorkspaceAiConfig | null>(null);
   const [sumsubConfig, setSumsubConfig] = useState<SumsubConfigSnapshot>(null);
   const [autoOpenTwilio, setAutoOpenTwilio] = useState(false);
   const [autoOpenMetaWhatsapp, setAutoOpenMetaWhatsapp] = useState(false);
@@ -133,6 +138,46 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
       .catch(() => setActiveCampaignConfigured(false));
   }, [workspaceId]);
 
+  const loadStripeStatus = useCallback(() => {
+    if (!workspaceId) return;
+    followupApi
+      .getStripeConnectorConfig(workspaceId)
+      .then((r) => setStripeConfigured(!!r.config))
+      .catch(() => setStripeConfigured(false));
+  }, [workspaceId]);
+
+  const loadPayPalStatus = useCallback(() => {
+    if (!workspaceId) return;
+    followupApi
+      .getPayPalConnectorConfig(workspaceId)
+      .then((r) => setPayPalConfigured(!!r.config))
+      .catch(() => setPayPalConfigured(false));
+  }, [workspaceId]);
+
+  const loadWebflowStatus = useCallback(() => {
+    if (!workspaceId) return;
+    followupApi
+      .getWebflowConnectorConfig(workspaceId)
+      .then((r) => setWebflowConfigured(!!r.config))
+      .catch(() => setWebflowConfigured(false));
+  }, [workspaceId]);
+
+  const loadTeamsIncomingStatus = useCallback(() => {
+    if (!workspaceId) return;
+    followupApi
+      .getTeamsIncomingConnectorConfig(workspaceId)
+      .then((r) => setTeamsIncomingConfigured(!!r.config))
+      .catch(() => setTeamsIncomingConfigured(false));
+  }, [workspaceId]);
+
+  const loadWorkspaceAiConfig = useCallback(() => {
+    if (!workspaceId) return;
+    followupApi
+      .getWorkspaceAiConfig(workspaceId)
+      .then((c) => setWorkspaceAiConfig(c))
+      .catch(() => setWorkspaceAiConfig(null));
+  }, [workspaceId]);
+
   const loadSumsubConfig = useCallback(() => {
     if (!workspaceId) return;
     followupApi
@@ -182,6 +227,26 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
   useEffect(() => {
     loadSumsubConfig();
   }, [loadSumsubConfig]);
+
+  useEffect(() => {
+    loadStripeStatus();
+  }, [loadStripeStatus]);
+
+  useEffect(() => {
+    loadPayPalStatus();
+  }, [loadPayPalStatus]);
+
+  useEffect(() => {
+    loadWebflowStatus();
+  }, [loadWebflowStatus]);
+
+  useEffect(() => {
+    loadTeamsIncomingStatus();
+  }, [loadTeamsIncomingStatus]);
+
+  useEffect(() => {
+    loadWorkspaceAiConfig();
+  }, [loadWorkspaceAiConfig]);
 
   useEffect(() => {
     if (searchParams.get("outlook") === "connected") {
@@ -309,6 +374,30 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
           const ok = !!sumsubConfig?.levelName && !!sumsubConfig?.appTokenMasked;
           return { ...c, status: ok ? "configured" : "available" };
         }
+        if (c.id === "connector_stripe") {
+          return { ...c, status: stripeConfigured ? "configured" : "available" };
+        }
+        if (c.id === "connector_paypal") {
+          return { ...c, status: paypalConfigured ? "configured" : "available" };
+        }
+        if (c.id === "connector_webflow") {
+          return { ...c, status: webflowConfigured ? "configured" : "available" };
+        }
+        if (c.id === "connector_microsoft_teams") {
+          return { ...c, status: teamsIncomingConfigured ? "configured" : "available" };
+        }
+        if (c.id === "connector_anthropic_claude") {
+          const ok = !!workspaceAiConfig?.configured && workspaceAiConfig.provider === "claude";
+          return { ...c, status: ok ? "configured" : "available" };
+        }
+        if (c.id === "connector_openai") {
+          const ok = !!workspaceAiConfig?.configured && workspaceAiConfig.provider === "openai";
+          return { ...c, status: ok ? "configured" : "available" };
+        }
+        if (c.id === "connector_google_gemini") {
+          const ok = !!workspaceAiConfig?.configured && workspaceAiConfig.provider === "gemini";
+          return { ...c, status: ok ? "configured" : "available" };
+        }
         return c;
       })
     );
@@ -321,6 +410,11 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
     metaWhatsAppConfigured,
     mailchimpConfigured,
     activeCampaignConfigured,
+    stripeConfigured,
+    paypalConfigured,
+    webflowConfigured,
+    teamsIncomingConfigured,
+    workspaceAiConfig,
     sumsubConfig,
   ]);
 
@@ -442,9 +536,15 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
               activecampaignEntitled={activecampaignEntitled}
               reloadMailchimpStatus={loadMailchimpStatus}
               reloadActiveCampaignStatus={loadActiveCampaignStatus}
+              reloadStripeStatus={loadStripeStatus}
+              reloadPayPalStatus={loadPayPalStatus}
+              reloadWebflowStatus={loadWebflowStatus}
+              reloadTeamsIncomingStatus={loadTeamsIncomingStatus}
               workspaceEntitlements={workspaceEntitlements}
               sumsubConfig={sumsubConfig}
               loadSumsubConfig={loadSumsubConfig}
+              workspaceAiConfig={workspaceAiConfig}
+              reloadWorkspaceAiConfig={loadWorkspaceAiConfig}
             />
             <MarketingBigDataConnectorsPanel
               workspaceId={workspaceId}

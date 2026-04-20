@@ -24,6 +24,8 @@ const mocks = vi.hoisted(() => {
     updateRequestAction: vi.fn(),
     deleteRequestAction: vi.fn(),
     queryCalendar: vi.fn(),
+    listClientAmlChecks: vi.fn(),
+    startClientAmlCheck: vi.fn(),
   };
   return { navigateMock, useClientDetailDataMock, api };
 });
@@ -114,6 +116,8 @@ describe("ClientDetailPage", () => {
     mocks.api.updateRequestAction.mockResolvedValue({ action: { _id: "a1" } });
     mocks.api.deleteRequestAction.mockResolvedValue({ ok: true });
     mocks.api.queryCalendar.mockResolvedValue({ data: [] });
+    mocks.api.listClientAmlChecks.mockResolvedValue({ data: [] });
+    mocks.api.startClientAmlCheck.mockResolvedValue({ ok: true });
   });
 
   const NoExtraRouter = ({ children }: { children: React.ReactNode }) => <>{children}</>;

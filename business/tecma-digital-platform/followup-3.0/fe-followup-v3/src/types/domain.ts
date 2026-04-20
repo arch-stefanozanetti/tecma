@@ -423,6 +423,53 @@ export interface ApartmentRow {
   tags?: string[];
 }
 
+/** Difetti / reclami post-consegna su unità (MVP nativo). */
+export type UnitIssueStatus = "open" | "in_progress" | "resolved" | "closed";
+export type UnitIssuePriority = "low" | "medium" | "high" | "critical";
+
+export interface UnitIssueRow {
+  _id: string;
+  workspaceId: string;
+  projectId: string;
+  apartmentId: string;
+  title: string;
+  description: string;
+  status: UnitIssueStatus;
+  priority: UnitIssuePriority;
+  assigneeUserId?: string;
+  contractorNote?: string;
+  photoUrls: string[];
+  clientId?: string;
+  requestId?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+}
+
+export type HandoverSessionStatus = "not_started" | "in_progress" | "completed";
+
+export interface HandoverChecklistItemRow {
+  id: string;
+  label: string;
+  required: boolean;
+  doneAt?: string;
+  photoUrls: string[];
+  notes?: string;
+}
+
+export interface HandoverRow {
+  _id: string;
+  workspaceId: string;
+  projectId: string;
+  apartmentId: string;
+  requestId?: string;
+  sessionStatus: HandoverSessionStatus;
+  checklist: HandoverChecklistItemRow[];
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+}
+
 /** Workflow engine (configurabile per workspace). */
 export type WorkflowType = "sell" | "rent" | "custom";
 export type ApartmentLockType = "none" | "soft" | "hard";

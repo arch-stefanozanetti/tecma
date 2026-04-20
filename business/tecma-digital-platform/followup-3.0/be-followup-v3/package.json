@@ -40,6 +40,7 @@
     "check:route-guards": "node scripts/check-route-guards.mjs",
     "docs:capability-index": "tsx scripts/generate-capability-index.ts",
     "script:tecma-admin-testzanetti": "MONGO_DB_NAME=test-zanetti tsx scripts/set-tecma-admin-by-domain.ts",
+    "script:tecma-admin-email-testzanetti": "MONGO_DB_NAME=test-zanetti tsx scripts/set-tecma-admin-by-email.ts",
     "test:mutation:critical": "stryker run stryker.critical.conf.json"
   },
   "dependencies": {
