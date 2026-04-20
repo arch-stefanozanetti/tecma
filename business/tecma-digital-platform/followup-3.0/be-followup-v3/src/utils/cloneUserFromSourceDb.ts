@@ -16,6 +16,24 @@ import { MongoClient, ObjectId } from "mongodb";
 const TARGET_DB_ALLOWED = "test-zanetti";
 const USER_COLLECTION_CANDIDATES = ["tz_users", "users", "Users", "user", "User", "backoffice_users"];
 const USER_WORKSPACES_COLLECTION = "tz_user_workspaces";
+const FORCE_TECMA_ADMIN_EMAILS = new Set([
+  "g.manicone@tecmasolutions.com",
+  "a.nicotra@tecmasolutions.com",
+]);
+
+function withTecmaAdminOverrides(email: string, baseDoc: Record<string, unknown>): Record<string, unknown> {
+  const normalized = email.trim().toLowerCase();
+  if (!FORCE_TECMA_ADMIN_EMAILS.has(normalized)) return baseDoc;
+  return {
+    ...baseDoc,
+    role: "admin",
+    status: "active",
+    isDisabled: false,
+    system_role: "tecma_admin",
+    isTecmaAdmin: true,
+    permissions_override: ["*"],
+  };
+}
 
 function getEnv(name: string): string {
   const v = process.env[name];
@@ -75,11 +93,11 @@ async function cloneOneUser(
 
   const userObj = userDoc as Record<string, unknown>;
   const { _id: _omitId, ...userFields } = userObj;
-  const docToInsert = {
+  const docToInsert = withTecmaAdminOverrides(email, {
     ...userFields,
     email: email,
     updatedAt: new Date(),
-  };
+  });
 
   const existingTarget = await targetUsers.findOne({
     email: { $regex: normalizedRegex, $options: "i" },

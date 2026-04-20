@@ -25,6 +25,8 @@ import {
   siGooglesheets,
   siApacheairflow,
   siDbt,
+  siAnthropic,
+  siOpenai,
 } from "simple-icons";
 import { Plug } from "lucide-react";
 import { cn } from "../../lib/utils";
@@ -130,6 +132,14 @@ const BRAND_MAP: Record<string, FC<LogoProps>> = {
   pandadoc: PlugBrandLogo,
   yousign: PlugBrandLogo,
   flywire: PlugBrandLogo,
+  anthropic: (p) => <SimpleIconLogo icon={siAnthropic} {...p} />,
+  openai: (p) => <SimpleIconLogo icon={siOpenai} {...p} />,
+  /** Azure OpenAI: nessun marchio dedicato stabile in Simple Icons per il servizio; fallback. */
+  azure_openai: PlugBrandLogo,
+  /** MCP: protocollo, non singolo vendor. */
+  mcp: PlugBrandLogo,
+  gemini: PlugBrandLogo,
+  mistral: PlugBrandLogo,
 };
 
 export function ConnectorBrandLogo({

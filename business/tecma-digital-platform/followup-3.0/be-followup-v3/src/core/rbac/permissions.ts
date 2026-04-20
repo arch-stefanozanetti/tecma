@@ -26,6 +26,10 @@ export const PERMISSIONS = {
   APARTMENTS_ASSIGN: "apartments.assign",
   APARTMENTS_APPROVE: "apartments.approve",
 
+  /** Post-vendita: difetti su unità e checklist consegna (MVP nativo) */
+  POST_DELIVERY_READ: "post_delivery.read",
+  POST_DELIVERY_UPDATE: "post_delivery.update",
+
   /** Trattative / requests (CRM) */
   REQUESTS_READ: "requests.read",
   REQUESTS_CREATE: "requests.create",
@@ -100,6 +104,8 @@ export const BUILTIN_ROLE_PERMISSIONS: Record<string, string[] | typeof PERMISSI
     PERMISSIONS.APARTMENTS_READ,
     PERMISSIONS.APARTMENTS_CREATE,
     PERMISSIONS.APARTMENTS_UPDATE,
+    PERMISSIONS.POST_DELIVERY_READ,
+    PERMISSIONS.POST_DELIVERY_UPDATE,
     PERMISSIONS.CLIENTS_READ,
     PERMISSIONS.CLIENTS_CREATE,
     PERMISSIONS.CLIENTS_UPDATE,
@@ -124,6 +130,7 @@ export const BUILTIN_ROLE_PERMISSIONS: Record<string, string[] | typeof PERMISSI
   ],
   viewer: [
     PERMISSIONS.APARTMENTS_READ,
+    PERMISSIONS.POST_DELIVERY_READ,
     PERMISSIONS.CLIENTS_READ,
     PERMISSIONS.REQUESTS_READ,
     PERMISSIONS.CALENDAR_READ,
@@ -131,7 +138,7 @@ export const BUILTIN_ROLE_PERMISSIONS: Record<string, string[] | typeof PERMISSI
     PERMISSIONS.REPORTS_READ
   ],
   /** Utente senza ruolo noto: solo lettura base */
-  user: [PERMISSIONS.APARTMENTS_READ]
+  user: [PERMISSIONS.APARTMENTS_READ, PERMISSIONS.POST_DELIVERY_READ]
 };
 
 /**
@@ -176,6 +183,7 @@ const MODULE_LABELS: Record<string, string> = {
   calendar: "Calendario",
   reports: "Report",
   integrations: "Integrazioni",
+  post_delivery: "Post-vendita",
   settings: "Impostazioni",
   email_flows: "Email transazionali",
   compliance: "Compliance"

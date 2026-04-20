@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Home, FileText, Users, Pencil, History, Settings2 } from "lucide-react";
+import { ArrowLeft, Home, FileText, Users, Pencil, History, Settings2, ClipboardList } from "lucide-react";
 import { followupApi } from "../../api/followupApi";
 import { useWorkspace } from "../../auth/projectScope";
 import type { ApartmentRow, RequestRow, RequestStatus } from "../../types/domain";
@@ -15,6 +15,7 @@ import { ApartmentDetailTimelineTab } from "./ApartmentDetailTimelineTab";
 import { ApartmentDetailEditDrawer } from "./ApartmentDetailEditDrawer";
 import { ApartmentDetailTrattativeTab } from "./ApartmentDetailTrattativeTab";
 import { ApartmentDetailDettagliTab } from "./ApartmentDetailDettagliTab";
+import { ApartmentDetailPostVenditaTab } from "./ApartmentDetailPostVenditaTab";
 import { useApartmentDetailData } from "./useApartmentDetailData";
 import { useApartmentDetailPriceCalendar } from "./useApartmentDetailPriceCalendar";
 import { useToast } from "../../contexts/ToastContext";
@@ -22,7 +23,9 @@ import { useToast } from "../../contexts/ToastContext";
 export const ApartmentDetailPage = () => {
   const { apartmentId } = useParams<{ apartmentId: string }>();
   const navigate = useNavigate();
-  const { workspaceId, selectedProjectIds, isAdmin } = useWorkspace();
+  const { workspaceId, selectedProjectIds, isAdmin, hasPermission } = useWorkspace();
+  const canPostDeliveryRead = hasPermission("post_delivery.read");
+  const canPostDeliveryUpdate = hasPermission("post_delivery.update");
   const { toastError } = useToast();
   const projectIdForWorkflow = selectedProjectIds.length > 0 ? selectedProjectIds[0] : undefined;
   const workflowConfigRent = useWorkflowConfig(workspaceId, "rent", projectIdForWorkflow);
@@ -316,6 +319,9 @@ export const ApartmentDetailPage = () => {
           <TabsTrigger value="trattative" icon={<Users className="h-4 w-4" />}>
             Trattative
           </TabsTrigger>
+          <TabsTrigger value="post-vendita" icon={<ClipboardList className="h-4 w-4" />}>
+            Post-vendita
+          </TabsTrigger>
           <TabsTrigger value="matching" icon={<Users className="h-4 w-4" />}>
             Clienti papabili
           </TabsTrigger>
@@ -373,6 +379,16 @@ export const ApartmentDetailPage = () => {
             requestsLoading={requestsLoading}
             requestsSorted={requestsSorted}
             getWorkflowConfig={getWorkflowConfig}
+          />
+        </TabsContent>
+
+        <TabsContent value="post-vendita" className="space-y-4 mt-4">
+          <ApartmentDetailPostVenditaTab
+            apartment={apartment}
+            workspaceId={workspaceId}
+            projectIds={selectedProjectIds.length > 0 ? selectedProjectIds : [apartment.projectId]}
+            canRead={canPostDeliveryRead}
+            canUpdate={canPostDeliveryUpdate}
           />
         </TabsContent>
 

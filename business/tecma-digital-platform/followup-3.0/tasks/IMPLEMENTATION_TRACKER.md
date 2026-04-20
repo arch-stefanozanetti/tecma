@@ -31,6 +31,8 @@ Legenda stato: `[x]` fatto (baseline o verificato in repo) · `[ ]` da fare o in
 | [x] | `matching-be` | A,C | Endpoint matching candidates | `matching.routes.ts`, UI matching |
 | [ ] | `dialog-drawer` | C | Dialog → Drawer residui | Varie pagine |
 | [ ] | `ux-liste-card-toggle` | C | Card/toggle liste Clienti/Appartamenti | |
+| [x] | `post-vendita-mvp` | A,C | Difetti/reclami su unità + checklist consegna (handover), permessi `post_delivery.*`, tab scheda immobile | `be-followup-v3` `post-delivery/*`, `unit-issues.routes`, `handovers.routes`; `fe-followup-v3` `postDeliveryApi`, `ApartmentDetailPostVenditaTab`; doc [post-delivery-mvp.md](../docs/post-delivery-mvp.md) |
+| [x] | `ai-catalog-spike` | B | Vetrina connettori AI (Claude, OpenAI, Azure OpenAI, MCP bridge, Gemini, Mistral), cluster `ai`, spike architettura chiavi/proxy/MCP | `connectorCatalog/types`, `roadmapConnectors.ts`, `integrationsCatalog.ts`, `ConnectorBrandLogo.tsx`; [ai-provider-architecture-spike.md](../docs/ai-provider-architecture-spike.md) |
 
 ---
 

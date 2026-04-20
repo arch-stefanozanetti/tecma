@@ -8,6 +8,8 @@ import { connectDb } from "./config/db.js";
 import { ensureCoreIndexes } from "./config/ensureIndexes.js";
 import { v1Router } from "./routes/v1.js";
 import { sumsubWebhookRouter } from "./routes/sumsub-webhook.routes.js";
+import { stripeWebhookRouter } from "./routes/stripe-webhook.routes.js";
+import { paypalWebhookRouter } from "./routes/paypal-webhook.routes.js";
 import { customerPortalPublicRoutes, customerPortalRoutes } from "./routes/v1/customer-portal.routes.js";
 import { ensureDefaultRoleDefinitions } from "./core/rbac/roleDefinitions.service.js";
 import { ensureDefaultPrivacyPolicy } from "./core/gdpr/legal-documents.service.js";
@@ -82,6 +84,10 @@ const bootstrap = async () => {
     express.raw({ type: "application/json", limit: "2mb" }),
     sumsubWebhookRouter
   );
+  /** Stripe webhook: raw body per Stripe-Signature. */
+  app.use("/v1/webhooks/stripe", express.raw({ type: "application/json", limit: "1mb" }), stripeWebhookRouter);
+  /** PayPal webhook: raw body (verifica evolutiva). */
+  app.use("/v1/webhooks/paypal", express.raw({ type: "application/json", limit: "2mb" }), paypalWebhookRouter);
   /** Limite elevato per payload con screenshot base64 (Experimental / Pascal AI render). */
   app.use(express.json({ limit: "12mb" }));
 

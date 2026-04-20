@@ -4,6 +4,7 @@ import { RequestsPage } from "./RequestsPage";
 
 const mocks = vi.hoisted(() => ({
   queryRequestsMock: vi.fn(),
+  queryQuotesMock: vi.fn(),
   queryClientsLiteMock: vi.fn(),
   queryApartmentsMock: vi.fn(),
   getRequestTransitionsMock: vi.fn(),
@@ -40,6 +41,9 @@ vi.mock("../../api/followupApi", () => ({
       deleteRequestAction: vi.fn(),
       revertRequestStatus: vi.fn(),
     },
+    quotes: {
+      queryQuotes: mocks.queryQuotesMock,
+    },
   },
 }));
 
@@ -74,6 +78,10 @@ vi.mock("../../hooks/useWorkflowConfig", () => ({
 describe("RequestsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.queryQuotesMock.mockResolvedValue({
+      data: [],
+      pagination: { total: 0, page: 1, perPage: 25, totalPages: 1 },
+    });
     mocks.queryRequestsMock.mockResolvedValue({
       data: [],
       pagination: { total: 0, page: 1, perPage: 25, totalPages: 1 },

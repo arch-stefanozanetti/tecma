@@ -575,7 +575,7 @@ workspacesRoutes.patch(
 workspacesRoutes.get(
   "/workspaces/:id/ai-config",
   requireCanAccessWorkspace("id"),
-  requirePermission(PERMISSIONS.SETTINGS_READ),
+  requireAnyPermission(PERMISSIONS.SETTINGS_READ, PERMISSIONS.INTEGRATIONS_READ),
   handleAsync((req) => getWorkspaceAiConfig(req.params.id))
 );
 workspacesRoutes.put(

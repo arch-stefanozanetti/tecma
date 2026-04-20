@@ -39,6 +39,14 @@ const CORE_INDEXES: IndexDefinition[] = [
   { collection: "tz_quotes", keys: { workspaceId: 1, createdAt: -1 } },
   { collection: "tz_requests", keys: { workspaceId: 1, projectId: 1, updatedAt: -1 } },
   { collection: "tz_apartments", keys: { workspaceId: 1, projectId: 1, updatedAt: -1 } },
+  { collection: "tz_unit_issues", keys: { workspaceId: 1, apartmentId: 1, updatedAt: -1 } },
+  { collection: "tz_unit_issues", keys: { workspaceId: 1, status: 1, updatedAt: -1 } },
+  {
+    collection: "tz_handovers",
+    keys: { workspaceId: 1, apartmentId: 1 },
+    options: { unique: true },
+  },
+  { collection: "tz_handovers", keys: { workspaceId: 1, projectId: 1, updatedAt: -1 } },
   { collection: "tz_project_workflow_settings", keys: { projectId: 1 }, options: { unique: true } },
   { collection: "tz_project_workflow_settings", keys: { workspaceId: 1, workflowId: 1 } },
 
@@ -104,6 +112,7 @@ const CORE_INDEXES: IndexDefinition[] = [
   { collection: "tz_jira_prd_links", keys: { idTema: 1 }, options: { unique: true } },
   { collection: "tz_aml_checks", keys: { workspaceId: 1, clientId: 1, createdAt: -1 } },
   { collection: "tz_aml_checks", keys: { externalUserId: 1 }, options: { unique: true } },
+  { collection: "tz_webflow_item_map", keys: { workspaceId: 1, apartmentId: 1 }, options: { unique: true } },
 ];
 
 function createIndexName(collection: string, keys: IndexDefinition["keys"]): string {
@@ -111,7 +120,63 @@ function createIndexName(collection: string, keys: IndexDefinition["keys"]): str
   return `${collection}__${parts.join("__")}`;
 }
 
+const PASSWORD_RESET_COLLECTION = "tz_passwordResetTokens";
+
+/**
+ * Schema attuale: `tokenHash` (sha256 del token in chiaro), non `token`.
+ * Indici legacy tipo `uq_tz_passwordResetTokens_token` su `token` univoco fanno collidere
+ * tutti i documenti senza campo `token` (equivalenti a token: null) → E11000 al secondo insert.
+ */
+async function repairPasswordResetTokenIndexes(db: Db): Promise<void> {
+  try {
+    const coll = db.collection(PASSWORD_RESET_COLLECTION);
+    for (const legacyName of ["uq_tz_passwordResetTokens_token"]) {
+      try {
+        await coll.dropIndex(legacyName);
+        logger.info({ indexName: legacyName }, "[db] dropped legacy password reset index by name");
+      } catch {
+        /* index assente */
+      }
+    }
+    const indexes = await coll.indexes();
+    for (const idx of indexes) {
+      const idxName = idx.name;
+      if (!idxName || idxName === "_id_") continue;
+      const keys = idx.key as Record<string, number>;
+      if (keys && Object.keys(keys).length === 1 && keys.token !== undefined) {
+        try {
+          await coll.dropIndex(idxName);
+          logger.info({ indexName: idxName }, "[db] dropped legacy password reset index on field token");
+        } catch (e: unknown) {
+          logger.warn({ err: e, indexName: idxName }, "[db] drop legacy password reset index failed");
+        }
+      }
+    }
+    const hashIdxName = createIndexName(PASSWORD_RESET_COLLECTION, { tokenHash: 1 });
+    await coll.createIndex({ tokenHash: 1 }, { unique: true, name: hashIdxName });
+  } catch (err: unknown) {
+    const code = err && typeof err === "object" && "code" in err ? (err as { code?: number }).code : undefined;
+    if (code === 85) {
+      logger.warn(
+        { err },
+        "[db] repairPasswordResetTokenIndexes: tokenHash index already exists with different name, skip"
+      );
+      return;
+    }
+    if (code === 11000) {
+      logger.warn(
+        { err },
+        "[db] repairPasswordResetTokenIndexes: duplicate tokenHash values prevent unique index (fix data offline)"
+      );
+      return;
+    }
+    logger.warn({ err }, "[db] repairPasswordResetTokenIndexes failed (non-fatal)");
+  }
+}
+
 export async function ensureCoreIndexes(db: Db = getDb()): Promise<void> {
+  await repairPasswordResetTokenIndexes(db);
+
   for (const index of CORE_INDEXES) {
     const indexName = createIndexName(index.collection, index.keys);
     try {

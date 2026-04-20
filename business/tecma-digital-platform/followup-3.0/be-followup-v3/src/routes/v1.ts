@@ -39,6 +39,8 @@ import { storageRoutes } from "./v1/storage.routes.js";
 import { experimentalRoutes } from "./v1/experimental.routes.js";
 import { jiraPrdRoutes } from "./v1/jira-prd.routes.js";
 import { amlRoutes } from "./v1/aml.routes.js";
+import { unitIssuesRoutes } from "./v1/unit-issues.routes.js";
+import { handoversRoutes } from "./v1/handovers.routes.js";
 
 export const v1Router = Router();
 
@@ -67,6 +69,8 @@ v1Router.use("/", notificationsRoutes);
 v1Router.use("/", automationRulesRoutes);
 v1Router.use("/", webhookConfigsRoutes);
 v1Router.use("/", apartmentsRoutes);
+v1Router.use("/", unitIssuesRoutes);
+v1Router.use("/", handoversRoutes);
 
 // Domain modules extracted from legacy v1.ts monolith
 v1Router.use("/", hcRoutes);
