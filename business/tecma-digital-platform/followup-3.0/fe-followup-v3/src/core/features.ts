@@ -19,6 +19,7 @@ export const SECTION_FEATURE_KEY: Partial<Record<string, FeatureKey>> = {
   reports: FEATURE_KEYS.reports,
   bigData: FEATURE_KEYS.reports,
   integrations: FEATURE_KEYS.integrations,
+  zeus: FEATURE_KEYS.integrations,
 };
 
 /**

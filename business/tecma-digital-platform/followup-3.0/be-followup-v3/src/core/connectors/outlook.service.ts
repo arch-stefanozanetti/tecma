@@ -177,6 +177,14 @@ export interface OutlookCalendarEvent {
   webLink?: string;
 }
 
+export interface OutlookInboxMessage {
+  id: string;
+  from: string;
+  subject: string;
+  text: string;
+  receivedAt: string;
+}
+
 /**
  * Legge eventi calendario da Microsoft Graph.
  */
@@ -212,6 +220,55 @@ export async function getCalendarEvents(
     isAllDay: e.isAllDay,
     webLink: e.webLink,
   }));
+}
+
+/**
+ * Legge messaggi recenti dalla Inbox Outlook via Microsoft Graph.
+ * Usa solo campi essenziali per ingestione ZEUS.
+ */
+export async function getInboxMessages(
+  userId: string,
+  workspaceId: string | undefined,
+  limit = 10
+): Promise<OutlookInboxMessage[]> {
+  const creds = await getCredentials(userId, workspaceId);
+  if (!creds) throw new HttpError("Outlook not connected for this user", 401);
+  const top = Math.min(50, Math.max(1, Math.trunc(limit || 10)));
+  const params = new URLSearchParams({
+    "$top": String(top),
+    "$orderby": "receivedDateTime desc",
+    "$select": "id,subject,bodyPreview,from,receivedDateTime,isRead"
+  });
+  const res = await fetch(
+    `https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?${params.toString()}`,
+    {
+      headers: { Authorization: `Bearer ${creds.accessToken}` }
+    }
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new HttpError(`Microsoft Graph inbox error: ${res.status} ${text}`, res.status === 401 ? 401 : 502);
+  }
+  const data = (await res.json()) as {
+    value?: Array<{
+      id: string;
+      subject?: string;
+      bodyPreview?: string;
+      from?: { emailAddress?: { address?: string } };
+      receivedDateTime?: string;
+      isRead?: boolean;
+    }>;
+  };
+  const value = data.value ?? [];
+  return value
+    .filter((m) => m.isRead !== true)
+    .map((m) => ({
+      id: m.id,
+      from: m.from?.emailAddress?.address ?? "",
+      subject: m.subject ?? "",
+      text: m.bodyPreview ?? "",
+      receivedAt: m.receivedDateTime ?? new Date().toISOString()
+    }));
 }
 
 /**

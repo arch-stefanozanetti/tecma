@@ -52,10 +52,14 @@ interface EntityAssignmentRow {
 export const UsersPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAdmin } = useWorkspace();
+  const { isAdmin, isTecmaAdmin, email: currentEmail } = useWorkspace();
   const { toastError } = useToast();
   const [users, setUsers] = useState<UserWithVisibilityRow[]>([]);
   const [usersViewMode, setUsersViewMode] = useState<"cards" | "list">("cards");
+  const [usersSearch, setUsersSearch] = useState("");
+  const [usersWorkspaceFilter, setUsersWorkspaceFilter] = useState("all");
+  const [usersRoleFilter, setUsersRoleFilter] = useState("all");
+  const [usersMembershipFilter, setUsersMembershipFilter] = useState<"all" | "with-workspace" | "without-workspace">("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserWithVisibilityRow | null>(null);
@@ -93,6 +97,34 @@ export const UsersPage = () => {
   const [addUserOverrideDraft, setAddUserOverrideDraft] = useState<string[]>([]);
 
   const { roles: workspaceRoles, getRoleLabel } = useWorkspaceRoles();
+  const searchNeedle = usersSearch.trim().toLowerCase();
+  const availableWorkspaceFilters = users
+    .flatMap((u) => u.workspaces.map((w) => ({ workspaceId: w.workspaceId, workspaceName: w.workspaceName })))
+    .filter((w, idx, arr) => arr.findIndex((x) => x.workspaceId === w.workspaceId) === idx)
+    .sort((a, b) => a.workspaceName.localeCompare(b.workspaceName));
+  const availableRoleFilters = users
+    .flatMap((u) => u.workspaces.map((w) => w.role))
+    .filter((role, idx, arr) => arr.indexOf(role) === idx)
+    .sort((a, b) => a.localeCompare(b));
+  const filteredUsers = users.filter((u) => {
+    const matchesSearch =
+      searchNeedle.length === 0 ||
+      u.email.toLowerCase().includes(searchNeedle) ||
+      u.workspaces.some(
+        (w) =>
+          w.workspaceName.toLowerCase().includes(searchNeedle) ||
+          w.workspaceId.toLowerCase().includes(searchNeedle) ||
+          w.role.toLowerCase().includes(searchNeedle)
+      );
+    const matchesWorkspace =
+      usersWorkspaceFilter === "all" || u.workspaces.some((w) => w.workspaceId === usersWorkspaceFilter);
+    const matchesRole = usersRoleFilter === "all" || u.workspaces.some((w) => w.role === usersRoleFilter);
+    const matchesMembership =
+      usersMembershipFilter === "all" ||
+      (usersMembershipFilter === "with-workspace" && u.workspaces.length > 0) ||
+      (usersMembershipFilter === "without-workspace" && u.workspaces.length === 0);
+    return matchesSearch && matchesWorkspace && matchesRole && matchesMembership;
+  });
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -363,6 +395,29 @@ export const UsersPage = () => {
     }
   };
 
+  const setSelectedUserTecmaAdmin = async (enabled: boolean) => {
+    if (!selectedUser?.userId) return;
+    try {
+      await followupApi.patchAdminUser(selectedUser.userId, {
+        system_role: enabled ? "tecma_admin" : null,
+        ...(enabled ? { role: "admin" } : {}),
+      });
+      setSelectedUser((u) =>
+        u
+          ? {
+              ...u,
+              system_role: enabled ? "tecma_admin" : null,
+              role: enabled ? "admin" : u.role,
+              isAdmin: enabled ? true : u.isAdmin,
+            }
+          : null
+      );
+      load();
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : "Errore aggiornamento Tecma superadmin");
+    }
+  };
+
   const addAssignment = async (workspaceId: string, entityType: "client" | "apartment", entityId: string) => {
     if (!selectedUser || !entityId.trim()) return;
     const key = `${workspaceId}-${entityType}-${entityId}`;
@@ -454,15 +509,81 @@ export const UsersPage = () => {
         </div>
       </div>
 
+      <div className="glass-panel rounded-ui grid gap-2 p-3 md:grid-cols-4">
+        <Input
+          value={usersSearch}
+          onChange={(e) => setUsersSearch(e.target.value)}
+          placeholder="Cerca per email, workspace o ruolo"
+          className="w-full"
+        />
+        <Select value={usersWorkspaceFilter} onValueChange={setUsersWorkspaceFilter}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Filtro workspace" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutti i workspace</SelectItem>
+            {availableWorkspaceFilters.map((w) => (
+              <SelectItem key={w.workspaceId} value={w.workspaceId}>
+                {w.workspaceName || w.workspaceId}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={usersRoleFilter} onValueChange={setUsersRoleFilter}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Filtro ruolo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutti i ruoli</SelectItem>
+            {availableRoleFilters.map((role) => (
+              <SelectItem key={role} value={role}>
+                {getRoleLabel(role as WorkspaceUserRole)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={usersMembershipFilter}
+          onValueChange={(v) => setUsersMembershipFilter(v as "all" | "with-workspace" | "without-workspace")}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Filtro membership" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutti gli utenti</SelectItem>
+            <SelectItem value="with-workspace">Solo con workspace</SelectItem>
+            <SelectItem value="without-workspace">Solo senza workspace</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="md:col-span-4 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+          <span>
+            Mostrati {filteredUsers.length} di {users.length} utenti
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="min-h-9"
+            onClick={() => {
+              setUsersSearch("");
+              setUsersWorkspaceFilter("all");
+              setUsersRoleFilter("all");
+              setUsersMembershipFilter("all");
+            }}
+          >
+            Reset filtri
+          </Button>
+        </div>
+      </div>
+
       {loading ? (
         <p className="text-sm text-muted-foreground">Caricamento...</p>
       ) : error ? (
         <p className="text-sm text-destructive">{error}</p>
-      ) : users.length === 0 ? (
+      ) : filteredUsers.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nessun utente trovato.</p>
       ) : usersViewMode === "cards" ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {users.map((u) => (
+          {filteredUsers.map((u) => (
             <button
               key={u.email}
               type="button"
@@ -474,6 +595,11 @@ export const UsersPage = () => {
                   {(u.email[0] ?? "?").toUpperCase()}
                 </div>
                 <span className="truncate font-medium text-foreground">{u.email}</span>
+                {u.system_role === "tecma_admin" && (
+                  <Badge className="ml-auto" variant="default">
+                    Tecma superadmin
+                  </Badge>
+                )}
               </div>
               <div className="flex flex-wrap gap-1">
                 {u.workspaces.length === 0 ? (
@@ -501,11 +627,12 @@ export const UsersPage = () => {
                 <th className="px-3 py-2 text-left font-medium">Utente</th>
                 <th className="px-3 py-2 text-left font-medium">Workspace</th>
                 <th className="px-3 py-2 text-left font-medium">Ruolo max</th>
+                <th className="px-3 py-2 text-left font-medium">System role</th>
                 <th className="px-3 py-2 text-right font-medium">Azione</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
+              {filteredUsers.map((u) => (
                 <tr key={u.email} className="border-b border-border/50">
                   <td className="px-3 py-2 text-foreground">{u.email}</td>
                   <td className="px-3 py-2 text-muted-foreground">
@@ -515,6 +642,9 @@ export const UsersPage = () => {
                   </td>
                   <td className="px-3 py-2 text-muted-foreground">
                     {getMaxWorkspaceRole(u.workspaces.map((w) => w.role))}
+                  </td>
+                  <td className="px-3 py-2 text-muted-foreground">
+                    {u.system_role === "tecma_admin" ? "Tecma superadmin" : "—"}
                   </td>
                   <td className="px-3 py-2 text-right">
                     <Button variant="outline" size="sm" className="min-h-9" onClick={() => openUserDetail(u)}>
@@ -886,6 +1016,27 @@ export const UsersPage = () => {
                   {selectedUser.workspaces.length} workspace · ruolo max:{" "}
                   {getMaxWorkspaceRole(selectedUser.workspaces.map((w) => w.role))}
                 </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  System role: {selectedUser.system_role === "tecma_admin" ? "tecma_admin" : "—"}
+                </p>
+                {isTecmaAdmin && selectedUser.userId && selectedUser.email !== currentEmail && (
+                  <div className="mt-2">
+                    {selectedUser.system_role === "tecma_admin" ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="min-h-9"
+                        onClick={() => setSelectedUserTecmaAdmin(false)}
+                      >
+                        Rimuovi Tecma superadmin
+                      </Button>
+                    ) : (
+                      <Button size="sm" className="min-h-9" onClick={() => setSelectedUserTecmaAdmin(true)}>
+                        Rendi Tecma superadmin
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="glass-panel rounded-ui space-y-3 p-4">

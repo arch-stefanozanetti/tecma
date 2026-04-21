@@ -459,6 +459,10 @@ const renderSection = (
     );
   }
 
+  if (section === "zeus") {
+    return <IntegrationsPage workspaceId={workspaceId} initialTab="zeus" />;
+  }
+
   if (section === "integrations") {
     return <IntegrationsPage workspaceId={workspaceId} />;
   }
@@ -598,6 +602,7 @@ export const App = () => {
         : pathname.startsWith("/projects") ? "projects"
         : pathname.startsWith("/experimental") ? "experimental"
         : pathname.startsWith("/coima") ? "coima"
+        : pathname.startsWith("/zeus") ? "zeus"
         : section);
 
   useEffect(() => {
@@ -619,6 +624,10 @@ export const App = () => {
     }
     if (pathname.startsWith("/coima")) {
       setSection("coima");
+      return;
+    }
+    if (pathname.startsWith("/zeus")) {
+      setSection("zeus");
       return;
     }
     if (pathname === "/account/security") {

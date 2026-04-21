@@ -18,6 +18,8 @@ import { createOperationalAlert } from "./core/ops/operational-alerts.service.js
 import { ensureDefaultRoleDefinitions } from "./core/rbac/roleDefinitions.service.js";
 import { logger } from "./observability/logger.js";
 import { initOtel, shutdownOtel } from "./observability/otel.js";
+import { ENV } from "./config/env.js";
+import { runProactiveSalesScheduledJob } from "./jobs/proactive-sales.job.js";
 
 const SCHEDULED_COMMS_INTERVAL_MS = 2 * 60 * 1000;
 const MARKETING_AUTOMATION_INTERVAL_MS = 2 * 60 * 1000;
@@ -25,6 +27,7 @@ const RETENTION_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const MLS_RECONCILIATION_INTERVAL_MS = 60 * 60 * 1000;
 const GDPR_ERASURE_INTERVAL_MS = 15 * 60 * 1000;
 const SECURITY_AUDIT_EXPORT_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const PROACTIVE_SALES_INTERVAL_MS = 30 * 60 * 1000;
 
 const run = async () => {
   await initOtel();
@@ -116,6 +119,13 @@ const run = async () => {
     });
   }, SECURITY_AUDIT_EXPORT_INTERVAL_MS);
 
+  const t7 = setInterval(() => {
+    if (!ENV.PROACTIVE_SALES_JOB_ENABLED) return;
+    runProactiveSalesScheduledJob().catch((err) => {
+      logger.error({ err }, "[proactive-sales] scheduled job failed");
+    });
+  }, PROACTIVE_SALES_INTERVAL_MS);
+
   const shutdown = async (signal: string) => {
     logger.info({ signal }, "job-runner shutting down");
     clearInterval(t1);
@@ -124,6 +134,7 @@ const run = async () => {
     clearInterval(t4);
     clearInterval(t5);
     clearInterval(t6);
+    clearInterval(t7);
     await shutdownOtel().catch((err) => logger.error({ err }, "OpenTelemetry shutdown failed"));
     process.exit(0);
   };

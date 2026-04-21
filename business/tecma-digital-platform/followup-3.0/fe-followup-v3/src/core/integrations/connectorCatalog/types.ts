@@ -45,6 +45,16 @@ export interface ConnectorCatalogItem {
   brandId?: ConnectorBrandId;
   setupSummary?: string;
   relatedTab?: ConnectorRelatedTab;
+  /** UX primaria per la connessione. */
+  connectionMode?: "oauthDirect" | "guidedExternal" | "manualFallback";
+  /** URL provider da aprire direttamente (nuova tab) nel flusso guidato. */
+  providerConnectUrl?: string;
+  /** Label pulsante per aprire provider. */
+  providerConnectLabel?: string;
+  /** Verifica automatica stato connessione disponibile. */
+  supportsAutoVerify?: boolean;
+  /** Se true, mostra la compilazione manuale solo come fallback avanzato. */
+  hasAdvancedFallback?: boolean;
 }
 
 export const GROUP_TO_CLUSTER: Record<ConnectorGroup, ConnectorCluster> = {

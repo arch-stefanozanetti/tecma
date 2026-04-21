@@ -28,7 +28,7 @@ export { GROUP_TO_CLUSTER, getConnectorCluster } from "./connectorCatalog/types"
 
 export const LOOKER_CONNECTOR_STORAGE_KEY = "followup3.connector.looker";
 
-export const TAB_KEYS = ["connettori", "comunicazioni", "regole", "webhook", "api"] as const;
+export const TAB_KEYS = ["connettori", "comunicazioni", "regole", "webhook", "api", "zeus"] as const;
 export type TabKey = (typeof TAB_KEYS)[number];
 
 export const isValidTab = (s: string | null): s is TabKey =>
@@ -74,8 +74,60 @@ export const CONNECTOR_CLUSTER_ORDER: ConnectorCluster[] = [
   "ai",
 ];
 
+const connectorConnectionDefaults = (
+  c: ConnectorCatalogItem
+): Required<Pick<ConnectorCatalogItem, "connectionMode" | "supportsAutoVerify" | "hasAdvancedFallback">> => {
+  const oauthDirectIds = new Set(["connector_outlook"]);
+  const guidedExternalIds = new Set([
+    "connector_twilio",
+    "connector_microsoft_teams",
+    "connector_stripe",
+    "connector_paypal",
+    "connector_webflow",
+    "connector_n8n"
+  ]);
+  if (oauthDirectIds.has(c.id)) {
+    return { connectionMode: "oauthDirect", supportsAutoVerify: true, hasAdvancedFallback: false };
+  }
+  if (guidedExternalIds.has(c.id)) {
+    return { connectionMode: "guidedExternal", supportsAutoVerify: true, hasAdvancedFallback: true };
+  }
+  return { connectionMode: "manualFallback", supportsAutoVerify: false, hasAdvancedFallback: false };
+};
+
+const connectorOverrides: Partial<Record<string, Pick<ConnectorCatalogItem, "providerConnectUrl" | "providerConnectLabel">>> = {
+  connector_twilio: {
+    providerConnectUrl: "https://console.twilio.com/",
+    providerConnectLabel: "Apri Twilio Console"
+  },
+  connector_microsoft_teams: {
+    providerConnectUrl: "https://learn.microsoft.com/it-it/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook",
+    providerConnectLabel: "Apri setup Teams"
+  },
+  connector_stripe: {
+    providerConnectUrl: "https://dashboard.stripe.com/webhooks",
+    providerConnectLabel: "Apri Stripe Dashboard"
+  },
+  connector_paypal: {
+    providerConnectUrl: "https://developer.paypal.com/dashboard/applications",
+    providerConnectLabel: "Apri PayPal Developer"
+  },
+  connector_webflow: {
+    providerConnectUrl: "https://webflow.com/dashboard",
+    providerConnectLabel: "Apri Webflow Dashboard"
+  },
+  connector_n8n: {
+    providerConnectUrl: "https://docs.n8n.io/hosting/installation/",
+    providerConnectLabel: "Apri guida n8n"
+  }
+};
+
 /** Catalogo unificato: connettori core (configurabili / prioritari) + roadmap estesa. */
-export const CONNECTOR_CATALOG: ConnectorCatalogItem[] = [...coreConnectors, ...roadmapConnectors];
+export const CONNECTOR_CATALOG: ConnectorCatalogItem[] = [...coreConnectors, ...roadmapConnectors].map((c) => ({
+  ...connectorConnectionDefaults(c),
+  ...c,
+  ...(connectorOverrides[c.id] ?? {})
+}));
 
 export const STATUS_CONFIG: Record<
   ConnectorStatus,

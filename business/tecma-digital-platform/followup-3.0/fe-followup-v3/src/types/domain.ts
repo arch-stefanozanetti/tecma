@@ -106,6 +106,7 @@ export interface UserWithVisibilityRow {
   userId?: string | null;
   email: string;
   role: string | null;
+  system_role?: "tecma_admin" | null;
   isAdmin: boolean;
   projectIds: string[];
   /** Permessi aggiuntivi (additivi al ruolo workspace), da tz_users */

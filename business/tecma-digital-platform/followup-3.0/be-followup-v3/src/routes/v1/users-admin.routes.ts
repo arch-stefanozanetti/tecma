@@ -81,6 +81,7 @@ usersAdminRoutes.patch(
         status: z.enum(["invited", "active", "disabled"]).optional(),
         permissions_override: z.array(z.string()).optional(),
         isDisabled: z.boolean().optional(),
+        system_role: z.union([z.literal("tecma_admin"), z.null()]).optional(),
       })
       .parse(req.body);
 
@@ -99,10 +100,18 @@ usersAdminRoutes.patch(
       }
     }
 
+    if (body.system_role !== undefined) {
+      const isTecmaAdmin = req.user?.system_role === "tecma_admin" || req.user?.isTecmaAdmin === true;
+      if (!isTecmaAdmin) {
+        throw new HttpError("Solo i Tecma superadmin possono modificare system_role", 403);
+      }
+    }
+
     const after = await updateUserById(id, body);
     const safe = (u: typeof before) => ({
       email: u.email,
       role: u.role,
+      system_role: u.system_role ?? null,
       status: u.status,
       permissions_override: u.permissions_override,
       isDisabled: u.isDisabled,

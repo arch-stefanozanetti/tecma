@@ -64,6 +64,12 @@ async function sendHtml(to: string, subject: string, html: string, kind: SentEma
   }
 }
 
+/** Risposta testuale ZEUS (POC) — stesso transport delle altre email. */
+export async function sendZeusReplyEmail(to: string, subject: string, text: string): Promise<void> {
+  const html = `<pre style="font-family:system-ui,sans-serif;white-space:pre-wrap">${escapeHtml(text)}</pre>`;
+  await sendHtml(to, subject, html, "generic");
+}
+
 /** Solo per test */
 export function resetEmailMockOutbox(): void {
   mockOutbox.length = 0;

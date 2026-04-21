@@ -12,6 +12,7 @@ import {
   Search,
   RefreshCcw,
   Plug,
+  ExternalLink,
   Sparkles,
 } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -63,6 +64,7 @@ import {
 import { resolveApiBaseUrl } from "../../api/http";
 import { ConnectorBrandLogo } from "./ConnectorBrandLogo";
 import { Alert } from "../../components/ui/alert";
+import { INTEGRATION_LABELS } from "./integrationUiLabels";
 
 const WHATSAPP_CONNECTOR_IDS = new Set<string>(["connector_twilio", "connector_meta_whatsapp"]);
 const WHATSAPP_CONNECTOR_ORDER = ["connector_twilio", "connector_meta_whatsapp"] as const;
@@ -100,7 +102,8 @@ function ConnectorCatalogCard({
   const StatusIcon = cfg.icon;
   const isConfigured = connector.status === "configured";
   const isComingSoon = connector.status === "coming_soon";
-  const primaryConfigureLabel = configureLabel ?? "Configura";
+  const primaryConfigureLabel =
+    configureLabel ?? (connector.connectionMode === "manualFallback" ? "Configura" : "Connetti");
 
   return (
     <div
@@ -197,10 +200,10 @@ function ConnectorCatalogCard({
           {togglingId === connector.id ? (
             <>
               <RefreshCcw className="h-3.5 w-3.5 animate-spin" />
-              {isConfigured ? "Disconnessione..." : "Configurazione..."}
+              {isConfigured ? INTEGRATION_LABELS.disconnectLoading : "Configurazione..."}
             </>
           ) : isConfigured ? (
-            "Disconnetti"
+            INTEGRATION_LABELS.disconnect
           ) : isComingSoon ? (
             "Non disponibile"
           ) : (
@@ -219,7 +222,7 @@ function ConnectorCatalogCard({
             }}
           >
             <RefreshCcw className="h-3.5 w-3.5" />
-            Health check
+            {INTEGRATION_LABELS.healthStatus}
           </Button>
         )}
       </div>
@@ -248,6 +251,8 @@ export function ConnettoriTab({
   autoOpenMetaWhatsapp = false,
   onMetaAutoOpenConsumed,
   reloadMetaWhatsAppStatus,
+  autoOpenConnectorId = null,
+  onAutoOpenConnectorConsumed,
   /** false se il modulo Twilio non è abilitato (entitlement). Default true. */
   twilioEntitled = true,
   mailchimpEntitled = true,
@@ -285,6 +290,9 @@ export function ConnettoriTab({
   autoOpenMetaWhatsapp?: boolean;
   onMetaAutoOpenConsumed?: () => void;
   reloadMetaWhatsAppStatus?: () => void;
+  /** Auto-open drawer via query generica (?connector=...). */
+  autoOpenConnectorId?: string | null;
+  onAutoOpenConnectorConsumed?: () => void;
   twilioEntitled?: boolean;
   mailchimpEntitled?: boolean;
   activecampaignEntitled?: boolean;
@@ -356,6 +364,8 @@ export function ConnettoriTab({
   const [twilioTestBody, setTwilioTestBody] = useState("");
   const [twilioTestSending, setTwilioTestSending] = useState(false);
   const [twilioDrawerError, setTwilioDrawerError] = useState<string | null>(null);
+  const [twilioShowAdvanced, setTwilioShowAdvanced] = useState(false);
+  const [twilioVerifying, setTwilioVerifying] = useState(false);
   const twilioAutoOpenDoneRef = useRef(false);
   const [metaPhoneNumberId, setMetaPhoneNumberId] = useState("");
   const [metaAccessToken, setMetaAccessToken] = useState("");
@@ -405,6 +415,8 @@ export function ConnettoriTab({
   const [teamsSaving, setTeamsSaving] = useState(false);
   const [teamsDrawerError, setTeamsDrawerError] = useState<string | null>(null);
   const [teamsTestSending, setTeamsTestSending] = useState(false);
+  const [teamsShowAdvanced, setTeamsShowAdvanced] = useState(false);
+  const [teamsVerifying, setTeamsVerifying] = useState(false);
   const [workspaceAiFormProvider, setWorkspaceAiFormProvider] = useState<"claude" | "openai" | "gemini">("claude");
   const [workspaceAiFormApiKey, setWorkspaceAiFormApiKey] = useState("");
   const [workspaceAiSaving, setWorkspaceAiSaving] = useState(false);
@@ -446,6 +458,7 @@ export function ConnettoriTab({
   const openTwilioDrawer = useCallback(() => {
     if (!workspaceId) return;
     setTwilioDrawerError(null);
+    setTwilioShowAdvanced(false);
     followupApi
       .getWhatsAppConfig(workspaceId)
       .then((r) => {
@@ -581,6 +594,7 @@ export function ConnettoriTab({
   const openTeamsDrawer = useCallback(() => {
     if (!workspaceId) return;
     setTeamsDrawerError(null);
+    setTeamsShowAdvanced(false);
     followupApi
       .getTeamsIncomingConnectorConfig(workspaceId)
       .then((r) => {
@@ -605,6 +619,45 @@ export function ConnettoriTab({
     openTwilioDrawer();
     onTwilioAutoOpenConsumed?.();
   }, [autoOpenTwilio, workspaceId, onTwilioAutoOpenConsumed, openTwilioDrawer]);
+
+  useEffect(() => {
+    if (!autoOpenConnectorId || !workspaceId) return;
+    const id = autoOpenConnectorId;
+    if (id === "twilio") {
+      openTwilioDrawer();
+    } else if (id === "meta_whatsapp") {
+      openMetaDrawer();
+    } else if (id === "microsoft_teams") {
+      openTeamsDrawer();
+    } else if (id === "mailchimp") {
+      openMailchimpDrawer();
+    } else if (id === "activecampaign") {
+      openActiveCampaignDrawer();
+    } else if (id === "stripe") {
+      openStripeDrawer();
+    } else if (id === "paypal") {
+      openPayPalDrawer();
+    } else if (id === "webflow") {
+      openWebflowDrawer();
+    } else if (id === "n8n") {
+      setConnectorConfigDrawer("connector_n8n");
+    } else if (id === "outlook") {
+      setConnectorConfigDrawer("connector_outlook");
+    }
+    onAutoOpenConnectorConsumed?.();
+  }, [
+    autoOpenConnectorId,
+    workspaceId,
+    openTwilioDrawer,
+    openMetaDrawer,
+    openTeamsDrawer,
+    openMailchimpDrawer,
+    openActiveCampaignDrawer,
+    openStripeDrawer,
+    openPayPalDrawer,
+    openWebflowDrawer,
+    onAutoOpenConnectorConsumed
+  ]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -1209,6 +1262,56 @@ export function ConnettoriTab({
       .then((r) => setOutlookCalendarEvents(r.data ?? []))
       .catch(() => setOutlookCalendarEvents([]))
       .finally(() => setOutlookCalendarLoading(false));
+  };
+
+  const openProviderPage = (url: string) => {
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const verifyTwilioConnection = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_twilio") return;
+    setTwilioVerifying(true);
+    setTwilioDrawerError(null);
+    followupApi
+      .verifyWhatsAppConfig(workspaceId)
+      .then((r) => {
+        const hasConfig = Boolean(r.connected);
+        setTwilioHasSavedConfig(hasConfig);
+        if (hasConfig) {
+          toastSuccess("Twilio collegato. Puoi inviare una prova WhatsApp.");
+          return;
+        }
+        setTwilioDrawerError("Connessione non completata. Apri Twilio Console o usa la modalità avanzata.");
+        setTwilioShowAdvanced(true);
+      })
+      .catch((err) => {
+        setTwilioDrawerError(err?.message ?? "Verifica Twilio fallita");
+        setTwilioShowAdvanced(true);
+      })
+      .finally(() => setTwilioVerifying(false));
+  };
+
+  const verifyTeamsConnection = () => {
+    if (!workspaceId || connectorConfigDrawer !== "connector_microsoft_teams") return;
+    setTeamsVerifying(true);
+    setTeamsDrawerError(null);
+    followupApi
+      .verifyTeamsIncomingConnector(workspaceId)
+      .then((r) => {
+        const hasConfig = Boolean(r.connected);
+        setTeamsHasSavedConfig(hasConfig);
+        if (hasConfig) {
+          toastSuccess("Teams collegato. Puoi inviare una prova.");
+          return;
+        }
+        setTeamsDrawerError("Nessun webhook Teams trovato. Completa il setup o usa la modalità avanzata.");
+        setTeamsShowAdvanced(true);
+      })
+      .catch((err) => {
+        setTeamsDrawerError(err?.message ?? "Verifica Teams fallita");
+        setTeamsShowAdvanced(true);
+      })
+      .finally(() => setTeamsVerifying(false));
   };
 
   const saveTwilioConfig = () => {
@@ -1969,7 +2072,7 @@ export function ConnettoriTab({
                 )}
                 {lookerTestError && <p className="text-sm text-destructive">{lookerTestError}</p>}
                 <Button className="min-h-11" onClick={testLookerConnection} disabled={lookerTesting || projectIds.length === 0 || ro}>
-                  {lookerTesting ? "Test in corso..." : "Test connessione"}
+                  {lookerTesting ? INTEGRATION_LABELS.verifyConnectionLoading : INTEGRATION_LABELS.verifyConnection}
                 </Button>
               </>
             )}
@@ -2108,9 +2211,9 @@ export function ConnettoriTab({
                     </>
                   ) : (
                     <>
-                      <p className="text-sm text-muted-foreground">Connetti il tuo account Microsoft per leggere il calendario Outlook.</p>
+                      <p className="text-sm text-muted-foreground">Apri la schermata Microsoft, autorizza l'accesso e torna qui per continuare.</p>
                       <Button className="min-h-11" onClick={connectOutlook} disabled={outlookConnecting || ro}>
-                        {outlookConnecting ? "Reindirizzamento..." : "Connetti Outlook"}
+                        {outlookConnecting ? "Apertura…" : INTEGRATION_LABELS.connectNow}
                       </Button>
                     </>
                   )}
@@ -2166,9 +2269,7 @@ export function ConnettoriTab({
             {connectorConfigDrawer === "connector_twilio" && (
               <>
                 <p className="text-sm text-muted-foreground">
-                  Inserisci le credenziali del tuo account Twilio per abilitare gli invii WhatsApp definiti nel tab{" "}
-                  <span className="font-medium text-foreground">Comunicazioni</span>. Il backend aggiunge il prefisso{" "}
-                  <code className="rounded bg-muted px-1 text-xs">whatsapp:</code> dove serve.
+                  Collegamento guidato: apri Twilio Console, completa il setup del sender WhatsApp, poi torna qui e verifica. I campi manuali sono disponibili solo come fallback avanzato.
                 </p>
                 {!twilioEntitled && (
                   <Alert
@@ -2181,40 +2282,80 @@ export function ConnettoriTab({
                   </Alert>
                 )}
                 {twilioDrawerError && <p className="text-sm text-destructive">{twilioDrawerError}</p>}
-                <div>
-                  <label htmlFor="twilio-account-sid" className="text-sm font-medium text-foreground">Account SID</label>
-                  <Input
-                    id="twilio-account-sid"
-                    value={twilioAccountSid}
-                    onChange={(e) => setTwilioAccountSid(e.target.value)}
-                    placeholder="AC…"
-                    className="mt-1"
-                    autoComplete="off"
-                  />
+                <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                  <p className="text-sm font-medium text-foreground">Step rapido (consigliato)</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-11"
+                      onClick={() => openProviderPage("https://console.twilio.com/")}
+                    >
+                      <ExternalLink className="h-4 w-4 mr-1" />
+                      {INTEGRATION_LABELS.connectNow}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-11"
+                      onClick={verifyTwilioConnection}
+                      disabled={twilioVerifying}
+                    >
+                      {twilioVerifying ? INTEGRATION_LABELS.verifyShortLoading : INTEGRATION_LABELS.verifyAfterProvider}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Se la verifica non trova una config, apri la modalità avanzata e inserisci SID/token/from.
+                  </p>
                 </div>
-                <div>
-                  <label htmlFor="twilio-auth-token" className="text-sm font-medium text-foreground">Auth Token</label>
-                  <Input
-                    id="twilio-auth-token"
-                    type="password"
-                    value={twilioAuthToken}
-                    onChange={(e) => setTwilioAuthToken(e.target.value)}
-                    placeholder={twilioHasSavedConfig ? "•••• (inserisci nuovo token per aggiornare)" : "Token"}
-                    className="mt-1"
-                    autoComplete="off"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="twilio-from" className="text-sm font-medium text-foreground">Numero mittente WhatsApp</label>
-                  <Input
-                    id="twilio-from"
-                    value={twilioFromNumber}
-                    onChange={(e) => setTwilioFromNumber(e.target.value)}
-                    placeholder="+14155238886 o +39…"
-                    className="mt-1"
-                    autoComplete="off"
-                  />
-                </div>
+                {!twilioShowAdvanced && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="justify-start px-0"
+                    onClick={() => setTwilioShowAdvanced(true)}
+                  >
+                    {INTEGRATION_LABELS.openAdvanced}
+                  </Button>
+                )}
+                {twilioShowAdvanced && (
+                  <>
+                    <div>
+                      <label htmlFor="twilio-account-sid" className="text-sm font-medium text-foreground">Account SID</label>
+                      <Input
+                        id="twilio-account-sid"
+                        value={twilioAccountSid}
+                        onChange={(e) => setTwilioAccountSid(e.target.value)}
+                        placeholder="AC…"
+                        className="mt-1"
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="twilio-auth-token" className="text-sm font-medium text-foreground">Auth Token</label>
+                      <Input
+                        id="twilio-auth-token"
+                        type="password"
+                        value={twilioAuthToken}
+                        onChange={(e) => setTwilioAuthToken(e.target.value)}
+                        placeholder={twilioHasSavedConfig ? "•••• (inserisci nuovo token per aggiornare)" : "Token"}
+                        className="mt-1"
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="twilio-from" className="text-sm font-medium text-foreground">Numero mittente WhatsApp</label>
+                      <Input
+                        id="twilio-from"
+                        value={twilioFromNumber}
+                        onChange={(e) => setTwilioFromNumber(e.target.value)}
+                        placeholder="+14155238886 o +39…"
+                        className="mt-1"
+                        autoComplete="off"
+                      />
+                    </div>
+                  </>
+                )}
                 {isAdmin && (
                   <div className="space-y-2 border-t border-border pt-4">
                     <p className="text-sm font-medium text-foreground">Messaggio di prova (solo admin)</p>
@@ -2235,7 +2376,7 @@ export function ConnettoriTab({
                       onClick={testTwilioWhatsApp}
                       disabled={twilioTestSending || !twilioHasSavedConfig || !twilioEntitled}
                     >
-                      {twilioTestSending ? "Invio…" : "Invia prova WhatsApp"}
+                      {twilioTestSending ? INTEGRATION_LABELS.sendLoading : INTEGRATION_LABELS.sendTestWhatsapp}
                     </Button>
                     {!twilioHasSavedConfig && (
                       <p className="text-xs text-muted-foreground">Salva la configurazione prima di inviare una prova.</p>
@@ -2319,7 +2460,7 @@ export function ConnettoriTab({
                       onClick={testMetaWhatsApp}
                       disabled={metaTestSending || !metaHasSavedConfig}
                     >
-                      {metaTestSending ? "Invio…" : "Invia prova (template Meta)"}
+                      {metaTestSending ? INTEGRATION_LABELS.sendLoading : INTEGRATION_LABELS.sendTestMeta}
                     </Button>
                     {!metaHasSavedConfig && (
                       <p className="text-xs text-muted-foreground">Salva la configurazione prima di inviare una prova.</p>
@@ -2630,8 +2771,7 @@ export function ConnettoriTab({
             {connectorConfigDrawer === "connector_microsoft_teams" && (
               <>
                 <p className="text-sm text-muted-foreground">
-                  Crea un connettore <span className="font-medium text-foreground">Incoming Webhook</span> sul canale Teams (⋯ → Connettori → Incoming Webhook)
-                  e incolla qui l&apos;URL completo. L&apos;URL è sensibile: chi lo possiede può inviare messaggi nel canale.
+                  Connessione guidata: apri Teams, crea Incoming Webhook e torna qui per la verifica. L&apos;incolla manuale resta disponibile solo come fallback.
                 </p>
                 {!integrationsEntitled && (
                   <Alert variant="warning" title="Integrazioni non attive" className="text-sm">
@@ -2640,33 +2780,74 @@ export function ConnettoriTab({
                   </Alert>
                 )}
                 {teamsDrawerError && <p className="text-sm text-destructive">{teamsDrawerError}</p>}
-                <div>
-                  <label htmlFor="teams-url" className="text-sm font-medium text-foreground">
-                    URL Incoming Webhook
-                  </label>
-                  <Input
-                    id="teams-url"
-                    type="url"
-                    value={teamsWebhookUrl}
-                    onChange={(e) => setTeamsWebhookUrl(e.target.value)}
-                    placeholder="https://outlook.office.com/webhook/…"
-                    className="mt-1"
-                    autoComplete="off"
-                  />
+                <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                  <p className="text-sm font-medium text-foreground">Step rapido (consigliato)</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-11"
+                      onClick={() =>
+                        openProviderPage(
+                          "https://learn.microsoft.com/it-it/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook"
+                        )
+                      }
+                    >
+                      <ExternalLink className="h-4 w-4 mr-1" />
+                      {INTEGRATION_LABELS.connectNow}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-11"
+                      onClick={verifyTeamsConnection}
+                      disabled={teamsVerifying}
+                    >
+                      {teamsVerifying ? INTEGRATION_LABELS.verifyShortLoading : INTEGRATION_LABELS.verifyAfterProvider}
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <label htmlFor="teams-label" className="text-sm font-medium text-foreground">
-                    Etichetta (opzionale)
-                  </label>
-                  <Input
-                    id="teams-label"
-                    value={teamsLabel}
-                    onChange={(e) => setTeamsLabel(e.target.value)}
-                    placeholder="es. Canale vendite"
-                    className="mt-1"
-                    autoComplete="off"
-                  />
-                </div>
+                {!teamsShowAdvanced && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="justify-start px-0"
+                    onClick={() => setTeamsShowAdvanced(true)}
+                  >
+                    {INTEGRATION_LABELS.openAdvanced}
+                  </Button>
+                )}
+                {teamsShowAdvanced && (
+                  <>
+                    <div>
+                      <label htmlFor="teams-url" className="text-sm font-medium text-foreground">
+                        URL Incoming Webhook
+                      </label>
+                      <Input
+                        id="teams-url"
+                        type="url"
+                        value={teamsWebhookUrl}
+                        onChange={(e) => setTeamsWebhookUrl(e.target.value)}
+                        placeholder="https://outlook.office.com/webhook/…"
+                        className="mt-1"
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="teams-label" className="text-sm font-medium text-foreground">
+                        Etichetta (opzionale)
+                      </label>
+                      <Input
+                        id="teams-label"
+                        value={teamsLabel}
+                        onChange={(e) => setTeamsLabel(e.target.value)}
+                        placeholder="es. Canale vendite"
+                        className="mt-1"
+                        autoComplete="off"
+                      />
+                    </div>
+                  </>
+                )}
                 <Button
                   type="button"
                   variant="secondary"
@@ -2674,7 +2855,7 @@ export function ConnettoriTab({
                   onClick={testTeamsWebhook}
                   disabled={teamsTestSending || !teamsHasSavedConfig || ro}
                 >
-                  {teamsTestSending ? "Invio…" : "Invia messaggio di prova"}
+                  {teamsTestSending ? INTEGRATION_LABELS.sendLoading : INTEGRATION_LABELS.sendTestMessage}
                 </Button>
                 {!teamsHasSavedConfig && (
                   <p className="text-xs text-muted-foreground">Salva la configurazione prima di inviare una prova.</p>
@@ -2751,7 +2932,7 @@ export function ConnettoriTab({
                 {connectorSaving ? "Salvataggio..." : "Salva"}
               </Button>
               <Button variant="outline" className="min-h-11" onClick={testN8nTrigger} disabled={n8nTestTriggering || connectorSaving || ro}>
-                {n8nTestTriggering ? "Test in corso..." : "Test trigger"}
+                {n8nTestTriggering ? INTEGRATION_LABELS.n8nTrialLoading : INTEGRATION_LABELS.n8nTrialRun}
               </Button>
             </DrawerFooter>
           )}
@@ -2769,7 +2950,7 @@ export function ConnettoriTab({
               </Button>
               {twilioHasSavedConfig && (
                 <Button variant="outline" className="min-h-11" onClick={removeTwilioConfig} disabled={twilioSaving || ro}>
-                  Rimuovi config
+                  {INTEGRATION_LABELS.removeSavedConfig}
                 </Button>
               )}
             </DrawerFooter>
@@ -2781,7 +2962,7 @@ export function ConnettoriTab({
               </Button>
               {metaHasSavedConfig && (
                 <Button variant="outline" className="min-h-11" onClick={removeMetaWhatsAppConfig} disabled={metaSaving || ro}>
-                  Rimuovi config
+                  {INTEGRATION_LABELS.removeSavedConfig}
                 </Button>
               )}
             </DrawerFooter>
@@ -2793,7 +2974,7 @@ export function ConnettoriTab({
               </Button>
               {mailchimpHasSavedConfig && (
                 <Button variant="outline" className="min-h-11" onClick={removeMailchimpConfig} disabled={mailchimpSaving || ro}>
-                  Rimuovi config
+                  {INTEGRATION_LABELS.removeSavedConfig}
                 </Button>
               )}
             </DrawerFooter>
@@ -2814,7 +2995,7 @@ export function ConnettoriTab({
                   onClick={removeActiveCampaignConfig}
                   disabled={activeCampaignSaving || ro}
                 >
-                  Rimuovi config
+                  {INTEGRATION_LABELS.removeSavedConfig}
                 </Button>
               )}
             </DrawerFooter>
@@ -2826,7 +3007,7 @@ export function ConnettoriTab({
               </Button>
               {stripeHasSavedConfig && (
                 <Button variant="outline" className="min-h-11" onClick={removeStripeConnector} disabled={stripeSaving || ro}>
-                  Rimuovi config
+                  {INTEGRATION_LABELS.removeSavedConfig}
                 </Button>
               )}
             </DrawerFooter>
@@ -2838,7 +3019,7 @@ export function ConnettoriTab({
               </Button>
               {paypalHasSavedConfig && (
                 <Button variant="outline" className="min-h-11" onClick={removePayPalConnector} disabled={paypalSaving || ro}>
-                  Rimuovi config
+                  {INTEGRATION_LABELS.removeSavedConfig}
                 </Button>
               )}
             </DrawerFooter>
@@ -2850,7 +3031,7 @@ export function ConnettoriTab({
               </Button>
               {webflowHasSavedConfig && (
                 <Button variant="outline" className="min-h-11" onClick={removeWebflowConnector} disabled={webflowSaving || ro}>
-                  Rimuovi config
+                  {INTEGRATION_LABELS.removeSavedConfig}
                 </Button>
               )}
             </DrawerFooter>
@@ -2862,7 +3043,7 @@ export function ConnettoriTab({
               </Button>
               {teamsHasSavedConfig && (
                 <Button variant="outline" className="min-h-11" onClick={removeTeamsConnector} disabled={teamsSaving || ro}>
-                  Rimuovi config
+                  {INTEGRATION_LABELS.removeSavedConfig}
                 </Button>
               )}
             </DrawerFooter>
@@ -2890,7 +3071,7 @@ export function ConnettoriTab({
                   onClick={removeWorkspaceAiIntegration}
                   disabled={workspaceAiSaving || ro || !isAdmin}
                 >
-                  Scollega provider
+                  {INTEGRATION_LABELS.disconnectAiProvider}
                 </Button>
               )}
             </DrawerFooter>

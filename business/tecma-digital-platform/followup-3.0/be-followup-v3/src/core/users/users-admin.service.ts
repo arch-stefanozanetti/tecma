@@ -25,6 +25,8 @@ export interface UserWithVisibilityRow {
   projectIds: string[];
   /** Permessi aggiuntivi (additivi rispetto al ruolo workspace), da tz_users */
   permissions_override: string[];
+  /** Ruolo globale Tecma (solo "tecma_admin" quando presente). */
+  system_role?: "tecma_admin" | null;
   /** Membership per workspace (da tz_user_workspaces) */
   workspaces: UserWorkspaceMembership[];
 }
@@ -52,7 +54,10 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
   const wsColl = db.collection(COLLECTION_WORKSPACES);
 
   const [userDocs, membershipDocs, workspaceDocs] = await Promise.all([
-    usersColl.find({}).project({ email: 1, role: 1, project_ids: 1, _id: 1, permissions_override: 1 }).toArray(),
+    usersColl
+      .find({})
+      .project({ email: 1, role: 1, project_ids: 1, _id: 1, permissions_override: 1, system_role: 1 })
+      .toArray(),
     uwColl.find({}).toArray(),
     wsColl.find({}).project({ _id: 1, name: 1 }).toArray(),
   ]);
@@ -65,7 +70,13 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
 
   const userByEmail = new Map<
     string,
-    { role: string; projectIds: string[]; userId: string | null; permissions_override: string[] }
+    {
+      role: string;
+      projectIds: string[];
+      userId: string | null;
+      permissions_override: string[];
+      system_role: "tecma_admin" | null;
+    }
   >();
   const emailsFromUsers = new Set<string>();
   for (const u of userDocs as {
@@ -74,6 +85,7 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
     role?: unknown;
     project_ids?: unknown[];
     permissions_override?: unknown[];
+    system_role?: unknown;
   }[]) {
     const email = normalizeEmail(u.email);
     if (!email) continue;
@@ -85,8 +97,9 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
     const permissions_override = Array.isArray(u.permissions_override)
       ? (u.permissions_override as unknown[]).map((x) => String(x)).filter(Boolean)
       : [];
+    const system_role = u.system_role === "tecma_admin" ? "tecma_admin" : null;
     const userId = u._id && typeof u._id.toHexString === "function" ? u._id.toHexString() : null;
-    userByEmail.set(email, { role, projectIds, userId, permissions_override });
+    userByEmail.set(email, { role, projectIds, userId, permissions_override, system_role });
   }
 
   const membershipsByUser = new Map<string, { workspaceId: string; role: string }[]>();
@@ -130,6 +143,7 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
     const projectIds = fromTzUsers?.projectIds ?? [];
     const userId = fromTzUsers?.userId ?? null;
     const permissions_override = fromTzUsers?.permissions_override ?? [];
+    const system_role = fromTzUsers?.system_role ?? null;
     const memberships = (membershipsByUser.get(email) ?? []).map((m) => ({
       workspaceId: m.workspaceId,
       workspaceName: workspaceNames.get(m.workspaceId) ?? m.workspaceId,
@@ -137,7 +151,7 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
     }));
     const wsRoles = memberships.map((m) => m.role);
     const role = memberships.length > 0 ? maxRoleFromMemberships(wsRoles) : fromTzUsers?.role ?? null;
-    const isAdmin = role === "admin" || role === "owner";
+    const isAdmin = role === "admin" || role === "owner" || system_role === "tecma_admin";
     users.push({
       userId,
       email,
@@ -145,6 +159,7 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
       isAdmin,
       projectIds,
       permissions_override,
+      system_role,
       workspaces: memberships,
     });
   }

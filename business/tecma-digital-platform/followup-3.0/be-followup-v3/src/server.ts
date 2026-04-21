@@ -18,6 +18,7 @@ import { logger } from "./observability/logger.js";
 import { initOtel, shutdownOtel } from "./observability/otel.js";
 import { requestContextMiddleware } from "./routes/requestContextMiddleware.js";
 import { requireAuth } from "./routes/authMiddleware.js";
+import { zeusWebhookRouter } from "./routes/zeus-webhook.routes.js";
 
 /** I job schedulati (comms, marketing, retention, MLS) sono eseguiti dal worker: node dist/job-runner.js */
 
@@ -88,6 +89,13 @@ const bootstrap = async () => {
   app.use("/v1/webhooks/stripe", express.raw({ type: "application/json", limit: "1mb" }), stripeWebhookRouter);
   /** PayPal webhook: raw body (verifica evolutiva). */
   app.use("/v1/webhooks/paypal", express.raw({ type: "application/json", limit: "2mb" }), paypalWebhookRouter);
+  /** ZEUS webhooks pubblici: Twilio (form-urlencoded) + altri handler sulla stessa mount. */
+  app.use(
+    "/v1/workspaces/:workspaceId/zeus/webhooks",
+    express.urlencoded({ extended: true }),
+    express.json({ limit: "2mb" }),
+    zeusWebhookRouter
+  );
   /** Limite elevato per payload con screenshot base64 (Experimental / Pascal AI render). */
   app.use(express.json({ limit: "12mb" }));
 

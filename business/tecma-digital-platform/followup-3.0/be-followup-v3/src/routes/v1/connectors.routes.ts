@@ -108,6 +108,17 @@ connectorsRoutes.get("/workspaces/:workspaceId/connectors/whatsapp/config", requ
   const config = await getWhatsAppConfig(req.params.workspaceId);
   return { config: config ?? null };
 }));
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/whatsapp/verify",
+  requirePermission(PERMISSIONS.INTEGRATIONS_READ),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const config = await getWhatsAppConfig(req.params.workspaceId);
+    const data = config?.config as { accountSid?: string; fromNumber?: string } | undefined;
+    const connected = Boolean(data?.accountSid && data?.fromNumber);
+    return { connected };
+  })
+);
 connectorsRoutes.post("/workspaces/:workspaceId/connectors/whatsapp/config", requirePermission(PERMISSIONS.INTEGRATIONS_UPDATE), entitledIntegrationsForParam, handleAsync(async (req) => {
   const body = z.object({
     accountSid: z.string().min(1),
@@ -647,6 +658,16 @@ connectorsRoutes.get(
   handleAsync(async (req) => {
     const config = await getTeamsIncomingConfig(req.params.workspaceId);
     return { config: config ?? null };
+  })
+);
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/teams-incoming/verify",
+  requirePermission(PERMISSIONS.INTEGRATIONS_READ),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const config = await getTeamsIncomingConfig(req.params.workspaceId);
+    const data = config?.config as { incomingWebhookUrl?: string } | undefined;
+    return { connected: Boolean(data?.incomingWebhookUrl) };
   })
 );
 connectorsRoutes.post(

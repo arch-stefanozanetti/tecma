@@ -41,6 +41,7 @@ import { jiraPrdRoutes } from "./v1/jira-prd.routes.js";
 import { amlRoutes } from "./v1/aml.routes.js";
 import { unitIssuesRoutes } from "./v1/unit-issues.routes.js";
 import { handoversRoutes } from "./v1/handovers.routes.js";
+import { zeusRoutes } from "./v1/zeus.routes.js";
 
 export const v1Router = Router();
 
@@ -78,6 +79,7 @@ v1Router.use("/", rbacRoutes);
 v1Router.use("/", usersAdminRoutes);
 v1Router.use("/", emailFlowsRoutes);
 v1Router.use("/", workspacesRoutes);
+v1Router.use("/", zeusRoutes);
 v1Router.use("/", discoveryWorkflowRoutes);
 v1Router.use("/", intelligenceRoutes);
 v1Router.use("/", bigdataRoutes);

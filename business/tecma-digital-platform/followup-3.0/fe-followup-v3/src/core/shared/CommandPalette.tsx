@@ -42,6 +42,7 @@ const SECTION_COMMANDS: CommandSectionItem[] = [
   { kind: "section", id: "projects", label: "Progetti", hint: "Lista progetti" },
   { kind: "section", id: "priceAvailability", label: "Prezzi e disponibilità", hint: "Matrice prezzi" },
   { kind: "section", id: "integrations", label: "Integrazioni e automazioni", hint: "Connettori, regole, webhook, API" },
+  { kind: "section", id: "zeus", label: "ZEUS (AI voce / WhatsApp / email)", hint: "Assistente omnicanale — tab Integrazioni" },
   { kind: "section", id: "reports", label: "Report", hint: "Pipeline, clienti, appartamenti" },
   { kind: "section", id: "releases", label: "Release", hint: "Novità e cronologia release" },
   { kind: "section", id: "accountSecurity", label: "Sicurezza account (MFA)", hint: "TOTP e codici di backup" },

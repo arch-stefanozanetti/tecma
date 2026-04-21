@@ -23,6 +23,7 @@ type ProjectDoc = {
 type UserDoc = {
   email?: string;
   role?: string;
+  system_role?: string | null;
   project_ids?: Array<string | ObjectId>;
 };
 
@@ -99,7 +100,8 @@ export const getProjectAccessByEmail = async (rawInput: unknown) => {
   }
 
   const role = String(user.role || "").toLowerCase();
-  const isAdmin = role === "admin";
+  const isTecmaAdmin = user.system_role === "tecma_admin";
+  const isAdmin = role === "admin" || isTecmaAdmin;
 
   let projectsFromProjectDb: ProjectDoc[] = [];
   let projectsFromTz: ProjectDoc[] = [];

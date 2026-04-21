@@ -56,6 +56,12 @@ const CORE_INDEXES: IndexDefinition[] = [
   { collection: "tz_catalog_unit_profiles", keys: { workspaceId: 1, projectId: 1, apartmentCode: 1 } },
 
   { collection: "tz_workspace_ai_config", keys: { workspaceId: 1 }, options: { unique: true } },
+  { collection: "tz_zeus_poc_config", keys: { workspaceId: 1 }, options: { unique: true } },
+  { collection: "tz_zeus_turns", keys: { workspaceId: 1, createdAt: -1 } },
+  { collection: "tz_proactive_sales_config", keys: { workspaceId: 1 }, options: { unique: true } },
+  { collection: "tz_proactive_opportunities", keys: { workspaceId: 1, status: 1, createdAt: -1 } },
+  { collection: "tz_proactive_opportunities", keys: { workspaceId: 1, clientId: 1, status: 1 } },
+  { collection: "tz_proactive_outreach_log", keys: { workspaceId: 1, clientId: 1, sentAt: -1 } },
   { collection: "tz_workspace_users", keys: { workspaceId: 1, userId: 1 }, options: { unique: true } },
   { collection: "tz_workspace_user_projects", keys: { workspaceId: 1, userId: 1, projectId: 1 }, options: { unique: true } },
   { collection: "tz_entity_assignments", keys: { workspaceId: 1, entityType: 1, entityId: 1, userId: 1 }, options: { unique: true } },

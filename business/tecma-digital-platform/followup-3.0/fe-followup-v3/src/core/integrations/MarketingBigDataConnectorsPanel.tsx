@@ -10,6 +10,7 @@ import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
 import { cn } from "../../lib/utils";
 import { trackProductEvent } from "../../telemetry/trackProductEvent";
+import { INTEGRATION_LABELS } from "./integrationUiLabels";
 
 type Props = {
   workspaceId: string;
@@ -78,7 +79,12 @@ export const MarketingBigDataConnectorsPanel = ({
         section: "integrations",
       });
       const { url } = await followupApi.getMarketingGoogleOAuthUrl(workspaceId);
-      window.location.href = url;
+      const popup = window.open(url, "marketing-google-oauth", "width=540,height=760,scrollbars=yes");
+      if (!popup) {
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+      toastSuccess("Finestra Google aperta. Completa il login e poi torna qui.");
+      setConnecting(null);
     } catch (e) {
       const base = e instanceof Error ? e.message : "Impossibile avviare OAuth Google";
       const hint = e instanceof HttpApiError && e.hint ? ` ${e.hint}` : "";
@@ -97,7 +103,12 @@ export const MarketingBigDataConnectorsPanel = ({
         section: "integrations",
       });
       const { url } = await followupApi.getMarketingMetaOAuthUrl(workspaceId);
-      window.location.href = url;
+      const popup = window.open(url, "marketing-meta-oauth", "width=540,height=760,scrollbars=yes");
+      if (!popup) {
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+      toastSuccess("Finestra Meta aperta. Completa il login e poi torna qui.");
+      setConnecting(null);
     } catch (e) {
       const base = e instanceof Error ? e.message : "Impossibile avviare OAuth Meta";
       const hint = e instanceof HttpApiError && e.hint ? ` ${e.hint}` : "";
@@ -188,7 +199,7 @@ export const MarketingBigDataConnectorsPanel = ({
                       disabled={connecting !== null}
                       onClick={() => void startGoogleOAuth()}
                     >
-                      {connecting === "google" ? "Reindirizzamento…" : "Collega Google"}
+                      {connecting === "google" ? "Apertura…" : INTEGRATION_LABELS.connectNow}
                     </Button>
                   ) : (
                     <Button
@@ -205,7 +216,7 @@ export const MarketingBigDataConnectorsPanel = ({
                           .catch((e) => toastError(e instanceof Error ? e.message : "Errore"))
                       }
                     >
-                      Disconnetti Google
+                      {INTEGRATION_LABELS.disconnectGoogle}
                     </Button>
                   )}
                 </div>
@@ -230,7 +241,7 @@ export const MarketingBigDataConnectorsPanel = ({
                       disabled={connecting !== null}
                       onClick={() => void startMetaOAuth()}
                     >
-                      {connecting === "meta" ? "Reindirizzamento…" : "Collega Meta"}
+                      {connecting === "meta" ? "Apertura…" : INTEGRATION_LABELS.connectNow}
                     </Button>
                   ) : (
                     <Button
@@ -247,7 +258,7 @@ export const MarketingBigDataConnectorsPanel = ({
                           .catch((e) => toastError(e instanceof Error ? e.message : "Errore"))
                       }
                     >
-                      Disconnetti Meta
+                      {INTEGRATION_LABELS.disconnectMeta}
                     </Button>
                   )}
                 </div>
@@ -292,7 +303,7 @@ export const MarketingBigDataConnectorsPanel = ({
                             .catch((e) => toastError(e instanceof Error ? e.message : "Errore"))
                         }
                       >
-                        Rimuovi
+                        {INTEGRATION_LABELS.removeSavedConfig}
                       </Button>
                     </div>
                   </>
@@ -330,7 +341,7 @@ export const MarketingBigDataConnectorsPanel = ({
                             .catch((e) => toastError(e instanceof Error ? e.message : "Errore"))
                         }
                       >
-                        Rimuovi
+                        {INTEGRATION_LABELS.removeSavedConfig}
                       </Button>
                     </div>
                   </>
@@ -392,7 +403,7 @@ export const MarketingBigDataConnectorsPanel = ({
                             .catch((e) => toastError(e instanceof Error ? e.message : "Errore"))
                         }
                       >
-                        Rimuovi
+                        {INTEGRATION_LABELS.removeSavedConfig}
                       </Button>
                     </div>
                   </>

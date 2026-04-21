@@ -17,6 +17,7 @@ import {
   Mail,
   Plug,
   ShieldCheck,
+  Sparkles,
   UserCircle,
   Users,
 } from "lucide-react";
@@ -55,7 +56,8 @@ export type Section =
   | "productBlueprint"
   | "accountSecurity"
   | "executiveOverview"
-  | "coima";
+  | "coima"
+  | "zeus";
 
 export const SECTIONS: Section[] = [
   "cockpit",
@@ -91,6 +93,7 @@ export const SECTIONS: Section[] = [
   "accountSecurity",
   "executiveOverview",
   "coima",
+  "zeus",
 ];
 
 /** Path puliti per le sezioni; le altre usano ?section=X */
@@ -120,6 +123,7 @@ export const SECTION_TO_PATH: Partial<Record<Section, string>> = {
   accountSecurity: "/account/security",
   executiveOverview: "/executive",
   coima: "/coima",
+  zeus: "/zeus",
 };
 
 export const PATH_TO_SECTION: Record<string, Section> = Object.fromEntries(
@@ -142,6 +146,7 @@ export const SECTION_REQUIRED_PERMISSION: Partial<Record<Section, SectionPermiss
   customer360: ["clients.read", "requests.read"],
   priceAvailability: "apartments.read",
   integrations: "integrations.read",
+  zeus: "integrations.read",
   reports: "reports.read",
   bigData: "reports.read",
   audit: "settings.read",
@@ -197,6 +202,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
   { id: "calendar", label: "Calendario", icon: CalendarDays },
   { id: "inbox", label: "Inbox", icon: InboxIcon },
   { id: "customer360", label: "Customer 360", icon: UserCircle },
+  { id: "zeus", label: "ZEUS", icon: Sparkles },
   { id: "projects", label: "Progetti", icon: Building2 },
   { id: "priceAvailability", label: "Prezzi e disponibilità", icon: Euro, compact: true, group: "tools" },
   { id: "integrations", label: "Integrazioni e automazioni", icon: Plug, compact: true, group: "tools" },

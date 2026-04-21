@@ -476,6 +476,7 @@ export const followupApi = {
       status: "invited" | "active" | "disabled";
       permissions_override: string[];
       isDisabled: boolean;
+      system_role: "tecma_admin" | null;
     }>
   ) =>
     patchJson<{ ok: boolean; user: { permissions_override?: string[] } | null }>(
@@ -616,6 +617,247 @@ export const followupApi = {
     getJson<WorkspaceAiConfig>(`/workspaces/${encodeURIComponent(workspaceId)}/ai-config`),
   putWorkspaceAiConfig: (workspaceId: string, payload: { provider: string; apiKey: string }) =>
     putJson<WorkspaceAiConfig>(`/workspaces/${encodeURIComponent(workspaceId)}/ai-config`, payload),
+
+  getZeusPocConfig: (workspaceId: string) =>
+    getJson<{
+      data: {
+        twilioAccountSidMasked: string | null;
+        twilioAuthTokenMasked: string | null;
+        twilioWhatsAppFrom: string | null;
+        emailWebhookSecretMasked: string | null;
+        ingestWebhookSecretMasked: string | null;
+        voiceIngressProvider: "twilio" | "sip_gateway";
+        enabledChannels: { voice: boolean; whatsapp: boolean; email: boolean; chat: boolean };
+        webhookUrls: {
+          nativeIngest: string;
+          twilioVoice: string;
+          twilioWhatsapp: string;
+          email: string;
+          sipVoice: string;
+        } | null;
+      };
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/zeus/poc-config`),
+  patchZeusPocConfig: (
+    workspaceId: string,
+    payload: {
+      twilioAccountSid?: string;
+      twilioAuthToken?: string;
+      twilioWhatsAppFrom?: string;
+      emailWebhookSecret?: string;
+      ingestWebhookSecret?: string;
+      voiceIngressProvider?: "twilio" | "sip_gateway";
+      enabledChannels?: { voice?: boolean; whatsapp?: boolean; email?: boolean; chat?: boolean };
+    }
+  ) =>
+    patchJson<{
+      data: {
+        twilioAccountSidMasked: string | null;
+        twilioAuthTokenMasked: string | null;
+        twilioWhatsAppFrom: string | null;
+        emailWebhookSecretMasked: string | null;
+        ingestWebhookSecretMasked: string | null;
+        voiceIngressProvider: "twilio" | "sip_gateway";
+        enabledChannels: { voice: boolean; whatsapp: boolean; email: boolean; chat: boolean };
+      };
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/zeus/poc-config`, payload),
+  getZeusEmailInboxConfig: (workspaceId: string) =>
+    getJson<{
+      data: {
+        provider: "outlook" | "imap";
+        enabled: boolean;
+        imapHost: string | null;
+        imapPort: number | null;
+        imapSecure: boolean;
+        imapUser: string | null;
+        imapPasswordMasked: string | null;
+        imapFolder: string | null;
+      };
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/zeus/email/inbox-config`),
+  patchZeusEmailInboxConfig: (
+    workspaceId: string,
+    payload: {
+      provider?: "outlook" | "imap";
+      enabled?: boolean;
+      imapHost?: string;
+      imapPort?: number;
+      imapSecure?: boolean;
+      imapUser?: string;
+      imapPassword?: string;
+      imapFolder?: string;
+    }
+  ) =>
+    patchJson<{
+      data: {
+        provider: "outlook" | "imap";
+        enabled: boolean;
+        imapHost: string | null;
+        imapPort: number | null;
+        imapSecure: boolean;
+        imapUser: string | null;
+        imapPasswordMasked: string | null;
+        imapFolder: string | null;
+      };
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/zeus/email/inbox-config`, payload),
+  syncZeusEmailInbox: (workspaceId: string, payload?: { limit?: number }) =>
+    postJson<{
+      data: {
+        provider: "outlook" | "imap";
+        scanned: number;
+        imported: number;
+        skippedDuplicates: number;
+        replied: number;
+      };
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/zeus/email/sync`, payload ?? {}),
+  /** Chat ZEUS nativa (JWT) — senza Twilio. */
+  postZeusChat: (workspaceId: string, payload: { text: string }) =>
+    postJson<{ data: { reply: string } }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/zeus/chat`,
+      payload
+    ),
+  listZeusTurns: (
+    workspaceId: string,
+    params?: {
+      limit?: number;
+      page?: number;
+      perPage?: number;
+      q?: string;
+      channel?: "all" | "voice" | "whatsapp" | "email" | "chat";
+      direction?: "all" | "in" | "out";
+      dateFrom?: string;
+      dateTo?: string;
+      sortOrder?: 1 | -1;
+    }
+  ) => {
+    const q = new URLSearchParams();
+    if (params?.limit != null) q.set("limit", String(params.limit));
+    if (params?.page != null) q.set("page", String(params.page));
+    if (params?.perPage != null) q.set("perPage", String(params.perPage));
+    if (params?.q) q.set("q", params.q);
+    if (params?.channel) q.set("channel", params.channel);
+    if (params?.direction) q.set("direction", params.direction);
+    if (params?.dateFrom) q.set("dateFrom", params.dateFrom);
+    if (params?.dateTo) q.set("dateTo", params.dateTo);
+    if (params?.sortOrder != null) q.set("sortOrder", String(params.sortOrder));
+    const suffix = q.toString() ? `?${q.toString()}` : "";
+    return getJson<{
+      data: Array<{
+        id: string;
+        channel: "voice" | "email" | "whatsapp" | "chat";
+        direction: "in" | "out";
+        text: string;
+        externalId: string | null;
+        createdAt: string;
+        charCount: number;
+        wordCount: number;
+      }>;
+      paginationInfo: {
+        totalDocs: number;
+        page: number;
+        perPage: number;
+        totalPages: number;
+        hasPrevPage: boolean;
+        hasNextPage: boolean;
+        prevPage: number | null;
+        nextPage: number | null;
+      };
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/zeus/turns${suffix}`);
+  },
+  getZeusTurnsStats: (workspaceId: string, params?: { dateFrom?: string; dateTo?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.dateFrom) q.set("dateFrom", params.dateFrom);
+    if (params?.dateTo) q.set("dateTo", params.dateTo);
+    const suffix = q.toString() ? `?${q.toString()}` : "";
+    return getJson<{
+      data: {
+        totalTurns: number;
+        byChannel: Partial<Record<"voice" | "whatsapp" | "email" | "chat", number>>;
+        inbound: { count: number; avgChars: number; avgWords: number };
+        outbound: { count: number; avgChars: number; avgWords: number };
+        estimatedConversationPairs: number;
+      };
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/zeus/turns/stats${suffix}`);
+  },
+
+  getZeusProactiveConfig: (workspaceId: string) =>
+    getJson<{
+      data: {
+        enabled: boolean;
+        silentDaysThreshold: number;
+        hotLeadRequestDays: number;
+        hotLeadMinRequests: number;
+        maxMessagesPerWeekPerLead: number;
+        mode: "suggestion" | "auto";
+        minScoreToCreate: number;
+      };
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/zeus/proactive/config`),
+  patchZeusProactiveConfig: (
+    workspaceId: string,
+    payload: Partial<{
+      enabled: boolean;
+      silentDaysThreshold: number;
+      hotLeadRequestDays: number;
+      hotLeadMinRequests: number;
+      maxMessagesPerWeekPerLead: number;
+      mode: "suggestion" | "auto";
+      minScoreToCreate: number;
+    }>
+  ) =>
+    patchJson<{
+      data: {
+        enabled: boolean;
+        silentDaysThreshold: number;
+        hotLeadRequestDays: number;
+        hotLeadMinRequests: number;
+        maxMessagesPerWeekPerLead: number;
+        mode: "suggestion" | "auto";
+        minScoreToCreate: number;
+      };
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/zeus/proactive/config`, payload),
+  listZeusProactiveOpportunities: (workspaceId: string, params?: { status?: string; limit?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.status) q.set("status", params.status);
+    if (typeof params?.limit === "number") q.set("limit", String(params.limit));
+    const suffix = q.toString() ? `?${q.toString()}` : "";
+    return getJson<{
+      data: Array<{
+        id: string;
+        clientId: string;
+        projectId: string;
+        triggerType: "lead_silent" | "hot_lead";
+        score: number;
+        status: "pending_review" | "sent" | "dismissed" | "expired";
+        facts: Record<string, unknown>;
+        suggestedSubject: string | null;
+        suggestedBody: string;
+        createdAt: string;
+        updatedAt: string;
+      }>;
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/zeus/proactive/opportunities${suffix}`);
+  },
+  runZeusProactiveScan: (workspaceId: string, params?: { manual?: boolean }) =>
+    postJson<{ data: { created: number; skipped: number; evaluated: number } }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/zeus/proactive/run-scan`,
+      { manual: params?.manual === true }
+    ),
+  dismissZeusProactiveOpportunity: (workspaceId: string, opportunityId: string) =>
+    postJson<{ data: unknown }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/zeus/proactive/opportunities/${encodeURIComponent(opportunityId)}/dismiss`,
+      {}
+    ),
+  sendZeusProactiveOpportunity: (
+    workspaceId: string,
+    opportunityId: string,
+    payload?: { subject?: string; body?: string; channel?: "email" }
+  ) =>
+    postJson<{ data: unknown }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/zeus/proactive/opportunities/${encodeURIComponent(opportunityId)}/send`,
+      payload ?? {}
+    ),
+  regenerateZeusProactiveOpportunity: (workspaceId: string, opportunityId: string) =>
+    postJson<{ data: unknown }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/zeus/proactive/opportunities/${encodeURIComponent(opportunityId)}/regenerate`,
+      {}
+    ),
   getWorkspaceEntitlements: (workspaceId: string) =>
     getJson<{ data: WorkspaceEntitlementEffectiveRow[] }>(
       `/workspaces/${encodeURIComponent(workspaceId)}/entitlements`
@@ -1191,6 +1433,8 @@ export const followupApi = {
     getJson<{ config: { _id: string; workspaceId: string; connectorId: string; config: { accountSid: string; authTokenMasked?: string; fromNumber: string }; updatedAt: string } | null }>(
       `/workspaces/${encodeURIComponent(workspaceId)}/connectors/whatsapp/config`
     ),
+  verifyWhatsAppConfig: (workspaceId: string) =>
+    getJson<{ connected: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/whatsapp/verify`),
   saveWhatsAppConfig: (workspaceId: string, body: { accountSid: string; authToken: string; fromNumber: string }) =>
     postJson<{ config: Record<string, unknown> }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/whatsapp/config`, body),
   deleteWhatsAppConfig: (workspaceId: string) =>
@@ -1335,6 +1579,8 @@ export const followupApi = {
         updatedAt: string;
       } | null;
     }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/teams-incoming/config`),
+  verifyTeamsIncomingConnector: (workspaceId: string) =>
+    getJson<{ connected: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/teams-incoming/verify`),
   saveTeamsIncomingConnectorConfig: (
     workspaceId: string,
     body: { incomingWebhookUrl: string; label?: string }

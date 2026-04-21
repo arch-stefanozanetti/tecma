@@ -26,18 +26,25 @@ import type { WorkspaceEntitlementEffectiveRow } from "../../types/domain";
 import { workspaceFeatureEntitled } from "./workspaceEntitlementUi";
 import { commercialContactInlineNode } from "./tecmaCommercialContact";
 import { MarketingBigDataConnectorsPanel } from "./MarketingBigDataConnectorsPanel";
+import { ZeusTab } from "./ZeusTab";
 import { trackProductEvent } from "../../telemetry/trackProductEvent";
 
 interface IntegrationsPageProps {
   workspaceId: string;
+  /** Se l’URL non ha `?tab=`, apre questo tab (es. route `/zeus`). */
+  initialTab?: TabKey;
 }
 
-export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
+export const IntegrationsPage = ({ workspaceId, initialTab }: IntegrationsPageProps) => {
   const { toastSuccess, toastError } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const [marketingConnectorRefreshKey, setMarketingConnectorRefreshKey] = useState(0);
   const tabParam = searchParams.get("tab");
-  const activeTab = isValidTab(tabParam) ? tabParam : "connettori";
+  const activeTab = isValidTab(tabParam)
+    ? tabParam
+    : initialTab && isValidTab(initialTab)
+      ? initialTab
+      : "connettori";
   const [connectors, setConnectors] = useState<ConnectorCatalogItem[]>(CONNECTOR_CATALOG);
   const [webhookConfigs, setWebhookConfigs] = useState<WebhookConfigRow[]>([]);
   const [n8nConfig, setN8nConfig] = useState<N8nConfigSnapshot>(null);
@@ -54,11 +61,13 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
   const [sumsubConfig, setSumsubConfig] = useState<SumsubConfigSnapshot>(null);
   const [autoOpenTwilio, setAutoOpenTwilio] = useState(false);
   const [autoOpenMetaWhatsapp, setAutoOpenMetaWhatsapp] = useState(false);
+  const [autoOpenConnectorId, setAutoOpenConnectorId] = useState<string | null>(null);
   const [workspaceEntitlements, setWorkspaceEntitlements] = useState<
     WorkspaceEntitlementEffectiveRow[] | undefined
   >(undefined);
   const twilioQueryConsumedRef = useRef(false);
   const metaWhatsappQueryConsumedRef = useRef(false);
+  const connectorQueryConsumedRef = useRef(false);
   const { selectedProjectIds: projectIds, isAdmin, hasPermission } = useWorkspace();
   const canReadIntegrations = hasPermission("integrations.read");
   const canMutateIntegrations = hasPermission("integrations.update");
@@ -252,13 +261,16 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
     if (searchParams.get("outlook") === "connected") {
       loadOutlookStatus();
       setConnectors((prev) => prev.map((c) => (c.id === "connector_outlook" ? { ...c, status: "configured" } : c)));
+      setAutoOpenConnectorId("outlook");
+      connectorQueryConsumedRef.current = false;
+      toastSuccess("Outlook collegato. Completa le opzioni dal drawer.");
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
         next.delete("outlook");
         return next;
       });
     }
-  }, [searchParams, loadOutlookStatus, setSearchParams]);
+  }, [searchParams, loadOutlookStatus, setSearchParams, toastSuccess]);
 
   useEffect(() => {
     const mg = searchParams.get("marketing_google");
@@ -292,11 +304,16 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
     if (activeTab !== "connettori") {
       twilioQueryConsumedRef.current = false;
       metaWhatsappQueryConsumedRef.current = false;
+      connectorQueryConsumedRef.current = false;
       setAutoOpenTwilio(false);
       setAutoOpenMetaWhatsapp(false);
+      setAutoOpenConnectorId(null);
       return;
     }
     const connector = searchParams.get("connector");
+    if (connector && !connectorQueryConsumedRef.current) {
+      setAutoOpenConnectorId(connector);
+    }
     if (connector === "twilio" && !twilioQueryConsumedRef.current) {
       setAutoOpenTwilio(true);
     } else {
@@ -331,6 +348,16 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (next.get("connector") === "meta_whatsapp") next.delete("connector");
+      return next;
+    });
+  }, [setSearchParams]);
+
+  const consumeGenericConnectorQuery = useCallback(() => {
+    connectorQueryConsumedRef.current = true;
+    setAutoOpenConnectorId(null);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (next.get("connector")) next.delete("connector");
       return next;
     });
   }, [setSearchParams]);
@@ -508,6 +535,9 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
             <TabsTrigger value="api" role="tab" aria-selected={activeTab === "api"}>
               API
             </TabsTrigger>
+            <TabsTrigger value="zeus" role="tab" aria-selected={activeTab === "zeus"} title="ZEUS — telefono, WhatsApp, email">
+              ZEUS
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="connettori" className="mt-6" role="tabpanel">
@@ -531,6 +561,8 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
               autoOpenMetaWhatsapp={autoOpenMetaWhatsapp}
               onMetaAutoOpenConsumed={consumeMetaWhatsappConnectorQuery}
               reloadMetaWhatsAppStatus={loadMetaWhatsAppStatus}
+              autoOpenConnectorId={autoOpenConnectorId}
+              onAutoOpenConnectorConsumed={consumeGenericConnectorQuery}
               twilioEntitled={twilioEntitled}
               mailchimpEntitled={mailchimpEntitled}
               activecampaignEntitled={activecampaignEntitled}
@@ -569,6 +601,9 @@ export const IntegrationsPage = ({ workspaceId }: IntegrationsPageProps) => {
               publicApiEntitled={publicApiEntitled}
               marketingAutomationEntitled={marketingAutomationEntitled}
             />
+          </TabsContent>
+          <TabsContent value="zeus" className="mt-6" role="tabpanel">
+            <ZeusTab workspaceId={workspaceId} readOnly={integrationsReadOnly} />
           </TabsContent>
         </Tabs>
       </div>

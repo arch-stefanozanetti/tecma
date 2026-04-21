@@ -149,6 +149,25 @@ const EnvSchema = z.object({
   /** Es. Story, Task, Sub-task (dipende dal progetto Jira) */
   JIRA_ISSUE_TYPE_STORY: z.string().optional().default("Story"),
   JIRA_ISSUE_TYPE_SUBTASK: z.string().optional().default("Sub-task"),
+
+  /** ZEUS POC: se true, non verifica firma X-Twilio-Signature (solo dev). */
+  ZEUS_TWILIO_SKIP_SIGNATURE: envBool(false),
+  /** Fallback Twilio Account SID per webhook ZEUS (se assente in tz_zeus_poc_config). */
+  ZEUS_TWILIO_ACCOUNT_SID: z.string().optional().default(""),
+  /** Fallback Twilio Auth Token per validazione firma e invio WhatsApp. */
+  ZEUS_TWILIO_AUTH_TOKEN: z.string().optional().default(""),
+  /** Provider voce ZEUS per canale telefonico: twilio-say (default) o elevenlabs. */
+  ZEUS_VOICE_PROVIDER: z.enum(["twilio-say", "elevenlabs"]).default("twilio-say"),
+  /** ElevenLabs API key (opzionale, richiesta solo se ZEUS_VOICE_PROVIDER=elevenlabs). */
+  ELEVENLABS_API_KEY: z.string().optional().default(""),
+  /** ElevenLabs voice id (opzionale; default Rachel). */
+  ELEVENLABS_VOICE_ID: z.string().optional().default("21m00Tcm4TlvDq8ikWAM"),
+  /** Model ElevenLabs per TTS. */
+  ELEVENLABS_MODEL_ID: z.string().optional().default("eleven_multilingual_v2"),
+  /** Base URL pubblica del backend (es. https://followup-3-be.onrender.com) per mostrare webhook ZEUS in UI. */
+  API_BACKEND_PUBLIC_URL: z.string().optional().default(""),
+  /** Se true, il job-runner esegue periodicamente la scansione Proactive Sales per i workspace con config abilitata. */
+  PROACTIVE_SALES_JOB_ENABLED: envBool(false),
 });
 
 const parsed = EnvSchema.parse({

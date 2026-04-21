@@ -91,7 +91,7 @@ describe("UsersPage — invito utente", () => {
     expect(await screen.findByText(/aggiungi utente a workspace/i)).toBeInTheDocument();
 
     const combos = screen.getAllByRole("combobox");
-    await userEvent.click(combos[0]);
+    await userEvent.click(combos[combos.length - 1]);
     await userEvent.click(await screen.findByRole("option", { name: /workspace test/i }));
 
     await vi.waitFor(() => {
@@ -134,7 +134,7 @@ describe("UsersPage — invito utente", () => {
     await screen.findByText("already@registered.local");
     await userEvent.click(screen.getByRole("button", { name: /aggiungi utente/i }));
     const combos = screen.getAllByRole("combobox");
-    await userEvent.click(combos[0]);
+    await userEvent.click(combos[combos.length - 1]);
     await userEvent.click(await screen.findByRole("option", { name: /workspace test/i }));
     await vi.waitFor(() => expect(followupApi.listWorkspaceProjects).toHaveBeenCalledWith("ws1"));
     await userEvent.click(screen.getByRole("button", { name: /^avanti$/i }));
@@ -146,5 +146,39 @@ describe("UsersPage — invito utente", () => {
     await userEvent.click(screen.getByRole("button", { name: /^avanti$/i }));
     await userEvent.click(screen.getByRole("button", { name: /invita e aggiungi al workspace/i }));
     expect(await screen.findByText(/502 bad gateway/i)).toBeInTheDocument();
+  });
+
+  it("filtra utenti con ricerca testuale e mostra conteggio risultati", async () => {
+    vi.mocked(followupApi.listUsersWithVisibility).mockResolvedValue({
+      users: [
+        {
+          email: "mario.rossi@test.local",
+          isAdmin: false,
+          role: "collaborator",
+          workspaces: [{ workspaceId: "ws1", workspaceName: "Workspace Test", role: "collaborator" }],
+          projectIds: [],
+          permissions_override: [],
+        },
+        {
+          email: "anna.bianchi@test.local",
+          isAdmin: false,
+          role: "viewer",
+          workspaces: [{ workspaceId: "ws2", workspaceName: "Workspace Nord", role: "viewer" }],
+          projectIds: [],
+          permissions_override: [],
+        },
+      ],
+    });
+    renderUsers();
+    expect(await screen.findByText("mario.rossi@test.local")).toBeInTheDocument();
+    expect(screen.getByText("anna.bianchi@test.local")).toBeInTheDocument();
+
+    await userEvent.type(screen.getByPlaceholderText(/cerca per email, workspace o ruolo/i), "nord");
+
+    await vi.waitFor(() => {
+      expect(screen.queryByText("mario.rossi@test.local")).not.toBeInTheDocument();
+      expect(screen.getByText("anna.bianchi@test.local")).toBeInTheDocument();
+      expect(screen.getByText(/mostrati 1 di 2 utenti/i)).toBeInTheDocument();
+    });
   });
 });

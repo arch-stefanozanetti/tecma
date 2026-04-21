@@ -29,6 +29,8 @@ export interface TzUserDoc {
   email?: string;
   password?: string;
   role?: string;
+  system_role?: "tecma_admin" | null;
+  isTecmaAdmin?: boolean;
   isDisabled?: boolean;
   status?: UserStatus;
   permissions_override?: string[];
@@ -192,13 +194,25 @@ export async function setPasswordFromInvite(
 
 export async function updateUserById(
   userId: string,
-  patch: Partial<{ role: string; status: UserStatus; permissions_override: string[]; isDisabled: boolean }>
+  patch: Partial<{
+    role: string;
+    status: UserStatus;
+    permissions_override: string[];
+    isDisabled: boolean;
+    system_role: "tecma_admin" | null;
+  }>
 ): Promise<TzUserDoc | null> {
   if (!ObjectId.isValid(userId)) return null;
   const $set: Record<string, unknown> = {};
   if (patch.role !== undefined) $set.role = patch.role;
   if (patch.status !== undefined) $set.status = patch.status;
   if (patch.permissions_override !== undefined) $set.permissions_override = patch.permissions_override;
+  if (patch.system_role !== undefined) {
+    $set.system_role = patch.system_role;
+    $set.isTecmaAdmin = patch.system_role === "tecma_admin";
+    // Tecma superadmin deve avere privilegi operativi completi lato session/projects-by-email.
+    if (patch.system_role === "tecma_admin") $set.role = "admin";
+  }
   if (patch.isDisabled !== undefined) {
     $set.isDisabled = patch.isDisabled;
     if (patch.isDisabled) $set.status = "disabled";
