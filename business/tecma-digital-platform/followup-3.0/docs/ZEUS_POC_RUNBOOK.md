@@ -24,6 +24,9 @@ Il codice POC attuale integra **Twilio** per Voice + WhatsApp perché unifica fi
    - `API_BACKEND_PUBLIC_URL` — URL base del backend **senza** path finale (es. `https://followup-3-be.onrender.com`). Serve alla UI per mostrare gli URL webhook completi nella risposta `GET .../zeus/poc-config`.
    - `ZEUS_TWILIO_ACCOUNT_SID` / `ZEUS_TWILIO_AUTH_TOKEN` — opzionali: fallback globale se non salvi SID/token nel workspace (`PATCH .../zeus/poc-config`).
    - `ZEUS_TWILIO_SKIP_SIGNATURE=true` — solo in dev: disattiva la verifica `X-Twilio-Signature` (es. tunnel ngrok con URL che non coincide con la Console Twilio).
+   - `ZEUS_SIP_WEBHOOK_SECRET` — secret condiviso Track B SIP (header `Authorization: Bearer` o `x-zeus-sip-secret`).
+   - `ZEUS_SIP_ALLOWED_CIDRS` — opzionale allowlist IP/CIDR per webhook SIP.
+   - `ZEUS_SIP_SKIP_SIGNATURE=true` — solo in dev: bypass controlli SIP (mai in produzione).
 3. **Configurazione AI workspace** (Integrazioni → Connettori): provider + API key (`tz_workspace_ai_config`). Senza di essa ZEUS risponde con messaggio statico.
 4. Nel portale: **Integrazioni → ZEUS**, workspace corretto. Salva Twilio SID/token e il **WhatsApp From** (es. sandbox `whatsapp:+14155238886`). Usa **Inizializza segreto email** se serve un segreto per il webhook email.
 
@@ -35,7 +38,7 @@ Sostituisci `<WORKSPACE_ID>` e l’host del backend:
 |-----|--------|------|
 | Twilio Voice | `POST` | `https://<BACKEND>/v1/workspaces/<WORKSPACE_ID>/zeus/webhooks/twilio/voice` |
 | Twilio WhatsApp | `POST` | `https://<BACKEND>/v1/workspaces/<WORKSPACE_ID>/zeus/webhooks/twilio/whatsapp` |
-| SIP Voice (Track B, stub) | `POST` | `https://<BACKEND>/v1/workspaces/<WORKSPACE_ID>/zeus/webhooks/sip/voice` — oggi risponde **501** finché il gateway non è implementato |
+| SIP Voice (Track B) | `POST` | `https://<BACKEND>/v1/workspaces/<WORKSPACE_ID>/zeus/webhooks/sip/voice` — payload JSON con `transcript`/`text` e auth via secret |
 | Email inbound | `POST` | `https://<BACKEND>/v1/workspaces/<WORKSPACE_ID>/zeus/webhooks/email?secret=<SEGRETO>` |
 
 Il **segreto email** è in `PATCH .../zeus/poc-config` (campo mascherato) oppure dopo “Inizializza segreto email”. Puoi anche passare il segreto nell’header `x-zeus-email-secret`.
@@ -70,8 +73,20 @@ Questo **non** sostituisce la lettura da casella IMAP/API descritta sopra come p
 
 - Tab **Integrazioni → ZEUS**: tabella **Ultimi turni** dopo chiamata/messaggio/email.
 - Log backend: prefisso `[zeus]`.
+- Smoke API SIP:
+
+```bash
+curl -X POST "https://<BACKEND>/v1/workspaces/<WORKSPACE_ID>/zeus/webhooks/sip/voice" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <ZEUS_SIP_WEBHOOK_SECRET>" \
+  -d '{"transcript":"ciao zeus","callerLabel":"+39000111222","externalCallId":"sip-test-1"}'
+```
+
+Atteso: `200` con `data.provider = "sip_gateway"` e `data.replyText`.
 
 ## Sicurezza produzione
 
 - Non usare `ZEUS_TWILIO_SKIP_SIGNATURE` in produzione.
+- Non usare `ZEUS_SIP_SKIP_SIGNATURE` in produzione.
+- Impostare `ZEUS_SIP_WEBHOOK_SECRET` (>=16 caratteri) e ruotarlo periodicamente.
 - Preferire credenziali Twilio in `PATCH` workspace o in secret manager, non in chiaro nel repo.

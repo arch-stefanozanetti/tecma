@@ -74,6 +74,18 @@ export const signatureWebhookRateLimiter = rateLimit(
   })
 );
 
+/** Webhook voce ZEUS (Twilio/SIP): limite per IP per evitare flood su endpoint pubblici. */
+export const zeusWebhookRateLimiter = rateLimit(
+  withOptionalRedisStore({
+    windowMs: 60 * 1000,
+    max: 45,
+    message: { error: "Troppe richieste ai webhook ZEUS, riprova tra un minuto." },
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: () => skipRateLimit
+  })
+);
+
 /** Exchange magic-link portale cliente: limite stretto per prevenire brute-force token. */
 export const portalExchangeRateLimiter = rateLimit(
   withOptionalRedisStore({

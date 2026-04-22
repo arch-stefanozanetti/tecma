@@ -81,6 +81,7 @@ function ConnectorCatalogCard({
   setSetupConnectorId,
   onOpenTab,
   toggleConnector,
+  onHealthCheck,
   configureLabel,
   readOnly = false,
   entitlementFootnote,
@@ -92,6 +93,7 @@ function ConnectorCatalogCard({
   setSetupConnectorId: Dispatch<SetStateAction<string | null>>;
   onOpenTab?: (tab: ConnectorRelatedTab) => void;
   toggleConnector: (id: string) => void;
+  onHealthCheck?: (id: string) => void;
   /** Etichetta del pulsante primario quando il connettore non è ancora configurato (es. Meta API). */
   configureLabel?: string;
   readOnly?: boolean;
@@ -217,6 +219,10 @@ function ConnectorCatalogCard({
             className="min-h-11 gap-1.5"
             disabled={togglingId === connector.id || readOnly}
             onClick={() => {
+              if (onHealthCheck) {
+                onHealthCheck(connector.id);
+                return;
+              }
               setTogglingId(connector.id);
               setTimeout(() => setTogglingId(null), 800);
             }}
@@ -1275,13 +1281,15 @@ export function ConnettoriTab({
     followupApi
       .verifyWhatsAppConfig(workspaceId)
       .then((r) => {
-        const hasConfig = Boolean(r.connected);
+        const hasConfig = Boolean(r.verify.connected);
         setTwilioHasSavedConfig(hasConfig);
         if (hasConfig) {
           toastSuccess("Twilio collegato. Puoi inviare una prova WhatsApp.");
           return;
         }
-        setTwilioDrawerError("Connessione non completata. Apri Twilio Console o usa la modalità avanzata.");
+        setTwilioDrawerError(
+          r.verify.hint ?? "Connessione non completata. Apri Twilio Console o usa la modalità avanzata."
+        );
         setTwilioShowAdvanced(true);
       })
       .catch((err) => {
@@ -1298,13 +1306,15 @@ export function ConnettoriTab({
     followupApi
       .verifyTeamsIncomingConnector(workspaceId)
       .then((r) => {
-        const hasConfig = Boolean(r.connected);
+        const hasConfig = Boolean(r.verify.connected);
         setTeamsHasSavedConfig(hasConfig);
         if (hasConfig) {
           toastSuccess("Teams collegato. Puoi inviare una prova.");
           return;
         }
-        setTeamsDrawerError("Nessun webhook Teams trovato. Completa il setup o usa la modalità avanzata.");
+        setTeamsDrawerError(
+          r.verify.hint ?? "Nessun webhook Teams trovato. Completa il setup o usa la modalità avanzata."
+        );
         setTeamsShowAdvanced(true);
       })
       .catch((err) => {
@@ -1312,6 +1322,49 @@ export function ConnettoriTab({
         setTeamsShowAdvanced(true);
       })
       .finally(() => setTeamsVerifying(false));
+  };
+
+  const runConnectorHealthCheck = (connectorId: string) => {
+    if (!workspaceId) return;
+    const verifyCall =
+      connectorId === "connector_twilio"
+        ? () => followupApi.verifyWhatsAppConfig(workspaceId)
+        : connectorId === "connector_microsoft_teams"
+          ? () => followupApi.verifyTeamsIncomingConnector(workspaceId)
+          : connectorId === "connector_mailchimp"
+            ? () => followupApi.verifyMailchimpConnector(workspaceId)
+            : connectorId === "connector_activecampaign"
+              ? () => followupApi.verifyActiveCampaignConnector(workspaceId)
+              : connectorId === "connector_meta_whatsapp"
+                ? () => followupApi.verifyMetaWhatsAppConnector(workspaceId)
+                : connectorId === "connector_n8n"
+                  ? () => followupApi.verifyN8nConnector(workspaceId)
+                  : connectorId === "connector_stripe"
+                    ? () => followupApi.verifyStripeConnector(workspaceId)
+                    : connectorId === "connector_paypal"
+                      ? () => followupApi.verifyPayPalConnector(workspaceId)
+                      : connectorId === "connector_webflow"
+                        ? () => followupApi.verifyWebflowConnector(workspaceId)
+                        : connectorId === "connector_sumsub"
+                          ? () => followupApi.verifySumsubConnector(workspaceId)
+                          : null;
+
+    if (!verifyCall) {
+      toastError("Verifica stato non disponibile per questo connettore.");
+      return;
+    }
+
+    setTogglingId(connectorId);
+    verifyCall()
+      .then((res) => {
+        if (res.verify.connected) {
+          toastSuccess("Connessione verificata.");
+          return;
+        }
+        toastError(res.verify.hint ?? "Connessione non verificata.");
+      })
+      .catch((err) => toastError(err?.message ?? "Verifica connessione fallita"))
+      .finally(() => setTogglingId(null));
   };
 
   const saveTwilioConfig = () => {
@@ -1975,6 +2028,7 @@ export function ConnettoriTab({
                   setSetupConnectorId={setSetupConnectorId}
                   onOpenTab={onOpenTab}
                   toggleConnector={toggleConnector}
+                  onHealthCheck={runConnectorHealthCheck}
                   configureLabel={connector.id === "connector_meta_whatsapp" ? "Configura Meta API" : undefined}
                   readOnly={ro}
                   entitlementFootnote={connectorEntitlementFootnote(workspaceEntitlements, connector.id)}
@@ -2023,6 +2077,7 @@ export function ConnettoriTab({
                         setSetupConnectorId={setSetupConnectorId}
                         onOpenTab={onOpenTab}
                         toggleConnector={toggleConnector}
+                        onHealthCheck={runConnectorHealthCheck}
                         readOnly={ro}
                         entitlementFootnote={connectorEntitlementFootnote(workspaceEntitlements, connector.id)}
                       />
@@ -2213,7 +2268,7 @@ export function ConnettoriTab({
                     <>
                       <p className="text-sm text-muted-foreground">Apri la schermata Microsoft, autorizza l'accesso e torna qui per continuare.</p>
                       <Button className="min-h-11" onClick={connectOutlook} disabled={outlookConnecting || ro}>
-                        {outlookConnecting ? "Apertura…" : INTEGRATION_LABELS.connectNow}
+                        {outlookConnecting ? INTEGRATION_LABELS.openingProvider : INTEGRATION_LABELS.connectNow}
                       </Button>
                     </>
                   )}
@@ -2929,7 +2984,7 @@ export function ConnettoriTab({
           {connectorConfigDrawer === "connector_n8n" && (
             <DrawerFooter className="flex flex-wrap gap-2">
               <Button className="min-h-11" onClick={saveN8nConfig} disabled={connectorSaving || ro}>
-                {connectorSaving ? "Salvataggio..." : "Salva"}
+                {connectorSaving ? INTEGRATION_LABELS.saving : INTEGRATION_LABELS.save}
               </Button>
               <Button variant="outline" className="min-h-11" onClick={testN8nTrigger} disabled={n8nTestTriggering || connectorSaving || ro}>
                 {n8nTestTriggering ? INTEGRATION_LABELS.n8nTrialLoading : INTEGRATION_LABELS.n8nTrialRun}
@@ -2939,14 +2994,14 @@ export function ConnettoriTab({
           {connectorConfigDrawer === "connector_outlook" && (
             <DrawerFooter>
               <Button className="min-h-11" onClick={saveConnectorWebhook} disabled={connectorSaving || ro}>
-                {connectorSaving ? "Salvataggio..." : "Salva"}
+                {connectorSaving ? INTEGRATION_LABELS.saving : INTEGRATION_LABELS.save}
               </Button>
             </DrawerFooter>
           )}
           {connectorConfigDrawer === "connector_twilio" && (
             <DrawerFooter className="flex flex-wrap gap-2">
               <Button className="min-h-11" onClick={saveTwilioConfig} disabled={twilioSaving || ro || !twilioEntitled}>
-                {twilioSaving ? "Salvataggio…" : "Salva"}
+                {twilioSaving ? INTEGRATION_LABELS.saving : INTEGRATION_LABELS.save}
               </Button>
               {twilioHasSavedConfig && (
                 <Button variant="outline" className="min-h-11" onClick={removeTwilioConfig} disabled={twilioSaving || ro}>
@@ -2958,7 +3013,7 @@ export function ConnettoriTab({
           {connectorConfigDrawer === "connector_meta_whatsapp" && (
             <DrawerFooter className="flex flex-wrap gap-2">
               <Button className="min-h-11" onClick={saveMetaWhatsAppConfig} disabled={metaSaving || ro}>
-                {metaSaving ? "Salvataggio…" : "Salva"}
+                {metaSaving ? INTEGRATION_LABELS.saving : INTEGRATION_LABELS.save}
               </Button>
               {metaHasSavedConfig && (
                 <Button variant="outline" className="min-h-11" onClick={removeMetaWhatsAppConfig} disabled={metaSaving || ro}>
@@ -2970,7 +3025,7 @@ export function ConnettoriTab({
           {connectorConfigDrawer === "connector_mailchimp" && (
             <DrawerFooter className="flex flex-wrap gap-2">
               <Button className="min-h-11" onClick={saveMailchimpConfig} disabled={mailchimpSaving || ro || !mailchimpSaveOk}>
-                {mailchimpSaving ? "Salvataggio…" : "Salva"}
+                {mailchimpSaving ? INTEGRATION_LABELS.saving : INTEGRATION_LABELS.save}
               </Button>
               {mailchimpHasSavedConfig && (
                 <Button variant="outline" className="min-h-11" onClick={removeMailchimpConfig} disabled={mailchimpSaving || ro}>
@@ -2986,7 +3041,7 @@ export function ConnettoriTab({
                 onClick={saveActiveCampaignConfig}
                 disabled={activeCampaignSaving || ro || !activeCampaignSaveOk}
               >
-                {activeCampaignSaving ? "Salvataggio…" : "Salva"}
+                {activeCampaignSaving ? INTEGRATION_LABELS.saving : INTEGRATION_LABELS.save}
               </Button>
               {activeCampaignHasSavedConfig && (
                 <Button
@@ -3003,7 +3058,7 @@ export function ConnettoriTab({
           {connectorConfigDrawer === "connector_stripe" && (
             <DrawerFooter className="flex flex-wrap gap-2">
               <Button className="min-h-11" onClick={saveStripeConnector} disabled={stripeSaving || ro || !integrationsEntitled}>
-                {stripeSaving ? "Salvataggio…" : "Salva"}
+                {stripeSaving ? INTEGRATION_LABELS.saving : INTEGRATION_LABELS.save}
               </Button>
               {stripeHasSavedConfig && (
                 <Button variant="outline" className="min-h-11" onClick={removeStripeConnector} disabled={stripeSaving || ro}>
@@ -3015,7 +3070,7 @@ export function ConnettoriTab({
           {connectorConfigDrawer === "connector_paypal" && (
             <DrawerFooter className="flex flex-wrap gap-2">
               <Button className="min-h-11" onClick={savePayPalConnector} disabled={paypalSaving || ro || !integrationsEntitled}>
-                {paypalSaving ? "Salvataggio…" : "Salva"}
+                {paypalSaving ? INTEGRATION_LABELS.saving : INTEGRATION_LABELS.save}
               </Button>
               {paypalHasSavedConfig && (
                 <Button variant="outline" className="min-h-11" onClick={removePayPalConnector} disabled={paypalSaving || ro}>
@@ -3027,7 +3082,7 @@ export function ConnettoriTab({
           {connectorConfigDrawer === "connector_webflow" && (
             <DrawerFooter className="flex flex-wrap gap-2">
               <Button className="min-h-11" onClick={saveWebflowConnector} disabled={webflowSaving || ro || !integrationsEntitled}>
-                {webflowSaving ? "Salvataggio…" : "Salva"}
+                {webflowSaving ? INTEGRATION_LABELS.saving : INTEGRATION_LABELS.save}
               </Button>
               {webflowHasSavedConfig && (
                 <Button variant="outline" className="min-h-11" onClick={removeWebflowConnector} disabled={webflowSaving || ro}>
@@ -3039,7 +3094,7 @@ export function ConnettoriTab({
           {connectorConfigDrawer === "connector_microsoft_teams" && (
             <DrawerFooter className="flex flex-wrap gap-2">
               <Button className="min-h-11" onClick={saveTeamsConnector} disabled={teamsSaving || ro || !integrationsEntitled}>
-                {teamsSaving ? "Salvataggio…" : "Salva"}
+                {teamsSaving ? INTEGRATION_LABELS.saving : INTEGRATION_LABELS.save}
               </Button>
               {teamsHasSavedConfig && (
                 <Button variant="outline" className="min-h-11" onClick={removeTeamsConnector} disabled={teamsSaving || ro}>
@@ -3056,11 +3111,11 @@ export function ConnettoriTab({
                 disabled={workspaceAiSaving || ro || !isAdmin || !workspaceAiFormApiKey.trim()}
               >
                 {workspaceAiSaving ? (
-                  "Salvataggio…"
+                  INTEGRATION_LABELS.saving
                 ) : (
                   <>
                     <Sparkles className="h-4 w-4" />
-                    Salva provider
+                    {INTEGRATION_LABELS.saveProvider}
                   </>
                 )}
               </Button>
@@ -3083,7 +3138,7 @@ export function ConnettoriTab({
                 onClick={saveSumsubConnector}
                 disabled={sumsubSaving || ro || !integrationsEntitled}
               >
-                {sumsubSaving ? "Salvataggio…" : "Salva"}
+                {sumsubSaving ? INTEGRATION_LABELS.saving : INTEGRATION_LABELS.save}
               </Button>
             </DrawerFooter>
           )}

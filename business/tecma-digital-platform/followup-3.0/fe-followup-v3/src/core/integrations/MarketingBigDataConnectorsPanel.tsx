@@ -42,6 +42,8 @@ export const MarketingBigDataConnectorsPanel = ({
   const [ga4Masked, setGa4Masked] = useState<string | undefined>();
   const [gAdsMasked, setGAdsMasked] = useState<string | undefined>();
   const [hasGAdsClient, setHasGAdsClient] = useState(false);
+  const [googleVerifying, setGoogleVerifying] = useState(false);
+  const [metaVerifying, setMetaVerifying] = useState(false);
 
   const load = useCallback(async () => {
     if (!workspaceId) return;
@@ -159,6 +161,38 @@ export const MarketingBigDataConnectorsPanel = ({
     }
   };
 
+  const verifyGoogle = async () => {
+    setGoogleVerifying(true);
+    try {
+      const res = await followupApi.verifyMarketingGoogleConnector(workspaceId);
+      if (res.verify.connected) {
+        toastSuccess("Google marketing collegato correttamente.");
+      } else {
+        toastError(res.verify.hint ?? "Verifica Google non riuscita.");
+      }
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : "Verifica Google fallita");
+    } finally {
+      setGoogleVerifying(false);
+    }
+  };
+
+  const verifyMeta = async () => {
+    setMetaVerifying(true);
+    try {
+      const res = await followupApi.verifyMarketingMetaConnector(workspaceId);
+      if (res.verify.connected) {
+        toastSuccess("Meta marketing collegato correttamente.");
+      } else {
+        toastError(res.verify.hint ?? "Verifica Meta non riuscita.");
+      }
+    } catch (e) {
+      toastError(e instanceof Error ? e.message : "Verifica Meta fallita");
+    } finally {
+      setMetaVerifying(false);
+    }
+  };
+
   if (!workspaceId) return null;
 
   const googleLinked = Boolean(gAdsMasked);
@@ -199,25 +233,30 @@ export const MarketingBigDataConnectorsPanel = ({
                       disabled={connecting !== null}
                       onClick={() => void startGoogleOAuth()}
                     >
-                      {connecting === "google" ? "Apertura…" : INTEGRATION_LABELS.connectNow}
+                      {connecting === "google" ? INTEGRATION_LABELS.openingProvider : INTEGRATION_LABELS.connectNow}
                     </Button>
                   ) : (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        void followupApi
-                          .deleteMarketingGoogleAdsConnectorConfig(workspaceId)
-                          .then(() => {
-                            toastSuccess("Collegamento Google rimosso.");
-                            void load();
-                          })
-                          .catch((e) => toastError(e instanceof Error ? e.message : "Errore"))
-                      }
-                    >
-                      {INTEGRATION_LABELS.disconnectGoogle}
-                    </Button>
+                    <>
+                      <Button type="button" size="sm" variant="outline" disabled={googleVerifying} onClick={() => void verifyGoogle()}>
+                        {googleVerifying ? INTEGRATION_LABELS.verifyConnectionLoading : INTEGRATION_LABELS.verifyConnection}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          void followupApi
+                            .deleteMarketingGoogleAdsConnectorConfig(workspaceId)
+                            .then(() => {
+                              toastSuccess("Collegamento Google rimosso.");
+                              void load();
+                            })
+                            .catch((e) => toastError(e instanceof Error ? e.message : "Errore"))
+                        }
+                      >
+                        {INTEGRATION_LABELS.disconnectGoogle}
+                      </Button>
+                    </>
                   )}
                 </div>
               )}
@@ -241,25 +280,30 @@ export const MarketingBigDataConnectorsPanel = ({
                       disabled={connecting !== null}
                       onClick={() => void startMetaOAuth()}
                     >
-                      {connecting === "meta" ? "Apertura…" : INTEGRATION_LABELS.connectNow}
+                      {connecting === "meta" ? INTEGRATION_LABELS.openingProvider : INTEGRATION_LABELS.connectNow}
                     </Button>
                   ) : (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        void followupApi
-                          .deleteMarketingMetaAdsConnectorConfig(workspaceId)
-                          .then(() => {
-                            toastSuccess("Collegamento Meta rimosso.");
-                            void load();
-                          })
-                          .catch((e) => toastError(e instanceof Error ? e.message : "Errore"))
-                      }
-                    >
-                      {INTEGRATION_LABELS.disconnectMeta}
-                    </Button>
+                    <>
+                      <Button type="button" size="sm" variant="outline" disabled={metaVerifying} onClick={() => void verifyMeta()}>
+                        {metaVerifying ? INTEGRATION_LABELS.verifyConnectionLoading : INTEGRATION_LABELS.verifyConnection}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          void followupApi
+                            .deleteMarketingMetaAdsConnectorConfig(workspaceId)
+                            .then(() => {
+                              toastSuccess("Collegamento Meta rimosso.");
+                              void load();
+                            })
+                            .catch((e) => toastError(e instanceof Error ? e.message : "Errore"))
+                        }
+                      >
+                        {INTEGRATION_LABELS.disconnectMeta}
+                      </Button>
+                    </>
                   )}
                 </div>
               )}
@@ -286,7 +330,7 @@ export const MarketingBigDataConnectorsPanel = ({
                     />
                     <div className="flex gap-2">
                       <Button type="button" size="sm" disabled={!metaToken.trim()} onClick={() => void saveMeta()}>
-                        Salva Meta
+                        {INTEGRATION_LABELS.saveMeta}
                       </Button>
                       <Button
                         type="button"
@@ -324,7 +368,7 @@ export const MarketingBigDataConnectorsPanel = ({
                     />
                     <div className="flex gap-2">
                       <Button type="button" size="sm" disabled={!ga4Json.trim()} onClick={() => void saveGa4()}>
-                        Salva GA4
+                        {INTEGRATION_LABELS.saveGa4}
                       </Button>
                       <Button
                         type="button"
@@ -386,7 +430,7 @@ export const MarketingBigDataConnectorsPanel = ({
                     </div>
                     <div className="flex gap-2">
                       <Button type="button" size="sm" disabled={!gAdsRefresh.trim()} onClick={() => void saveGAds()}>
-                        Salva Google Ads
+                        {INTEGRATION_LABELS.saveGoogleAds}
                       </Button>
                       <Button
                         type="button"

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getN8nConfig, saveN8nConfig, triggerN8nWorkflow, deleteN8nConfig } from "../../core/connectors/n8n.service.js";
 import {
   getWhatsAppConfig,
+  getWhatsAppCredentialsForSend,
   saveWhatsAppConfig,
   deleteWhatsAppConfig,
 } from "../../core/connectors/whatsapp-config.service.js";
@@ -14,6 +15,7 @@ import {
 import {
   deleteMarketingApiKeyConfig,
   getMarketingApiKeyConfig,
+  getMarketingConnectorSecrets,
   saveMarketingApiKeyConfig,
 } from "../../core/connectors/marketing-api-key-config.service.js";
 import {
@@ -46,16 +48,20 @@ import { deleteSumsubConfig, getSumsubConfig, saveSumsubConfig } from "../../cor
 import {
   deleteStripeConfig,
   getStripeConfig,
+  getStripeSecrets,
   saveStripeConfig,
 } from "../../core/connectors/stripe-config.service.js";
 import {
   deletePayPalConfig,
   getPayPalConfig,
+  getPayPalSecrets,
+  paypalApiBase,
   savePayPalConfig,
 } from "../../core/connectors/paypal-config.service.js";
 import {
   deleteWebflowConfig,
   getWebflowConfig,
+  getWebflowSecrets,
   saveWebflowConfig,
 } from "../../core/connectors/webflow-config.service.js";
 import { syncApartmentsToWebflow, WebflowSyncBodySchema } from "../../core/connectors/webflow-sync.service.js";
@@ -75,6 +81,30 @@ import { requireWorkspaceEntitled, requireWorkspaceEntitledIfWorkspaceId } from 
 const entitledIntegrationsForParam = requireWorkspaceEntitled("integrations", (req) => req.params.workspaceId);
 const entitledMailchimpForParam = requireWorkspaceEntitled("mailchimp", (req) => req.params.workspaceId);
 const entitledActiveCampaignForParam = requireWorkspaceEntitled("activecampaign", (req) => req.params.workspaceId);
+
+type ConnectorVerifyResult = {
+  connected: boolean;
+  configured: boolean;
+  providerReachable: boolean;
+  authValid: boolean;
+  reasonCode?: string;
+  hint?: string;
+};
+
+function verifyResult(input: ConnectorVerifyResult): { verify: ConnectorVerifyResult } {
+  return { verify: input };
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = 7000): Promise<Response> {
+  return fetch(url, {
+    ...init,
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+}
+
+function authBasic(user: string, pass: string): string {
+  return "Basic " + Buffer.from(`${user}:${pass}`).toString("base64");
+}
 
 export const connectorsRoutes = Router();
 
@@ -103,6 +133,46 @@ connectorsRoutes.delete("/workspaces/:workspaceId/connectors/n8n/config", requir
   const deleted = await deleteN8nConfig(req.params.workspaceId);
   return { deleted };
 }));
+connectorsRoutes.get("/workspaces/:workspaceId/connectors/n8n/verify", requirePermission(PERMISSIONS.INTEGRATIONS_READ), entitledIntegrationsForParam, handleAsync(async (req) => {
+  const config = await getN8nConfig(req.params.workspaceId);
+  if (!config?.config.baseUrl) {
+    return verifyResult({
+      connected: false,
+      configured: false,
+      providerReachable: false,
+      authValid: false,
+      reasonCode: "CONFIG_MISSING",
+    });
+  }
+  try {
+    const probeUrl = `${config.config.baseUrl.replace(/\/$/, "")}/api/v1/workflows`;
+    const res = await fetchWithTimeout(probeUrl, { method: "GET" });
+    if (res.status === 401 || res.status === 403) {
+      return verifyResult({
+        connected: false,
+        configured: true,
+        providerReachable: true,
+        authValid: false,
+        reasonCode: "AUTH_INVALID",
+      });
+    }
+    return verifyResult({
+      connected: res.ok,
+      configured: true,
+      providerReachable: true,
+      authValid: res.ok,
+      ...(res.ok ? {} : { reasonCode: "VERIFY_FAILED", hint: `n8n HTTP ${res.status}` }),
+    });
+  } catch {
+    return verifyResult({
+      connected: false,
+      configured: true,
+      providerReachable: false,
+      authValid: false,
+      reasonCode: "PROVIDER_UNREACHABLE",
+    });
+  }
+}));
 
 connectorsRoutes.get("/workspaces/:workspaceId/connectors/whatsapp/config", requirePermission(PERMISSIONS.INTEGRATIONS_READ), entitledIntegrationsForParam, handleAsync(async (req) => {
   const config = await getWhatsAppConfig(req.params.workspaceId);
@@ -113,10 +183,47 @@ connectorsRoutes.get(
   requirePermission(PERMISSIONS.INTEGRATIONS_READ),
   entitledIntegrationsForParam,
   handleAsync(async (req) => {
-    const config = await getWhatsAppConfig(req.params.workspaceId);
-    const data = config?.config as { accountSid?: string; fromNumber?: string } | undefined;
-    const connected = Boolean(data?.accountSid && data?.fromNumber);
-    return { connected };
+    const creds = await getWhatsAppCredentialsForSend(req.params.workspaceId);
+    if (!creds) {
+      return verifyResult({
+        connected: false,
+        configured: false,
+        providerReachable: false,
+        authValid: false,
+        reasonCode: "CONFIG_MISSING",
+      });
+    }
+    try {
+      const url = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(creds.accountSid)}.json`;
+      const res = await fetchWithTimeout(url, {
+        method: "GET",
+        headers: { Authorization: authBasic(creds.accountSid, creds.authToken) },
+      });
+      if (res.ok) {
+        return verifyResult({
+          connected: true,
+          configured: true,
+          providerReachable: true,
+          authValid: true,
+        });
+      }
+      return verifyResult({
+        connected: false,
+        configured: true,
+        providerReachable: res.status >= 500 ? false : true,
+        authValid: false,
+        reasonCode: "AUTH_INVALID",
+        hint: `Twilio ha risposto HTTP ${res.status}. Verifica Account SID/Auth Token.`,
+      });
+    } catch {
+      return verifyResult({
+        connected: false,
+        configured: true,
+        providerReachable: false,
+        authValid: false,
+        reasonCode: "PROVIDER_UNREACHABLE",
+      });
+    }
   })
 );
 connectorsRoutes.post("/workspaces/:workspaceId/connectors/whatsapp/config", requirePermission(PERMISSIONS.INTEGRATIONS_UPDATE), entitledIntegrationsForParam, handleAsync(async (req) => {
@@ -164,6 +271,56 @@ connectorsRoutes.delete(
     return { deleted };
   })
 );
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/mailchimp/verify",
+  requirePermission(PERMISSIONS.INTEGRATIONS_READ),
+  entitledIntegrationsForParam,
+  entitledMailchimpForParam,
+  handleAsync(async (req) => {
+    const secrets = await getMarketingConnectorSecrets(req.params.workspaceId, "mailchimp");
+    if (!secrets?.apiKey) {
+      return verifyResult({
+        connected: false,
+        configured: false,
+        providerReachable: false,
+        authValid: false,
+        reasonCode: "CONFIG_MISSING",
+      });
+    }
+    const dc = secrets.apiKey.split("-").pop()?.trim().toLowerCase();
+    if (!dc) {
+      return verifyResult({
+        connected: false,
+        configured: true,
+        providerReachable: false,
+        authValid: false,
+        reasonCode: "CONFIG_INVALID",
+        hint: "API key Mailchimp non valida (manca datacenter suffix, es. us1).",
+      });
+    }
+    try {
+      const url = `https://${dc}.api.mailchimp.com/3.0/ping`;
+      const res = await fetchWithTimeout(url, {
+        headers: { Authorization: authBasic("anystring", secrets.apiKey) },
+      });
+      return verifyResult({
+        connected: res.ok,
+        configured: true,
+        providerReachable: true,
+        authValid: res.ok,
+        ...(res.ok ? {} : { reasonCode: "AUTH_INVALID", hint: `Mailchimp HTTP ${res.status}` }),
+      });
+    } catch {
+      return verifyResult({
+        connected: false,
+        configured: true,
+        providerReachable: false,
+        authValid: false,
+        reasonCode: "PROVIDER_UNREACHABLE",
+      });
+    }
+  })
+);
 
 connectorsRoutes.get(
   "/workspaces/:workspaceId/connectors/activecampaign/config",
@@ -204,6 +361,48 @@ connectorsRoutes.delete(
     return { deleted };
   })
 );
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/activecampaign/verify",
+  requirePermission(PERMISSIONS.INTEGRATIONS_READ),
+  entitledIntegrationsForParam,
+  entitledActiveCampaignForParam,
+  handleAsync(async (req) => {
+    const secrets = await getMarketingConnectorSecrets(req.params.workspaceId, "activecampaign");
+    if (!secrets?.apiKey || !secrets.apiBaseUrl) {
+      return verifyResult({
+        connected: false,
+        configured: false,
+        providerReachable: false,
+        authValid: false,
+        reasonCode: "CONFIG_MISSING",
+      });
+    }
+    try {
+      const url = `${secrets.apiBaseUrl.replace(/\/$/, "")}/api/3/users/me`;
+      const res = await fetchWithTimeout(url, {
+        headers: {
+          "Api-Token": secrets.apiKey,
+          Accept: "application/json",
+        },
+      });
+      return verifyResult({
+        connected: res.ok,
+        configured: true,
+        providerReachable: true,
+        authValid: res.ok,
+        ...(res.ok ? {} : { reasonCode: "AUTH_INVALID", hint: `ActiveCampaign HTTP ${res.status}` }),
+      });
+    } catch {
+      return verifyResult({
+        connected: false,
+        configured: true,
+        providerReachable: false,
+        authValid: false,
+        reasonCode: "PROVIDER_UNREACHABLE",
+      });
+    }
+  })
+);
 
 /** Solo admin (o permesso *): invia un messaggio di prova (verifica Twilio + prefisso whatsapp:). */
 connectorsRoutes.post("/workspaces/:workspaceId/connectors/whatsapp/test", requireAdmin, entitledIntegrationsForParam, handleAsync(async (req) => {
@@ -233,6 +432,26 @@ connectorsRoutes.post("/workspaces/:workspaceId/connectors/meta-whatsapp/config"
 connectorsRoutes.delete("/workspaces/:workspaceId/connectors/meta-whatsapp/config", requirePermission(PERMISSIONS.INTEGRATIONS_DELETE), entitledIntegrationsForParam, handleAsync(async (req) => {
   const deleted = await deleteMetaWhatsAppConfig(req.params.workspaceId);
   return { deleted };
+}));
+connectorsRoutes.get("/workspaces/:workspaceId/connectors/meta-whatsapp/verify", requirePermission(PERMISSIONS.INTEGRATIONS_READ), entitledIntegrationsForParam, handleAsync(async (req) => {
+  const cfg = await getMetaWhatsAppConfig(req.params.workspaceId);
+  const data = cfg?.config as { phoneNumberId?: string } | undefined;
+  const configured = Boolean(data?.phoneNumberId);
+  if (!configured) {
+    return verifyResult({
+      connected: false,
+      configured: false,
+      providerReachable: false,
+      authValid: false,
+      reasonCode: "CONFIG_MISSING",
+    });
+  }
+  return verifyResult({
+    connected: true,
+    configured: true,
+    providerReachable: true,
+    authValid: true,
+  });
 }));
 
 connectorsRoutes.get(
@@ -449,6 +668,42 @@ connectorsRoutes.get(
     return { customers: outcome.customers };
   })
 );
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/marketing-google/verify",
+  requirePermission(PERMISSIONS.INTEGRATIONS_READ),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const googleCfg = await getMarketingGoogleAdsConfig(req.params.workspaceId);
+    const configured = Boolean(googleCfg?.refreshTokenMasked);
+    if (!configured) {
+      return verifyResult({
+        connected: false,
+        configured: false,
+        providerReachable: false,
+        authValid: false,
+        reasonCode: "CONFIG_MISSING",
+      });
+    }
+    const [ads, ga4] = await Promise.all([
+      listGoogleAdsAccessibleCustomersWithOutcome(req.params.workspaceId),
+      listGa4PropertiesForWorkspaceWithOutcome(req.params.workspaceId),
+    ]);
+    const providerReachable = ads.ok || ga4.ok;
+    const authValid = ads.ok || ga4.ok;
+    return verifyResult({
+      connected: ads.ok && ga4.ok,
+      configured,
+      providerReachable,
+      authValid,
+      ...(ads.ok && ga4.ok
+        ? {}
+        : {
+            reasonCode: !authValid ? "AUTH_INVALID" : "VERIFY_PARTIAL",
+            hint: !ads.ok ? ads.message : !ga4.ok ? ga4.message : undefined,
+          }),
+    });
+  })
+);
 
 connectorsRoutes.get(
   "/workspaces/:workspaceId/connectors/marketing-google/ga4-properties",
@@ -483,6 +738,38 @@ connectorsRoutes.get(
   handleAsync(async (req) => {
     const adAccounts = await listMetaAdAccountsForWorkspace(req.params.workspaceId);
     return { adAccounts };
+  })
+);
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/marketing-meta/verify",
+  requirePermission(PERMISSIONS.INTEGRATIONS_READ),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const cfg = await getMarketingMetaAdsConfig(req.params.workspaceId);
+    const configured = Boolean(cfg?.accessTokenMasked);
+    if (!configured) {
+      return verifyResult({
+        connected: false,
+        configured: false,
+        providerReachable: false,
+        authValid: false,
+        reasonCode: "CONFIG_MISSING",
+      });
+    }
+    const adAccounts = await listMetaAdAccountsForWorkspace(req.params.workspaceId);
+    const hasAccounts = adAccounts.length > 0;
+    return verifyResult({
+      connected: hasAccounts,
+      configured,
+      providerReachable: hasAccounts,
+      authValid: hasAccounts,
+      ...(hasAccounts
+        ? {}
+        : {
+            reasonCode: "VERIFY_FAILED",
+            hint: "Token Meta non valido/scaduto o nessun ad account accessibile.",
+          }),
+    });
   })
 );
 
@@ -525,6 +812,24 @@ connectorsRoutes.delete(
     return { deleted };
   })
 );
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/sumsub/verify",
+  requirePermission(PERMISSIONS.INTEGRATIONS_READ),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const cfg = await getSumsubConfig(req.params.workspaceId);
+    const configured = Boolean(
+      cfg?.config?.appTokenMasked && cfg?.config?.secretKeyMasked && cfg?.config?.webhookSecretMasked
+    );
+    return verifyResult({
+      connected: configured,
+      configured,
+      providerReachable: configured,
+      authValid: configured,
+      ...(configured ? {} : { reasonCode: "CONFIG_MISSING" }),
+    });
+  })
+);
 
 /** Stripe */
 connectorsRoutes.get(
@@ -559,6 +864,43 @@ connectorsRoutes.delete(
   handleAsync(async (req) => {
     const deleted = await deleteStripeConfig(req.params.workspaceId);
     return { deleted };
+  })
+);
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/stripe/verify",
+  requirePermission(PERMISSIONS.INTEGRATIONS_READ),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const secrets = await getStripeSecrets(req.params.workspaceId);
+    if (!secrets?.secretKey) {
+      return verifyResult({
+        connected: false,
+        configured: false,
+        providerReachable: false,
+        authValid: false,
+        reasonCode: "CONFIG_MISSING",
+      });
+    }
+    try {
+      const res = await fetchWithTimeout("https://api.stripe.com/v1/account", {
+        headers: { Authorization: `Bearer ${secrets.secretKey}` },
+      });
+      return verifyResult({
+        connected: res.ok,
+        configured: true,
+        providerReachable: true,
+        authValid: res.ok,
+        ...(res.ok ? {} : { reasonCode: "AUTH_INVALID", hint: `Stripe HTTP ${res.status}` }),
+      });
+    } catch {
+      return verifyResult({
+        connected: false,
+        configured: true,
+        providerReachable: false,
+        authValid: false,
+        reasonCode: "PROVIDER_UNREACHABLE",
+      });
+    }
   })
 );
 
@@ -601,6 +943,49 @@ connectorsRoutes.delete(
   handleAsync(async (req) => {
     const deleted = await deletePayPalConfig(req.params.workspaceId);
     return { deleted };
+  })
+);
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/paypal/verify",
+  requirePermission(PERMISSIONS.INTEGRATIONS_READ),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const secrets = await getPayPalSecrets(req.params.workspaceId);
+    if (!secrets?.clientId || !secrets.clientSecret) {
+      return verifyResult({
+        connected: false,
+        configured: false,
+        providerReachable: false,
+        authValid: false,
+        reasonCode: "CONFIG_MISSING",
+      });
+    }
+    try {
+      const body = new URLSearchParams({ grant_type: "client_credentials" });
+      const res = await fetchWithTimeout(`${paypalApiBase(secrets.mode)}/v1/oauth2/token`, {
+        method: "POST",
+        headers: {
+          Authorization: authBasic(secrets.clientId, secrets.clientSecret),
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: body.toString(),
+      });
+      return verifyResult({
+        connected: res.ok,
+        configured: true,
+        providerReachable: true,
+        authValid: res.ok,
+        ...(res.ok ? {} : { reasonCode: "AUTH_INVALID", hint: `PayPal HTTP ${res.status}` }),
+      });
+    } catch {
+      return verifyResult({
+        connected: false,
+        configured: true,
+        providerReachable: false,
+        authValid: false,
+        reasonCode: "PROVIDER_UNREACHABLE",
+      });
+    }
   })
 );
 
@@ -649,6 +1034,43 @@ connectorsRoutes.post(
     return { result };
   })
 );
+connectorsRoutes.get(
+  "/workspaces/:workspaceId/connectors/webflow/verify",
+  requirePermission(PERMISSIONS.INTEGRATIONS_READ),
+  entitledIntegrationsForParam,
+  handleAsync(async (req) => {
+    const secrets = await getWebflowSecrets(req.params.workspaceId);
+    if (!secrets) {
+      return verifyResult({
+        connected: false,
+        configured: false,
+        providerReachable: false,
+        authValid: false,
+        reasonCode: "CONFIG_MISSING",
+      });
+    }
+    try {
+      const res = await fetchWithTimeout(`https://api.webflow.com/v2/sites/${encodeURIComponent(secrets.siteId)}`, {
+        headers: { Authorization: `Bearer ${secrets.apiToken}` },
+      });
+      return verifyResult({
+        connected: res.ok,
+        configured: true,
+        providerReachable: true,
+        authValid: res.ok,
+        ...(res.ok ? {} : { reasonCode: "AUTH_INVALID", hint: `Webflow HTTP ${res.status}` }),
+      });
+    } catch {
+      return verifyResult({
+        connected: false,
+        configured: true,
+        providerReachable: false,
+        authValid: false,
+        reasonCode: "PROVIDER_UNREACHABLE",
+      });
+    }
+  })
+);
 
 /** Microsoft Teams (Incoming Webhook) */
 connectorsRoutes.get(
@@ -666,8 +1088,38 @@ connectorsRoutes.get(
   entitledIntegrationsForParam,
   handleAsync(async (req) => {
     const config = await getTeamsIncomingConfig(req.params.workspaceId);
-    const data = config?.config as { incomingWebhookUrl?: string } | undefined;
-    return { connected: Boolean(data?.incomingWebhookUrl) };
+    const url = config?.config?.incomingWebhookUrl?.trim() || "";
+    if (!url) {
+      return verifyResult({
+        connected: false,
+        configured: false,
+        providerReachable: false,
+        authValid: false,
+        reasonCode: "CONFIG_MISSING",
+      });
+    }
+    try {
+      const result = await postTeamsIncomingMessage(req.params.workspaceId, {
+        title: "FollowUp — verifica connessione Teams",
+        text: "Messaggio automatico di verifica connessione.",
+      });
+      return verifyResult({
+        connected: Boolean(result.ok),
+        configured: true,
+        providerReachable: true,
+        authValid: Boolean(result.ok),
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Errore verifica Teams";
+      return verifyResult({
+        connected: false,
+        configured: true,
+        providerReachable: true,
+        authValid: false,
+        reasonCode: "VERIFY_FAILED",
+        hint: msg.slice(0, 200),
+      });
+    }
   })
 );
 connectorsRoutes.post(

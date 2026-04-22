@@ -34,6 +34,17 @@ export type FollowupLoginResponse =
       user: FollowupAuthUser;
     };
 
+export type ConnectorVerifyResponse = {
+  verify: {
+    connected: boolean;
+    configured: boolean;
+    providerReachable: boolean;
+    authValid: boolean;
+    reasonCode?: string;
+    hint?: string;
+  };
+};
+
 async function postAuthLogin(email: string, password: string): Promise<FollowupLoginResponse> {
   const res = await fetch(`${resolveApiBaseUrl()}/auth/login`, {
     method: "POST",
@@ -1434,7 +1445,7 @@ export const followupApi = {
       `/workspaces/${encodeURIComponent(workspaceId)}/connectors/whatsapp/config`
     ),
   verifyWhatsAppConfig: (workspaceId: string) =>
-    getJson<{ connected: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/whatsapp/verify`),
+    getJson<ConnectorVerifyResponse>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/whatsapp/verify`),
   saveWhatsAppConfig: (workspaceId: string, body: { accountSid: string; authToken: string; fromNumber: string }) =>
     postJson<{ config: Record<string, unknown> }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/whatsapp/config`, body),
   deleteWhatsAppConfig: (workspaceId: string) =>
@@ -1459,6 +1470,8 @@ export const followupApi = {
     ),
   deleteMetaWhatsAppConfig: (workspaceId: string) =>
     deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/meta-whatsapp/config`),
+  verifyMetaWhatsAppConnector: (workspaceId: string) =>
+    getJson<ConnectorVerifyResponse>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/meta-whatsapp/verify`),
   getMailchimpConnectorConfig: (workspaceId: string) =>
     getJson<{
       config: {
@@ -1476,6 +1489,8 @@ export const followupApi = {
     ),
   deleteMailchimpConnectorConfig: (workspaceId: string) =>
     deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/mailchimp/config`),
+  verifyMailchimpConnector: (workspaceId: string) =>
+    getJson<ConnectorVerifyResponse>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/mailchimp/verify`),
   getActiveCampaignConnectorConfig: (workspaceId: string) =>
     getJson<{
       config: {
@@ -1493,6 +1508,8 @@ export const followupApi = {
     ),
   deleteActiveCampaignConnectorConfig: (workspaceId: string) =>
     deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/activecampaign/config`),
+  verifyActiveCampaignConnector: (workspaceId: string) =>
+    getJson<ConnectorVerifyResponse>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/activecampaign/verify`),
   getStripeConnectorConfig: (workspaceId: string) =>
     getJson<{
       config: {
@@ -1514,6 +1531,8 @@ export const followupApi = {
     ),
   deleteStripeConnectorConfig: (workspaceId: string) =>
     deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/stripe/config`),
+  verifyStripeConnector: (workspaceId: string) =>
+    getJson<ConnectorVerifyResponse>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/stripe/verify`),
   getPayPalConnectorConfig: (workspaceId: string) =>
     getJson<{
       config: {
@@ -1540,6 +1559,8 @@ export const followupApi = {
     ),
   deletePayPalConnectorConfig: (workspaceId: string) =>
     deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/paypal/config`),
+  verifyPayPalConnector: (workspaceId: string) =>
+    getJson<ConnectorVerifyResponse>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/paypal/verify`),
   getWebflowConnectorConfig: (workspaceId: string) =>
     getJson<{
       config: {
@@ -1560,6 +1581,8 @@ export const followupApi = {
     ),
   deleteWebflowConnectorConfig: (workspaceId: string) =>
     deleteJson<{ deleted: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/webflow/config`),
+  verifyWebflowConnector: (workspaceId: string) =>
+    getJson<ConnectorVerifyResponse>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/webflow/verify`),
   syncWebflowApartments: (workspaceId: string, body: { projectIds: string[] }) =>
     postJson<{
       result: {
@@ -1580,7 +1603,15 @@ export const followupApi = {
       } | null;
     }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/teams-incoming/config`),
   verifyTeamsIncomingConnector: (workspaceId: string) =>
-    getJson<{ connected: boolean }>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/teams-incoming/verify`),
+    getJson<ConnectorVerifyResponse>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/teams-incoming/verify`),
+  verifyN8nConnector: (workspaceId: string) =>
+    getJson<ConnectorVerifyResponse>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/n8n/verify`),
+  verifySumsubConnector: (workspaceId: string) =>
+    getJson<ConnectorVerifyResponse>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/sumsub/verify`),
+  verifyMarketingGoogleConnector: (workspaceId: string) =>
+    getJson<ConnectorVerifyResponse>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/marketing-google/verify`),
+  verifyMarketingMetaConnector: (workspaceId: string) =>
+    getJson<ConnectorVerifyResponse>(`/workspaces/${encodeURIComponent(workspaceId)}/connectors/marketing-meta/verify`),
   saveTeamsIncomingConnectorConfig: (
     workspaceId: string,
     body: { incomingWebhookUrl: string; label?: string }

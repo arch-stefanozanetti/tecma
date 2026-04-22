@@ -16,7 +16,7 @@ Workflow principale: [`.github/workflows/followup-3.0-ci-cd.yml`](../../../../.g
 | **BE — integrazione** | `Run integration tests (BE)` | `npm run test:integration` — ogni file usa **MongoDB in-memory** (`mongodb-memory-server`); **nessun** container Mongo in CI; `NODE_OPTIONS=--max-old-space-size=4096` per stabilità. |
 | **BE — coverage core** | `Run core coverage gate (BE)` + soglie | `vitest.core.config.ts --coverage` + `check-core-coverage.mjs`. |
 | **BE — build** | `Run deploy build (BE)` | `scripts/render-build-be.sh`. |
-| **E2E (smoke)** | Job `FE E2E smoke (Playwright)` | Solo [`e2e/smoke.spec.ts`](../fe-followup-v3/e2e/smoke.spec.ts), Chromium; avvio dev server via `PLAYWRIGHT_USE_WEBSERVER=true`. |
+| **E2E (smoke)** | Job `FE E2E smoke (Playwright)` | [`e2e/smoke.spec.ts`](../fe-followup-v3/e2e/smoke.spec.ts) + [`e2e/integrations-oauth-popup-drawer-webhook.smoke.spec.ts`](../fe-followup-v3/e2e/integrations-oauth-popup-drawer-webhook.smoke.spec.ts), Chromium; avvio dev server via `PLAYWRIGHT_USE_WEBSERVER=true`. |
 
 Se uno di questi step fallisce, la PR non va considerata “verde” per followup 3.0.
 
@@ -67,3 +67,11 @@ Opzionale (secret `FOLLOWUP_SMOKE_BEARER_TOKEN`): se configurato, si può estend
 
 Il gate **`test:coverage:core`** copre solo i file kernel elencati in `vitest.core.config.ts` (pochi file, secondi).  
 Il gate **`test:run:ci`** esegue **tutta** la suite Vitest nel frontend: è il complemento necessario per considerare coperta la logica UI/test oltre il kernel.
+
+## Note BE: voce ZEUS
+
+Per i webhook voce sono inclusi test unitari/route mirati:
+
+- `src/core/zeus/twilio-signature.util.test.ts`
+- `src/core/zeus/twilio-voice-ingress.service.test.ts`
+- `src/routes/zeus-webhook.routes.test.ts`

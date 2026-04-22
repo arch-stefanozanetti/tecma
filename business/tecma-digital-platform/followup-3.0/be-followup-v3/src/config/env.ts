@@ -152,6 +152,15 @@ const EnvSchema = z.object({
 
   /** ZEUS POC: se true, non verifica firma X-Twilio-Signature (solo dev). */
   ZEUS_TWILIO_SKIP_SIGNATURE: envBool(false),
+  /** ZEUS Track B (SIP): se true, disattiva verifica secret/firma webhook (solo dev). */
+  ZEUS_SIP_SKIP_SIGNATURE: envBool(false),
+  /** Segreto condiviso per webhook SIP (`Authorization: Bearer` o `x-zeus-sip-secret`). */
+  ZEUS_SIP_WEBHOOK_SECRET: z.string().optional().default(""),
+  /**
+   * Opzionale: IP/CIDR IPv4 (virgola) ammessi per POST /zeus/webhooks/sip/voice.
+   * Vuoto = nessun filtro IP (resta il controllo secret/firma).
+   */
+  ZEUS_SIP_ALLOWED_CIDRS: z.string().optional().default(""),
   /** Fallback Twilio Account SID per webhook ZEUS (se assente in tz_zeus_poc_config). */
   ZEUS_TWILIO_ACCOUNT_SID: z.string().optional().default(""),
   /** Fallback Twilio Auth Token per validazione firma e invio WhatsApp. */
@@ -198,6 +207,14 @@ if (isProductionLike()) {
     throw new Error(
       "SIGNATURE_WEBHOOK_SECRET è obbligatorio in produzione/staging (minimo 16 caratteri) per proteggere il webhook firme."
     );
+  }
+  if (!parsed.ZEUS_SIP_SKIP_SIGNATURE) {
+    const sipSecret = (parsed.ZEUS_SIP_WEBHOOK_SECRET ?? "").trim();
+    if (!sipSecret || sipSecret.length < 16) {
+      throw new Error(
+        "ZEUS_SIP_WEBHOOK_SECRET è obbligatorio in produzione/staging (minimo 16 caratteri) per proteggere il webhook SIP voce."
+      );
+    }
   }
 }
 

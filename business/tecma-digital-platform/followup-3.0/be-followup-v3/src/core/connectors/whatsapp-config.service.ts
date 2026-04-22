@@ -102,3 +102,18 @@ export async function deleteWhatsAppConfig(workspaceId: string): Promise<boolean
   const result = await db.collection(COLLECTION).deleteOne({ workspaceId, connectorId: CONNECTOR_ID });
   return (result.deletedCount ?? 0) > 0;
 }
+
+/** Credenziali complete per chiamate server-to-provider (mai esposte in API). */
+export async function getWhatsAppCredentialsForSend(
+  workspaceId: string
+): Promise<{ accountSid: string; authToken: string; fromNumber: string } | null> {
+  const db = getDb();
+  const doc = await db.collection(COLLECTION).findOne({ workspaceId, connectorId: CONNECTOR_ID });
+  if (!doc) return null;
+  const config = doc.config as Record<string, unknown>;
+  const accountSid = String(config?.accountSid ?? "").trim();
+  const authToken = String(config?.authToken ?? "").trim();
+  const fromNumber = String(config?.fromNumber ?? "").trim();
+  if (!accountSid || !authToken || !fromNumber) return null;
+  return { accountSid, authToken, fromNumber };
+}

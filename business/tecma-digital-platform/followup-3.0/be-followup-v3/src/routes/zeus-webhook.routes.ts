@@ -9,7 +9,7 @@ import { logger } from "../observability/logger.js";
 import { runZeusTurn } from "../core/zeus/zeus-orchestrator.service.js";
 import { insertZeusTurn } from "../core/zeus/zeus-turns.service.js";
 import { handleTwilioVoiceWebhook } from "../core/zeus/twilio-voice-ingress.service.js";
-import { SIP_VOICE_GATEWAY_NOT_IMPLEMENTED } from "../core/zeus/sip-voice-ingress.stub.js";
+import { handleSipVoiceWebhook, parseSipVoiceBody } from "../core/zeus/sip-voice-ingress.service.js";
 import {
   getTwilioCredentialsForWorkspace,
   getEmailWebhookSecret,
@@ -20,6 +20,8 @@ import { validateTwilioRequest, flattenTwilioBody } from "../core/zeus/twilio-si
 import { sendTwilioWhatsAppReply } from "../core/zeus/zeus-twilio-outbound.service.js";
 import { sendZeusReplyEmail } from "../core/email/email.service.js";
 import { getCachedZeusAudio } from "../core/zeus/zeus-voice-tts.service.js";
+import { zeusWebhookRateLimiter } from "./rateLimitMiddleware.js";
+import { getClientIp } from "./requestMeta.js";
 
 export const zeusWebhookRouter = Router({ mergeParams: true });
 
@@ -45,7 +47,76 @@ async function verifyTwilio(req: Request, workspaceId: string): Promise<boolean>
   return validateTwilioRequest(creds.authToken, sig, url, flat);
 }
 
-zeusWebhookRouter.post("/twilio/voice", async (req: Request, res: Response) => {
+function normalizeClientIp(req: Request): string {
+  const raw = (req.ip && String(req.ip).trim()) || getClientIp(req) || "";
+  return raw.replace(/^::ffff:/i, "").trim();
+}
+
+function ipv4ToUint32(ip: string): number | null {
+  const parts = ip.split(".").map((x) => Number(x));
+  if (parts.length !== 4 || parts.some((p) => !Number.isInteger(p) || p < 0 || p > 255)) return null;
+  return (((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0) as number;
+}
+
+function ipv4InCidr(ip: string, cidr: string): boolean {
+  const [net, bitsStr] = cidr.split("/").map((s) => s.trim());
+  if (!net || !bitsStr) return false;
+  const bits = Number(bitsStr);
+  if (!Number.isInteger(bits) || bits < 0 || bits > 32) return false;
+  const ipN = ipv4ToUint32(ip);
+  const netN = ipv4ToUint32(net);
+  if (ipN === null || netN === null) return false;
+  if (bits === 0) return true;
+  const mask = (0xffffffff << (32 - bits)) >>> 0;
+  return (ipN & mask) === (netN & mask);
+}
+
+function isClientIpAllowed(clientIpNorm: string, allowlistEntries: string[]): boolean {
+  if (allowlistEntries.length === 0) return true;
+  if (!clientIpNorm) return false;
+  return allowlistEntries.some((entry) => {
+    if (entry.includes("/")) {
+      if (!clientIpNorm.includes(":")) return ipv4InCidr(clientIpNorm, entry);
+      return false;
+    }
+    return clientIpNorm === entry;
+  });
+}
+
+function parseSipAllowlist(raw: string): string[] {
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+async function verifySipWebhook(req: Request, workspaceId: string): Promise<boolean> {
+  if (ENV.ZEUS_SIP_SKIP_SIGNATURE) {
+    logger.warn({ workspaceId }, "[zeus] SIP signature verification skipped");
+    return true;
+  }
+  const allowlist = parseSipAllowlist((ENV.ZEUS_SIP_ALLOWED_CIDRS ?? "").trim());
+  const clientIp = normalizeClientIp(req);
+  if (!isClientIpAllowed(clientIp, allowlist)) {
+    logger.warn({ workspaceId, clientIp }, "[zeus] SIP webhook forbidden by IP allowlist");
+    return false;
+  }
+  const expectedSecret = (ENV.ZEUS_SIP_WEBHOOK_SECRET ?? "").trim();
+  if (!expectedSecret) {
+    logger.error({ workspaceId }, "[zeus] SIP webhook secret missing");
+    return false;
+  }
+  const authHeader = req.get("authorization") || "";
+  const bearer = authHeader.toLowerCase().startsWith("bearer ")
+    ? authHeader.slice("bearer ".length).trim()
+    : "";
+  const headerSecret = req.get("x-zeus-sip-secret")?.trim() || "";
+  const querySecret = typeof req.query.secret === "string" ? req.query.secret.trim() : "";
+  const provided = bearer || headerSecret || querySecret;
+  return Boolean(provided) && timingSafeEqualString(expectedSecret, provided);
+}
+
+zeusWebhookRouter.post("/twilio/voice", zeusWebhookRateLimiter, async (req: Request, res: Response) => {
   const workspaceId = String(req.params.workspaceId ?? "").trim();
   if (!workspaceId) {
     res.status(400).send("Missing workspaceId");
@@ -70,21 +141,49 @@ zeusWebhookRouter.post("/twilio/voice", async (req: Request, res: Response) => {
   res.type("text/xml").send(twiml);
 });
 
-/** Stub Track B: stesso workspace, contratto HTTP da definire con il Voice Gateway SIP. */
-zeusWebhookRouter.post("/sip/voice", async (req: Request, res: Response) => {
+zeusWebhookRouter.post("/sip/voice", zeusWebhookRateLimiter, async (req: Request, res: Response) => {
   const workspaceId = String(req.params.workspaceId ?? "").trim();
   if (!workspaceId) {
     res.status(400).json({ error: "Missing workspaceId" });
     return;
   }
-  logger.warn({ workspaceId }, "[zeus] SIP voice webhook called but not implemented");
-  res.status(501).json({
-    error: "Not Implemented",
-    message: SIP_VOICE_GATEWAY_NOT_IMPLEMENTED
+  if (!(await isZeusChannelEnabled(workspaceId, "voice"))) {
+    res.status(403).json({ error: "Channel disabled" });
+    return;
+  }
+  if (!(await verifySipWebhook(req, workspaceId))) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  let parsed: ReturnType<typeof parseSipVoiceBody>;
+  try {
+    parsed = parseSipVoiceBody(req.body);
+  } catch {
+    res.status(400).json({ error: "Invalid SIP payload" });
+    return;
+  }
+  if (!parsed.transcript.trim()) {
+    res.status(400).json({ error: "transcript required" });
+    return;
+  }
+  const voiceWebhookUrl = getRequestUrl(req).split("?")[0];
+  const { replyText, llmFailed, playUrl, externalCallId } = await handleSipVoiceWebhook({
+    workspaceId,
+    body: req.body,
+    voiceWebhookUrl
+  });
+  res.json({
+    data: {
+      provider: "sip_gateway",
+      externalCallId,
+      replyText,
+      llmFailed,
+      playUrl
+    }
   });
 });
 
-zeusWebhookRouter.get("/twilio/voice-audio/:audioId", async (req: Request, res: Response) => {
+async function handleVoiceAudio(req: Request, res: Response): Promise<void> {
   const workspaceId = String(req.params.workspaceId ?? "").trim();
   const audioId = String(req.params.audioId ?? "").trim();
   if (!workspaceId || !audioId) {
@@ -102,9 +201,16 @@ zeusWebhookRouter.get("/twilio/voice-audio/:audioId", async (req: Request, res: 
   }
   res.setHeader("Cache-Control", "private, max-age=120");
   res.type(cached.contentType).send(cached.data);
+}
+
+zeusWebhookRouter.get("/twilio/voice-audio/:audioId", async (req: Request, res: Response) => {
+  await handleVoiceAudio(req, res);
+});
+zeusWebhookRouter.get("/voice-audio/:audioId", async (req: Request, res: Response) => {
+  await handleVoiceAudio(req, res);
 });
 
-zeusWebhookRouter.post("/twilio/whatsapp", async (req: Request, res: Response) => {
+zeusWebhookRouter.post("/twilio/whatsapp", zeusWebhookRateLimiter, async (req: Request, res: Response) => {
   const workspaceId = String(req.params.workspaceId ?? "").trim();
   if (!workspaceId) {
     res.status(400).send("Missing workspaceId");

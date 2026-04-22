@@ -55,6 +55,7 @@ Gate bloccanti (sintesi):
 2. `pnpm run test:run:ci` (suite unit completa)
 3. `bash scripts/render-build-fe.sh`
 4. E2E: `pnpm run test:e2e:smoke` (job separato)
+   - include smoke integrazioni: `e2e/integrations-oauth-popup-drawer-webhook.smoke.spec.ts`
 
 Legacy / opzionale — pipeline `ci-fe.yml` se usata:
 
@@ -92,6 +93,16 @@ Caratteristiche anti-flake:
 - API `/v1/**` mockate deterministicamente
 - nessuna dipendenza da backend reale nei journey core
 
+### Smoke integrazioni (obbligatorio per release canali)
+
+Spec: `fe-followup-v3/e2e/integrations-oauth-popup-drawer-webhook.smoke.spec.ts`
+
+Copertura minima:
+
+1. apertura Integrazioni con auto-open drawer connettore
+2. CTA provider (`Connetti ora`) con apertura popup/tab
+3. tab Webhook raggiungibile e CTA creazione disponibile
+
 ## 3) Post-release Operational Verification
 
 Script operativo:
@@ -108,6 +119,11 @@ Check eseguiti:
 - con bearer opzionale: atteso `200`
 - senza bearer: atteso `401`
 6. check non bloccante su `{BE_URL}/metrics`
+
+Per release con impatto voce/canali aggiungere:
+
+7. `POST .../zeus/webhooks/sip/voice` con secret valido → atteso `200`
+8. `POST .../zeus/webhooks/sip/voice` con secret invalido → atteso `403`
 
 Workflow manuale GitHub Actions:
 

@@ -3,6 +3,7 @@
  */
 export const INTEGRATION_LABELS = {
   connectNow: "Connetti ora",
+  openingProvider: "Apertura…",
   verifyAfterProvider: "Ho completato, verifica",
   openAdvanced: "Apri modalità avanzata",
   /** Scollegamento connettore dalla card catalogo */
@@ -12,6 +13,9 @@ export const INTEGRATION_LABELS = {
   disconnectMeta: "Scollega Meta",
   /** Rimuove credenziali salvate nel drawer (variant outline) */
   removeSavedConfig: "Rimuovi configurazione",
+  saveMeta: "Salva Meta",
+  saveGa4: "Salva GA4",
+  saveGoogleAds: "Salva Google Ads",
   sendTestMessage: "Invia messaggio di prova",
   sendTestWhatsapp: "Invia messaggio di prova (WhatsApp)",
   sendTestMeta: "Invia messaggio di prova (Meta)",
@@ -25,4 +29,7 @@ export const INTEGRATION_LABELS = {
   n8nTrialRun: "Esegui prova",
   n8nTrialLoading: "Prova in corso…",
   disconnectAiProvider: "Scollega provider",
+  save: "Salva",
+  saving: "Salvataggio…",
+  saveProvider: "Salva provider",
 } as const;

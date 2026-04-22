@@ -9351,6 +9351,196 @@
           "500": { "description": "Server error" }
         }
       }
+    },
+    "/workspaces/{workspaceId}/connectors/n8n/verify": {
+      "get": {
+        "tags": ["connectors", "workspaces"],
+        "operationId": "verifyN8nConnector",
+        "summary": "Verifica connettore n8n",
+        "description": "Controlla configurazione e reachability del provider.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": { "type": "string" },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Esito verifica",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["verify"],
+                  "properties": {
+                    "verify": { "$ref": "#/components/schemas/ConnectorVerifyResult" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso negato" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/connectors/whatsapp/verify": {
+      "get": {
+        "tags": ["connectors", "workspaces"],
+        "operationId": "verifyWhatsappConnector",
+        "summary": "Verifica connessione WhatsApp Twilio",
+        "description": "Controlla credenziali Twilio e reachability API.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": { "type": "string" },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Esito verifica",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["verify"],
+                  "properties": {
+                    "verify": { "$ref": "#/components/schemas/ConnectorVerifyResult" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso negato" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/connectors/teams-incoming/verify": {
+      "get": {
+        "tags": ["connectors", "workspaces"],
+        "operationId": "verifyTeamsIncomingConnector",
+        "summary": "Verifica connessione Teams Incoming Webhook",
+        "description": "Invia una notifica di verifica per validare il webhook configurato.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": { "type": "string" },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Esito verifica",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["verify"],
+                  "properties": {
+                    "verify": { "$ref": "#/components/schemas/ConnectorVerifyResult" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso negato" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/connectors/marketing-google/verify": {
+      "get": {
+        "tags": ["connectors", "workspaces"],
+        "operationId": "verifyMarketingGoogleConnector",
+        "summary": "Verifica connessione Google Marketing (Ads + GA4)",
+        "description": "Esegue controllo token OAuth e accesso alle API Google Marketing.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": { "type": "string" },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Esito verifica",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["verify"],
+                  "properties": {
+                    "verify": { "$ref": "#/components/schemas/ConnectorVerifyResult" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso negato" },
+          "500": { "description": "Errore server" }
+        }
+      }
+    },
+    "/workspaces/{workspaceId}/connectors/marketing-meta/verify": {
+      "get": {
+        "tags": ["connectors", "workspaces"],
+        "operationId": "verifyMarketingMetaConnector",
+        "summary": "Verifica connessione Meta Marketing",
+        "description": "Controlla token Meta e disponibilità account advertising.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "ID workspace",
+            "schema": { "type": "string" },
+            "example": "673abc12def4567890123456"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Esito verifica",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["verify"],
+                  "properties": {
+                    "verify": { "$ref": "#/components/schemas/ConnectorVerifyResult" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Non autenticato" },
+          "403": { "description": "Permesso negato" },
+          "500": { "description": "Errore server" }
+        }
+      }
     }
   },
   "components": {
@@ -9389,6 +9579,41 @@
           },
           "totalPages": {
             "type": "integer"
+          }
+        }
+      },
+      "ConnectorVerifyResult": {
+        "type": "object",
+        "required": [
+          "connected",
+          "configured",
+          "providerReachable",
+          "authValid"
+        ],
+        "properties": {
+          "connected": {
+            "type": "boolean",
+            "description": "Connessione complessivamente valida."
+          },
+          "configured": {
+            "type": "boolean",
+            "description": "Configurazione locale presente."
+          },
+          "providerReachable": {
+            "type": "boolean",
+            "description": "Provider esterno raggiungibile via rete/API."
+          },
+          "authValid": {
+            "type": "boolean",
+            "description": "Credenziali/token accettati dal provider."
+          },
+          "reasonCode": {
+            "type": "string",
+            "description": "Codice sintetico errore (es. CONFIG_MISSING, AUTH_INVALID)."
+          },
+          "hint": {
+            "type": "string",
+            "description": "Suggerimento operativo per l'utente."
           }
         }
       },

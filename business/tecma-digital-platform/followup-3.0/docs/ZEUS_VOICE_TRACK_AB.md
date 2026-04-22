@@ -1,6 +1,6 @@
 # ZEUS voce: Track A vs Track B e migrazione senza spreco
 
-## Sintesi
+## Sintesi (stato aggiornato)
 
 | | Track A (oggi in prodotto) | Track B (roadmap) |
 |---|---------------------------|-------------------|
@@ -17,12 +17,20 @@ Il **vantaggio competitivo** è cosa dice l’agente e quando (`runZeusTurn`, po
 - **UI**: registro turni e statistiche (`GET .../zeus/turns`, `.../zeus/turns/stats`) — già suddivise per canale (`voice`).
 - **Solo da sostituire**: adapter tra rete telefonica e testo (STT/TwiML o stream SIP).
 
-## Confine codice (adapter)
+## Confine codice (adapter) — implementato
 
 - **Tipi**: `be-followup-v3/src/core/zeus/zeus-voice-ingress.types.ts` (`VoiceIngressEvent`, `externalCallId` concettuale).
 - **Dominio voce**: `zeus-voice-turn.service.ts` — `runVoiceIngressPipeline` (insert → LLM → insert + log metrica `zeus_voice_turn`).
 - **Track A**: `twilio-voice-ingress.service.ts` — parsing Twilio, TwiML, TTS.
-- **Track B (stub)**: `sip-voice-ingress.stub.ts`; endpoint `POST .../zeus/webhooks/sip/voice` risponde **501** finché il gateway non è implementato.
+- **Track B (SIP live)**: `sip-voice-ingress.service.ts`; endpoint `POST .../zeus/webhooks/sip/voice` valida secret/IP e invoca la stessa pipeline dominio.
+- **Audio URL provider-agnostic**: endpoint `GET .../zeus/webhooks/voice-audio/:audioId` per gateway che riproducono da URL.
+
+## Sicurezza Track B (SIP)
+
+- Secret richiesto: `ZEUS_SIP_WEBHOOK_SECRET` (Bearer o `x-zeus-sip-secret`).
+- Allowlist opzionale: `ZEUS_SIP_ALLOWED_CIDRS`.
+- Dev-only bypass: `ZEUS_SIP_SKIP_SIGNATURE=true`.
+- Rate limit dedicato webhook ZEUS (`zeusWebhookRateLimiter`) su Twilio/SIP.
 
 ## Config workspace
 
