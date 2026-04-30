@@ -1,0 +1,304 @@
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerBody,
+  DrawerFooter,
+  DrawerCloseButton,
+} from "../../components/ui/drawer";
+import { Input } from "../../components/ui/input";
+import { Textarea } from "../../components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import { Button } from "../../components/ui/button";
+import { STATUS_FILTER_OPTIONS } from "./constants";
+import type { AdditionalInfoRow } from "../../types/domain";
+
+export interface ClientDetailAnagraficaProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  formFirstName: string;
+  setFormFirstName: (v: string) => void;
+  formLastName: string;
+  setFormLastName: (v: string) => void;
+  formEmail: string;
+  setFormEmail: (v: string) => void;
+  formPhone: string;
+  setFormPhone: (v: string) => void;
+  formCity: string;
+  setFormCity: (v: string) => void;
+  formStatus: string;
+  setFormStatus: (v: string) => void;
+  formBudget: string;
+  setFormBudget: (v: string) => void;
+  formMotivazione: string;
+  setFormMotivazione: (v: string) => void;
+  formNote: string;
+  setFormNote: (v: string) => void;
+  formProfilazione: boolean;
+  setFormProfilazione: (v: boolean) => void;
+  formTrattamento: boolean;
+  setFormTrattamento: (v: boolean) => void;
+  formMarketing: boolean;
+  setFormMarketing: (v: boolean) => void;
+  formConiugeNome: string;
+  setFormConiugeNome: (v: string) => void;
+  formConiugeCognome: string;
+  setFormConiugeCognome: (v: string) => void;
+  formConiugeMail: string;
+  setFormConiugeMail: (v: string) => void;
+  formFamilyAdulti: string;
+  setFormFamilyAdulti: (v: string) => void;
+  formFamilyBambini: string;
+  setFormFamilyBambini: (v: string) => void;
+  formFamilyAnimali: string;
+  setFormFamilyAnimali: (v: string) => void;
+  formAdditionalInfo: Record<string, unknown>;
+  setFormAdditionalInfo: React.Dispatch<React.SetStateAction<Record<string, unknown>>>;
+  additionalInfos: AdditionalInfoRow[];
+  onEditSubmit: (e: React.FormEvent) => void;
+  formSaving: boolean;
+  formSubmitError: string | null;
+}
+
+export default function ClientDetailAnagrafica({
+  open,
+  onOpenChange,
+  formFirstName,
+  setFormFirstName,
+  formLastName,
+  setFormLastName,
+  formEmail,
+  setFormEmail,
+  formPhone,
+  setFormPhone,
+  formCity,
+  setFormCity,
+  formStatus,
+  setFormStatus,
+  formBudget,
+  setFormBudget,
+  formMotivazione,
+  setFormMotivazione,
+  formNote,
+  setFormNote,
+  formProfilazione,
+  setFormProfilazione,
+  formTrattamento,
+  setFormTrattamento,
+  formMarketing,
+  setFormMarketing,
+  formConiugeNome,
+  setFormConiugeNome,
+  formConiugeCognome,
+  setFormConiugeCognome,
+  formConiugeMail,
+  setFormConiugeMail,
+  formFamilyAdulti,
+  setFormFamilyAdulti,
+  formFamilyBambini,
+  setFormFamilyBambini,
+  formFamilyAnimali,
+  setFormFamilyAnimali,
+  formAdditionalInfo,
+  setFormAdditionalInfo,
+  additionalInfos,
+  onEditSubmit,
+  formSaving,
+  formSubmitError,
+}: ClientDetailAnagraficaProps) {
+  return (
+    <Drawer open={open} onOpenChange={onOpenChange}>
+      <DrawerContent side="right" className="sm:max-w-md">
+        <DrawerHeader actions={<DrawerCloseButton />}>
+          <DrawerTitle>Modifica cliente</DrawerTitle>
+        </DrawerHeader>
+        <form onSubmit={onEditSubmit} className="flex flex-col flex-1 min-h-0">
+          <DrawerBody className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Nome *</label>
+              <Input
+                className="min-h-11 rounded-lg border-border"
+                value={formFirstName}
+                onChange={(e) => setFormFirstName(e.target.value)}
+                required
+                placeholder="Nome"
+                autoComplete="given-name"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Cognome *</label>
+              <Input
+                className="min-h-11 rounded-lg border-border"
+                value={formLastName}
+                onChange={(e) => setFormLastName(e.target.value)}
+                required
+                placeholder="Cognome"
+                autoComplete="family-name"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Email</label>
+              <Input
+                type="email"
+                className="min-h-11 rounded-lg border-border"
+                value={formEmail}
+                onChange={(e) => setFormEmail(e.target.value)}
+                placeholder="email@esempio.it"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Telefono</label>
+              <Input
+                className="min-h-11 rounded-lg border-border"
+                value={formPhone}
+                onChange={(e) => setFormPhone(e.target.value)}
+                placeholder="+39 ..."
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Città</label>
+              <Input
+                className="min-h-11 rounded-lg border-border"
+                value={formCity}
+                onChange={(e) => setFormCity(e.target.value)}
+                placeholder="Città"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Stato</label>
+              <Select value={formStatus} onValueChange={setFormStatus}>
+                <SelectTrigger className="min-h-11 rounded-lg border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_FILTER_OPTIONS.filter((o) => o.value !== "all").map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Budget</label>
+              <Input
+                className="min-h-11 rounded-lg border-border"
+                value={formBudget}
+                onChange={(e) => setFormBudget(e.target.value)}
+                placeholder="Es. 350000"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Motivazione</label>
+              <Input
+                className="min-h-11 rounded-lg border-border"
+                value={formMotivazione}
+                onChange={(e) => setFormMotivazione(e.target.value)}
+                placeholder="Motivazione acquisto/affitto"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Consensi legacy</label>
+              <div className="grid grid-cols-3 gap-2">
+                <Button type="button" variant={formProfilazione ? "default" : "outline"} onClick={() => setFormProfilazione(!formProfilazione)}>Profilazione</Button>
+                <Button type="button" variant={formTrattamento ? "default" : "outline"} onClick={() => setFormTrattamento(!formTrattamento)}>Trattamento</Button>
+                <Button type="button" variant={formMarketing ? "default" : "outline"} onClick={() => setFormMarketing(!formMarketing)}>Marketing</Button>
+              </div>
+            </div>
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <p className="text-sm font-medium text-foreground">Coniuge</p>
+              <Input className="min-h-11 rounded-lg border-border" value={formConiugeNome} onChange={(e) => setFormConiugeNome(e.target.value)} placeholder="Nome" />
+              <Input className="min-h-11 rounded-lg border-border" value={formConiugeCognome} onChange={(e) => setFormConiugeCognome(e.target.value)} placeholder="Cognome" />
+              <Input className="min-h-11 rounded-lg border-border" value={formConiugeMail} onChange={(e) => setFormConiugeMail(e.target.value)} placeholder="Email" />
+            </div>
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <p className="text-sm font-medium text-foreground">Famiglia</p>
+              <Input className="min-h-11 rounded-lg border-border" type="number" value={formFamilyAdulti} onChange={(e) => setFormFamilyAdulti(e.target.value)} placeholder="Adulti" />
+              <Input className="min-h-11 rounded-lg border-border" type="number" value={formFamilyBambini} onChange={(e) => setFormFamilyBambini(e.target.value)} placeholder="Bambini" />
+              <Input className="min-h-11 rounded-lg border-border" type="number" value={formFamilyAnimali} onChange={(e) => setFormFamilyAnimali(e.target.value)} placeholder="Animali" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">Note legacy</label>
+              <Textarea
+                className="rounded-lg border-border"
+                value={formNote}
+                onChange={(e) => setFormNote(e.target.value)}
+                rows={3}
+                placeholder="Note cliente"
+              />
+            </div>
+            {additionalInfos
+              .filter((ai) => (ai.path ?? "additionalInfo") === "additionalInfo" && ai.active !== false)
+              .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+              .map((ai) => (
+                <div key={ai._id}>
+                  <label className="mb-1.5 block text-sm font-medium text-foreground">
+                    {ai.label}
+                    {ai.required && <span className="ml-0.5 text-destructive">*</span>}
+                  </label>
+                  {ai.type === "radio" && ai.options && ai.options.length > 0 ? (
+                    <Select
+                      value={String(formAdditionalInfo[ai.name] ?? "")}
+                      onValueChange={(v) => setFormAdditionalInfo((prev) => ({ ...prev, [ai.name]: v }))}
+                    >
+                      <SelectTrigger className="min-h-11 rounded-lg border-border">
+                        <SelectValue placeholder={`Seleziona ${ai.label}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ai.options.map((opt) => (
+                          <SelectItem key={opt} value={opt}>
+                            {opt}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      className="min-h-11 rounded-lg border-border"
+                      type={ai.type === "number" ? "number" : "text"}
+                      value={String(formAdditionalInfo[ai.name] ?? "")}
+                      onChange={(e) =>
+                        setFormAdditionalInfo((prev) => ({
+                          ...prev,
+                          [ai.name]:
+                            ai.type === "number"
+                              ? e.target.value
+                                ? Number(e.target.value)
+                                : ""
+                              : e.target.value,
+                        }))
+                      }
+                      placeholder={ai.label}
+                    />
+                  )}
+                </div>
+              ))}
+            {formSubmitError && <p className="text-sm text-destructive">{formSubmitError}</p>}
+          </DrawerBody>
+          <DrawerFooter>
+            <div className="flex gap-2 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="min-h-11"
+              >
+                Annulla
+              </Button>
+              <Button type="submit" disabled={formSaving} className="min-h-11">
+                {formSaving ? "Salvataggio..." : "Salva"}
+              </Button>
+            </div>
+          </DrawerFooter>
+        </form>
+      </DrawerContent>
+    </Drawer>
+  );
+}

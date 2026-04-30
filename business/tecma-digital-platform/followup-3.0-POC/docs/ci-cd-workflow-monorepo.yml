@@ -1,0 +1,62 @@
+# Copia conforme al workflow in repo root: .github/workflows/followup-3.0-ci-cd.yml
+# (mantenuta qui come riferimento path monorepo; la fonte di verità è il file sotto .github/)
+name: Followup 3.0 CI
+
+on:
+  push:
+    branches: [develop, demo, main]
+    paths:
+      - "business/tecma-digital-platform/followup-3.0/fe-followup-v3/**"
+      - "business/tecma-digital-platform/followup-3.0/be-followup-v3/**"
+      - "business/tecma-digital-platform/design-system/**"
+      - "render.yaml"
+      - ".github/workflows/followup-3.0-ci-cd.yml"
+  pull_request:
+    branches: [develop, demo, main]
+    paths:
+      - "business/tecma-digital-platform/followup-3.0/fe-followup-v3/**"
+      - "business/tecma-digital-platform/followup-3.0/be-followup-v3/**"
+      - "business/tecma-digital-platform/design-system/**"
+      - "render.yaml"
+      - ".github/workflows/followup-3.0-ci-cd.yml"
+
+concurrency:
+  group: followup-3.0-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FOLLOWUP_FE_DIR: business/tecma-digital-platform/followup-3.0/fe-followup-v3
+  FOLLOWUP_BE_DIR: business/tecma-digital-platform/followup-3.0/be-followup-v3
+
+jobs:
+  ci:
+    name: Build & Test FE + BE
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: ${{ env.FOLLOWUP_FE_DIR }}/pnpm-lock.yaml
+      - name: FE install
+        working-directory: ${{ env.FOLLOWUP_FE_DIR }}
+        run: pnpm install --frozen-lockfile
+      - name: FE test
+        working-directory: ${{ env.FOLLOWUP_FE_DIR }}
+        run: pnpm run test:run
+      - name: FE build
+        working-directory: ${{ env.FOLLOWUP_FE_DIR }}
+        run: pnpm run build
+      - name: BE install
+        working-directory: ${{ env.FOLLOWUP_BE_DIR }}
+        run: npm ci
+      - name: BE test
+        working-directory: ${{ env.FOLLOWUP_BE_DIR }}
+        run: npm run test
+      - name: BE build
+        working-directory: ${{ env.FOLLOWUP_BE_DIR }}
+        run: npm run build

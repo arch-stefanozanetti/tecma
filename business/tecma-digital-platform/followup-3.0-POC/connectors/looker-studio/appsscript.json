@@ -1,0 +1,15 @@
+{
+  "timeZone": "Europe/Rome",
+  "dependencies": {},
+  "exceptionLogging": "STACKDRIVER",
+  "dataStudio": {
+    "name": "Followup 3.0 Listings",
+    "company": "Followup",
+    "companyUrl": "https://example.com",
+    "description": "Connettore per i listati (appartamenti) dell'API Followup 3.0. Richiede API base URL, workspace ID e project IDs. Usa GET /v1/public/listings (nessuna autenticazione, rate limit 60 req/min).",
+    "logoUrl": "https://www.gstatic.com/images/branding/product/2x/data_studio_48dp.png",
+    "addonUrl": "https://example.com",
+    "supportUrl": "https://example.com/support",
+    "sources": ["FOLLOWUP_LISTINGS"]
+  }
+}

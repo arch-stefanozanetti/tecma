@@ -1,0 +1,55 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: followup-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  be:
+    build:
+      context: ./be-followup-v3
+      dockerfile: Dockerfile
+      target: dev
+    container_name: followup-be
+    restart: unless-stopped
+    environment:
+      PORT: 8080
+      APP_ENV: dev-1
+      NODE_ENV: development
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DB_NAME: followup_3_0
+      AUTH_JWT_SECRET: dev-followup-secret-change-me
+      APP_PUBLIC_URL: http://localhost:5177
+      CORS_ORIGINS: http://localhost:5177
+      EMAIL_TRANSPORT: mock
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mongo
+    volumes:
+      - ./be-followup-v3:/app
+      - /app/node_modules
+
+  fe:
+    build:
+      context: ..
+      dockerfile: followup-3.0/fe-followup-v3/Dockerfile
+      target: dev
+    container_name: followup-fe
+    restart: unless-stopped
+    environment:
+      VITE_PROXY_TARGET: http://be:8080
+    ports:
+      - "5177:5177"
+    depends_on:
+      - be
+    volumes:
+      - ./fe-followup-v3:/app
+      - ../design-system:/app/design-system
+      - /app/node_modules
+
+volumes:
+  mongo-data:

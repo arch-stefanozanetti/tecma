@@ -8,7 +8,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
 DESIGN_SYSTEM_DIR="business/tecma-digital-platform/design-system"
-FE_DIR="business/tecma-digital-platform/followup-3.0/fe-followup-v3"
+FE_DIR="business/tecma-digital-platform/followup-3.0-POC/fe-followup-v3"
 
 echo "==> Building design-system..."
 cd "$DESIGN_SYSTEM_DIR"

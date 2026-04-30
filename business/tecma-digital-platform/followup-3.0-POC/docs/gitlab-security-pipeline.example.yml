@@ -1,0 +1,54 @@
+# Esempio GitLab CI — parità concettuale con `.github/workflows/followup-3.0-security.yml`.
+# Non attivo: copia i job nel `.gitlab-ci.yml` del repository o usa `include:` locale.
+# Adatta `FOLLOWUP_ROOT` se il clone non usa la stessa gerarchia del monorepo `tecma`.
+
+variables:
+  FOLLOWUP_ROOT: "business/tecma-digital-platform/followup-3.0"
+
+stages:
+  - security_scan
+  - security_aggregate
+
+# --- Job da parallelizzare (come i tre job GitHub) ---
+# semgrep_scan:
+#   stage: security_scan
+#   image: python:3.12
+#   script:
+#     - pip install semgrep
+#     - cd "$FOLLOWUP_ROOT" && mkdir -p security-reports
+#     - cd "$FOLLOWUP_ROOT" && semgrep scan --config p/ci --metrics off --json -o security-reports/semgrep-report.json . || echo '{"results":[]}' > security-reports/semgrep-report.json
+#   artifacts:
+#     paths: ["$FOLLOWUP_ROOT/security-reports/semgrep-report.json"]
+#
+# osv_scan:
+#   stage: security_scan
+#   image: golang:1.22
+#   script:
+#     - go install github.com/google/osv-scanner/v2/cmd/osv-scanner@v2.2.4
+#     - export PATH="$(go env GOPATH)/bin:$PATH"
+#     - cd "$FOLLOWUP_ROOT" && mkdir -p security-reports
+#     - cd "$FOLLOWUP_ROOT" && osv-scanner scan source -r . --format json --output security-reports/osv-report.json || true
+#   artifacts:
+#     paths: ["$FOLLOWUP_ROOT/security-reports/osv-report.json"]
+#
+# trivy_scan:
+#   stage: security_scan
+#   image:
+#     name: aquasec/trivy:0.55.2
+#     entrypoint: [""]
+#   script:
+#     - cd "$FOLLOWUP_ROOT" && mkdir -p security-reports
+#     - trivy fs --scanners vuln,misconfig --exit-code 0 --format json --skip-dirs node_modules --skip-dirs "**/node_modules" -o security-reports/trivy-report.json .
+#   artifacts:
+#     paths: ["$FOLLOWUP_ROOT/security-reports/trivy-report.json"]
+#
+# aggregate:
+#   stage: security_aggregate
+#   image: node:20
+#   needs: ["semgrep_scan", "osv_scan", "trivy_scan"]
+#   script:
+#     - cd "$FOLLOWUP_ROOT/security-aggregator" && npm ci && npm run build
+#     - cd "$FOLLOWUP_ROOT" && node security-aggregator/dist/cli.js aggregate --out-dir security-reports --semgrep security-reports/semgrep-report.json --osv security-reports/osv-report.json --trivy security-reports/trivy-report.json --soft-fail
+#     - cd "$FOLLOWUP_ROOT" && node security-aggregator/dist/cli.js gate --summary security-reports/summary.json
+#   artifacts:
+#     paths: ["$FOLLOWUP_ROOT/security-reports/unified-report.json", "$FOLLOWUP_ROOT/security-reports/summary.json"]

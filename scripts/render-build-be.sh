@@ -7,7 +7,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-BE_DIR="business/tecma-digital-platform/followup-3.0/be-followup-v3"
+BE_DIR="business/tecma-digital-platform/followup-3.0-POC/be-followup-v3"
 
 echo "==> Building be-followup-v3..."
 cd "$BE_DIR"

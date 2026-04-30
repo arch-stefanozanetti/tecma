@@ -1,0 +1,291 @@
+import { useCallback, useEffect, useState } from "react";
+import { ShieldCheck, RefreshCw } from "lucide-react";
+import { followupApi } from "../../api/followupApi";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
+import type {
+  WorkspaceEntitlementEffectiveRow,
+  WorkspaceEntitlementFeature,
+  WorkspaceEntitlementStatus,
+} from "../../types/domain";
+
+const FEATURE_LABELS: Record<WorkspaceEntitlementFeature, string> = {
+  publicApi: "Public API / Platform keys",
+  twilio: "Twilio (WhatsApp)",
+  mailchimp: "Mailchimp",
+  activecampaign: "ActiveCampaign",
+  aiApprovals: "Approvazioni AI / suggerimenti",
+  reports: "Reportistica",
+  integrations: "Integrazioni e automazioni",
+};
+
+const STATUSES: WorkspaceEntitlementStatus[] = [
+  "inactive",
+  "pending_approval",
+  "active",
+  "suspended",
+];
+
+const STATUS_LABELS: Record<WorkspaceEntitlementStatus, string> = {
+  inactive: "Inattivo",
+  pending_approval: "In approvazione",
+  active: "Attivo",
+  suspended: "Sospeso",
+};
+
+interface TecmaEntitlementsPageProps {
+  workspaceId: string;
+  /** Se true, mostra selettore workspace (lista da API) per gestire clienti senza cambiare contesto header. */
+  isTecmaAdmin?: boolean;
+}
+
+export function TecmaEntitlementsPage({ workspaceId, isTecmaAdmin = false }: TecmaEntitlementsPageProps) {
+  const [targetWorkspaceId, setTargetWorkspaceId] = useState(workspaceId);
+  const [workspaceOptions, setWorkspaceOptions] = useState<{ _id: string; name: string }[]>([]);
+  const [rows, setRows] = useState<WorkspaceEntitlementEffectiveRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [savingFeature, setSavingFeature] = useState<WorkspaceEntitlementFeature | null>(null);
+  /** Stato persistito da inviare al PATCH (non l’effettivo “implicit”). */
+  const [draftStatus, setDraftStatus] = useState<Partial<Record<WorkspaceEntitlementFeature, WorkspaceEntitlementStatus>>>({});
+  const [draftNotes, setDraftNotes] = useState<Partial<Record<WorkspaceEntitlementFeature, string>>>({});
+  const [storageDiagLoading, setStorageDiagLoading] = useState(false);
+  const [storageDiagError, setStorageDiagError] = useState("");
+  const [storageDiagJson, setStorageDiagJson] = useState("");
+
+  useEffect(() => {
+    setTargetWorkspaceId(workspaceId);
+  }, [workspaceId]);
+
+  useEffect(() => {
+    if (!isTecmaAdmin) return;
+    void followupApi
+      .listWorkspaces()
+      .then((list) => setWorkspaceOptions(list.map((w) => ({ _id: w._id, name: w.name }))))
+      .catch(() => setWorkspaceOptions([]));
+  }, [isTecmaAdmin]);
+
+  const load = useCallback(async () => {
+    const wid = targetWorkspaceId.trim();
+    if (!wid) return;
+    setLoading(true);
+    setError("");
+    try {
+      const res = await followupApi.getWorkspaceEntitlements(wid);
+      const data = res.data ?? [];
+      setRows(data);
+      const st: Partial<Record<WorkspaceEntitlementFeature, WorkspaceEntitlementStatus>> = {};
+      const nt: Partial<Record<WorkspaceEntitlementFeature, string>> = {};
+      for (const r of data) {
+        st[r.feature] = r.recordedStatus ?? (r.entitled ? "active" : "inactive");
+        nt[r.feature] = r.recordedNotes ?? "";
+      }
+      setDraftStatus(st);
+      setDraftNotes(nt);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Caricamento fallito");
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [targetWorkspaceId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const loadStorageDiag = async (probe: boolean) => {
+    setStorageDiagLoading(true);
+    setStorageDiagError("");
+    try {
+      const res = await followupApi.getTecmaAssetsStorageDiagnostics({ probe });
+      setStorageDiagJson(JSON.stringify(res.data, null, 2));
+    } catch (e) {
+      setStorageDiagJson("");
+      setStorageDiagError(e instanceof Error ? e.message : "Diagnostica non disponibile");
+    } finally {
+      setStorageDiagLoading(false);
+    }
+  };
+
+  const saveFeature = async (feature: WorkspaceEntitlementFeature) => {
+    const status = draftStatus[feature];
+    if (!status) return;
+    const wid = targetWorkspaceId.trim();
+    if (!wid) return;
+    setSavingFeature(feature);
+    setError("");
+    try {
+      await followupApi.patchWorkspaceEntitlement(wid, feature, {
+        status,
+        notes: draftNotes[feature]?.trim() || undefined,
+        billingMode: "manual_invoice",
+      });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Salvataggio fallito");
+    } finally {
+      setSavingFeature(null);
+    }
+  };
+
+  if (!targetWorkspaceId.trim()) {
+    return (
+      <p className="text-sm text-muted-foreground">Seleziona un workspace dall’header o dal menu sotto per gestire gli entitlement.</p>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {isTecmaAdmin && workspaceOptions.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 p-4">
+          <span className="text-sm font-medium text-foreground">Workspace da configurare</span>
+          <Select value={targetWorkspaceId} onValueChange={(v) => setTargetWorkspaceId(v)}>
+            <SelectTrigger className="h-10 w-full max-w-md">
+              <SelectValue placeholder="Scegli workspace" />
+            </SelectTrigger>
+            <SelectContent>
+              {workspaceOptions.map((w) => (
+                <SelectItem key={w._id} value={w._id}>
+                  {w.name || w._id}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          <ShieldCheck className="mr-1 inline h-4 w-4 align-text-bottom text-primary" aria-hidden />
+          Attiva o sospendi capability e moduli UI per il workspace selezionato. Le modifiche sono tracciate in audit.
+          Il default senza riga in DB dipende dalla chiave (catalogo backend / documentazione piano feature flags).
+        </p>
+        <Button variant="outline" size="sm" className="min-h-11 gap-2" onClick={() => void load()} disabled={loading}>
+          <RefreshCw className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+          Aggiorna
+        </Button>
+      </div>
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <table className="w-full min-w-[720px] text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted/50">
+              <th className="px-3 py-2 text-left font-medium">Modulo</th>
+              <th className="px-3 py-2 text-left font-medium">Uso consentito</th>
+              <th className="px-3 py-2 text-left font-medium">Implicito</th>
+              <th className="px-3 py-2 text-left font-medium">Stato da salvare</th>
+              <th className="px-3 py-2 text-left font-medium">Note (opz.)</th>
+              <th className="px-3 py-2 text-left font-medium">Azione</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading && rows.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                  Caricamento…
+                </td>
+              </tr>
+            ) : (
+              rows.map((row) => (
+                <tr key={row.feature} className="border-b border-border last:border-0">
+                  <td className="px-3 py-3 font-medium text-foreground">{FEATURE_LABELS[row.feature]}</td>
+                  <td className="px-3 py-3">
+                    <span className={row.entitled ? "text-green-700 dark:text-green-400" : "text-amber-800 dark:text-amber-200"}>
+                      {row.entitled ? "Sì" : "No"}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3 text-muted-foreground">{row.implicit ? "Sì (nessuna riga)" : "No"}</td>
+                  <td className="px-3 py-3">
+                    <Select
+                      value={draftStatus[row.feature] ?? "active"}
+                      onValueChange={(v) =>
+                        setDraftStatus((prev) => ({ ...prev, [row.feature]: v as WorkspaceEntitlementStatus }))
+                      }
+                    >
+                      <SelectTrigger className="h-10 w-[180px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATUSES.map((s) => (
+                          <SelectItem key={s} value={s}>
+                            {STATUS_LABELS[s]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </td>
+                  <td className="px-3 py-3">
+                    <Input
+                      value={draftNotes[row.feature] ?? ""}
+                      onChange={(e) =>
+                        setDraftNotes((prev) => ({ ...prev, [row.feature]: e.target.value }))
+                      }
+                      placeholder="Note interne / fatturazione"
+                      className="min-w-[200px]"
+                    />
+                  </td>
+                  <td className="px-3 py-3">
+                    <Button
+                      size="sm"
+                      className="min-h-11"
+                      disabled={savingFeature === row.feature}
+                      onClick={() => void saveFeature(row.feature)}
+                    >
+                      {savingFeature === row.feature ? "Salvataggio…" : "Salva"}
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-10 rounded-lg border border-border bg-muted/20 p-4">
+        <h2 className="text-sm font-semibold text-foreground">Storage asset (S3)</h2>
+        <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+          Verifica allineata a <code className="rounded bg-muted px-1">ASSETS_S3_BUCKET</code> (o fallback{" "}
+          <code className="rounded bg-muted px-1">EMAIL_FLOW_S3_BUCKET</code>) come in <code className="rounded bg-muted px-1">assets-s3.service</code>.
+          Nessun segreto nella risposta.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="min-h-11"
+            disabled={storageDiagLoading}
+            onClick={() => void loadStorageDiag(false)}
+          >
+            Stato da variabili
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="min-h-11"
+            disabled={storageDiagLoading}
+            onClick={() => void loadStorageDiag(true)}
+          >
+            Verifica rete (HeadBucket)
+          </Button>
+        </div>
+        {storageDiagError ? <p className="mt-2 text-sm text-destructive">{storageDiagError}</p> : null}
+        {storageDiagJson ? (
+          <pre className="mt-3 max-h-56 overflow-auto rounded-md border border-border bg-background p-3 text-xs text-muted-foreground">
+            {storageDiagJson}
+          </pre>
+        ) : null}
+      </div>
+    </div>
+  );
+}

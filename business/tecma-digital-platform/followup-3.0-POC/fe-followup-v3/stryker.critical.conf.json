@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker-js/master/packages/core/schema/stryker-schema.json",
+  "testRunner": "vitest",
+  "coverageAnalysis": "off",
+  "checkers": ["typescript"],
+  "tsconfigFile": "tsconfig.json",
+  "mutate": [
+    "src/auth/projectScope.ts",
+    "src/api/http.ts",
+    "src/api/authApi.ts",
+    "src/api/domains/*.ts"
+  ],
+  "vitest": {
+    "configFile": "vitest.core.config.ts"
+  },
+  "thresholds": {
+    "high": 70,
+    "low": 60,
+    "break": 55
+  },
+  "reporters": ["clear-text", "progress", "html"],
+  "htmlReporter": {
+    "baseDir": "reports/mutation"
+  }
+}

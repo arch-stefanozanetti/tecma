@@ -1,0 +1,51 @@
+# Esempio CI per repo dedicato followup-3.0 (root = fe-followup-v3 + be-followup-v3).
+# Copia in .github/workflows/ci.yml e adatta i path se la struttura differisce.
+name: Followup 3.0 CI
+
+on:
+  push:
+    branches: [develop, demo, main]
+  pull_request:
+    branches: [develop, demo, main]
+
+concurrency:
+  group: followup-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fe:
+    name: FE — pnpm build & test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: fe-followup-v3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: fe-followup-v3/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run test:run
+      - run: pnpm run build
+
+  be:
+    name: BE — npm build & test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: be-followup-v3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: be-followup-v3/package-lock.json
+      - run: npm ci
+      - run: npm run test
+      - run: npm run build

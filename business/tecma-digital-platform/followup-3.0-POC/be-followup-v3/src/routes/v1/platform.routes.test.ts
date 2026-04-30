@@ -1,0 +1,162 @@
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
+import type { Server } from "node:http";
+import express from "express";
+import { closeStable, listenStable, stableRequest } from "../../test/stableHttpServer.js";
+import { platformRoutes } from "./platform.routes.js";
+
+vi.mock("../../config/env.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../config/env.js")>();
+  return {
+    ...actual,
+    ENV: {
+      ...actual.ENV,
+      PLATFORM_API_KEYS: JSON.stringify({
+        "k-test": {
+          workspaceId: "ws-1",
+          projectIds: ["p1", "p2"],
+          label: "test",
+          scopes: [
+            "platform.capabilities.read",
+            "platform.listings.read",
+            "platform.reports.read",
+            "platform.clients.read",
+            "platform.leads.create",
+            "platform.propertyViews.create",
+          ],
+        },
+        "k-no-pv": {
+          workspaceId: "ws-1",
+          projectIds: ["p1"],
+          label: "no-pv",
+          scopes: ["platform.capabilities.read", "platform.leads.create"],
+        },
+      }),
+    },
+  };
+});
+
+const queryApartmentsMock = vi.fn();
+const queryClientsLiteMock = vi.fn();
+const runKpiSummaryReportMock = vi.fn();
+const createPublicLeadFromPlatformMock = vi.fn();
+const ingestPropertyViewFromPlatformMock = vi.fn();
+
+vi.mock("../../core/platform/platform-public-lead.service.js", () => ({
+  createPublicLeadFromPlatform: (...args: unknown[]) => createPublicLeadFromPlatformMock(...args),
+}));
+
+vi.mock("../../core/platform/property-views.service.js", () => ({
+  ingestPropertyViewFromPlatform: (...args: unknown[]) => ingestPropertyViewFromPlatformMock(...args),
+}));
+
+vi.mock("../../core/apartments/apartments.service.js", () => ({
+  queryApartments: (...args: unknown[]) => queryApartmentsMock(...args),
+}));
+
+vi.mock("../../core/future/future.service.js", () => ({
+  queryClientsLite: (...args: unknown[]) => queryClientsLiteMock(...args),
+}));
+
+vi.mock("../../core/reports/reports.service.js", () => ({
+  runKpiSummaryReport: (...args: unknown[]) => runKpiSummaryReportMock(...args),
+}));
+
+vi.mock("../../config/db.js", () => ({
+  getDb: () => ({
+    collection: () => ({
+      findOneAndUpdate: vi.fn().mockResolvedValue({ count: 1 }),
+      findOne: vi.fn().mockResolvedValue(null),
+    }),
+  }),
+}));
+
+const platformApp = express();
+platformApp.use(express.json());
+platformApp.use("/v1/platform", platformRoutes);
+
+describe("platform.routes", () => {
+  let server: Server;
+  let origin: string;
+
+  beforeAll(async () => {
+    const x = await listenStable(platformApp);
+    server = x.server;
+    origin = x.origin;
+  });
+
+  afterAll(async () => {
+    await closeStable(server);
+  });
+
+  const st = () => stableRequest(origin);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    queryApartmentsMock.mockResolvedValue({ data: [], paginationInfo: {} });
+    queryClientsLiteMock.mockResolvedValue([{ id: "c1" }]);
+    runKpiSummaryReportMock.mockResolvedValue({ ok: true });
+    createPublicLeadFromPlatformMock.mockResolvedValue({ data: { clientId: "cid1" } });
+    ingestPropertyViewFromPlatformMock.mockResolvedValue({ ok: true, id: "507f1f77bcf86cd799439011" });
+  });
+
+  it("POST /clients/lite/query usa workspace della chiave e interseca projectIds", async () => {
+    const res = await st()
+      .post("/v1/platform/clients/lite/query")
+      .set("x-api-key", "k-test")
+      .send({ projectIds: ["p1"] });
+
+    expect(res.status).toBe(200);
+    expect(queryClientsLiteMock).toHaveBeenCalledWith("ws-1", ["p1"]);
+    expect(res.body).toEqual({ data: [{ id: "c1" }] });
+  });
+
+  it("POST /clients/lite/query 403 se projectIds fuori scope", async () => {
+    const res = await st()
+      .post("/v1/platform/clients/lite/query")
+      .set("x-api-key", "k-test")
+      .send({ projectIds: ["other"] });
+
+    expect(res.status).toBe(403);
+    expect(queryClientsLiteMock).not.toHaveBeenCalled();
+  });
+
+  it("POST /leads inoltra al servizio public lead", async () => {
+    const res = await st()
+      .post("/v1/platform/leads")
+      .set("x-api-key", "k-test")
+      .send({
+        projectId: "p1",
+        firstName: "Mario",
+        lastName: "Rossi",
+        marketingAttribution: { touch: { utmSource: "google", utmCampaign: "spring" } },
+      });
+
+    expect(res.status).toBe(200);
+    expect(createPublicLeadFromPlatformMock).toHaveBeenCalled();
+    expect(res.body).toEqual({ data: { clientId: "cid1" } });
+  });
+
+  it("POST /property-views inoltra al servizio con workspace e projectIds", async () => {
+    const res = await st()
+      .post("/v1/platform/property-views")
+      .set("x-api-key", "k-test")
+      .send({ projectId: "p1", listingId: "apt-a", path: "/listing/apt-a" });
+
+    expect(res.status).toBe(200);
+    expect(ingestPropertyViewFromPlatformMock).toHaveBeenCalledWith(
+      { workspaceId: "ws-1", projectIds: ["p1", "p2"] },
+      { projectId: "p1", listingId: "apt-a", path: "/listing/apt-a" }
+    );
+    expect(res.body).toEqual({ ok: true, id: "507f1f77bcf86cd799439011" });
+  });
+
+  it("POST /property-views 403 senza scope platform.propertyViews.create", async () => {
+    const res = await st()
+      .post("/v1/platform/property-views")
+      .set("x-api-key", "k-no-pv")
+      .send({ projectId: "p1", listingId: "x" });
+
+    expect(res.status).toBe(403);
+    expect(ingestPropertyViewFromPlatformMock).not.toHaveBeenCalled();
+  });
+});

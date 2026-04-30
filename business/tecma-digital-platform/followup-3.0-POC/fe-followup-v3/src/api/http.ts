@@ -1,0 +1,284 @@
+import { DEV_CHANNEL_API_OVERRIDE_KEY } from "../dev/devChannelStorage";
+import { spaAbsolutePath } from "../lib/spaPath";
+
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/v1";
+
+export function resolveApiBaseUrl(): string {
+  const devPickerOn =
+    (typeof process === "undefined" || !process.env.VITEST) &&
+    typeof import.meta.env.VITE_SHOW_DEV_CHANNEL_PICKER === "string" &&
+    import.meta.env.VITE_SHOW_DEV_CHANNEL_PICKER === "true";
+  if (!devPickerOn || typeof window === "undefined") return API_BASE_URL;
+  try {
+    const o = window.sessionStorage.getItem(DEV_CHANNEL_API_OVERRIDE_KEY);
+    if (o && o.trim() !== "") return o.trim();
+  } catch {
+    /* ignore */
+  }
+  return API_BASE_URL;
+}
+
+/** Errore API con status HTTP e opzionalmente `code` / `hint` dal JSON backend ({ error, code, hint }). */
+export class HttpApiError extends Error {
+  readonly status: number;
+  readonly code?: string;
+  readonly hint?: string;
+
+  constructor(
+    message: string,
+    opts: {
+      status: number;
+      code?: string;
+      hint?: string;
+    }
+  ) {
+    super(message);
+    this.name = "HttpApiError";
+    this.status = opts.status;
+    this.code = opts.code;
+    this.hint = opts.hint;
+  }
+}
+
+const STORAGE_ACCESS = "followup3.accessToken";
+const STORAGE_REFRESH = "followup3.refreshToken";
+
+const getStorage = (): Storage | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+};
+
+export const getAccessToken = (): string | null => {
+  const s = getStorage();
+  return s ? s.getItem(STORAGE_ACCESS) : null;
+};
+
+export const getRefreshToken = (): string | null => {
+  const s = getStorage();
+  return s ? s.getItem(STORAGE_REFRESH) : null;
+};
+
+export const setTokens = (accessToken: string, refreshToken?: string): void => {
+  const s = getStorage();
+  if (!s) return;
+  s.setItem(STORAGE_ACCESS, accessToken);
+  if (refreshToken !== undefined) {
+    s.setItem(STORAGE_REFRESH, refreshToken);
+  }
+};
+
+export const clearTokens = (): void => {
+  const s = getStorage();
+  if (!s) return;
+  s.removeItem(STORAGE_ACCESS);
+  s.removeItem(STORAGE_REFRESH);
+};
+
+const isPublicAuthPath = (path: string): boolean =>
+  path === "/auth/login" ||
+  path === "/auth/mfa/verify" ||
+  path === "/auth/sso-exchange" ||
+  path === "/auth/refresh" ||
+  path === "/auth/logout" ||
+  path === "/auth/request-password-reset" ||
+  path === "/auth/reset-password" ||
+  path === "/auth/set-password-from-invite";
+
+interface RefreshResponse {
+  accessToken: string;
+  refreshToken?: string;
+  expiresIn?: string;
+}
+
+const isBssAuthEnabled = (): boolean =>
+  typeof import.meta.env.VITE_USE_BSS_AUTH === "string" &&
+  import.meta.env.VITE_USE_BSS_AUTH.toLowerCase() === "true";
+
+const callRefresh = async (): Promise<RefreshResponse> => {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) throw new Error("No refresh token");
+  if (isBssAuthEnabled()) {
+    const { refreshBss } = await import("./bssAuthAdapter");
+    return refreshBss(refreshToken);
+  }
+  const res = await fetch(`${resolveApiBaseUrl()}/auth/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refreshToken })
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `Refresh failed ${res.status}`);
+  }
+  return res.json() as Promise<RefreshResponse>;
+};
+
+const isOnLoginPage = (): boolean => {
+  if (typeof window === "undefined") return false;
+  const path = window.location.pathname ?? "";
+  return path.endsWith("/login") || path.includes("/login/");
+};
+
+const redirectToLogin = (): void => {
+  clearTokens();
+  if (typeof window === "undefined") return;
+  if (isOnLoginPage()) return;
+  const href = window.location.href;
+  const backTo = encodeURIComponent(href);
+  const loginQs = backTo ? `?backTo=${backTo}` : "";
+  window.location.replace(`${spaAbsolutePath("/login")}${loginQs}`);
+};
+
+const requestJson = async <T>(path: string, options: RequestInit, isRetry = false): Promise<T> => {
+  const token = getAccessToken();
+  if (!isPublicAuthPath(path) && !token) {
+    if (import.meta.env.DEV) {
+      console.warn("[http] Protected API call without token; redirecting to login.", path);
+    }
+    if (!isOnLoginPage()) redirectToLogin();
+    throw new Error("Sessione non valida. Reindirizzamento al login.");
+  }
+  const headers = new Headers(options.headers);
+  headers.set("Content-Type", "application/json");
+  if (!isPublicAuthPath(path) && token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  let response: Response;
+  try {
+    const base = resolveApiBaseUrl();
+    response = await fetch(`${base}${path}`, {
+      ...options,
+      headers
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "network error";
+    const base = resolveApiBaseUrl();
+    const hint =
+      base.startsWith("http://localhost") || base.startsWith("/")
+        ? " Verifica che il backend sia avviato (es. porta 8080)."
+        : " Verifica che VITE_API_BASE_URL sia corretto per l'ambiente (gateway o backend).";
+    throw new Error(`Impossibile raggiungere le API (${base}).${hint} Dettaglio: ${message}`);
+  }
+
+  if (response.status === 401 && !isPublicAuthPath(path) && getRefreshToken() && !isRetry) {
+    try {
+      const data = await callRefresh();
+      setTokens(data.accessToken, data.refreshToken);
+      return requestJson<T>(path, options, true);
+    } catch {
+      if (!isOnLoginPage()) redirectToLogin();
+      throw new Error("Sessione scaduta. Effettua di nuovo l'accesso.");
+    }
+  }
+
+  if (!response.ok) {
+    const text = await response.text();
+    let message = text || `Errore API HTTP ${response.status} su ${path}`;
+    let authCode: string | undefined;
+    let hint: string | undefined;
+    try {
+      const j = JSON.parse(text) as { error?: string; code?: string; hint?: string };
+      if (typeof j?.error === "string" && j.error.length > 0) message = j.error;
+      if (typeof j?.code === "string") authCode = j.code;
+      if (typeof j?.hint === "string" && j.hint.length > 0) hint = j.hint;
+    } catch {
+      /* testo non JSON */
+    }
+    if (response.status === 401 && (authCode === "MISSING_AUTH" || authCode === "INVALID_TOKEN" || message.includes("Authorization"))) {
+      if (!isOnLoginPage()) redirectToLogin();
+      throw new Error("Sessione non valida o scaduta. Reindirizzamento al login.");
+    }
+    throw new HttpApiError(message, { status: response.status, code: authCode, hint });
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return response.json() as Promise<T>;
+};
+
+export const postJson = async <T>(path: string, body: unknown): Promise<T> =>
+  requestJson<T>(path, {
+    method: "POST",
+    body: JSON.stringify(body)
+  });
+
+/** POST multipart (es. upload); non imposta Content-Type così il browser aggiunge boundary. */
+export const postFormData = async <T>(path: string, form: FormData): Promise<T> => {
+  const token = getAccessToken();
+  if (!isPublicAuthPath(path) && !token) {
+    if (import.meta.env.DEV) {
+      console.warn("[http] Protected API call without token; redirecting to login.", path);
+    }
+    if (!isOnLoginPage()) redirectToLogin();
+    throw new Error("Sessione non valida. Reindirizzamento al login.");
+  }
+  const headers = new Headers();
+  if (!isPublicAuthPath(path) && token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  let response: Response;
+  try {
+    response = await fetch(`${resolveApiBaseUrl()}${path}`, { method: "POST", headers, body: form });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "network error";
+    throw new Error(`Impossibile raggiungere le API. Dettaglio: ${message}`);
+  }
+  if (response.status === 401 && !isPublicAuthPath(path) && getRefreshToken()) {
+    try {
+      const data = await callRefresh();
+      setTokens(data.accessToken, data.refreshToken);
+      const h2 = new Headers();
+      const t2 = getAccessToken();
+      if (t2) h2.set("Authorization", `Bearer ${t2}`);
+      response = await fetch(`${resolveApiBaseUrl()}${path}`, { method: "POST", headers: h2, body: form });
+    } catch {
+      if (!isOnLoginPage()) redirectToLogin();
+      throw new Error("Sessione scaduta. Effettua di nuovo l'accesso.");
+    }
+  }
+  if (!response.ok) {
+    const text = await response.text();
+    let message = text || `Errore API HTTP ${response.status}`;
+    let code: string | undefined;
+    let hint: string | undefined;
+    try {
+      const j = JSON.parse(text) as { error?: string; code?: string; hint?: string };
+      if (typeof j?.error === "string" && j.error.length > 0) message = j.error;
+      if (typeof j?.code === "string") code = j.code;
+      if (typeof j?.hint === "string" && j.hint.length > 0) hint = j.hint;
+    } catch {
+      /* ignore */
+    }
+    throw new HttpApiError(message, { status: response.status, code, hint });
+  }
+  return response.json() as Promise<T>;
+};
+
+export const putJson = async <T>(path: string, body: unknown): Promise<T> =>
+  requestJson<T>(path, {
+    method: "PUT",
+    body: JSON.stringify(body)
+  });
+
+export const patchJson = async <T>(path: string, body: unknown): Promise<T> =>
+  requestJson<T>(path, {
+    method: "PATCH",
+    body: JSON.stringify(body)
+  });
+
+export const getJson = async <T>(path: string): Promise<T> =>
+  requestJson<T>(path, {
+    method: "GET"
+  });
+
+export const deleteJson = async <T>(path: string): Promise<T> =>
+  requestJson<T>(path, {
+    method: "DELETE"
+  });
