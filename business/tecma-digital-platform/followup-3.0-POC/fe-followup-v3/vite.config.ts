@@ -134,7 +134,7 @@ export default defineConfig({
           if (id.includes("/@radix-ui/")) return "vendor-radix";
           if (id.includes("/@mui/") || id.includes("/@emotion/")) return "vendor-mui";
           if (id.includes("/@tiptap/")) return "vendor-editor";
-          if (id.includes("/recharts/") || id.includes("/@xyflow/")) return "vendor-charts";
+          // recharts / @xyflow: non chunk dedicato — crea ciclo vendor-charts ↔ vendor-react (TDZ in prod).
           if (id.includes("/react-markdown/") || id.includes("/remark-gfm/")) return "vendor-markdown";
           if (id.includes("/date-fns/") || id.includes("/react-day-picker/") || id.includes("/moment/")) {
             return "vendor-dates";
@@ -142,7 +142,9 @@ export default defineConfig({
           if (id.includes("/lucide-react/") || id.includes("/simple-icons/")) return "vendor-icons";
           if (id.includes("/posthog-js/")) return "vendor-telemetry";
           if (id.includes("/zod/")) return "vendor-validation";
-          return "vendor-misc";
+          // Mai catch-all "vendor-misc": crea cicli vendor-misc ↔ vendor-react / vendor-mermaid e in prod
+          // va in crash (`Cannot set properties of undefined (setting 'exports')`). Rollup chunka il resto.
+          return undefined;
         },
       },
     },
