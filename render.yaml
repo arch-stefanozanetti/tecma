@@ -1,5 +1,5 @@
-# Render Blueprint: FollowUp 3.0 — SOLO path followup-3.0-POC (BE + FE)
-# L’albero business/.../followup-3.0/ (monorepo nuovo) non è in rootDir/buildFilter: resta in repo per sviluppo/CI, non per questo deploy.
+# Render Blueprint: servizi followup-3-be / followup-3-fe → build solo da followup-3.0-POC (BE + FE)
+# Il progetto followup-3.0/ (monorepo apps/services) è separato: non è incluso qui; eventuale deploy dedicato usa altri servizi/config.
 # Vedi: business/tecma-digital-platform/FOLLOWUP_MONOREPO_LAYOUT.md
 #
 # Dashboard → New → Blueprint → collega repo tecma; imposta env (sync: false) prima del primo deploy.

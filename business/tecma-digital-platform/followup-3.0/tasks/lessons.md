@@ -1,5 +1,16 @@
 # Lessons (agent / team)
 
+## 2026-04-30 — `followup-3.0/` vs `followup-3.0-POC/`: due progetti, non “promozione”
+
+- **Correzione:** non descrivere un flusso obbligato “porta la feature da `followup-3.0/` alla POC”. Sono **codebase distinti** nello stesso monorepo; Render punta alla POC per **config dei servizi**, non come destinazione del lavoro sull’altro albero.
+- **Pattern:** documentare in `FOLLOWUP_MONOREPO_LAYOUT.md`; non suggerire merge/cherry-pick verso POC salvo richiesta esplicita.
+
+## 2026-04-30 — Login dev: CORS porta FE e font Tailwind preflight
+
+- **Problema:** `CORS_ORIGINS` di default elencava solo `http://localhost:5177` mentre Vite girava su altra porta (es. 5179); con `VITE_API_BASE_URL=http://localhost:8080/v1` il browser bloccava il preflight → `TypeError: Failed to fetch` (non un bug di `fetch` nel TS).
+- **Pattern:** in `NODE_ENV=development` consentire qualsiasi `http://localhost/*` (e 127.0.0.1) in CORS; in alternativa usare `VITE_API_BASE_URL=/v1` e il proxy Vite (stesso origin, niente CORS). Documentare in `.env.example`.
+- **Font:** Tailwind preflight usava lo stack `sans` di default (`ui-sans-serif`); sovrascrivere `theme.extend.fontFamily.sans` con `var(--body-font)` + Lato e `html { @apply font-sans; }` così tutta la pagina non cade sul sistema.
+
 ## 2026-04-08 — Priorità prodotto solo nel repo Followup
 
 - **Problema:** suggerire Jira/etichette esterne per A/B/C non risponde al bisogno di tracciare e implementare tutto *dentro* `followup-3.0`.

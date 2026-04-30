@@ -2,7 +2,7 @@
 
 Nuovo CRM multi-progetto creato da zero.
 
-**Deploy Render** (`followup-3-be` / `followup-3-fe`): in produzione viene deployato **solo** il codice sotto `followup-3.0-POC/` (vedi [`render.yaml`](../../../render.yaml)). Questa cartella (`followup-3.0`) è il monorepo in evoluzione; per un rilascio online allinea le modifiche verso POC o segui [`FOLLOWUP_MONOREPO_LAYOUT.md`](../FOLLOWUP_MONOREPO_LAYOUT.md).
+**Deploy Render:** i servizi `followup-3-be` / `followup-3-fe` su onrender.com compilano **solo** il **progetto** in `followup-3.0-POC/` (vedi [`render.yaml`](../../../render.yaml)). La directory `followup-3.0/` è un **progetto separato** nello stesso monorepo Git; non c’è un flusso di “porting” obbligato verso la POC. Convivenza e confini: [`FOLLOWUP_MONOREPO_LAYOUT.md`](../FOLLOWUP_MONOREPO_LAYOUT.md).
 
 **Documentazione:** [docs/README.md](docs/README.md) (indice) · **Leadership (CTO/CEO):** [docs/executive/README.md](docs/executive/README.md) · **Piano di riferimento unico (visione e wave):** [docs/FOLLOWUP_3_MASTER.md](docs/FOLLOWUP_3_MASTER.md) · **Modello Request/Deal (Wave 4):** [docs/REQUESTS_MODEL.md](docs/REQUESTS_MODEL.md)
 
