@@ -36,7 +36,7 @@ services:
   fe:
     build:
       context: ..
-      dockerfile: followup-3.0/fe-followup-v3/Dockerfile
+      dockerfile: followup-3.0-POC/fe-followup-v3/Dockerfile
       target: dev
     container_name: followup-fe
     restart: unless-stopped

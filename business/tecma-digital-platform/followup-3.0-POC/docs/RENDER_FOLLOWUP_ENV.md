@@ -1,6 +1,8 @@
-# Variabili Render — Followup 3.0 (FE + BE)
+# Variabili Render — Followup 3.0 POC (FE + BE)
 
-Se il messaggio è **«Impossibile raggiungere le API … Failed to fetch»** dal sito statico verso il backend, quasi sempre è **CORS**: il backend non ha tra le origini consentite l’URL del frontend.
+**Attenzione:** sul frontend statico, se **`VITE_API_BASE_URL` non è impostata in fase di build**, il codice usa il default `"/v1"` (vedi `src/api/http.ts`): le richieste vanno al **dominio del sito statico**, non al backend → login e tutte le API risultano rotti. Imposta sempre `VITE_API_BASE_URL=https://followup-3-be.onrender.com/v1` (Build env) e ridistribuisci.
+
+Se il messaggio è **«Impossibile raggiungere le API … Failed to fetch»** dopo aver sistemato l’URL API, controlla **CORS**: il backend deve avere tra le origini consentite l’URL del frontend (`APP_PUBLIC_URL`).
 
 ## Backend (`followup-3-be`)
 

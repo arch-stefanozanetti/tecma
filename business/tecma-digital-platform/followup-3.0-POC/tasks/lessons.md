@@ -1,5 +1,11 @@
 # Lessons (agent / team)
 
+## 2026-04-30 — Render FE «tutto rotto» + Dockerfile che puntava all’altro progetto
+
+- **Sintomo:** app statica 200 ma login/API no: spesso `VITE_API_BASE_URL` mancante al **build** → default `"/v1"` in `fe-followup-v3/src/api/http.ts` fa chiamare il dominio del FE, non il BE.
+- **CORS:** `APP_PUBLIC_URL` sul BE deve includere l’URL del sito statico. Vedi `docs/RENDER_FOLLOWUP_ENV.md`.
+- **Docker:** `fe-followup-v3/Dockerfile` e `docker-compose.yml` usavano path `followup-3.0/fe-followup-v3` (monorepo altro progetto) invece di `followup-3.0-POC/...` — build immagine localmente poteva mixare o fallire. Render static usa `scripts/render-build-fe.sh`, non quel Dockerfile, ma in locale andava corretto.
+
 ## 2026-04-08 — Priorità prodotto solo nel repo Followup
 
 - **Problema:** suggerire Jira/etichette esterne per A/B/C non risponde al bisogno di tracciare e implementare tutto *dentro* `followup-3.0`.

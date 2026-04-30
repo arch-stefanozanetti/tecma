@@ -14,3 +14,18 @@ I servizi collegati al repo **`tecma`** sono configurati (Blueprint / [`render.y
 - Modifiche **solo** in `followup-3.0/` non fanno ripartire il build di quei servizi Render (perché il `buildFilter` non include quel path).
 - Per pubblicare il **nuovo** monorepo servirebbe altrove una pipeline/deploy dedicata (nuovi servizi Render o altro), non “mergiare” nel senso tra i due alberi salvo decisione esplicita.
 
+
+## Render: sintomi «tutto rotto» (solo POC)
+
+Non è (di solito) un conflitto con `followup-3.0/`: i servizi `followup-3-*` buildano dalla POC e dipendono dalle **variabili in Dashboard**.
+
+| Controllo | Dove |
+|-----------|------|
+| **`VITE_API_BASE_URL`** | Servizio **followup-3-fe**, ambiente di **build**: deve essere `https://followup-3-be.onrender.com/v1` (con `/v1`). Senza, il FE chiama `/v1` sul dominio statico → nulla funziona. |
+| **`APP_PUBLIC_URL`** | Servizio **followup-3-be**: deve essere l’URL pubblico del FE (es. `https://followup-3-fe.onrender.com`) per **CORS**. |
+
+Dettaglio: [`followup-3.0-POC/docs/RENDER_FOLLOWUP_ENV.md`](followup-3.0-POC/docs/RENDER_FOLLOWUP_ENV.md).
+
+## Locale (Docker POC)
+
+Il `docker-compose.yml` nella POC e il `Dockerfile` del FE devono riferirsi solo a **`followup-3.0-POC/`** e `design-system/`. Riferimenti a `followup-3.0/fe-followup-v3` mixano l’altro progetto.
