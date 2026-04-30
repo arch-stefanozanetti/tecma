@@ -2,6 +2,8 @@
 
 Nuovo CRM multi-progetto creato da zero.
 
+**Monorepo `tecma`:** questa directory (`followup-3.0-POC`) è il layout **be-followup-v3 / fe-followup-v3** usato da **Render** per `followup-3-be` e `followup-3-fe`. La linea monorepo più recente vive in parallelo in `followup-3.0/`. Ruoli e promozione rilasci: [`FOLLOWUP_MONOREPO_LAYOUT.md`](../FOLLOWUP_MONOREPO_LAYOUT.md).
+
 **Documentazione:** [docs/README.md](docs/README.md) (indice) · **Leadership (CTO/CEO):** [docs/executive/README.md](docs/executive/README.md) · **Piano di riferimento unico (visione e wave):** [docs/FOLLOWUP_3_MASTER.md](docs/FOLLOWUP_3_MASTER.md) · **Modello Request/Deal (Wave 4):** [docs/REQUESTS_MODEL.md](docs/REQUESTS_MODEL.md)
 
 ## Componenti

@@ -4,8 +4,13 @@ on:
   push:
     branches: [main]
     paths:
+      # Dopo merge: Render fa auto-deploy da followup-3.0-POC (vedi render.yaml). Lo smoke deve
+      # partire anche su push che toccano solo la POC, non solo followup-3.0.
       - "business/tecma-digital-platform/followup-3.0/**"
+      - "business/tecma-digital-platform/followup-3.0-POC/**"
       - "render.yaml"
+      - "scripts/render-build-be.sh"
+      - "scripts/render-build-fe.sh"
       - ".github/workflows/followup-3.0-production-verify.yml"
   workflow_dispatch:
 
