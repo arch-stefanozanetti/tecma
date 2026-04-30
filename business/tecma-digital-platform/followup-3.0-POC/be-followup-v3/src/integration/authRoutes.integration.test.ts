@@ -182,6 +182,26 @@ describe("integration: auth HTTP routes", () => {
     expect(res.body.user?.email).toBe(legacyEmail);
   });
 
+  it("POST /auth/login accetta schema nuovo con solo `passwordHash`", async () => {
+    const { getDb } = await import("../config/db.js");
+    const db = getDb();
+    const modernEmail = "modern-password-hash@test.local";
+    await db.collection("tz_users").deleteMany({ email: modernEmail });
+    await db.collection("tz_users").insertOne({
+      email: modernEmail,
+      passwordHash: await bcrypt.hash("ModernPass99", 12),
+      role: "admin",
+      isDisabled: false,
+      status: "active",
+      project_ids: ["proj-auth-modern"]
+    });
+
+    const res = await st().post("/v1/auth/login").send({ email: modernEmail, password: "ModernPass99" });
+    expect(res.status).toBe(200);
+    expect(res.body.accessToken).toBeTruthy();
+    expect(res.body.user?.email).toBe(modernEmail);
+  });
+
   it("POST /auth/refresh rotates session; old refresh invalid", async () => {
     const login = await st()
       .post("/v1/auth/login")

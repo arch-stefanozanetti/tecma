@@ -39,6 +39,7 @@ const LoginInputSchema = z.object({
 type LegacyUserDoc = UserDocForAccessPayload & {
   isDisabled?: boolean;
   password?: string;
+  passwordHash?: string;
   status?: string;
 };
 
@@ -109,8 +110,18 @@ async function findUserDocByIdAcrossCollections(userId: string): Promise<{
 
 function invitedCannotLogin(u: LegacyUserDoc): boolean {
   if (u.status === "invited") return true;
-  if (!u.password) return true;
+  if (!getUserPasswordHash(u)) return true;
   return false;
+}
+
+function getUserPasswordHash(user: LegacyUserDoc): string | null {
+  if (typeof user.passwordHash === "string" && user.passwordHash.trim().length > 0) {
+    return user.passwordHash;
+  }
+  if (typeof user.password === "string" && user.password.trim().length > 0) {
+    return user.password;
+  }
+  return null;
 }
 
 export type AuthRequestMeta = { ipAddress?: string | null; userAgent?: string | null };
@@ -136,7 +147,7 @@ export const loginWithCredentials = async (rawInput: unknown, meta: AuthRequestM
   }
 
   const users = await findLegacyUsersByEmail(email);
-  const loginCandidates = users.filter((u) => !u.isDisabled && !invitedCannotLogin(u) && typeof u.password === "string");
+  const loginCandidates = users.filter((u) => !u.isDisabled && !invitedCannotLogin(u));
 
   const failLogin = async (recordLockout: boolean) => {
     await bcrypt.compare(password, DUMMY_BCRYPT);
@@ -154,8 +165,10 @@ export const loginWithCredentials = async (rawInput: unknown, meta: AuthRequestM
 
   let matchedUser: LegacyUserDoc | null = null;
   for (const candidate of loginCandidates) {
+    const hash = getUserPasswordHash(candidate);
+    if (!hash) continue;
     try {
-      const ok = await bcrypt.compare(password, candidate.password!);
+      const ok = await bcrypt.compare(password, hash);
       if (ok) {
         matchedUser = candidate;
         break;
@@ -395,7 +408,7 @@ export const requestPasswordReset = async (rawInput: unknown, meta: AuthRequestM
   const { email } = RequestResetSchema.parse(rawInput);
   const users = await findLegacyUsersByEmail(email);
   const user =
-    users.find((u) => !u.isDisabled && typeof u.password === "string" && !invitedCannotLogin(u)) ??
+    users.find((u) => !u.isDisabled && !!getUserPasswordHash(u) && !invitedCannotLogin(u)) ??
     users.find((u) => !u.isDisabled) ??
     null;
   await logAuthEvent("password_reset_requested", {
@@ -405,7 +418,7 @@ export const requestPasswordReset = async (rawInput: unknown, meta: AuthRequestM
     userAgent: meta.userAgent,
     success: true
   });
-  if (!user?.password || user.isDisabled || invitedCannotLogin(user)) {
+  if (!user || !getUserPasswordHash(user) || user.isDisabled || invitedCannotLogin(user)) {
     return { ok: true };
   }
   const raw = await createPasswordResetToken(user._id.toHexString(), user.email || email);
