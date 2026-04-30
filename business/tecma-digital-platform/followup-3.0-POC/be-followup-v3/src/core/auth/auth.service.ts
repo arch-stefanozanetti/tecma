@@ -61,18 +61,25 @@ const resolveExistingUserCollections = async (): Promise<string[]> => {
   );
 };
 
-const findLegacyUserByEmail = async (email: string): Promise<LegacyUserDoc | null> => {
+const findLegacyUsersByEmail = async (email: string): Promise<LegacyUserDoc[]> => {
   const db = getDb();
   const collectionNames = await resolveExistingUserCollections();
   const normalized = escapeEmailForRegex(email);
+  const out: LegacyUserDoc[] = [];
+  const seen = new Set<string>();
   for (const collectionName of collectionNames) {
     const users = db.collection<LegacyUserDoc>(collectionName);
-    const doc = await users.findOne({
+    const docs = await users.find({
       email: { $regex: `^${normalized}$`, $options: "i" }
-    });
-    if (doc) return doc;
+    }).toArray();
+    for (const doc of docs) {
+      const docId = doc._id?.toHexString?.();
+      if (!docId || seen.has(docId)) continue;
+      seen.add(docId);
+      out.push(doc);
+    }
   }
-  return null;
+  return out;
 };
 
 const findLegacyUserById = async (userId: string): Promise<LegacyUserDoc | null> => {
@@ -131,11 +138,12 @@ export const loginWithCredentials = async (rawInput: unknown, meta: AuthRequestM
     );
   }
 
-  const user = await findLegacyUserByEmail(email);
+  const users = await findLegacyUsersByEmail(email);
+  const loginCandidates = users.filter((u) => !u.isDisabled && !invitedCannotLogin(u) && typeof u.password === "string");
 
   const failLogin = async (recordLockout: boolean) => {
     await bcrypt.compare(password, DUMMY_BCRYPT);
-    if (recordLockout && user?.password && !user.isDisabled && !invitedCannotLogin(user)) {
+    if (recordLockout) {
       await recordFailedPasswordAttempt(emailLower);
     }
     await logAuthEvent("login_failed", {
@@ -147,16 +155,27 @@ export const loginWithCredentials = async (rawInput: unknown, meta: AuthRequestM
     throw new HttpError("Credenziali non valide", 401);
   };
 
-  if (!user || user.isDisabled || invitedCannotLogin(user)) {
-    await failLogin(false);
-    return null as never;
+  let matchedUser: LegacyUserDoc | null = null;
+  for (const candidate of loginCandidates) {
+    try {
+      const ok = await bcrypt.compare(password, candidate.password!);
+      if (ok) {
+        matchedUser = candidate;
+        break;
+      }
+    } catch (err) {
+      logger.warn(
+        { err, userId: candidate._id?.toHexString?.(), email: candidate.email },
+        "[auth] skipped user candidate with invalid password hash"
+      );
+    }
   }
 
-  const passwordOk = await bcrypt.compare(password, user.password!);
-  if (!passwordOk) {
-    await failLogin(true);
+  if (!matchedUser) {
+    await failLogin(loginCandidates.length > 0);
     return null as never;
   }
+  const user = matchedUser;
 
   await clearLockoutForEmail(emailLower);
 
@@ -311,7 +330,7 @@ export const exchangeSsoJwt = async (rawInput: unknown) => {
   if (!email) {
     throw new HttpError(SSO_GENERIC_401, 401);
   }
-  const user = await findLegacyUserByEmail(email);
+  const user = (await findLegacyUsersByEmail(email)).find((u) => !u.isDisabled) ?? null;
   if (!user || user.isDisabled) {
     throw new HttpError(SSO_GENERIC_401, 401);
   }
@@ -377,7 +396,11 @@ const RequestResetSchema = z.object({
 
 export const requestPasswordReset = async (rawInput: unknown, meta: AuthRequestMeta = {}) => {
   const { email } = RequestResetSchema.parse(rawInput);
-  const user = await findLegacyUserByEmail(email);
+  const users = await findLegacyUsersByEmail(email);
+  const user =
+    users.find((u) => !u.isDisabled && typeof u.password === "string" && !invitedCannotLogin(u)) ??
+    users.find((u) => !u.isDisabled) ??
+    null;
   await logAuthEvent("password_reset_requested", {
     userId: user?._id.toHexString(),
     email: email.toLowerCase(),

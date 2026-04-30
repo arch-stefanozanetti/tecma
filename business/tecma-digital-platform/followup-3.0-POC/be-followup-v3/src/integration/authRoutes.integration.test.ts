@@ -97,6 +97,38 @@ describe("integration: auth HTTP routes", () => {
     expect(res.body.error).toMatch(/credenziali/i);
   });
 
+  it("POST /auth/login usa il record corretto quando la stessa email esiste in collezioni diverse", async () => {
+    const { getDb } = await import("../config/db.js");
+    const db = getDb();
+    const dupEmail = "duplicate-cross-collections@test.local";
+    await db.collection("tz_users").deleteMany({ email: dupEmail });
+    await db.collection("users").deleteMany({ email: dupEmail });
+
+    // Documento "vecchio" in tz_users con password diversa: con findOne singolo può causare 401 falsi.
+    await db.collection("tz_users").insertOne({
+      email: dupEmail,
+      password: await bcrypt.hash("WrongPass99", 12),
+      role: "collaborator",
+      isDisabled: false,
+      status: "active",
+      project_ids: ["proj-auth-dup"]
+    });
+    // Documento valido in users con password corretta.
+    await db.collection("users").insertOne({
+      email: dupEmail,
+      password: await bcrypt.hash("RightPass99", 12),
+      role: "admin",
+      isDisabled: false,
+      status: "active",
+      project_ids: ["proj-auth-dup"]
+    });
+
+    const res = await st().post("/v1/auth/login").send({ email: dupEmail, password: "RightPass99" });
+    expect(res.status).toBe(200);
+    expect(res.body.accessToken).toBeTruthy();
+    expect(res.body.user?.email).toBe(dupEmail);
+  });
+
   it("POST /auth/login authenticates users stored in legacy `users` collection", async () => {
     const { getDb } = await import("../config/db.js");
     const db = getDb();
