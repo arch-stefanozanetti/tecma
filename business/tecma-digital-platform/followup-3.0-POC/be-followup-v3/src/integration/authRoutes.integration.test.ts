@@ -129,6 +129,39 @@ describe("integration: auth HTTP routes", () => {
     expect(res.body.user?.email).toBe(dupEmail);
   });
 
+  it("POST /auth/login usa hash valido anche con stesso _id duplicato tra users/adminUsers", async () => {
+    const { getDb } = await import("../config/db.js");
+    const db = getDb();
+    const dupEmail = "duplicate-same-id@test.local";
+    await db.collection("users").deleteMany({ email: dupEmail });
+    await db.collection("adminUsers").deleteMany({ email: dupEmail });
+
+    const sharedId = new (await import("mongodb")).ObjectId();
+    await db.collection("users").insertOne({
+      _id: sharedId,
+      email: dupEmail,
+      password: await bcrypt.hash("WrongPass99", 12),
+      role: "admin",
+      isDisabled: false,
+      status: "active",
+      project_ids: ["proj-auth-dup2"]
+    });
+    await db.collection("adminUsers").insertOne({
+      _id: sharedId,
+      email: dupEmail,
+      password: await bcrypt.hash("RightPass99", 12),
+      role: "admin",
+      isDisabled: false,
+      status: "active",
+      project_ids: ["proj-auth-dup2"]
+    });
+
+    const res = await st().post("/v1/auth/login").send({ email: dupEmail, password: "RightPass99" });
+    expect(res.status).toBe(200);
+    expect(res.body.accessToken).toBeTruthy();
+    expect(res.body.user?.email).toBe(dupEmail);
+  });
+
   it("POST /auth/login authenticates users stored in legacy `users` collection", async () => {
     const { getDb } = await import("../config/db.js");
     const db = getDb();

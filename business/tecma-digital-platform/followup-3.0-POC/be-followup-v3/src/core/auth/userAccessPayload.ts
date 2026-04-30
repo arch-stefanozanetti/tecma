@@ -120,6 +120,10 @@ export async function buildAccessPayloadFromUserDoc(
 
 export const USER_COLLECTION_CANDIDATES = [
   "tz_users",
+  "adminUsers",
+  "adminusers",
+  "supervisorusers",
+  "supervisorUsers",
   "users",
   "Users",
   "user",

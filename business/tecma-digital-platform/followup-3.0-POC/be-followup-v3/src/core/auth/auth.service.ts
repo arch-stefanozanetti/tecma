@@ -66,16 +66,13 @@ const findLegacyUsersByEmail = async (email: string): Promise<LegacyUserDoc[]> =
   const collectionNames = await resolveExistingUserCollections();
   const normalized = escapeEmailForRegex(email);
   const out: LegacyUserDoc[] = [];
-  const seen = new Set<string>();
   for (const collectionName of collectionNames) {
     const users = db.collection<LegacyUserDoc>(collectionName);
     const docs = await users.find({
       email: { $regex: `^${normalized}$`, $options: "i" }
     }).toArray();
     for (const doc of docs) {
-      const docId = doc._id?.toHexString?.();
-      if (!docId || seen.has(docId)) continue;
-      seen.add(docId);
+      if (!doc?._id?.toHexString?.()) continue;
       out.push(doc);
     }
   }
