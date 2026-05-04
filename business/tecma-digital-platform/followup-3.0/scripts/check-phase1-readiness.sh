@@ -16,21 +16,21 @@ check_file() {
   fi
 }
 
-echo "== Fase 1 readiness check =="
+echo "== Greenfield readiness check =="
 
 check_file ".github/workflows/ci-be.yml"
 check_file ".github/workflows/ci-fe.yml"
-check_file "be-followup-v3/Dockerfile"
-check_file "fe-followup-v3/Dockerfile"
+check_file "services/api/package.json"
+check_file "apps/web/package.json"
 check_file "docker-compose.yml"
-check_file "RUNBOOK_DEPLOY.md"
+check_file "docs/RUNBOOK_DEPLOY.md"
 check_file "CONTRIBUTING.md"
 
-if rg -n "localhost:5060|:5060" load performance >/dev/null 2>&1; then
-  echo "[FAIL] trovati riferimenti a porta :5060 in load/performance"
+if rg -n ":5060|legacy-runtime-path" . >/dev/null 2>&1; then
+  echo "[FAIL] trovati riferimenti legacy non ammessi"
   failures=$((failures + 1))
 else
-  echo "[OK] nessun riferimento a :5060 in load/performance"
+  echo "[OK] nessun riferimento legacy bloccante"
 fi
 
 echo "[INFO] branch protection: verifica manuale da GitHub Settings > Branches"

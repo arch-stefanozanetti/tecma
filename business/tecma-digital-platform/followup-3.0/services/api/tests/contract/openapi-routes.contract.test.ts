@@ -1,0 +1,60 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { parse } from 'yaml';
+import { describe, expect, it } from 'vitest';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const specPath = join(__dirname, '../../openapi/openapi.v1.yaml');
+
+type PathItem = Record<string, unknown>;
+type Operation = {
+  operationId?: string;
+  security?: unknown[];
+  responses?: Record<string, unknown>;
+};
+
+describe('OpenAPI generated spec (contract)', () => {
+  it('is valid YAML 3.x with 35 operations, operationId and standard error responses', () => {
+    const raw = readFileSync(specPath, 'utf8');
+    expect(raw.trimStart().startsWith('openapi:')).toBe(true);
+
+    const doc = parse(raw) as {
+      openapi?: string;
+      paths?: Record<string, PathItem>;
+    };
+
+    expect(doc.openapi ?? '').toMatch(/^3\./);
+    const paths = doc.paths ?? {};
+    const httpMethods = ['get', 'post', 'patch', 'delete'] as const;
+
+    let operationCount = 0;
+    for (const [p, pathItem] of Object.entries(paths)) {
+      for (const m of httpMethods) {
+        const op = pathItem[m] as Operation | undefined;
+        if (op == null) continue;
+        operationCount += 1;
+        expect(op.operationId, `${p} ${m}`).toBeTruthy();
+
+        const responses = op.responses ?? {};
+        const keys = Object.keys(responses);
+        expect(
+          keys.some((k) => k === '200' || k === '201' || k === '204'),
+          `${p} ${m} missing success response`,
+        ).toBe(true);
+        expect(keys, `${p} ${m} missing 500`).toContain('500');
+
+        const isPublic = Array.isArray(op.security) && op.security.length === 0;
+        if (!isPublic) {
+          expect(
+            keys.includes('401') || keys.includes('403'),
+            `${p} ${m} missing 401/403 for protected route`,
+          ).toBe(true);
+        }
+      }
+    }
+
+    expect(operationCount).toBe(35);
+  });
+});

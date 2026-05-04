@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Genera SBOM CycloneDX (JSON) per BE e FE con Trivy (stesso tooling della CI).
+# Genera SBOM CycloneDX (JSON) per API e Web con Trivy (stesso tooling della CI).
 # Prerequisito: https://aquasecurity.github.io/trivy/latest/getting-started/installation/
 set -euo pipefail
 
@@ -13,16 +13,16 @@ if ! command -v trivy >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "== SBOM backend (be-followup-v3) =="
+echo "== SBOM API (services/api) =="
 trivy fs --format cyclonedx \
   --skip-dirs node_modules \
-  --output "${OUT}/sbom-be.cdx.json" \
-  "${ROOT}/be-followup-v3"
+  --output "${OUT}/sbom-api.cdx.json" \
+  "${ROOT}/services/api"
 
-echo "== SBOM frontend (fe-followup-v3) =="
+echo "== SBOM Web (apps/web) =="
 trivy fs --format cyclonedx \
   --skip-dirs node_modules \
-  --output "${OUT}/sbom-fe.cdx.json" \
-  "${ROOT}/fe-followup-v3"
+  --output "${OUT}/sbom-web.cdx.json" \
+  "${ROOT}/apps/web"
 
-echo "OK: ${OUT}/sbom-be.cdx.json ${OUT}/sbom-fe.cdx.json"
+echo "OK: ${OUT}/sbom-api.cdx.json ${OUT}/sbom-web.cdx.json"

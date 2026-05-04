@@ -1,0 +1,106 @@
+@import '@followup/design-tokens/fonts.css';
+@import '@followup/design-tokens/css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 224 20% 26%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 20% 26%;
+    --muted: 220 20% 95%;
+    --muted-foreground: 224 16% 45%;
+    --primary: 238 64% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 20% 91%;
+    --secondary-foreground: 224 20% 26%;
+    --accent: 238 64% 58%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 1 58% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 17% 86%;
+    --input: 220 17% 86%;
+    --ring: 238 64% 58%;
+    --radius-ui: 8px;
+    --radius: var(--radius-ui);
+    --tecma-radius: var(--radius-ui);
+    --radius-chrome: var(--radius-ui);
+    --sidebar: 222 24% 90%;
+    --sidebar-foreground: 224 20% 26%;
+    --sidebar-border: 220 20% 83%;
+    --sidebar-accent: 238 64% 95%;
+    --sidebar-accent-foreground: 238 64% 42%;
+    --app-bg: #f8f8f9;
+    --panel-bg: rgba(255, 255, 255, 0.85);
+    --panel-border: #dbe2ef;
+    --tecma-font-title: 'Lato', 'Segoe UI', sans-serif;
+    --tecma-font-body: 'Lato', 'Segoe UI', sans-serif;
+    --title-font: var(--tecma-font-title);
+    --body-font: var(--tecma-font-body);
+    --scrollbar-thumb: #d3d4da;
+    --scrollbar-thumb-hover: #b0b3bf;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply text-foreground;
+    background: var(--app-bg);
+    font-family: var(--body-font);
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--body-font);
+    letter-spacing: 0;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: var(--radius-ui);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+@layer components {
+  .glass-panel {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    backdrop-filter: blur(10px);
+  }
+}
+
+@layer utilities {
+  .rounded-ui {
+    border-radius: var(--radius-ui);
+  }
+  .rounded-t-ui {
+    border-top-left-radius: var(--radius-ui);
+    border-top-right-radius: var(--radius-ui);
+  }
+  .rounded-b-ui {
+    border-bottom-left-radius: var(--radius-ui);
+    border-bottom-right-radius: var(--radius-ui);
+  }
+  .rounded-chrome {
+    border-radius: var(--radius-ui);
+  }
+}

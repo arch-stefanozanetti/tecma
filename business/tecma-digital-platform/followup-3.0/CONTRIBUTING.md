@@ -1,55 +1,125 @@
-# CONTRIBUTING
+# Contributing — Followup 3.0
 
-## Branching
+## Workflow
 
-- Branch da `main` con prefisso chiaro (`feature/*`, `fix/*`, `chore/*`, `codex/*`).
-- Nessun push diretto su `main`.
-- PR obbligatoria per merge.
+1. Crea branch da `main` con naming obbligatorio (validato in CI da `tools/ci/validate-branch-name.sh`):
+   - `<type>/<TICKET>-<slug>` (es: `feat/FUP3-123-auth-refresh`)
+   - `release/v<major>.<minor>.<patch>` (es: `release/v1.2.0`)
+   - Tipi ammessi: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `security`, `ci`, `build`, `hotfix`
+2. Commit con [Conventional Commits](https://www.conventionalcommits.org/): `<type>(<scope>): <subject>`.
+3. Apri MR verso `main`. Almeno 1 review da CODEOWNERS richiesta.
+4. CI deve essere verde (build, lint, typecheck, test, security, openapi).
+5. Squash merge — niente fast-forward.
 
-## Regola base (deploy)
+```mermaid
+flowchart LR
+  feature[featureBranch] -->|"MR + squash"| main[mainProtected]
+  fix[fixBranch] -->|"MR + squash"| main
+  hotfix[hotfixBranch] -->|"MR + squash"| main
+  main -->|"tag vX.Y.Z"| release[releasePipeline]
+```
 
-Il build che passa in CI è lo stesso che esegue Render. **Non pushare su main (e non fare merge in main) se la CI non è verde:** così il deploy non fallisce per build. La CI esegue gli stessi script di build usati su Render (`scripts/render-build-fe.sh`, `scripts/render-build-be.sh` nella root del repo tecma). File mancanti o step diversi farebbero fallire la CI prima del deploy.
+## Commit format
 
-## Quality gates obbligatori
+`<type>(<scope>): <subject>`
 
-PR mergeabile solo con:
+- `type`: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`, `security`
+- `scope` (kebab-case, obbligatorio): scelto fra l'enum di `commitlint.config.cjs`:
+  - dominio applicativo: `auth`, `rbac`, `users`, `workspaces`, `projects`
+  - layer: `api`, `web`, `db`
+  - design system: `design-ui`, `design-tokens`, `design-themes`, `design-icons`
+  - cross-cutting: `security`, `ci`, `infra`, `docs`
+- `subject`: imperativo, breve, < 100 char.
 
-1. CI BE verde (`ci-be.yml`).
-2. CI FE verde (`ci-fe.yml`).
-3. Nessun check required in stato pending/fail.
+Esempi:
 
-**Security modulare (monorepo `tecma`):** su push/PR che toccano `business/tecma-digital-platform/followup-3.0/**` gira anche [.github/workflows/followup-3.0-security.yml](../../../.github/workflows/followup-3.0-security.yml) (Semgrep, OSV, Trivy, aggregatore JSON, **SBOM CycloneDX** artifact `followup-sbom`, **dashboard HTML** navigabile, upload SARIF su GitHub Code scanning, commento PR). Se il team lo rende **required** in branch protection, aggiungere lo status check del job `Aggregate + gate` (nome workflow: *FollowUp 3.0 Security*). Dettagli: [docs/SECURITY_RUNBOOK.md](docs/SECURITY_RUNBOOK.md) §8–§10; roadmap KPI/enterprise: [docs/plans/2026-03-24-devsecops-enterprise-roadmap.md](docs/plans/2026-03-24-devsecops-enterprise-roadmap.md).
+- `feat(auth): introduce tz_users-only authentication`
+- `fix(rbac): block cross-workspace fallback`
+- `feat(design-ui): add PasswordInput primitive aligned to POC`
+- `chore(ci): tighten branch-name validator regex`
 
-## Checklist PR
+## Merge Request standard
 
-1. Scope e rischio descritti.
-2. Test aggiunti/aggiornati.
-3. Nessun breaking change non documentato.
-4. Aggiornata documentazione se necessario.
+- Usa template MR default (`.gitlab/merge_request_templates/default.md`).
+- Titolo MR obbligatorio in formato conventional:
+  - `<type>(<scope>): <subject>`
+  - esempio: `feat(auth): add refresh token rotation`
+- CI blocca automaticamente branch naming e MR title non conformi.
 
-## Branch protection (GitHub, manuale)
+## Definition of Done (per PR)
 
-Impostare su `main`:
+- [ ] Build verde su GitLab CI.
+- [ ] Coverage non scende sotto la threshold del modulo (≥85% core).
+- [ ] Spectral lint OpenAPI verde.
+- [ ] Semgrep + OSV + Trivy senza issue HIGH/CRITICAL.
+- [ ] ADR scritto se la PR introduce decisione strutturale.
+- [ ] Test acceptance `db-isolation` passa.
+- [ ] Documentazione aggiornata (README modulo + runbook se rilevante).
 
-1. `Require a pull request before merging`.
-2. `Require approvals` (minimo 1).
-3. `Dismiss stale pull request approvals when new commits are pushed`.
-4. `Require status checks to pass before merging`.
-5. Status checks required:
-   - `CI BE Core Strict / be-core-strict`
-   - `CI FE Core Strict / fe-core-strict`
-   - (Opzionale) `FollowUp 3.0 Security / Aggregate + gate` — se abilitato in repo settings, allinea la PR alla pipeline DevSecOps modulare.
-6. `Require branches to be up to date before merging`.
-7. `Restrict who can push to matching branches` (opzionale ma raccomandato).
+## Code style
 
-Nota: la configurazione branch protection non è applicabile da repository locale; va impostata in GitHub repository settings.
+- TypeScript strict mode obbligatorio.
+- ESLint + Prettier auto-applicati via `lint-staged` su pre-commit.
+- Niente `any`. Usa `unknown` + narrowing.
+- Niente `console.log` in production code (warn/error sono ok ma sconsigliati — usa logger).
 
-## Sicurezza repository
+## Vincoli MongoDB
 
-1. Abilitare hook locali una volta per clone: `npm run setup:githooks`.
-2. Verificare sempre `npm run check:secrets` prima di push.
-3. Vietato committare credenziali reali in `.env*`, docs o script.
+- **Mai** importare `mongodb` fuori da `packages/db/`. Bloccato da Semgrep.
+- **Mai** chiamare `client.db('<other_name>')`. Bloccato da Semgrep.
+- Tutte le mutation passano per il repository layer in `packages/db/`.
+- Vedi [ADR 0002](docs/adr/0002-db-write-isolation.md).
 
-## Pre-push opzionale (build deploy)
+## Test
 
-Dopo `npm run setup:githooks`, il hook **pre-push** esegue `npm run deploy:dry-run` (stessa build che usa Render). Consigliato prima di push su branch che andranno in main: se passa in locale, la CI e il deploy Render non falliranno per build. Per saltare il hook in emergenza: `git push --no-verify` (usare con cautela).
+- Unit: Vitest. File `*.test.ts` accanto al sorgente.
+- Integration: Vitest + mongodb-memory-server. File in `services/api/tests/integration/`.
+- E2E: Playwright. File in `apps/web/e2e/`.
+- Security: `tests/security/`.
+- Load: k6 in `tests/load/`.
+
+## Pre-commit
+
+Husky + lint-staged: ESLint + Prettier auto-fix. Commitlint valida il messaggio.
+
+## Pre-push
+
+`pnpm typecheck` su tutto il workspace.
+
+## Local quality gate (prima di aprire MR)
+
+Comandi consigliati prima di pushare:
+
+```bash
+pnpm -w typecheck
+pnpm -w lint
+pnpm -w format:check
+pnpm --filter @followup/api test:integration
+pnpm --filter @followup/web build
+pnpm --filter @followup/design-ui build
+```
+
+## Branch protection (configurazione GitLab)
+
+- `main` protected.
+- Push diretto vietato.
+- MR approval ≥1 da CODEOWNERS.
+- Pipeline must succeed.
+- Fast-forward merge disabilitato.
+- Squash merge obbligatorio.
+- Merge solo se tutti i thread MR sono risolti.
+- Bloccare merge se pipeline è in stato warning/failed.
+- Cancellazione source branch automatica post-merge.
+- Limitare creazione branch protetti a Maintainer.
+
+## Setup remote GitLab (one-shot, quando il progetto remoto sarà disponibile)
+
+Eseguire dalla root del repo:
+
+```bash
+git remote add origin git@gitlab.<host>:<group>/followup-3.0.git
+git push -u origin main
+```
+
+Successivamente abilitare le protezioni di cui sopra in `Settings > Repository > Protected branches` e in `Settings > Merge requests`.
+Riferimento operativo: [docs/runbooks/branch-governance.md](docs/runbooks/branch-governance.md).

@@ -30,6 +30,7 @@ fi
 echo "==> Trivy fs (vuln + misconfig)"
 trivy fs --scanners vuln,misconfig --exit-code 0 --format json \
   --skip-dirs node_modules --skip-dirs "**/node_modules" \
+  --skip-dirs infra \
   -o security-reports/trivy-report.json .
 
 echo "==> Aggregatore"

@@ -1,25 +1,17 @@
 # Workflow FollowUp 3.0
 
-- **Checklist comandi prima del merge** (BE test, FE build, E2E, parità CI): [README.md — Checklist prima del merge](../../README.md#checklist-prima-del-merge) nella root `followup-3.0`.
-- **CI/CD e secret E2E opzionali:** [docs/DOCS_CI_CD.md](../../docs/DOCS_CI_CD.md).
-- **Pipeline attiva (repo tecma):** [.github/workflows/followup-3.0-ci-cd.yml](../../../../.github/workflows/followup-3.0-ci-cd.yml) nella root del monorepo. Gate bloccanti FE/BE su PR verso `main`.
-- **Security modulare (Semgrep + OSV + Trivy + aggregatore + SBOM CycloneDX + dashboard HTML + SARIF):** [.github/workflows/followup-3.0-security.yml](../../../../.github/workflows/followup-3.0-security.yml) (artifact `security-unified-followup3` include `security-dashboard.html`; artifact **`followup-sbom`** con `sbom-be.cdx.json` / `sbom-fe.cdx.json`). Opzionale manuale: [followup-3.0-security-optional.yml](../../../../.github/workflows/followup-3.0-security-optional.yml) (ZAP staging, Trivy su immagine BE). Dettagli: [docs/SECURITY_RUNBOOK.md](../../docs/SECURITY_RUNBOOK.md) §8–§10; roadmap KPI: [docs/plans/2026-03-24-devsecops-enterprise-roadmap.md](../../docs/plans/2026-03-24-devsecops-enterprise-roadmap.md).
-- **Verifica produzione post-merge:** [.github/workflows/followup-3.0-production-verify.yml](../../../../.github/workflows/followup-3.0-production-verify.yml) (smoke BE/FE su Render dopo push su `main`).
+- Checklist comandi prima del merge: [README.md — Checklist prima del merge](../../README.md#checklist-prima-del-merge).
+- CI/CD e gate di sicurezza: [docs/CI_AND_TEST_GATES.md](../../docs/CI_AND_TEST_GATES.md), [docs/SECURITY_RUNBOOK.md](../../docs/SECURITY_RUNBOOK.md).
 
 ## Workflow in questa cartella (`followup-3.0/.github/workflows`)
 
-| File | Scopo |
-|------|--------|
-| `ci-be.yml` | Backend `be-followup-v3`: secret scan, `npm audit --omit=dev --audit-level=high` (**bloccante**), `npm audit --audit-level=high` sull’albero completo (**informativo**, `continue-on-error`), lint, OpenAPI, route-guards, build, coverage core, test integrazione. |
-| `ci-fe.yml` | Frontend `fe-followup-v3`: secret scan, `pnpm audit --prod --audit-level=high` (**bloccante**), `pnpm audit --audit-level=high` completo (**informativo**), check panels/architettura, test, typecheck, build, bundle budget, coverage, E2E, Lighthouse PWA. |
-| `post-release-acceptance.yml` | Accettazione post-release (se configurata). |
+| File                          | Scopo |
+| ----------------------------- | ----- |
+| `ci-be.yml`                   | Quality gate API greenfield (`services/api`): secret scan, lint, typecheck, build, unit test e integration test. |
+| `ci-fe.yml`                   | Quality gate Web greenfield (`apps/web`): secret scan, lint, typecheck, build, unit test ed E2E Playwright. |
+| `post-release-acceptance.yml` | Accettazione post-release manuale su URL BE/FE forniti come input workflow. |
 
-Dettaglio policy audit: [docs/SECURITY_RUNBOOK.md](../../docs/SECURITY_RUNBOOK.md) (§3 e §7). Scope monorepo: [docs/CANONICAL_SCOPE.md](../../docs/CANONICAL_SCOPE.md).
+## Note operative
 
-- **Deploy:** [docs/RENDER_DEPLOY.md](../../docs/RENDER_DEPLOY.md) (Render + `render.yaml`). Il push su `main` attiva il deploy automatico sui servizi collegati.
-
-## Required checks consigliati su `main`
-
-- `FE Quality Gate`
-- `BE Quality Gate`
-- `Aggregate + gate`
+- I workflow locali in questa cartella sono allineati al monorepo canonico (`apps/*`, `services/*`, `packages/*`).
+- Non sono previsti job su path legacy o su repository POC.

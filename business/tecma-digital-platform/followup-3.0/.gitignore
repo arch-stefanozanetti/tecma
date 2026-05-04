@@ -1,8 +1,42 @@
-.worktrees/
-
+node_modules
+.pnpm-store
+dist
+build
+.next
+.turbo
+coverage
+playwright-report
+.DS_Store
+*.log
 .env
 .env.local
 .env.*.local
+!.env.example
+.idea
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
+.husky/_
+*.tsbuildinfo
+security-reports
+.cache
 
-# Report pipeline DevSecOps (generati in CI o in locale)
-security-reports/
+# IDE / agent artifacts
+.cursor/
+.understand-anything/
+
+# Cartelle locali opzionali fuori dallo scope runtime
+/connectors/
+/security-aggregator/
+/performance/
+/load/
+/infra/
+
+# Hook duplicati (il progetto usa Husky in .husky)
+/.githooks/
+
+# Lockfile npm accidentale alla root (monorepo su pnpm)
+/package-lock.json
+
+# Duplicato: la runbook ufficiale è sotto docs/
+/RUNBOOK_DEPLOY.md

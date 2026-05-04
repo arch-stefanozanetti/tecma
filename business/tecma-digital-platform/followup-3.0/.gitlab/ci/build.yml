@@ -1,0 +1,74 @@
+install:deps:
+  stage: install
+  script:
+    - pnpm install --frozen-lockfile
+  artifacts:
+    paths:
+      - node_modules
+      - '**/node_modules'
+    expire_in: 1 hour
+  rules:
+    - changes:
+        - pnpm-lock.yaml
+        - '**/package.json'
+
+build:packages:
+  stage: build
+  needs: ['install:deps']
+  script:
+    - pnpm install --frozen-lockfile --offline
+    - pnpm turbo run build --filter='./packages/*'
+  artifacts:
+    paths:
+      - 'packages/*/dist'
+    expire_in: 1 day
+
+build:api:
+  stage: build
+  needs: ['build:packages']
+  script:
+    - pnpm install --frozen-lockfile --offline
+    - pnpm turbo run build --filter=@followup/api
+  artifacts:
+    paths:
+      - 'services/api/dist'
+    expire_in: 1 day
+
+build:web:
+  stage: build
+  needs: ['build:packages']
+  script:
+    - pnpm install --frozen-lockfile --offline
+    - pnpm turbo run build --filter=@followup/web
+  artifacts:
+    paths:
+      - 'apps/web/dist'
+    expire_in: 1 day
+
+build:docker:api:
+  stage: build
+  needs: ['build:api']
+  image: docker:24
+  services:
+    - docker:24-dind
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    - docker build -f infra/docker/Dockerfile.api -t "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA" .
+    - docker push "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHORT_SHA"
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+build:docker:web:
+  stage: build
+  needs: ['build:web']
+  image: docker:24
+  services:
+    - docker:24-dind
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    - docker build -f infra/docker/Dockerfile.web -t "$CI_REGISTRY_IMAGE/web:$CI_COMMIT_SHORT_SHA" .
+    - docker push "$CI_REGISTRY_IMAGE/web:$CI_COMMIT_SHORT_SHA"
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

@@ -1,5 +1,20 @@
 # Lessons (agent / team)
 
+## 2026-04-30 — Greenfield strict: niente codice legacy in repo attivo
+
+- **Correzione utente:** followup-3.0 deve contenere solo stack greenfield (`apps/web`, `services/api`, `packages/*`) senza copie operative del backend/frontend legacy o cartelle POC spillover.
+- **Pattern:** se emergono directory legacy o riferimenti runtime a vecchi moduli fuori scope, fermarsi e fare pulizia strutturale prima di nuove feature.
+
+## 2026-04-30 — Post-login: /auth/me richiede x-api-key, POST login no
+
+- **Problema:** dopo login OK l’utente non vedeva la pagina workspace perché `GET /auth/me` falliva (senza `VITE_API_KEY`) → `authStatus=fail` → redirect al login.
+- **Pattern:** passare `user` dal body di POST login come `initialProfile` per mostrare subito ProjectAccessPage; se `/auth/me` fallisce solo per api key, non invalidare sessione — banner + istruzioni env.
+
+## 2026-04-30 — Login locale: niente “utenza demo” come default reale
+
+- **Correzione:** non presentare `demo@tecma.test` / password da seed come credenziali di lavoro: sono solo default dello **script di seed** e dei **test Vitest**. In chat e in README va chiarito che il login usa **`tz_users` del Mongo reale** (`MONGO_DB_NAME`).
+- **Pattern:** README + `dev-servers.mdc` + header `seed-dev-user.mjs` esplicitano “utenti reali nel DB”; seed opzionale solo per DB vuoto.
+
 ## 2026-04-30 — `followup-3.0/` vs `followup-3.0-POC/`: due progetti, non “promozione”
 
 - **Correzione:** non descrivere un flusso obbligato “porta la feature da `followup-3.0/` alla POC”. Sono **codebase distinti** nello stesso monorepo; Render punta alla POC per **config dei servizi**, non come destinazione del lavoro sull’altro albero.
@@ -13,8 +28,8 @@
 
 ## 2026-04-08 — Priorità prodotto solo nel repo Followup
 
-- **Problema:** suggerire Jira/etichette esterne per A/B/C non risponde al bisogno di tracciare e implementare tutto *dentro* `followup-3.0`.
-- **Pattern:** stato e checkbox in `tasks/IMPLEMENTATION_TRACKER.md` + link da `docs/plans/`; nessun tool esterno obbligatorio.
+- **Problema:** suggerire Jira/etichette esterne per A/B/C non risponde al bisogno di tracciare e implementare tutto _dentro_ `followup-3.0`.
+- **Pattern:** backlog e stato in issue tracker (GitHub/GitLab) o board del team; link dalla documentazione in `docs/` dove serve tracciabilità.
 
 ## 2026-04-08 — Matching score non costante
 
@@ -24,7 +39,7 @@
 ## 2026-03-21 — Test HTTP Vitest / supertest
 
 - **Problema:** `request(app)` con supertest può causare `ECONNRESET` sotto esecuzione parallela dei file di test.
-- **Pattern:** un solo `app.listen(0, '127.0.0.1')` per suite (`beforeAll` / `afterAll`) e richieste con `request(origin)` — helper `be-followup-v3/src/test/stableHttpServer.ts` (`listenStable`, `closeStable`, `stableRequest`).
+- **Pattern:** un solo `app.listen(0, '127.0.0.1')` per suite (`beforeAll` / `afterAll`) e richieste con `request(origin)` — helper server stabile localizzato nel package API canonico.
 
 ## 2026-03-21 — CI dependency audit
 

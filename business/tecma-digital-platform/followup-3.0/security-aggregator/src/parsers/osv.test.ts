@@ -6,7 +6,7 @@ describe("osvAdapter", () => {
     const raw = {
       results: [
         {
-          source: { path: "be-followup-v3/package-lock.json" },
+          source: { path: "services/api/package.json" },
           packages: [
             {
               package: {

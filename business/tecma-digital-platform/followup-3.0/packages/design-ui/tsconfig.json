@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "jsx": "react-jsx",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "incremental": false
+  },
+  "include": [
+    "src/index.ts",
+    "src/components/Button.tsx",
+    "src/components/Input.tsx",
+    "src/components/PasswordInput.tsx",
+    "src/components/CheckboxWithLabel.tsx",
+    "src/components/LogoTecma.tsx",
+    "src/utils/joinClasses.ts"
+  ],
+  "exclude": ["dist", "node_modules"]
+}

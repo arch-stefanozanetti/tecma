@@ -1,5 +1,71 @@
-# Semgrep — FollowUp 3.0 (monorepo)
-# La CI usa `semgrep scan --config p/ci` (set relativamente contenuto).
-# Aggiungi qui regole custom o `rules:` quando servono controlli dedicati.
+rules:
+  followup-no-untracked-mongo-mutator:
+    languages: [typescript]
+    severity: ERROR
+    message: |
+      Direct calls to MongoDB mutators (insertOne/updateOne/deleteOne/bulkWrite/replaceOne/findOneAndUpdate/findOneAndDelete)
+      are forbidden outside packages/db/. Use the repository abstraction in packages/db that enforces
+      assertWritableDatabase() before any write to test-zanetti.
+    paths:
+      include:
+        - '**/*.ts'
+        - '**/*.tsx'
+      exclude:
+        - 'packages/db/**'
+        - '**/*.test.ts'
+        - '**/*.spec.ts'
+        - '**/node_modules/**'
+        - '**/dist/**'
+    patterns:
+      - pattern-either:
+          - pattern: $COL.insertOne(...)
+          - pattern: $COL.updateOne(...)
+          - pattern: $COL.updateMany(...)
+          - pattern: $COL.deleteOne(...)
+          - pattern: $COL.deleteMany(...)
+          - pattern: $COL.bulkWrite(...)
+          - pattern: $COL.replaceOne(...)
+          - pattern: $COL.findOneAndUpdate(...)
+          - pattern: $COL.findOneAndDelete(...)
+          - pattern: $COL.findOneAndReplace(...)
 
-rules: []
+  followup-no-mongo-import-outside-db:
+    languages: [typescript]
+    severity: ERROR
+    message: |
+      Importing 'mongodb' is allowed only in packages/db. All other code must use the repository
+      abstraction. This protects the test-zanetti write-isolation invariant.
+    paths:
+      include:
+        - '**/*.ts'
+        - '**/*.tsx'
+      exclude:
+        - 'packages/db/**'
+        - '**/*.test.ts'
+        - '**/*.spec.ts'
+        - '**/node_modules/**'
+        - '**/dist/**'
+    patterns:
+      - pattern-either:
+          - pattern: import { ... } from 'mongodb'
+          - pattern: import 'mongodb'
+          - pattern: require('mongodb')
+
+  followup-no-hardcoded-db-name:
+    languages: [typescript]
+    severity: WARNING
+    message: |
+      Hardcoded database names (other than 'test-zanetti' inside packages/db) are forbidden.
+      Use shared-config env loader.
+    paths:
+      include:
+        - '**/*.ts'
+      exclude:
+        - 'packages/db/**'
+        - 'packages/shared-config/**'
+        - '**/*.test.ts'
+        - '**/node_modules/**'
+    patterns:
+      - pattern-either:
+          - pattern: client.db("$NAME")
+          - pattern: $CLIENT.db("$NAME")

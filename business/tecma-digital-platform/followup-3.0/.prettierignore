@@ -1,0 +1,22 @@
+node_modules
+.pnpm-store
+dist
+build
+.next
+.turbo
+coverage
+playwright-report
+.husky/_
+*.tsbuildinfo
+security-reports
+.cache
+
+# Helm chart templates use Go template syntax that prettier cannot parse
+infra/k8s/charts/**/templates/**
+
+# Generated files
+**/*.generated.ts
+**/*.generated.js
+
+# Lockfiles
+pnpm-lock.yaml

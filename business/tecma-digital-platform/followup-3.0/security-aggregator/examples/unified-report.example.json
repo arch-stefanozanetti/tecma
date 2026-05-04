@@ -4,7 +4,7 @@
     {
       "cveId": "GHSA-example-0001",
       "dedupeKey": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "file": "be-followup-v3/package-lock.json",
+      "file": "services/api/package.json",
       "fix": "",
       "message": "Esempio advisory su dipendenza runtime",
       "ruleId": "GHSA-example-0001",

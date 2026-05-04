@@ -1,0 +1,18 @@
+# Core ownership (replace usernames with real GitLab handles)
+* @tecma/followup-core
+
+# Backend/API
+services/api/ @tecma/followup-backend
+packages/db/ @tecma/followup-backend
+packages/shared-config/ @tecma/followup-backend
+packages/shared-rbac/ @tecma/followup-backend
+
+# Frontend
+apps/web/ @tecma/followup-frontend
+packages/ui/ @tecma/followup-frontend
+packages/api-client/ @tecma/followup-frontend
+
+# Security & governance
+.gitlab/ @tecma/followup-platform
+.semgrep.yml @tecma/followup-platform
+tools/ci/ @tecma/followup-platform

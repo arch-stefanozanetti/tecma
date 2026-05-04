@@ -1,0 +1,32 @@
+deploy:dev1:
+  stage: deploy
+  image: alpine/k8s:1.31.0
+  needs:
+    [
+      'build:docker:api',
+      'build:docker:web',
+      'test:unit',
+      'test:integration',
+      'test:security:db-isolation',
+    ]
+  environment:
+    name: dev-1
+    url: https://followup-dev-1.tecmasolutions.com
+  before_script:
+    - mkdir -p ~/.kube && echo "$KUBECONFIG_DEV1" | base64 -d > ~/.kube/config
+  script:
+    - helm upgrade --install followup-api infra/k8s/charts/api
+      --namespace followup-dev1
+      --create-namespace
+      --set image.tag=$CI_COMMIT_SHORT_SHA
+      --values infra/k8s/values/dev1.yaml
+      --wait --timeout=5m
+    - helm upgrade --install followup-web infra/k8s/charts/web
+      --namespace followup-dev1
+      --set image.tag=$CI_COMMIT_SHORT_SHA
+      --values infra/k8s/values/dev1.yaml
+      --wait --timeout=5m
+    - kubectl rollout status deployment/followup-api -n followup-dev1
+    - kubectl rollout status deployment/followup-web -n followup-dev1
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

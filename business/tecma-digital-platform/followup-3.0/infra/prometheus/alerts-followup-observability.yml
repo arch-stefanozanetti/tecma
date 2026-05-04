@@ -12,7 +12,7 @@ groups:
         for: 5m
         labels:
           severity: critical
-          service: be-followup-v3
+          service: followup-api
           slo: availability
         annotations:
           summary: "Followup API fast burn (availability)"
@@ -29,7 +29,7 @@ groups:
         for: 15m
         labels:
           severity: warning
-          service: be-followup-v3
+          service: followup-api
           slo: availability
         annotations:
           summary: "Followup API slow burn (availability)"
@@ -47,7 +47,7 @@ groups:
         for: 15m
         labels:
           severity: critical
-          service: be-followup-v3
+          service: followup-api
           slo: latency
         annotations:
           summary: "Followup API p95 read latency high"
@@ -65,7 +65,7 @@ groups:
         for: 15m
         labels:
           severity: critical
-          service: be-followup-v3
+          service: followup-api
           slo: latency
         annotations:
           summary: "Followup API p95 write latency high"
@@ -78,7 +78,7 @@ groups:
         for: 3m
         labels:
           severity: warning
-          service: be-followup-v3
+          service: followup-api
           slo: telemetry_freshness
         annotations:
           summary: "Followup telemetry pipeline stale"

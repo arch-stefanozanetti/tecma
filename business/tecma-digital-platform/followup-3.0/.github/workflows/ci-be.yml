@@ -1,48 +1,50 @@
-name: CI BE Core Strict
+name: CI API Greenfield
 
 on:
   push:
     paths:
-      - "be-followup-v3/**"
-      - "scripts/check-no-secrets.sh"
-      - ".github/workflows/ci-be.yml"
+      - 'services/api/**'
+      - 'packages/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - 'scripts/check-no-secrets.sh'
+      - '.github/workflows/ci-be.yml'
   pull_request:
     paths:
-      - "be-followup-v3/**"
-      - "scripts/check-no-secrets.sh"
-      - ".github/workflows/ci-be.yml"
+      - 'services/api/**'
+      - 'packages/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - 'scripts/check-no-secrets.sh'
+      - '.github/workflows/ci-be.yml'
 
 jobs:
-  be-core-strict:
+  api-quality:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: be-followup-v3
     steps:
       - uses: actions/checkout@v4
 
       - name: Secret scan (tracked files)
-        working-directory: .
         run: bash scripts/check-no-secrets.sh
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: be-followup-v3/package-lock.json
+          node-version: '22'
+          cache: 'pnpm'
 
-      - run: npm ci
-      - name: npm audit dipendenze runtime (high+, bloccante)
-        run: npm audit --omit=dev --audit-level=high
-      - name: npm audit albero completo dev+prod (informativo)
-        continue-on-error: true
-        run: npm audit --audit-level=high
-      - run: npm run test:lint:core
-      - run: npm run check:openapi
-      - run: npm run check:route-guards
-      - run: npm run check:no-legacy-runtime
-      - run: npm run build
-      - run: npm run test:coverage:core
-      # Vitest include anche i test HTTP su entitlement / workspace list (es. *entitlement*.test.ts, workspaces-*-*.http.test.ts).
-      - name: Integration tests (MongoMemoryServer)
-        run: npm run test:integration
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @followup/api lint
+      - run: pnpm --filter @followup/api typecheck
+      - run: pnpm --filter @followup/api build
+      - run: pnpm --filter @followup/api test
+      - run: pnpm --filter @followup/api test:integration

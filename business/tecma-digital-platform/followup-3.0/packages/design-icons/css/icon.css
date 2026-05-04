@@ -1,0 +1,45 @@
+.tecma-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  flex: none;
+  color: currentColor;
+}
+
+.tecma-icon svg {
+  display: block;
+  height: 100%;
+  width: 100%;
+  max-height: 100%;
+  max-width: 100%;
+}
+
+.tecma-icon--xs {
+  height: 0.75rem;
+  width: 0.75rem;
+}
+.tecma-icon--sm {
+  height: 1rem;
+  width: 1rem;
+}
+.tecma-icon--md {
+  height: 1.25rem;
+  width: 1.25rem;
+}
+.tecma-icon--lg {
+  height: 1.5rem;
+  width: 1.5rem;
+}
+.tecma-icon--xl {
+  height: 2rem;
+  width: 2rem;
+}
+
+.tecma-icon--placeholder {
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #6b6f76);
+  background: var(--color-surface-muted, rgba(0, 0, 0, 0.05));
+  border-radius: 4px;
+}
