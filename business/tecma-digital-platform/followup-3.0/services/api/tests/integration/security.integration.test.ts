@@ -25,6 +25,8 @@ const userBEmail = 'user-b@tecma.test';
 let isolatedProjectId: string;
 let emailScopedProjectId: string;
 let emailScopedWorkspaceId: string;
+let legacyAdminProjectId: string;
+let legacyAdminWorkspaceId: string;
 
 describe('security integration', () => {
   beforeAll(async () => {
@@ -67,6 +69,16 @@ describe('security integration', () => {
       passwordHash: hash,
       status: 'active',
       systemRole: 'tecma_admin',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await users.insertOne({
+      _id: new ObjectId(),
+      email: 'legacy-admin-cross@tecma.test',
+      passwordHash: hash,
+      status: 'active',
+      system_role: 'tecma_admin',
       createdAt: now,
       updatedAt: now,
     });
@@ -117,6 +129,30 @@ describe('security integration', () => {
       workspaceId: emailScopedWorkspaceId,
       userId: 'user-a@tecma.test',
       projectId: emailScopedProjectId,
+      createdAt: now,
+    });
+
+    legacyAdminWorkspaceId = 'ws-legacy-project-access';
+    legacyAdminProjectId = 'proj-legacy-project-access';
+    await app.mongoDb.collection('tz_workspaces').insertOne({
+      _id: legacyAdminWorkspaceId,
+      name: 'Legacy Admin Project WS',
+      owner_user_id: 'other-user',
+      createdAt: now,
+      updatedAt: now,
+    });
+    await app.mongoDb.collection('tz_projects').insertOne({
+      _id: legacyAdminProjectId,
+      workspaceId: legacyAdminWorkspaceId,
+      name: 'Legacy Admin Project',
+      code: 'LAP',
+      createdAt: now,
+      updatedAt: now,
+    });
+    await app.mongoDb.collection('tz_workspace_projects').insertOne({
+      _id: randomUUID(),
+      workspaceId: legacyAdminWorkspaceId,
+      projectId: legacyAdminProjectId,
       createdAt: now,
     });
   });
@@ -176,6 +212,25 @@ describe('security integration', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().data.code).toBe('ISO');
+  });
+
+  it('legacy system_role tecma_admin lists workspace projects without membership row', async () => {
+    const login = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/login',
+      payload: { email: 'legacy-admin-cross@tecma.test', password: 'Password123!' },
+    });
+    expect(login.statusCode).toBe(200);
+    const token = login.json().data.accessToken as string;
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/v1/projects?workspaceId=${legacyAdminWorkspaceId}`,
+      headers: authHeaders(token),
+    });
+    expect(res.statusCode).toBe(200);
+    const ids = (res.json().data as Array<{ _id: string }>).map((p) => p._id);
+    expect(ids).toContain(legacyAdminProjectId);
   });
 
   it('GET user by id omits passwordHash', async () => {

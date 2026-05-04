@@ -35,6 +35,17 @@ describe('auth integration', () => {
       createdAt: now,
       updatedAt: now,
     });
+
+    await users.insertOne({
+      _id: new ObjectId(),
+      email: 'legacy-admin@tecma.test',
+      passwordHash,
+      status: 'active',
+      system_role: 'tecma_admin',
+      isTecmaAdmin: true,
+      createdAt: now,
+      updatedAt: now,
+    });
   });
 
   afterAll(async () => {
@@ -49,6 +60,16 @@ describe('auth integration', () => {
     });
     expect(response.statusCode).toBe(401);
     expect(response.json().error?.code).toBe('Unauthorized');
+  });
+
+  it('explains that GET /auth/login is not the login endpoint', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/v1/auth/login',
+    });
+    expect(response.statusCode).toBe(405);
+    expect(response.headers.allow).toBe('POST');
+    expect(response.json().error?.code).toBe('MethodNotAllowed');
   });
 
   it('returns 401 on invalid credentials', async () => {
@@ -80,6 +101,45 @@ describe('auth integration', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json().data.user.email).toBe('demo@tecma.test');
+  });
+
+  it('normalizes legacy system_role=tecma_admin into canonical SuperAdmin JWT claims', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/login',
+      payload: { email: 'legacy-admin@tecma.test', password: 'Password123!' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json().data;
+    expect(body.user.systemRole).toBe('tecma_admin');
+    expect(body.user.isTecmaAdmin).toBe(true);
+    expect(body.user.permissions).toEqual(['*']);
+
+    const decoded = app.jwt.decode(body.accessToken) as {
+      systemRole?: string;
+      isTecmaAdmin?: boolean;
+      permissions?: string[];
+    };
+    expect(decoded.systemRole).toBe('tecma_admin');
+    expect(decoded.isTecmaAdmin).toBe(true);
+    expect(decoded.permissions).toEqual(['*']);
+
+    const me = await app.inject({
+      method: 'GET',
+      url: '/v1/auth/me',
+      headers: {
+        'x-api-key': '1234567890123456',
+        authorization: `Bearer ${body.accessToken}`,
+      },
+    });
+    expect(me.statusCode).toBe(200);
+    expect(me.json().data).toMatchObject({
+      email: 'legacy-admin@tecma.test',
+      systemRole: 'tecma_admin',
+      isTecmaAdmin: true,
+      permissions: ['*'],
+    });
   });
 
   it('returns 401 for invited user', async () => {
@@ -129,5 +189,16 @@ describe('auth integration', () => {
       payload: { refreshToken },
     });
     expect(refreshAfterLogout.statusCode).toBe(401);
+  });
+
+  it('returns 503 for SSO exchange when JWKS is not configured', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/sso-exchange',
+      headers: { 'x-api-key': '1234567890123456' },
+      payload: { token: 'valid-length-token' },
+    });
+    expect(response.statusCode).toBe(503);
+    expect(response.json().error?.code).toBe('SsoNotConfigured');
   });
 });

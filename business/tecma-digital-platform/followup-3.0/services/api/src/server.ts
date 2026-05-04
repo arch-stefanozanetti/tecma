@@ -13,6 +13,7 @@ import { loadEnv, type AppConfig } from '@followup/shared-config';
 import './types.js';
 import { initSentry, installRequestContextHooks } from './infra/observability.js';
 import { AuditService } from './modules/auditService.js';
+import { createMailPort } from './modules/mail/createMailPort.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { projectsRoutes } from './modules/projects/routes.js';
 import { usersRoutes } from './modules/users/routes.js';
@@ -84,6 +85,15 @@ export const buildServer = async () => {
 
     app.decorate('mongoDb', db);
     app.decorate('auditService', new AuditService(app));
+    app.decorate(
+      'mail',
+      createMailPort({
+        nodeEnv: config.NODE_ENV,
+        log: (_msg, meta) => {
+          appLogger.debug(meta as Record<string, unknown>);
+        },
+      }),
+    );
 
     app.addHook('onClose', async () => {
       await mongo.close();
@@ -107,6 +117,7 @@ export const buildServer = async () => {
     app.decorate('auditService', {
       authEvent: async () => undefined,
     } as unknown as AuditService);
+    app.decorate('mail', createMailPort({ nodeEnv: 'test' }));
   }
 
   await app.register(securityPlugin);

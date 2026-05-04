@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/button';
 import { CheckboxWithLabel } from '../../components/ui/checkbox';
 import { Input } from '../../components/ui/input';
 import { PasswordInput } from '../../components/ui/password-input';
+import { persistLoginProfile } from '../../lib/authSession';
 import { http } from '../../lib/http';
 
 const FORGOT_CREDENTIALS_URL = import.meta.env.VITE_FORGOT_CREDENTIALS_URL ?? '#';
@@ -133,6 +134,16 @@ export const LoginPage = ({ onSuccess }: LoginPageProps) => {
         setError(LOGIN_SHAPE_HINT);
         return;
       }
+      const u = payload.user;
+      if (u?.id == null || typeof u.email !== 'string') {
+        setError('Risposta login incompleta (profilo utente).');
+        return;
+      }
+      const profile = {
+        id: u.id,
+        email: u.email,
+        systemRole: u.systemRole ?? 'user',
+      };
       if (typeof window !== 'undefined') {
         window.sessionStorage.setItem('followup.auth.accessToken', payload.accessToken);
         window.sessionStorage.setItem('followup.auth.refreshToken', payload.refreshToken);
@@ -144,6 +155,7 @@ export const LoginPage = ({ onSuccess }: LoginPageProps) => {
         );
         window.sessionStorage.removeItem('followup.apiEnvironment');
         window.sessionStorage.removeItem('followup.workspaceId');
+        persistLoginProfile(profile);
         if (rememberCredentials) {
           try {
             window.localStorage.setItem(STORAGE_EMAIL, normalizedEmail);
@@ -158,16 +170,7 @@ export const LoginPage = ({ onSuccess }: LoginPageProps) => {
           }
         }
       }
-      const u = payload.user;
-      if (u?.id == null || typeof u.email !== 'string') {
-        setError('Risposta login incompleta (profilo utente).');
-        return;
-      }
-      onSuccess(payload.accessToken, {
-        id: u.id,
-        email: u.email,
-        systemRole: u.systemRole ?? 'user',
-      });
+      onSuccess(payload.accessToken, profile);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Credenziali non valide.');
     } finally {

@@ -1,11 +1,8 @@
-import { isTecmaPlatformAdmin } from '@followup/shared-rbac';
+import { isTecmaPlatformAdmin, normalizeSystemRole } from '@followup/shared-rbac';
 
 import type { FastifyInstance } from 'fastify';
 
-import {
-  expandForStringOrObjectIdIn,
-  normalizeToStringId,
-} from '../../lib/mongoIdentity.js';
+import { expandForStringOrObjectIdIn, normalizeToStringId } from '../../lib/mongoIdentity.js';
 import { resolveUserIdentityCandidates } from '../../lib/userIdentity.js';
 
 /** Utente JWT minimo per filtrare i workspace per membership. */
@@ -13,6 +10,7 @@ export type WorkspaceListUser = {
   sub: string;
   email: string;
   systemRole?: string;
+  system_role?: string;
 };
 
 /**
@@ -26,7 +24,7 @@ export async function listWorkspacesForRequester(
 ): Promise<unknown[]> {
   const coll = app.mongoDb.collection('tz_workspaces');
 
-  if (isTecmaPlatformAdmin(user.systemRole)) {
+  if (isTecmaPlatformAdmin(normalizeSystemRole(user))) {
     return coll.find({}).toArray();
   }
 

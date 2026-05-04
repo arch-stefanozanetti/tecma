@@ -20,6 +20,7 @@ import {
   Users,
 } from 'lucide-react';
 
+import { clearFollowupAuthSession } from '../lib/authSession';
 import logotipoTecma from '../assets/logotipoTecma.svg?url';
 import { LogoTecma } from '../components/LogoTecma';
 import { Checkbox } from '../components/ui/checkbox';
@@ -686,13 +687,7 @@ export const PageTemplate = ({ accessToken, children }: PageTemplateProps) => {
     e.stopPropagation();
     const refreshToken = window.sessionStorage.getItem('followup.auth.refreshToken');
     const clear = () => {
-      window.sessionStorage.removeItem('followup.auth.accessToken');
-      window.sessionStorage.removeItem('followup.auth.refreshToken');
-      window.sessionStorage.removeItem('followup3.accessToken');
-      window.sessionStorage.removeItem('followup3.lastEmail');
-      window.sessionStorage.removeItem('followup3.isAdmin');
-      window.sessionStorage.removeItem('followup.projectScope');
-      window.sessionStorage.removeItem('followup3.projectsCache');
+      clearFollowupAuthSession();
       window.location.reload();
     };
     if (refreshToken != null && refreshToken.length > 0) {
@@ -877,7 +872,7 @@ export const PageTemplate = ({ accessToken, children }: PageTemplateProps) => {
                       type="button"
                       onClick={() => {
                         setUserMenuOpen(false);
-                        window.sessionStorage.removeItem('followup.auth.accessToken');
+                        clearFollowupAuthSession();
                         window.location.reload();
                       }}
                       className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted"

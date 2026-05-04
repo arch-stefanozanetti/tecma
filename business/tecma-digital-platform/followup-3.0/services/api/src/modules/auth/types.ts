@@ -1,6 +1,6 @@
 export type UserStatus = 'active' | 'disabled' | 'invited';
 
-export type SystemRole = 'tecma_admin' | 'tecma_superadmin' | 'user';
+export type SystemRole = 'tecma_admin' | 'user';
 
 /** Documento `tz_users` — unico modello supportato dall’auth. */
 export interface AuthUser {
@@ -8,7 +8,9 @@ export interface AuthUser {
   email: string;
   passwordHash: string;
   status: UserStatus;
-  systemRole: SystemRole;
+  systemRole?: SystemRole;
+  system_role?: SystemRole | 'tecma_superadmin' | 'tecma_super_admin' | null;
+  isTecmaAdmin?: boolean;
   createdAt: string;
   updatedAt: string;
 }

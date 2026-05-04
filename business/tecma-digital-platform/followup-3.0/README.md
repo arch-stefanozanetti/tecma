@@ -1,96 +1,114 @@
 # Followup 3.0
 
-CRM multi-progetto Tecma. Rebuild production-ready del POC `followup-3.0-POC`.
+Followup 3.0 is the production-ready Tecma CRM monorepo. This repository replaces the older local structures and is the only project that should be published for Followup 3.0.
 
-## Quick start (dev locale)
+## Source Of Truth
 
 ```bash
-# 1. Prerequisiti: Node 22 LTS, pnpm 9, Docker
-nvm use
-corepack enable && corepack prepare pnpm@9.15.9 --activate
+cd /Users/s.zanetti/dev/tecma/business/tecma-digital-platform/followup-3.0
+git rev-parse --show-toplevel
+git remote -v
+```
 
-# 2. Install dipendenze
+Expected repository root:
+
+```text
+/Users/s.zanetti/dev/tecma/business/tecma-digital-platform/followup-3.0
+```
+
+Expected remote:
+
+```text
+origin  https://gitlab.tecmasolutions.com/business/followup-3.0.git
+```
+
+Do not work from `/Users/s.zanetti/dev/tecma` for Followup 3.0 delivery. The sibling `followup-3.0-POC` project is reference-only: inspect behavior there, then implement production-grade code here.
+
+## Quick Start
+
+Prerequisites: Node 22 LTS, pnpm 9, Docker Desktop.
+
+```bash
+nvm use
+corepack enable
+corepack prepare pnpm@9.15.9 --activate
 pnpm install
 
-# 3. Avvia infrastruttura locale (Mongo + Redis)
-docker compose up -d
-
-# 4. Copia env
 cp services/api/.env.example services/api/.env.local
 cp apps/web/.env.example apps/web/.env.local
 
-# 5. Avvio dev
+docker compose up -d
 pnpm dev
 ```
 
-- API: http://localhost:8080
-- Web: http://localhost:5177
+Local endpoints:
+
+- API: `http://localhost:8080`
+- Web: `http://localhost:5177`
 - Health: `curl http://localhost:8080/v1/health`
 
-**Login:** usa **email e password di un utente reale** già in MongoDB, collection **`tz_users`**, sul database configurato in `MONGO_DB_NAME` (deve coincidere con quello a cui punta l’API). Non esiste una “utenza di progetto” fissa: sono le credenziali del **tuo** cluster/DB.
+Login uses real credentials from MongoDB collection `tz_users` on the database configured by `MONGO_DB_NAME`. For an empty local database only, `pnpm --filter @followup/api seed:dev-user` creates a test user.
 
-Lo script opzionale `pnpm --filter @followup/api seed:dev-user` serve solo per **DB locale vuoto** o smoke test: crea un utente **fittizio** (default come nei test automatici). Su DB già popolato **non serve** e non sostituisce gli account reali.
+## Daily Commands
 
-## Struttura del monorepo
-
-```
-followup-3.0/
-├── apps/web/                # Frontend React (Vite + Tailwind)
-├── services/api/            # Backend Fastify
-├── packages/
-│   ├── db/                  # MongoClient + assertWritableDatabase + repositories
-│   ├── shared-config/       # Env loader Zod-validated (boot kill-switch)
-│   ├── shared-rbac/         # Permission catalog + roles + canAccess pure functions
-│   ├── shared-types/        # Type contracts FE↔BE
-│   ├── logger/              # Pino + redaction
-│   ├── api-client/          # Tipizzato auto da OpenAPI (FE)
-│   ├── design-tokens/       # Token DS + CSS variabili/font
-│   ├── design-icons/        # Libreria icone DS
-│   ├── design-ui/           # Primitive UI DS (React)
-│   ├── design-themes/       # Layer temi DS (auth, ecc.)
-│   └── ui/                  # Componenti UI legacy condivisi
-├── infra/
-│   ├── docker/              # Dockerfile multi-stage api/web
-│   ├── k8s/charts/          # Helm chart api/web per OKE
-│   ├── oci/                 # External Secrets Operator + OCI Vault refs
-│   └── aws-api-gateway/     # Sync OpenAPI verso repo aws-api-gateway
-├── tests/
-│   ├── e2e/                 # Playwright cross-app
-│   ├── load/                # k6
-│   └── security/            # db-isolation acceptance + custom tests
-├── tools/scripts/           # Sync OpenAPI + utility
-├── .gitlab/ci/              # Template CI inclusi da .gitlab-ci.yml
-└── docs/
-    ├── adr/                 # Architecture Decision Records
-    ├── runbooks/            # Incident playbook + DBA tickets
-    └── openapi/             # Mirror della spec generata
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm test:integration
+pnpm lint:openapi
 ```
 
-## Vincoli non negoziabili
+Useful targeted checks:
 
-> **CRITICAL: Si scrive SOLO su MongoDB `test-zanetti`.** Tutti gli altri DB del cluster `dev-1` sono read-only assoluti. Vedi [ADR 0002](docs/adr/0002-db-write-isolation.md).
+```bash
+pnpm --filter @followup/api test
+pnpm --filter @followup/api test:integration
+pnpm --filter @followup/web test
+pnpm --filter @followup/web test:e2e
+pnpm run security:hardening
+```
 
-- API REST only (no GraphQL/WebSocket bidirectional).
-- OpenAPI 3.0.1 obbligatoria su ogni endpoint (compatibile AWS API Gateway).
-- Auth via Bearer JWT + `x-api-key` (eccetto `/health`).
-- Coverage core ≥85% statements / ≥80% branches.
-- Mutation score Stryker ≥70% sui domini auth + rbac + workspace + project.
+## Repository Layout
 
-## CI/CD
+```text
+apps/web/                 React/Vite frontend
+services/api/             Fastify API
+packages/db/              MongoDB client and repositories
+packages/shared-config/   Validated environment loading
+packages/shared-rbac/     Role and permission rules
+packages/shared-types/    Shared API/domain contracts
+packages/api-client/      Typed API client
+packages/design-*         Design tokens, icons, themes, primitives
+infra/                    Docker, Kubernetes, AWS API Gateway support
+architecture/             Curated OpenAPI domain governance
+load/                     Load and stress scripts
+performance/              Performance smoke scripts
+security-aggregator/      Security report aggregation support
+tests/                    Cross-package security/e2e tests
+tools/                    Utility scripts
+docs/                     Onboarding, gates, runbooks, scope
+```
 
-- **GitLab CI** con stages `install → lint → test → security → build → deploy`.
-- Pipeline definite in [`.gitlab-ci.yml`](./.gitlab-ci.yml) e template [`.gitlab/ci/*.yml`](./.gitlab/ci/).
-- Deploy: `dev-1` automatico, `demo` + `prod` manual approval.
+Generated artifacts such as `node_modules`, `dist`, `coverage`, `.turbo`, `.env*`, `*.tsbuildinfo`, `playwright-report`, and `security-reports` must stay out of git.
 
-## Documentazione
+## Quality Bar
 
-- Architecture Decision Records: [`docs/adr/`](docs/adr/)
-- Runbook operativi: [`docs/runbooks/`](docs/runbooks/)
-- Branch governance: [`docs/runbooks/branch-governance.md`](docs/runbooks/branch-governance.md)
-- Design system governance: [`docs/runbooks/design-system-governance.md`](docs/runbooks/design-system-governance.md)
-- OpenAPI: [`services/api/openapi/openapi.v1.yaml`](services/api/openapi/openapi.v1.yaml)
-- Test runbook: [`docs/runbooks/testing.md`](docs/runbooks/testing.md)
+- Minimum 85% statements, functions, and lines for touched production modules.
+- Target 90% for auth, RBAC, workspace scoping, permissions, and data isolation.
+- Public API changes require OpenAPI updates and `pnpm lint:openapi`.
+- Backend changes need unit or integration coverage for validation, permissions, and workspace isolation.
+- Frontend changes need component/page tests for user flows and permission states.
+
+## Documentation
+
+- [Onboarding](docs/ONBOARDING.md)
+- [Canonical scope](docs/CANONICAL_SCOPE.md)
+- [CI and test gates](docs/CI_AND_TEST_GATES.md)
+- [Deploy runbook](docs/RUNBOOK_DEPLOY.md)
+- [Security runbook](docs/SECURITY_RUNBOOK.md)
+- [OpenAPI contract](services/api/openapi/openapi.v1.yaml)
 
 ## Contributing
 
-Vedi [CONTRIBUTING.md](./CONTRIBUTING.md). Conventional commits + branch protection + MR review obbligatoria.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Keep the baseline clean: one coherent branch and commit per productionized feature after the standalone baseline.

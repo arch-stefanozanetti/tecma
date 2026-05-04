@@ -3,7 +3,7 @@
 ## Avvio locale
 
 ```bash
-cp .env.example .env
+cp services/api/.env.example services/api/.env.local
 # Impostare MONGO_URI, MONGO_DB_NAME, AUTH_JWT_SECRET, INTERNAL_API_KEY (≥16 caratteri)
 pnpm --filter @followup/api dev
 ```
@@ -32,7 +32,8 @@ Tutte le route protette richiedono header **`x-api-key`** uguale a `INTERNAL_API
 
 ## Documentazione correlata
 
-- Gap vs adapter POC: `docs/api/BACKEND_POC_API_GAP.md`
-- Sicurezza / ADR: `docs/adr/0001-auth-api-security.md`
-- Observability: `docs/OBSERVABILITY.md`
+- Onboarding repo: `docs/ONBOARDING.md`
+- Scope canonico: `docs/CANONICAL_SCOPE.md`
+- CI e test gate: `docs/CI_AND_TEST_GATES.md`
 - Deploy / rollback: `docs/RUNBOOK_DEPLOY.md`
+- Security: `docs/SECURITY_RUNBOOK.md`

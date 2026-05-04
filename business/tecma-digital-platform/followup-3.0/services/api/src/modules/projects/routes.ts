@@ -3,11 +3,14 @@ import crypto from 'node:crypto';
 import { z } from 'zod';
 
 import { MongoRepository } from '@followup/db';
-import { isTecmaPlatformAdmin } from '@followup/shared-rbac';
+import { isTecmaPlatformAdmin, normalizeSystemRole } from '@followup/shared-rbac';
 
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 
-import { buildUserWorkspaceMembershipFilter } from '../../lib/mongoIdentity.js';
+import {
+  buildUserWorkspaceMembershipFilter,
+} from '../../lib/mongoIdentity.js';
+import { listAccessibleProjectIdsForUser } from '../../lib/projectAccess.js';
 import { isSelfIdentity, resolveUserIdentityCandidates } from '../../lib/userIdentity.js';
 import { singlePagePaginationInfo } from '../../lib/pagination.js';
 import { fetchProjectsForWorkspaceScopedList } from './fetchProjectsForWorkspaceScopedList.js';
@@ -39,7 +42,13 @@ const projectsByEmailBodySchema = z.object({
   workspaceId: z.string().min(1).optional(),
 });
 
-type JwtUser = { sub: string; email: string; systemRole?: string; permissions?: string[] };
+type JwtUser = {
+  sub: string;
+  email: string;
+  systemRole?: string;
+  system_role?: string;
+  permissions?: string[];
+};
 
 const getJwtUser = (request: FastifyRequest): JwtUser => request.user as JwtUser;
 
@@ -58,12 +67,25 @@ export const projectsRoutes = async (app: FastifyInstance): Promise<void> => {
     {
       preHandler: [app.authenticate, app.requirePermission('projects.read')],
       schema: {
-        ...listSchema('listProjects', 'Projects', 'Elenco progetti'),
+        ...listSchema(
+          'listProjects',
+          'Projects',
+          'Elenco progetti',
+          'Senza `workspaceId`: Tecma SuperAdmin vede tutti i progetti; gli altri utenti solo progetti accessibili (assegnazioni, membership workspace, grant `tz_project_access`). Con `workspaceId` richiede membership nel workspace (salvo Tecma); elenco include assegnazioni, fallback progetti del workspace e progetti concessi in grant verso quel workspace. `userId` consente a Tecma SuperAdmin di filtrare per un altro utente.',
+        ),
         querystring: {
           type: 'object',
           properties: {
-            workspaceId: { type: 'string' },
-            userId: { type: 'string' },
+            workspaceId: {
+              type: 'string',
+              description:
+                'Workspace per cui elencare i progetti visibili all’utente o all’utente indicato da admin.',
+            },
+            userId: {
+              type: 'string',
+              description:
+                'Solo Tecma SuperAdmin; ObjectId o email dell’utente di cui elencare i progetti nel workspace.',
+            },
           },
         },
       },
@@ -74,16 +96,16 @@ export const projectsRoutes = async (app: FastifyInstance): Promise<void> => {
 
       if (query.workspaceId) {
         const requestedUserId = query.userId?.trim();
-        const isAdmin = isTecmaPlatformAdmin(user.systemRole);
+        const isAdmin = isTecmaPlatformAdmin(normalizeSystemRole(user));
 
         if (!isAdmin && requestedUserId != null && !isSelfIdentity(user, requestedUserId)) {
-            return reply.status(403).send({
-              error: {
-                code: 'Forbidden',
-                message: 'Cannot list projects for another user',
-                status: 403,
-              },
-            });
+          return reply.status(403).send({
+            error: {
+              code: 'Forbidden',
+              message: 'Cannot list projects for another user',
+              status: 403,
+            },
+          });
         }
 
         const identityList = await resolveUserIdentityCandidates(
@@ -92,6 +114,23 @@ export const projectsRoutes = async (app: FastifyInstance): Promise<void> => {
             ? [requestedUserId]
             : [user.sub, user.email, requestedUserId],
         );
+
+        if (!isAdmin) {
+          const membership = await app.mongoDb
+            .collection('tz_user_workspaces')
+            .findOne(
+              buildUserWorkspaceMembershipFilter(query.workspaceId, identityList) as any,
+            );
+          if (membership == null) {
+            return reply.status(403).send({
+              error: {
+                code: 'Forbidden',
+                message: 'No access to this workspace',
+                status: 403,
+              },
+            });
+          }
+        }
 
         const data = await fetchProjectsForWorkspaceScopedList(
           {
@@ -109,7 +148,17 @@ export const projectsRoutes = async (app: FastifyInstance): Promise<void> => {
         return reply.send({ data, paginationInfo: singlePagePaginationInfo(data.length) });
       }
 
-      const data = await projectsRepo.findMany({});
+      if (isTecmaPlatformAdmin(normalizeSystemRole(user))) {
+        const data = await projectsRepo.findMany({});
+        return reply.send({ data, paginationInfo: singlePagePaginationInfo(data.length) });
+      }
+
+      const identityList = await resolveUserIdentityCandidates(app, [user.sub, user.email]);
+      const ids = await listAccessibleProjectIdsForUser(app, identityList);
+      if (ids.length === 0) {
+        return reply.send({ data: [], paginationInfo: singlePagePaginationInfo(0) });
+      }
+      const data = await projectsRepo.findMany({ _id: { $in: ids } as any });
       return reply.send({ data, paginationInfo: singlePagePaginationInfo(data.length) });
     },
   );
@@ -117,7 +166,7 @@ export const projectsRoutes = async (app: FastifyInstance): Promise<void> => {
   app.post(
     '/v1/projects',
     {
-      preHandler: [app.authenticate, app.requirePermission('projects.write')],
+      preHandler: [app.authenticate, app.requirePermission('projects.read')],
       schema: {
         ...createdObjectSchema('createProject', 'Projects', 'Crea progetto'),
         body: {
@@ -135,14 +184,21 @@ export const projectsRoutes = async (app: FastifyInstance): Promise<void> => {
       const payload = createProjectSchema.parse(request.body);
       const user = getJwtUser(request);
 
-      if (!isTecmaPlatformAdmin(user.systemRole)) {
+      if (!isTecmaPlatformAdmin(normalizeSystemRole(user))) {
         const identities = await resolveUserIdentityCandidates(app, [user.sub, user.email]);
         const membership = await app.mongoDb
           .collection('tz_user_workspaces')
           .findOne(buildUserWorkspaceMembershipFilter(payload.workspaceId, identities) as any);
-        if (membership == null) {
+        if (
+          membership == null ||
+          !['owner', 'admin'].includes(String((membership as { role?: string }).role ?? ''))
+        ) {
           return reply.status(403).send({
-            error: { code: 'Forbidden', message: 'No access to this workspace', status: 403 },
+            error: {
+              code: 'Forbidden',
+              message: 'Workspace owner or admin role required to create projects',
+              status: 403,
+            },
           });
         }
       }
@@ -166,6 +222,14 @@ export const projectsRoutes = async (app: FastifyInstance): Promise<void> => {
         createdAt: now,
       });
 
+      if (isTecmaPlatformAdmin(normalizeSystemRole(user))) {
+        await app.auditService.authEvent({
+          eventType: 'projects.create.tecma_admin',
+          userId: user.sub,
+          details: { workspaceId: payload.workspaceId, projectId: doc._id },
+        });
+      }
+
       return reply.status(201).send({ data: doc });
     },
   );
@@ -173,11 +237,7 @@ export const projectsRoutes = async (app: FastifyInstance): Promise<void> => {
   app.get(
     '/v1/projects/:projectId',
     {
-      preHandler: [
-        app.authenticate,
-        app.requirePermission('projects.read'),
-        app.requireCanAccessProject(),
-      ],
+      preHandler: [app.authenticate, app.requireCanAccessProject('read')],
       schema: {
         ...singleObjectSchema('getProjectById', 'Projects', 'Dettaglio progetto'),
         params: {
@@ -202,11 +262,7 @@ export const projectsRoutes = async (app: FastifyInstance): Promise<void> => {
   app.patch(
     '/v1/projects/:projectId',
     {
-      preHandler: [
-        app.authenticate,
-        app.requirePermission('projects.write'),
-        app.requireCanAccessProject(),
-      ],
+      preHandler: [app.authenticate, app.requireCanAccessProject('write')],
       schema: {
         ...singleObjectSchema('patchProject', 'Projects', 'Aggiorna progetto'),
         params: {
@@ -226,10 +282,18 @@ export const projectsRoutes = async (app: FastifyInstance): Promise<void> => {
     async (request, reply) => {
       const params = request.params as { projectId: string };
       const payload = updateProjectSchema.parse(request.body);
+      const user = getJwtUser(request);
       await projectsRepo.updateOne(
         { _id: params.projectId },
         { $set: { ...payload, updatedAt: new Date().toISOString() } },
       );
+      if (isTecmaPlatformAdmin(normalizeSystemRole(user))) {
+        await app.auditService.authEvent({
+          eventType: 'projects.update.tecma_admin',
+          userId: user.sub,
+          details: { projectId: params.projectId, patch: payload },
+        });
+      }
       const project = await projectsRepo.findOne({ _id: params.projectId });
       return reply.send({ data: project });
     },
@@ -238,11 +302,7 @@ export const projectsRoutes = async (app: FastifyInstance): Promise<void> => {
   app.delete(
     '/v1/projects/:projectId',
     {
-      preHandler: [
-        app.authenticate,
-        app.requirePermission('projects.admin'),
-        app.requireCanAccessProject(),
-      ],
+      preHandler: [app.authenticate, app.requireCanAccessProject('admin')],
       schema: {
         ...okDeletedSchema('deleteProject', 'Projects', 'Elimina progetto'),
         params: {
@@ -254,9 +314,17 @@ export const projectsRoutes = async (app: FastifyInstance): Promise<void> => {
     },
     async (request, reply) => {
       const params = request.params as { projectId: string };
+      const user = getJwtUser(request);
       await projectsRepo.deleteOne({ _id: params.projectId });
       await workspaceProjectsRepo.deleteOne({ projectId: params.projectId });
       await workspaceUserProjectsRepo.deleteOne({ projectId: params.projectId });
+      if (isTecmaPlatformAdmin(normalizeSystemRole(user))) {
+        await app.auditService.authEvent({
+          eventType: 'projects.delete.tecma_admin',
+          userId: user.sub,
+          details: { projectId: params.projectId },
+        });
+      }
       return reply.send({ data: { deleted: true } });
     },
   );
@@ -264,11 +332,7 @@ export const projectsRoutes = async (app: FastifyInstance): Promise<void> => {
   app.get(
     '/v1/projects/:projectId/access',
     {
-      preHandler: [
-        app.authenticate,
-        app.requirePermission('projects.read'),
-        app.requireCanAccessProject(),
-      ],
+      preHandler: [app.authenticate, app.requireCanAccessProject('read')],
       schema: {
         ...listSchema('listProjectAccessGrants', 'Projects', 'Grant access progetto'),
         params: {
@@ -291,11 +355,7 @@ export const projectsRoutes = async (app: FastifyInstance): Promise<void> => {
   app.post(
     '/v1/projects/:projectId/access',
     {
-      preHandler: [
-        app.authenticate,
-        app.requirePermission('projects.admin'),
-        app.requireCanAccessProject(),
-      ],
+      preHandler: [app.authenticate, app.requireCanAccessProject('admin')],
       schema: {
         ...createdObjectSchema('createProjectAccessGrant', 'Projects', 'Crea grant access'),
         params: {
@@ -331,11 +391,7 @@ export const projectsRoutes = async (app: FastifyInstance): Promise<void> => {
   app.delete(
     '/v1/projects/:projectId/access/:grantId',
     {
-      preHandler: [
-        app.authenticate,
-        app.requirePermission('projects.admin'),
-        app.requireCanAccessProject(),
-      ],
+      preHandler: [app.authenticate, app.requireCanAccessProject('admin')],
       schema: {
         ...okDeletedSchema('deleteProjectAccessGrant', 'Projects', 'Revoca grant access'),
         params: {
@@ -378,7 +434,7 @@ export const projectsRoutes = async (app: FastifyInstance): Promise<void> => {
       if (body.email != null && body.email.trim().length > 0) {
         const normalized = body.email.trim().toLowerCase();
         if (normalized !== user.email.toLowerCase()) {
-          if (!isTecmaPlatformAdmin(user.systemRole)) {
+          if (!isTecmaPlatformAdmin(normalizeSystemRole(user))) {
             return reply.status(403).send({
               error: {
                 code: 'Forbidden',

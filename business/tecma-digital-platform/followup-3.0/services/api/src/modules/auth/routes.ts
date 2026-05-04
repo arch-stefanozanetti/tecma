@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { normalizeSystemRole } from '@followup/shared-rbac';
 
 import type { FastifyInstance } from 'fastify';
 
@@ -176,6 +177,8 @@ export const authRoutes = async (app: FastifyInstance): Promise<void> => {
                   id: { type: 'string' },
                   email: { type: 'string' },
                   systemRole: { type: 'string' },
+                  isTecmaAdmin: { type: 'boolean' },
+                  permissions: { type: 'array', items: { type: 'string' } },
                 },
               },
             },
@@ -187,12 +190,22 @@ export const authRoutes = async (app: FastifyInstance): Promise<void> => {
       },
     },
     async (request, reply) => {
-      const user = request.user as { sub: string; email: string; systemRole?: string };
+      const user = request.user as {
+        sub: string;
+        email: string;
+        systemRole?: string;
+        system_role?: string;
+        isTecmaAdmin?: boolean;
+        permissions?: string[];
+      };
+      const systemRole = normalizeSystemRole(user) ?? 'user';
       return reply.send({
         data: {
           id: user.sub,
           email: user.email,
-          systemRole: user.systemRole ?? 'user',
+          systemRole,
+          isTecmaAdmin: user.isTecmaAdmin === true || systemRole === 'tecma_admin',
+          permissions: user.permissions ?? [],
         },
       });
     },

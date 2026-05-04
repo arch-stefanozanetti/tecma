@@ -24,11 +24,14 @@ Questo documento definisce i gate attivi sul monorepo canonico (`apps/*`, `servi
 
 - `pnpm run security:hardening`
 
-## Workflow locali in repo
+## Pipeline in repo
 
-- `.github/workflows/ci-be.yml` — quality gate API greenfield
-- `.github/workflows/ci-fe.yml` — quality gate Web greenfield + E2E
-- `.github/workflows/post-release-acceptance.yml` — verifica manuale post-release
+- `.gitlab-ci.yml` — entrypoint pipeline GitLab
+- `.gitlab/ci/governance.yml` — branch, MR e commit governance
+- `.gitlab/ci/test.yml` — lint, typecheck, test e integration test
+- `.gitlab/ci/security.yml` — hardening security
+- `.gitlab/ci/openapi.yml` — lint contratti OpenAPI
+- `.gitlab/ci/build.yml` e `.gitlab/ci/deploy-*.yml` — build e deploy ambienti
 
 ## Definition of done
 

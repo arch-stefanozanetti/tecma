@@ -5,9 +5,13 @@ import { ProjectAccessPage } from './ProjectAccessPage';
 
 const httpMock = vi.fn();
 
-vi.mock('../../lib/http', () => ({
-  http: (...args: unknown[]) => httpMock(...args),
-}));
+vi.mock('../../lib/http', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...(actual as Record<string, unknown>),
+    http: (...args: unknown[]) => httpMock(...args),
+  };
+});
 
 describe('ProjectAccessPage', () => {
   beforeEach(() => {
@@ -81,6 +85,55 @@ describe('ProjectAccessPage', () => {
       expect(screen.getByRole('heading', { name: /Seleziona workspace e progetti/i })).toBeInTheDocument();
     });
     expect(screen.queryByText(/Reindirizzamento al login/i)).not.toBeInTheDocument();
+  });
+
+  it('Tecma SuperAdmin: carica GET /projects senza workspaceId (elenco globale)', async () => {
+    window.sessionStorage.setItem('followup.workspaceId', '');
+    const calls: string[] = [];
+    httpMock.mockImplementation((path: string) => {
+      calls.push(path);
+      if (path === '/auth/me') {
+        return Promise.resolve({
+          data: { id: 'admin-id', email: 'admin@tecma.test', systemRole: 'tecma_admin' },
+        });
+      }
+      if (path === '/workspaces') {
+        return Promise.resolve({ data: [{ _id: 'ws-1', name: 'WS' }] });
+      }
+      if (path === '/projects') {
+        return Promise.resolve({
+          data: [
+            { _id: 'p1', name: 'P1', displayName: 'P1', mode: 'sell' },
+            { _id: 'p2', name: 'P2', displayName: 'P2', mode: 'rent' },
+          ],
+        });
+      }
+      if (path === '/session/preferences') {
+        return Promise.resolve({ data: { projectIds: [] } });
+      }
+      return Promise.resolve({ data: [] });
+    });
+
+    render(
+      <ProjectAccessPage
+        accessToken="access-token"
+        initialProfile={{
+          id: 'admin-id',
+          email: 'admin@tecma.test',
+          systemRole: 'tecma_admin',
+        }}
+        onContinue={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(calls).toContain('/projects');
+    });
+    expect(calls.some((c) => c.startsWith('/projects?workspaceId='))).toBe(false);
+    await waitFor(() => {
+      expect(screen.getByText('P1')).toBeInTheDocument();
+    });
+    expect(screen.getByText('P2')).toBeInTheDocument();
   });
 
   it('interpreta /auth/me anche senza wrapper data (nessun banner di profilo incompleto)', async () => {

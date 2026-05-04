@@ -1,8 +1,11 @@
 import crypto from 'node:crypto';
 
 import { z } from 'zod';
+import bcrypt from 'bcryptjs';
+import { ObjectId } from 'mongodb';
 
 import { MongoRepository } from '@followup/db';
+import { isTecmaPlatformAdmin, normalizeSystemRole } from '@followup/shared-rbac';
 
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 
@@ -38,7 +41,15 @@ const addMemberProjectBodySchema = z.object({
   projectId: z.string().min(1),
 });
 
+const workspaceInviteSchema = z.object({
+  email: z.string().email(),
+  fullName: z.string().min(2),
+  role: z.enum(['owner', 'admin', 'collaborator', 'viewer']).default('viewer'),
+  projectIds: z.array(z.string().min(1)).max(100).optional(),
+});
+
 export const workspacesRoutes = async (app: FastifyInstance): Promise<void> => {
+  const usersRepo = new MongoRepository<any>(app.mongoDb.collection('tz_users'));
   const workspacesRepo = new MongoRepository<any>(app.mongoDb.collection('tz_workspaces'));
   const membersRepo = new MongoRepository<any>(app.mongoDb.collection('tz_user_workspaces'));
   const workspaceProjectsRepo = new MongoRepository<any>(
@@ -52,13 +63,19 @@ export const workspacesRoutes = async (app: FastifyInstance): Promise<void> => {
     '/v1/workspaces',
     {
       preHandler: [app.authenticate, app.requirePermission('workspaces.read')],
-      schema: listSchema('listWorkspaces', 'Workspaces', 'Elenco workspace'),
+      schema: listSchema(
+        'listWorkspaces',
+        'Workspaces',
+        'Elenco workspace',
+        'Elenco workspace visibili al chiamante. Per Tecma SuperAdmin restituisce tutti i record in `tz_workspaces`; per gli altri utenti solo i workspace con membership risolta da sub/email/ObjectId.',
+      ),
     },
     async (request: FastifyRequest, reply) => {
       const data = await listWorkspacesForRequester(app, {
         sub: (request.user as { sub: string }).sub,
         email: (request.user as { email: string }).email,
         systemRole: (request.user as { systemRole?: string }).systemRole,
+        system_role: (request.user as { system_role?: string }).system_role,
       });
       return reply.send({ data, paginationInfo: singlePagePaginationInfo(data.length) });
     },
@@ -94,6 +111,11 @@ export const workspacesRoutes = async (app: FastifyInstance): Promise<void> => {
       };
 
       await workspacesRepo.create(doc);
+      await app.auditService.authEvent({
+        eventType: 'workspaces.create',
+        userId: (request.user as { sub?: string } | undefined)?.sub ?? 'system',
+        details: { workspaceId: doc._id, isTecmaAdmin: true },
+      });
       return reply.status(201).send({ data: doc });
     },
   );
@@ -150,10 +172,18 @@ export const workspacesRoutes = async (app: FastifyInstance): Promise<void> => {
     async (request, reply) => {
       const params = request.params as { workspaceId: string };
       const payload = updateWorkspaceSchema.parse(request.body);
+      const actor = request.user as { sub?: string; systemRole?: string; system_role?: string };
       await workspacesRepo.updateOne(
         { _id: params.workspaceId },
         { $set: { ...payload, updatedAt: new Date().toISOString() } },
       );
+      if (isTecmaPlatformAdmin(normalizeSystemRole(actor))) {
+        await app.auditService.authEvent({
+          eventType: 'workspaces.update.tecma_admin',
+          userId: actor.sub ?? 'system',
+          details: { workspaceId: params.workspaceId, patch: payload },
+        });
+      }
       const workspace = await workspacesRepo.findOne({ _id: params.workspaceId });
       return reply.send({ data: workspace });
     },
@@ -179,6 +209,11 @@ export const workspacesRoutes = async (app: FastifyInstance): Promise<void> => {
     async (request, reply) => {
       const params = request.params as { workspaceId: string };
       await workspacesRepo.deleteOne({ _id: params.workspaceId });
+      await app.auditService.authEvent({
+        eventType: 'workspaces.delete',
+        userId: (request.user as { sub?: string } | undefined)?.sub ?? 'system',
+        details: { workspaceId: params.workspaceId },
+      });
       return reply.send({ data: { deleted: true } });
     },
   );
@@ -186,11 +221,7 @@ export const workspacesRoutes = async (app: FastifyInstance): Promise<void> => {
   app.get(
     '/v1/workspaces/:workspaceId/members',
     {
-      preHandler: [
-        app.authenticate,
-        app.requirePermission('users.read'),
-        app.requireCanAccessWorkspace(),
-      ],
+      preHandler: [app.authenticate, app.requireCanAccessWorkspace()],
       schema: {
         ...listSchema('listWorkspaceMembers', 'Workspaces', 'Membri workspace'),
         params: {
@@ -213,11 +244,7 @@ export const workspacesRoutes = async (app: FastifyInstance): Promise<void> => {
   app.post(
     '/v1/workspaces/:workspaceId/members',
     {
-      preHandler: [
-        app.authenticate,
-        app.requirePermission('users.write'),
-        app.requireCanAccessWorkspace(),
-      ],
+      preHandler: [app.authenticate, app.requireWorkspaceAdminOrOwner()],
       schema: {
         ...createdObjectSchema('addWorkspaceMember', 'Workspaces', 'Aggiungi membro'),
         params: {
@@ -255,11 +282,7 @@ export const workspacesRoutes = async (app: FastifyInstance): Promise<void> => {
   app.patch(
     '/v1/workspaces/:workspaceId/members/:userId',
     {
-      preHandler: [
-        app.authenticate,
-        app.requirePermission('users.write'),
-        app.requireCanAccessWorkspace(),
-      ],
+      preHandler: [app.authenticate, app.requireWorkspaceAdminOrOwner()],
       schema: {
         ...singleObjectSchema('patchWorkspaceMember', 'Workspaces', 'Aggiorna ruolo membro'),
         params: {
@@ -297,11 +320,7 @@ export const workspacesRoutes = async (app: FastifyInstance): Promise<void> => {
   app.delete(
     '/v1/workspaces/:workspaceId/members/:userId',
     {
-      preHandler: [
-        app.authenticate,
-        app.requirePermission('users.write'),
-        app.requireCanAccessWorkspace(),
-      ],
+      preHandler: [app.authenticate, app.requireWorkspaceAdminOrOwner()],
       schema: {
         ...okDeletedSchema('removeWorkspaceMember', 'Workspaces', 'Rimuovi membro'),
         params: {
@@ -324,11 +343,7 @@ export const workspacesRoutes = async (app: FastifyInstance): Promise<void> => {
   app.get(
     '/v1/workspaces/:workspaceId/members/:userId/projects',
     {
-      preHandler: [
-        app.authenticate,
-        app.requirePermission('users.read'),
-        app.requireCanAccessWorkspace(),
-      ],
+      preHandler: [app.authenticate, app.requireCanAccessWorkspace()],
       schema: {
         ...listSchema(
           'listMemberProjectAssignments',
@@ -361,11 +376,7 @@ export const workspacesRoutes = async (app: FastifyInstance): Promise<void> => {
   app.post(
     '/v1/workspaces/:workspaceId/members/:userId/projects',
     {
-      preHandler: [
-        app.authenticate,
-        app.requirePermission('users.write'),
-        app.requireCanAccessWorkspace(),
-      ],
+      preHandler: [app.authenticate, app.requireWorkspaceAdminOrOwner()],
       schema: {
         ...createdObjectSchema(
           'addMemberProjectAssignment',
@@ -450,11 +461,7 @@ export const workspacesRoutes = async (app: FastifyInstance): Promise<void> => {
   app.delete(
     '/v1/workspaces/:workspaceId/members/:userId/projects/:projectId',
     {
-      preHandler: [
-        app.authenticate,
-        app.requirePermission('users.write'),
-        app.requireCanAccessWorkspace(),
-      ],
+      preHandler: [app.authenticate, app.requireWorkspaceAdminOrOwner()],
       schema: {
         ...okDeletedSchema(
           'removeMemberProjectAssignment',
@@ -493,6 +500,162 @@ export const workspacesRoutes = async (app: FastifyInstance): Promise<void> => {
         });
       }
       return reply.send({ data: { deleted: true } });
+    },
+  );
+
+  app.post(
+    '/v1/workspaces/:workspaceId/invitations',
+    {
+      preHandler: [app.authenticate, app.requireWorkspaceAdminOrOwner()],
+      schema: {
+        ...createdObjectSchema(
+          'createWorkspaceInvitation',
+          'Workspaces',
+          'Invito utente nel workspace (opz. progetti) + notifica mail',
+        ),
+        params: {
+          type: 'object',
+          required: ['workspaceId'],
+          properties: { workspaceId: { type: 'string' } },
+        },
+        body: {
+          type: 'object',
+          required: ['email', 'fullName'],
+          properties: {
+            email: { type: 'string', format: 'email' },
+            fullName: { type: 'string', minLength: 2 },
+            role: { type: 'string', enum: ['owner', 'admin', 'collaborator', 'viewer'] },
+            projectIds: { type: 'array', items: { type: 'string' } },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { workspaceId: string };
+      const payload = workspaceInviteSchema.parse(request.body);
+      const actor = request.user as { sub?: string };
+      const wsId = params.workspaceId;
+      const emailLower = payload.email.trim().toLowerCase();
+
+      const existingUser = await usersRepo.findOne({ email: emailLower } as any);
+      let targetUserId: string;
+
+      if (existingUser != null) {
+        targetUserId = (existingUser as { _id: ObjectId })._id.toString();
+      } else {
+        const now = new Date().toISOString();
+        const randomSecret = crypto.randomBytes(32).toString('base64url');
+        const passwordHash = await bcrypt.hash(randomSecret, 12);
+        const doc = {
+          _id: new ObjectId(),
+          email: emailLower,
+          fullName: payload.fullName,
+          passwordHash,
+          systemRole: 'user',
+          role: payload.role,
+          status: 'invited' as const,
+          createdAt: now,
+          updatedAt: now,
+        };
+        await usersRepo.create(doc);
+        targetUserId = doc._id.toString();
+      }
+
+      const dup = await membersRepo.findOne({ workspaceId: wsId, userId: targetUserId });
+      if (dup != null) {
+        return reply.status(409).send({
+          error: {
+            code: 'WorkspaceMemberExists',
+            message: 'User is already a member of this workspace',
+            status: 409,
+          },
+        });
+      }
+
+      const now = new Date().toISOString();
+      await membersRepo.create({
+        _id: crypto.randomUUID(),
+        workspaceId: wsId,
+        userId: targetUserId,
+        role: payload.role,
+        access_scope: 'workspace',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      if (payload.projectIds != null) {
+        for (const projectId of payload.projectIds) {
+          const link = await workspaceProjectsRepo.findOne({ workspaceId: wsId, projectId });
+          if (link == null) {
+            return reply.status(400).send({
+              error: {
+                code: 'ProjectNotInWorkspace',
+                message: `Project ${projectId} is not associated with this workspace`,
+                status: 400,
+              },
+            });
+          }
+          const row = await workspaceUserProjectsRepo.findOne({
+            workspaceId: wsId,
+            userId: targetUserId,
+            projectId,
+          });
+          if (row == null) {
+            await workspaceUserProjectsRepo.create({
+              _id: crypto.randomUUID(),
+              workspaceId: wsId,
+              userId: targetUserId,
+              projectId,
+              createdAt: now,
+            });
+          }
+        }
+      }
+
+      await app.auditService.authEvent({
+        eventType: 'workspaces.invitation.created',
+        userId: actor.sub ?? 'system',
+        details: { workspaceId: wsId, invitedEmail: emailLower, projectIds: payload.projectIds },
+      });
+
+      await app.mail.sendMail({
+        to: emailLower,
+        subject: 'Invito workspace Followup',
+        text: `Sei stato invitato nel workspace (${wsId}). Accedi all’app per completare l’accesso.`,
+      });
+
+      return reply.status(201).send({
+        data: { userId: targetUserId, workspaceId: wsId, email: emailLower },
+      });
+    },
+  );
+
+  app.get(
+    '/v1/workspaces/:workspaceId/clients',
+    {
+      preHandler: [app.authenticate, app.requireCanAccessWorkspace()],
+      schema: {
+        ...listSchema('listWorkspaceClients', 'Workspaces', 'Clienti collegati al workspace (scaffolding)'),
+        params: {
+          type: 'object',
+          required: ['workspaceId'],
+          properties: { workspaceId: { type: 'string' } },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { workspaceId: string };
+      const wf = { workspaceId: params.workspaceId };
+      const rows = await app.mongoDb
+        .collection('tz_clients')
+        .find({
+          $or: [{ workspaceId: wf.workspaceId }, { workspace_id: wf.workspaceId }],
+        } as any)
+        .toArray();
+      return reply.send({
+        data: rows,
+        paginationInfo: singlePagePaginationInfo(rows.length),
+      });
     },
   );
 };

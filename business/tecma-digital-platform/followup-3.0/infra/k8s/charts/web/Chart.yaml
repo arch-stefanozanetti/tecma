@@ -1,0 +1,6 @@
+apiVersion: v2
+name: followup-web
+description: Followup 3.0 Web chart
+type: application
+version: 0.1.0
+appVersion: '0.1.0'

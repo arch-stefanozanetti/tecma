@@ -45,6 +45,27 @@ describe('CORS (localhost dev)', () => {
     expect(response.headers['access-control-allow-credentials']).toBe('true');
   });
 
+  it('OPTIONS preflight consente x-api-key (browser :5177 → API :8080)', async () => {
+    const origin = 'http://localhost:5177';
+    const response = await app.inject({
+      method: 'OPTIONS',
+      url: '/v1/auth/me',
+      headers: {
+        origin,
+        'access-control-request-method': 'GET',
+        'access-control-request-headers': 'authorization,x-api-key,content-type',
+      },
+    });
+
+    expect(response.statusCode).toBe(204);
+    const allowHeaders = String(
+      response.headers['access-control-allow-headers'] ??
+        response.headers['Access-Control-Allow-Headers'] ??
+        '',
+    ).toLowerCase();
+    expect(allowHeaders).toContain('x-api-key');
+  });
+
   it('POST login riflette Origin localhost con credenziali invalide (401, non 5xx)', async () => {
     const origin = 'http://localhost:5179';
     const response = await app.inject({

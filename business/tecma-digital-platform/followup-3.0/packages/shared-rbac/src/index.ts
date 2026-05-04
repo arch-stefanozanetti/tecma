@@ -38,20 +38,33 @@ export const hasAnyPermission = (
   required: readonly Permission[],
 ): boolean => required.some((permission) => hasPermission(permissions, permission));
 
+export const TECMA_PLATFORM_ADMIN_ROLE = 'tecma_admin' as const;
+
 /** Ruoli salvati in `tz_users.systemRole` / JWT che equivalgono a “platform admin” Tecma. */
 const PLATFORM_ADMIN_ROLES = new Set([
-  'tecma_admin',
+  TECMA_PLATFORM_ADMIN_ROLE,
   'tecma_superadmin',
   'tecma_super_admin',
 ]);
+
+export type SystemRoleCarrier = {
+  systemRole?: string | null;
+  system_role?: string | null;
+};
+
+export const normalizeSystemRole = (input?: string | null | SystemRoleCarrier): string | null => {
+  const raw =
+    input != null && typeof input === 'object' ? (input.systemRole ?? input.system_role) : input;
+  if (typeof raw !== 'string') return null;
+  const role = raw.trim().toLowerCase();
+  if (role === '') return null;
+  if (PLATFORM_ADMIN_ROLES.has(role)) return TECMA_PLATFORM_ADMIN_ROLE;
+  return role;
+};
 
 /**
  * True se l’utente è amministratore di piattaforma Tecma (lista workspace completa, bypass membership, ecc.).
  * Accetta alias oltre a `tecma_admin` perché in DB legacy / BSS compaiono valori come `tecma_superadmin`.
  */
-export const isTecmaPlatformAdmin = (systemRole?: string | null): boolean => {
-  if (systemRole == null) return false;
-  const r = systemRole.trim().toLowerCase();
-  if (r === '') return false;
-  return PLATFORM_ADMIN_ROLES.has(r);
-};
+export const isTecmaPlatformAdmin = (systemRole?: string | null | SystemRoleCarrier): boolean =>
+  normalizeSystemRole(systemRole) === TECMA_PLATFORM_ADMIN_ROLE;

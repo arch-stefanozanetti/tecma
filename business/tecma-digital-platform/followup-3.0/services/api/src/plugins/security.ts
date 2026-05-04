@@ -59,6 +59,8 @@ export const securityPlugin = fp(async (app: FastifyInstance) => {
       callback(new Error('Not allowed by CORS'), false);
     },
     credentials: true,
+    /** Obbligatorio se il frontend chiama l’API su un’origine diversa (es. :5177 → :8080): senza questo il browser non invia `x-api-key` dopo il preflight. */
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'X-Api-Key'],
   });
 
   if (!shouldSkipGlobalRateLimit(app.config)) {

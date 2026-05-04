@@ -12,6 +12,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev --parallel",
+    "dev:web+api": "turbo run dev --filter=@followup/web --filter=@followup/api",
     "lint": "turbo run lint",
     "lint:openapi": "spectral lint services/api/openapi/openapi.v1.yaml --ruleset .spectral.yaml",
     "lint:openapi:domains": "spectral lint architecture/aws-api-gateway/domains/auth/v1/openapi.yaml architecture/aws-api-gateway/domains/platform/v1/openapi.yaml --ruleset architecture/aws-api-gateway/.spectral.yaml",

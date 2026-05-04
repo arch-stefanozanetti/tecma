@@ -16,7 +16,8 @@
     "test:integration": "vitest run --coverage",
     "openapi:generate": "OPENAPI_GENERATE=1 tsx src/docs/generateOpenApi.ts",
     "migrate:tz-users": "node ./scripts/migrate-tz-users.mjs",
-    "migrate:tz-collections": "node ./scripts/migrate-tz-collections.mjs"
+    "migrate:tz-collections": "node ./scripts/migrate-tz-collections.mjs",
+    "sync:tecma-admin-role": "node ./scripts/sync-tecma-admin-system-role.mjs"
   },
   "dependencies": {
     "@fastify/aws-lambda": "^6.4.0",

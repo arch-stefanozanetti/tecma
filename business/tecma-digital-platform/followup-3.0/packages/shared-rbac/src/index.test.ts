@@ -4,8 +4,10 @@ import {
   hasAnyPermission,
   hasPermission,
   isTecmaPlatformAdmin,
+  normalizeSystemRole,
   PERMISSIONS,
   ROLE_PERMISSIONS,
+  TECMA_PLATFORM_ADMIN_ROLE,
 } from './index';
 
 describe('workspace role permissions', () => {
@@ -37,10 +39,10 @@ describe('permission helpers', () => {
 
   it('checks any required permission', () => {
     expect(
-      hasAnyPermission([PERMISSIONS.PROJECTS_WRITE], [
-        PERMISSIONS.USERS_READ,
-        PERMISSIONS.PROJECTS_WRITE,
-      ]),
+      hasAnyPermission(
+        [PERMISSIONS.PROJECTS_WRITE],
+        [PERMISSIONS.USERS_READ, PERMISSIONS.PROJECTS_WRITE],
+      ),
     ).toBe(true);
     expect(hasAnyPermission([PERMISSIONS.PROJECTS_READ], [PERMISSIONS.USERS_WRITE])).toBe(false);
   });
@@ -61,5 +63,26 @@ describe('isTecmaPlatformAdmin', () => {
     expect(isTecmaPlatformAdmin('')).toBe(false);
     expect(isTecmaPlatformAdmin(null)).toBe(false);
     expect(isTecmaPlatformAdmin(undefined)).toBe(false);
+  });
+});
+
+describe('normalizeSystemRole', () => {
+  it('normalizza alias platform admin al valore canonico tecma_admin', () => {
+    expect(normalizeSystemRole('tecma_admin')).toBe(TECMA_PLATFORM_ADMIN_ROLE);
+    expect(normalizeSystemRole(' tecma_superadmin ')).toBe(TECMA_PLATFORM_ADMIN_ROLE);
+    expect(normalizeSystemRole('Tecma_Super_Admin')).toBe(TECMA_PLATFORM_ADMIN_ROLE);
+  });
+
+  it('legge systemRole camelCase prima di system_role legacy', () => {
+    expect(normalizeSystemRole({ systemRole: 'tecma_admin', system_role: 'user' })).toBe(
+      TECMA_PLATFORM_ADMIN_ROLE,
+    );
+    expect(normalizeSystemRole({ system_role: 'tecma_admin' })).toBe(TECMA_PLATFORM_ADMIN_ROLE);
+  });
+
+  it('mantiene ruoli non platform e normalizza vuoti a null', () => {
+    expect(normalizeSystemRole(' User ')).toBe('user');
+    expect(normalizeSystemRole('')).toBeNull();
+    expect(normalizeSystemRole(null)).toBeNull();
   });
 });

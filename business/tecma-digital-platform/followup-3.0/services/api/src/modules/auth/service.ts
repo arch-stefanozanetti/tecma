@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { ObjectId } from 'mongodb';
 
 import { MongoRepository } from '@followup/db';
+import { isTecmaPlatformAdmin, normalizeSystemRole, PERMISSIONS } from '@followup/shared-rbac';
 
 import type { FastifyInstance } from 'fastify';
 
@@ -16,6 +17,23 @@ const hashRefreshToken = (token: string): string =>
 const randomOpaqueToken = (length: number): string => {
   const buf = crypto.randomBytes(Math.ceil((length * 3) / 4));
   return buf.toString('base64url').slice(0, length);
+};
+
+const basePermissions = [
+  PERMISSIONS.USERS_READ,
+  PERMISSIONS.WORKSPACES_READ,
+  PERMISSIONS.PROJECTS_READ,
+  PERMISSIONS.SESSION_WRITE,
+] as const;
+
+const buildAccessClaims = (user: AuthUser) => {
+  const systemRole = normalizeSystemRole(user) ?? 'user';
+  const isTecmaAdmin = isTecmaPlatformAdmin(systemRole);
+  return {
+    systemRole,
+    isTecmaAdmin,
+    permissions: isTecmaAdmin ? ['*'] : [...basePermissions],
+  };
 };
 
 export class AuthService {
@@ -54,11 +72,11 @@ export class AuthService {
     const validPassword = await bcrypt.compare(password, storedHash);
     if (!validPassword) throw new Error('Invalid credentials');
 
+    const claims = buildAccessClaims(user);
     const accessToken = await this.app.jwt.sign({
       sub: userId,
       email: user.email,
-      systemRole: user.systemRole,
-      permissions: ['users.read', 'workspaces.read', 'projects.read', 'session.write'],
+      ...claims,
     });
 
     const refreshToken = randomOpaqueToken(64);
@@ -88,7 +106,9 @@ export class AuthService {
       user: {
         id: userId,
         email: user.email,
-        systemRole: user.systemRole,
+        systemRole: claims.systemRole,
+        isTecmaAdmin: claims.isTecmaAdmin,
+        permissions: claims.permissions,
       },
     };
   }
@@ -105,11 +125,11 @@ export class AuthService {
     if (user.status !== 'active') throw new Error('Session user not found');
     const userId = AuthService.toUserId(user);
 
+    const claims = buildAccessClaims(user);
     const accessToken = await this.app.jwt.sign({
       sub: userId,
       email: user.email,
-      systemRole: user.systemRole,
-      permissions: ['users.read', 'workspaces.read', 'projects.read', 'session.write'],
+      ...claims,
     });
 
     return { accessToken };

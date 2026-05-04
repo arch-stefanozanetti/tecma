@@ -8,7 +8,10 @@ Lo sviluppo attivo di Followup 3.0 avviene esclusivamente in questo perimetro gr
 - `services/api` — backend canonico
 - `packages/*` — librerie condivise del monorepo
 - `tests/*` — suite e hardening cross-package
-- `architecture/aws-api-gateway` — governance contratti OpenAPI
+- `architecture/aws-api-gateway/*` — governance contratti OpenAPI curati per dominio
+- `infra/*` — Docker, Kubernetes, Prometheus e supporto API Gateway
+- `load/*` e `performance/*` — script operativi di carico/performance
+- `security-aggregator/*` — supporto aggregazione report sicurezza
 
 ## Fuori scope
 

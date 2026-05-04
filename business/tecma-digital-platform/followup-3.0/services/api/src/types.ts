@@ -5,13 +5,16 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { AppConfig } from '@followup/shared-config';
 import type { Permission } from '@followup/shared-rbac';
 
+import type { ProjectAccessCapability } from './lib/projectAccess.js';
 import type { AuditService } from './modules/auditService.js';
+import type { MailPort } from './modules/mail/createMailPort.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
     config: AppConfig;
     mongoDb: Db;
     auditService: AuditService;
+    mail: MailPort;
     authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
     requirePermission: (
       permission: Permission,
@@ -22,6 +25,8 @@ declare module 'fastify' {
     requireTecmaAdmin: () => (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
     requireCanAccessWorkspace: () => (request: any, reply: any) => Promise<void>;
     requireWorkspaceAdminOrOwner: () => (request: any, reply: any) => Promise<void>;
-    requireCanAccessProject: () => (request: any, reply: any) => Promise<void>;
+    requireCanAccessProject: (
+      capability?: ProjectAccessCapability,
+    ) => (request: any, reply: any) => Promise<void>;
   }
 }

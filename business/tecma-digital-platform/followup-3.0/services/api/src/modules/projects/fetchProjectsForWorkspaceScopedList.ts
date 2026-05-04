@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 
 import {
   expandForStringOrObjectIdIn,
+  normalizeToStringId,
   workspaceIdFieldFilter,
 } from '../../lib/mongoIdentity.js';
 
@@ -66,9 +67,22 @@ export async function fetchProjectsForWorkspaceScopedList(
     workspaceLinkIds,
   });
 
-  if (dedupedProjectIds.length === 0) {
+  const idSet = new Set(dedupedProjectIds);
+  const wsKey = workspaceIdFieldFilter(args.workspaceId) as { workspaceId: unknown };
+  const grantRows = await deps.app.mongoDb
+    .collection('tz_project_access')
+    .find({ workspace_id: wsKey.workspaceId } as any)
+    .project({ project_id: 1 })
+    .toArray();
+  for (const row of grantRows) {
+    const pid = normalizeToStringId((row as { project_id?: unknown }).project_id);
+    if (pid != null) idSet.add(pid);
+  }
+
+  const mergedIds = [...idSet];
+  if (mergedIds.length === 0) {
     return [];
   }
 
-  return deps.projectsRepo.findMany({ _id: { $in: dedupedProjectIds } as any });
+  return deps.projectsRepo.findMany({ _id: { $in: mergedIds } as any });
 }

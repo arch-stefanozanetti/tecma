@@ -1,3 +1,9 @@
+import {
+  buildHttpApiErrorFromFailedFetch,
+  buildHttpApiErrorFromResponse,
+  DEV_MISSING_API_KEY_CONSOLE,
+} from './httpError';
+
 const normalizeBaseUrl = (value: string): string => {
   const trimmed = value.trim();
   if (trimmed === '') return '/v1';
@@ -36,6 +42,8 @@ if (
   );
 }
 
+let warnedMissingApiKey = false;
+
 export interface HttpOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
@@ -43,44 +51,33 @@ export interface HttpOptions {
   apiKey?: string | null;
 }
 
-type ApiErrorBody = {
-  error?: { message?: string; code?: string; status?: number };
-  message?: string;
-};
-
-const readErrorMessage = async (response: Response, path: string): Promise<string> => {
-  const status = response.status;
-  try {
-    const text = await response.text();
-    if (text) {
-      const body = JSON.parse(text) as ApiErrorBody;
-      const msg = body.error?.message ?? body.message;
-      if (typeof msg === 'string' && msg.trim() !== '') {
-        return msg;
-      }
-    }
-  } catch {
-    /* ignore parse errors */
-  }
-  if (status === 429) {
-    return `Troppe richieste (429). Se sei in locale: riavvia services/api con NODE_ENV=development oppure imposta API_DISABLE_RATE_LIMIT=1 nel .env dell’API.`;
-  }
-  return `HTTP ${status}: ${path}`;
-};
+export { HttpApiError, isHttpApiError, mapApiErrorToUserCopy, formatUserFacingApiCopy, toUserFacingApiCopyFromUnknown } from './httpError';
 
 export const http = async <T>(path: string, options: HttpOptions = {}): Promise<T> => {
   const resolvedApiKey = options.apiKey ?? defaultApiKey;
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    method: options.method ?? 'GET',
-    headers: {
-      'content-type': 'application/json',
-      ...(options.accessToken != null ? { authorization: `Bearer ${options.accessToken}` } : {}),
-      ...(resolvedApiKey != null ? { 'x-api-key': resolvedApiKey } : {}),
-    },
-    credentials: 'include',
-    body: options.body == null ? null : JSON.stringify(options.body),
-  });
+  if (import.meta.env.DEV && resolvedApiKey == null && !warnedMissingApiKey) {
+    warnedMissingApiKey = true;
+    console.error(DEV_MISSING_API_KEY_CONSOLE);
+  }
 
-  if (!response.ok) throw new Error(await readErrorMessage(response, path));
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      method: options.method ?? 'GET',
+      headers: {
+        'content-type': 'application/json',
+        ...(options.accessToken != null ? { authorization: `Bearer ${options.accessToken}` } : {}),
+        ...(resolvedApiKey != null ? { 'x-api-key': resolvedApiKey } : {}),
+      },
+      credentials: 'include',
+      body: options.body == null ? null : JSON.stringify(options.body),
+    });
+  } catch (err) {
+    throw buildHttpApiErrorFromFailedFetch(path, apiBaseUrl, err);
+  }
+
+  if (!response.ok) {
+    throw await buildHttpApiErrorFromResponse(response, path);
+  }
   return response.json() as Promise<T>;
 };

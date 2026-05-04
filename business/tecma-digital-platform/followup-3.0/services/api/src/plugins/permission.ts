@@ -5,19 +5,20 @@ import {
   hasAnyPermission,
   hasPermission,
   isTecmaPlatformAdmin,
+  normalizeSystemRole,
   type Permission,
 } from '@followup/shared-rbac';
 
-import {
-  buildUserWorkspaceMembershipFilter,
-  expandForStringOrObjectIdIn,
-} from '../lib/mongoIdentity.js';
+import { buildUserWorkspaceMembershipFilter } from '../lib/mongoIdentity.js';
+import type { ProjectAccessCapability } from '../lib/projectAccess.js';
+import { userHasProjectAccess } from '../lib/projectAccess.js';
 import { resolveUserIdentityCandidates } from '../lib/userIdentity.js';
 
 type JwtUser = {
   sub: string;
   permissions?: string[];
   systemRole?: string;
+  system_role?: string;
   email?: string;
 };
 
@@ -36,7 +37,8 @@ const forbiddenTecmaAdmin = (reply: FastifyReply) =>
     error: { code: 'Forbidden', message: 'Tecma admin required', status: 403 },
   });
 
-const isTecmaAdmin = (user: JwtUser | undefined): boolean => isTecmaPlatformAdmin(user?.systemRole);
+const isTecmaAdmin = (user: JwtUser | undefined): boolean =>
+  user != null && isTecmaPlatformAdmin(normalizeSystemRole(user));
 
 export const permissionPlugin = fp(async (app: FastifyInstance) => {
   app.decorate('requirePermission', (permission: Permission) => {
@@ -129,7 +131,10 @@ export const permissionPlugin = fp(async (app: FastifyInstance) => {
         .collection('tz_user_workspaces')
         .findOne(buildUserWorkspaceMembershipFilter(workspaceId, identityCandidates) as any);
 
-      if (membership == null || !['owner', 'admin'].includes(String((membership as any).role ?? ''))) {
+      if (
+        membership == null ||
+        !['owner', 'admin'].includes(String((membership as any).role ?? ''))
+      ) {
         return reply.status(403).send({
           error: {
             code: 'Forbidden',
@@ -141,7 +146,7 @@ export const permissionPlugin = fp(async (app: FastifyInstance) => {
     };
   });
 
-  app.decorate('requireCanAccessProject', () => {
+  app.decorate('requireCanAccessProject', (capability: ProjectAccessCapability = 'read') => {
     return async (request: FastifyRequest, reply: FastifyReply) => {
       const params = request.params as { projectId?: string };
       const projectId = params.projectId;
@@ -158,16 +163,8 @@ export const permissionPlugin = fp(async (app: FastifyInstance) => {
         });
       }
 
-      if (isTecmaAdmin(user)) return;
-
-      const identityCandidates = await resolveUserIdentityCandidates(app, [user.sub, user.email]);
-      const userIdIn = expandForStringOrObjectIdIn(identityCandidates);
-      const assignment = await app.mongoDb.collection('tz_workspace_user_projects').findOne({
-        projectId,
-        userId: { $in: userIdIn },
-      } as any);
-
-      if (assignment == null) {
+      const allowed = await userHasProjectAccess(app, user, projectId, capability);
+      if (!allowed) {
         return reply.status(403).send({
           error: { code: 'Forbidden', message: 'No access to this project', status: 403 },
         });

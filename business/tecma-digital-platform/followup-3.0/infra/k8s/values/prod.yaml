@@ -1,0 +1,6 @@
+api:
+  env:
+    APP_ENV: prod
+web:
+  ingress:
+    host: followup.tecmasolutions.com

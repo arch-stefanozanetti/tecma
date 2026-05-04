@@ -2,6 +2,11 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { LoginPage } from './features/auth/LoginPage';
 import { ProjectAccessPage } from './features/projects/ProjectAccessPage';
+import {
+  AUTH_ACCESS_TOKEN_KEY,
+  clearFollowupAuthSession,
+  readStoredLoginProfile,
+} from './lib/authSession';
 import { PageTemplate } from './shell/PageTemplate';
 
 type AppStage = 'login' | 'project-access' | 'app';
@@ -9,19 +14,24 @@ type AppStage = 'login' | 'project-access' | 'app';
 export type LoginBootstrapProfile = { id: string; email: string; systemRole: string };
 
 const readInitialToken = (): string | null => {
-  const token = sessionStorage.getItem('followup.auth.accessToken');
-  return token == null || token.trim() == '' ? null : token;
+  const token = sessionStorage.getItem(AUTH_ACCESS_TOKEN_KEY);
+  return token == null || token.trim() === '' ? null : token;
+};
+
+const readInitialBootstrap = (): LoginBootstrapProfile | null => {
+  if (readInitialToken() == null) return null;
+  return readStoredLoginProfile();
 };
 
 export const App = () => {
   const initialToken = useMemo(readInitialToken, []);
+  const initialBootstrap = useMemo(readInitialBootstrap, []);
   const [accessToken, setAccessToken] = useState<string | null>(initialToken);
   const [stage, setStage] = useState<AppStage>(initialToken != null ? 'project-access' : 'login');
-  const [loginBootstrap, setLoginBootstrap] = useState<LoginBootstrapProfile | null>(null);
+  const [loginBootstrap, setLoginBootstrap] = useState<LoginBootstrapProfile | null>(initialBootstrap);
 
   const handleSessionInvalid = useCallback(() => {
-    sessionStorage.removeItem('followup.auth.accessToken');
-    sessionStorage.removeItem('followup.auth.refreshToken');
+    clearFollowupAuthSession();
     setAccessToken(null);
     setLoginBootstrap(null);
     setStage('login');

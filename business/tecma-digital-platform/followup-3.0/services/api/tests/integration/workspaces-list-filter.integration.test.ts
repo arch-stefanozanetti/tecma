@@ -73,6 +73,17 @@ describe('GET /v1/workspaces membership filter', () => {
       createdAt: now,
       updatedAt: now,
     });
+
+    await users.insertOne({
+      _id: new ObjectId(),
+      email: 'legacy-admin-list@tecma.test',
+      passwordHash: hash,
+      status: 'active',
+      system_role: 'tecma_admin',
+      isTecmaAdmin: true,
+      createdAt: now,
+      updatedAt: now,
+    });
   });
 
   afterAll(async () => {
@@ -85,8 +96,22 @@ describe('GET /v1/workspaces membership filter', () => {
     const wsB = `ws-b-${randomUUID()}`;
     const now = new Date().toISOString();
     await app.mongoDb.collection('tz_workspaces').insertMany([
-      { _id: wsA, name: 'A', owner_user_id: 'x', mfaRequired: false, createdAt: now, updatedAt: now },
-      { _id: wsB, name: 'B', owner_user_id: 'x', mfaRequired: false, createdAt: now, updatedAt: now },
+      {
+        _id: wsA,
+        name: 'A',
+        owner_user_id: 'x',
+        mfaRequired: false,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        _id: wsB,
+        name: 'B',
+        owner_user_id: 'x',
+        mfaRequired: false,
+        createdAt: now,
+        updatedAt: now,
+      },
     ]);
 
     const login = await app.inject({
@@ -115,8 +140,22 @@ describe('GET /v1/workspaces membership filter', () => {
     const wsY = `ws-sa-y-${randomUUID()}`;
     const now = new Date().toISOString();
     await app.mongoDb.collection('tz_workspaces').insertMany([
-      { _id: wsX, name: 'SX', owner_user_id: 'x', mfaRequired: false, createdAt: now, updatedAt: now },
-      { _id: wsY, name: 'SY', owner_user_id: 'x', mfaRequired: false, createdAt: now, updatedAt: now },
+      {
+        _id: wsX,
+        name: 'SX',
+        owner_user_id: 'x',
+        mfaRequired: false,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        _id: wsY,
+        name: 'SY',
+        owner_user_id: 'x',
+        mfaRequired: false,
+        createdAt: now,
+        updatedAt: now,
+      },
     ]);
 
     const login = await app.inject({
@@ -138,6 +177,37 @@ describe('GET /v1/workspaces membership filter', () => {
     expect(ids).toContain(wsY);
 
     await app.mongoDb.collection('tz_workspaces').deleteMany({ _id: { $in: [wsX, wsY] } });
+  });
+
+  it('utente legacy system_role=tecma_admin vede tutti i workspace senza membership', async () => {
+    const wsLegacy = `ws-legacy-admin-${randomUUID()}`;
+    const now = new Date().toISOString();
+    await app.mongoDb.collection('tz_workspaces').insertOne({
+      _id: wsLegacy,
+      name: 'Legacy Admin Visible',
+      owner_user_id: 'x',
+      mfaRequired: false,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const login = await app.inject({
+      method: 'POST',
+      url: '/v1/auth/login',
+      payload: { email: 'legacy-admin-list@tecma.test', password: 'Password123!' },
+    });
+    expect(login.statusCode).toBe(200);
+    const token = login.json().data.accessToken as string;
+
+    const list = await app.inject({
+      method: 'GET',
+      url: '/v1/workspaces',
+      headers: authHeaders(token),
+    });
+    expect(list.statusCode).toBe(200);
+    expect((list.json().data as Array<{ _id: string }>).some((w) => w._id === wsLegacy)).toBe(true);
+
+    await app.mongoDb.collection('tz_workspaces').deleteOne({ _id: wsLegacy });
   });
 
   it('utente normale vede solo i workspace con membership', async () => {
@@ -233,7 +303,9 @@ describe('GET /v1/workspaces membership filter', () => {
     const rows = list.json().data as Array<{ _id: string }>;
     expect(rows.some((w) => w._id === wsOid)).toBe(true);
 
-    await app.mongoDb.collection('tz_user_workspaces').deleteMany({ workspaceId: { $in: [wsOid] } });
+    await app.mongoDb
+      .collection('tz_user_workspaces')
+      .deleteMany({ workspaceId: { $in: [wsOid] } });
     await app.mongoDb.collection('tz_workspaces').deleteMany({ _id: wsOid });
   });
 

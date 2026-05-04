@@ -20,6 +20,8 @@ const authHeaders = (accessToken: string) => ({
 
 let app: FastifyInstance;
 let mongoContext: Awaited<ReturnType<typeof startInMemoryMongo>>;
+let targetUserId: string;
+let soloAdminId: string;
 
 async function loginToken(email: string): Promise<string> {
   const login = await app.inject({
@@ -48,10 +50,42 @@ describe('workspaces permissions integration', () => {
       },
       async () => ({ data: { ok: true } }),
     );
+    app.get(
+      '/v1/test/workspace-access-missing-param',
+      {
+        preHandler: [app.authenticate, app.requireCanAccessWorkspace()],
+      },
+      async () => ({ data: { ok: true } }),
+    );
+    app.get(
+      '/v1/test/workspace-access-no-auth',
+      {
+        preHandler: [app.requireCanAccessWorkspace()],
+      },
+      async () => ({ data: { ok: true } }),
+    );
+    app.get(
+      '/v1/test/project-access-missing-param',
+      {
+        preHandler: [app.authenticate, app.requireCanAccessProject()],
+      },
+      async () => ({ data: { ok: true } }),
+    );
+    app.get(
+      '/v1/test/project-access-no-auth/:projectId',
+      {
+        preHandler: [app.requireCanAccessProject()],
+      },
+      async () => ({ data: { ok: true } }),
+    );
     const users = app.mongoDb.collection('tz_users');
     const now = new Date().toISOString();
     const passwordHash = await bcrypt.hash('Password123!', 10);
 
+    const target = new ObjectId();
+    targetUserId = target.toString();
+    const soloAdmin = new ObjectId();
+    soloAdminId = soloAdmin.toString();
     await users.insertMany([
       {
         _id: new ObjectId(),
@@ -83,6 +117,26 @@ describe('workspaces permissions integration', () => {
       {
         _id: new ObjectId(),
         email: 'viewer-perm@tecma.test',
+        passwordHash,
+        status: 'active',
+        systemRole: 'user',
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        _id: soloAdmin,
+        email: 'solo-admin-perm@tecma.test',
+        passwordHash,
+        status: 'active',
+        systemRole: 'tecma_admin',
+        system_role: 'tecma_admin',
+        isTecmaAdmin: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        _id: target,
+        email: 'target-role-perm@tecma.test',
         passwordHash,
         status: 'active',
         systemRole: 'user',
@@ -234,5 +288,94 @@ describe('workspaces permissions integration', () => {
       headers: authHeaders(adminToken),
     });
     expect(allowedAdmin.statusCode).toBe(200);
+  });
+
+  it('returns explicit permission errors for missing params and missing auth context', async () => {
+    const adminToken = await loginToken('admin-perm@tecma.test');
+
+    const missingWorkspace = await app.inject({
+      method: 'GET',
+      url: '/v1/test/workspace-access-missing-param',
+      headers: authHeaders(adminToken),
+    });
+    expect(missingWorkspace.statusCode).toBe(400);
+    expect(missingWorkspace.json().error?.message).toBe('workspaceId is required');
+
+    const noWorkspaceAuth = await app.inject({
+      method: 'GET',
+      url: '/v1/test/workspace-access-no-auth',
+      headers: { 'x-api-key': API_KEY },
+    });
+    expect(noWorkspaceAuth.statusCode).toBe(400);
+
+    const missingProject = await app.inject({
+      method: 'GET',
+      url: '/v1/test/project-access-missing-param',
+      headers: authHeaders(adminToken),
+    });
+    expect(missingProject.statusCode).toBe(400);
+    expect(missingProject.json().error?.message).toBe('projectId is required');
+
+    const noProjectAuth = await app.inject({
+      method: 'GET',
+      url: '/v1/test/project-access-no-auth/proj-no-auth',
+      headers: { 'x-api-key': API_KEY },
+    });
+    expect(noProjectAuth.statusCode).toBe(401);
+  });
+
+  it('allows only Tecma SuperAdmin to assign canonical tecma_admin role and writes audit', async () => {
+    const adminToken = await loginToken('admin-perm@tecma.test');
+    const userToken = await loginToken('owner-perm@tecma.test');
+
+    const forbidden = await app.inject({
+      method: 'PATCH',
+      url: `/v1/users/${targetUserId}`,
+      headers: authHeaders(userToken),
+      payload: { systemRole: 'tecma_admin' },
+    });
+    expect(forbidden.statusCode).toBe(403);
+
+    const allowed = await app.inject({
+      method: 'PATCH',
+      url: `/v1/users/${targetUserId}`,
+      headers: authHeaders(adminToken),
+      payload: { systemRole: 'tecma_admin' },
+    });
+    expect(allowed.statusCode).toBe(200);
+    expect(allowed.json().data).toMatchObject({
+      systemRole: 'tecma_admin',
+      system_role: 'tecma_admin',
+      isTecmaAdmin: true,
+    });
+    expect(allowed.json().data.passwordHash).toBeUndefined();
+
+    const audit = await app.mongoDb.collection('tz_authEvents').findOne({
+      eventType: 'users.systemRole.update',
+      'details.targetUserId': targetUserId,
+    });
+    expect(audit).not.toBeNull();
+  });
+
+  it('prevents a Tecma SuperAdmin from removing itself when it is the last active admin', async () => {
+    await app.mongoDb.collection('tz_users').updateMany(
+      {
+        _id: { $ne: new ObjectId(soloAdminId) },
+        $or: [{ systemRole: 'tecma_admin' }, { system_role: 'tecma_admin' }],
+      },
+      {
+        $set: { status: 'disabled' },
+      },
+    );
+    const soloToken = await loginToken('solo-admin-perm@tecma.test');
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/v1/users/${soloAdminId}`,
+      headers: authHeaders(soloToken),
+      payload: { systemRole: 'user' },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error?.code).toBe('LastTecmaAdmin');
   });
 });

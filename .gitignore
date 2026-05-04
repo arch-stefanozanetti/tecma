@@ -21,3 +21,8 @@ coverage/
 
 # Archives (non necessari in repo per deploy)
 *.zip
+
+# Sync/debug debris
+_sync_logs/
+*.tsbuildinfo
+.understand-anything/

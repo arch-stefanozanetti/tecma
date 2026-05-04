@@ -1,0 +1,35 @@
+# syntax=docker/dockerfile:1.7
+ARG NODE_VERSION=22-alpine
+
+FROM node:${NODE_VERSION} AS base
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
+WORKDIR /repo
+
+FROM base AS deps
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json .npmrc ./
+COPY tsconfig.base.json turbo.json ./
+COPY packages packages
+COPY services/api/package.json services/api/
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
+
+FROM deps AS build
+COPY services/api services/api
+RUN pnpm turbo run build --filter='./packages/*' --filter=@followup/api
+
+FROM node:${NODE_VERSION} AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+RUN apk add --no-cache tini && \
+    addgroup -S app && adduser -S app -G app
+COPY --from=build --chown=app:app /repo/services/api/dist ./dist
+COPY --from=build --chown=app:app /repo/services/api/package.json ./
+COPY --from=build --chown=app:app /repo/packages packages
+COPY --from=build --chown=app:app /repo/node_modules node_modules
+USER app
+EXPOSE 8080
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "dist/server.js"]
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:8080/v1/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"

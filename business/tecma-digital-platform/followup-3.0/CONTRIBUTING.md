@@ -1,125 +1,108 @@
 # Contributing — Followup 3.0
 
-## Workflow
+## Repository Rules
 
-1. Crea branch da `main` con naming obbligatorio (validato in CI da `tools/ci/validate-branch-name.sh`):
-   - `<type>/<TICKET>-<slug>` (es: `feat/FUP3-123-auth-refresh`)
-   - `release/v<major>.<minor>.<patch>` (es: `release/v1.2.0`)
-   - Tipi ammessi: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `security`, `ci`, `build`, `hotfix`
-2. Commit con [Conventional Commits](https://www.conventionalcommits.org/): `<type>(<scope>): <subject>`.
-3. Apri MR verso `main`. Almeno 1 review da CODEOWNERS richiesta.
-4. CI deve essere verde (build, lint, typecheck, test, security, openapi).
-5. Squash merge — niente fast-forward.
+Work from the standalone repository only:
 
-```mermaid
-flowchart LR
-  feature[featureBranch] -->|"MR + squash"| main[mainProtected]
-  fix[fixBranch] -->|"MR + squash"| main
-  hotfix[hotfixBranch] -->|"MR + squash"| main
-  main -->|"tag vX.Y.Z"| release[releasePipeline]
+```bash
+cd /Users/s.zanetti/dev/tecma/business/tecma-digital-platform/followup-3.0
+git rev-parse --show-toplevel
+git remote -v
 ```
 
-## Commit format
+The only publication remote for Followup 3.0 is:
 
-`<type>(<scope>): <subject>`
+```text
+https://gitlab.tecmasolutions.com/business/followup-3.0.git
+```
 
-- `type`: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`, `security`
-- `scope` (kebab-case, obbligatorio): scelto fra l'enum di `commitlint.config.cjs`:
-  - dominio applicativo: `auth`, `rbac`, `users`, `workspaces`, `projects`
-  - layer: `api`, `web`, `db`
-  - design system: `design-ui`, `design-tokens`, `design-themes`, `design-icons`
-  - cross-cutting: `security`, `ci`, `infra`, `docs`
-- `subject`: imperativo, breve, < 100 char.
+The sibling `followup-3.0-POC` project is a functional reference. Do not mutate it while delivering production work in this repo.
 
-Esempi:
+## Branch And Commit Workflow
+
+1. Create branches from `main` using `<type>/<TICKET>-<slug>`, for example `feat/FUP3-123-workspace-invites`.
+2. Use Conventional Commits: `<type>(<scope>): <subject>`.
+3. Open a GitLab MR into `main`.
+4. Keep every MR focused on one feature, hardening slice, or cleanup.
+5. Merge only after review and green quality gates.
+
+Allowed commit types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`, `security`.
+
+Common scopes: `auth`, `rbac`, `users`, `workspaces`, `projects`, `api`, `web`, `db`, `design-ui`, `design-tokens`, `design-themes`, `design-icons`, `security`, `ci`, `infra`, `docs`.
+
+Examples:
 
 - `feat(auth): introduce tz_users-only authentication`
 - `fix(rbac): block cross-workspace fallback`
-- `feat(design-ui): add PasswordInput primitive aligned to POC`
-- `chore(ci): tighten branch-name validator regex`
+- `test(db): cover repository write isolation`
+- `docs(repo): clarify standalone GitLab onboarding`
 
-## Merge Request standard
+## Migrating From The POC
 
-- Usa template MR default (`.gitlab/merge_request_templates/default.md`).
-- Titolo MR obbligatorio in formato conventional:
-  - `<type>(<scope>): <subject>`
-  - esempio: `feat(auth): add refresh token rotation`
-- CI blocca automaticamente branch naming e MR title non conformi.
+For every feature:
 
-## Definition of Done (per PR)
+1. Inspect behavior in `../followup-3.0-POC`.
+2. Define the production contract in API routes, shared types, and the client.
+3. Implement backend domain logic with validation, auth, RBAC, workspace scoping, and logging/audit where applicable.
+4. Implement frontend UX using the current app and design-system patterns.
+5. Add backend, integration, and frontend tests before considering the feature done.
 
-- [ ] Build verde su GitLab CI.
-- [ ] Coverage non scende sotto la threshold del modulo (≥85% core).
-- [ ] Spectral lint OpenAPI verde.
-- [ ] Semgrep + OSV + Trivy senza issue HIGH/CRITICAL.
-- [ ] ADR scritto se la PR introduce decisione strutturale.
-- [ ] Test acceptance `db-isolation` passa.
-- [ ] Documentazione aggiornata (README modulo + runbook se rilevante).
+Never copy POC code blindly. The POC answers "what should the product do"; this repo answers "how should it run in production".
 
-## Code style
+## Definition Of Done
 
-- TypeScript strict mode obbligatorio.
-- ESLint + Prettier auto-applicati via `lint-staged` su pre-commit.
-- Niente `any`. Usa `unknown` + narrowing.
-- Niente `console.log` in production code (warn/error sono ok ma sconsigliati — usa logger).
+- `pnpm lint` passes.
+- `pnpm typecheck` passes.
+- `pnpm test` passes.
+- `pnpm test:integration` passes when API, auth, workspace, or persistence behavior changes.
+- `pnpm lint:openapi` passes when public API routes change.
+- Touched production modules meet at least 85% statements/functions/lines.
+- Security-sensitive modules target 90% coverage.
+- No secrets or generated artifacts are staged.
+- Documentation is updated when behavior, setup, or operations change.
 
-## Vincoli MongoDB
+## Local Quality Gate
 
-- **Mai** importare `mongodb` fuori da `packages/db/`. Bloccato da Semgrep.
-- **Mai** chiamare `client.db('<other_name>')`. Bloccato da Semgrep.
-- Tutte le mutation passano per il repository layer in `packages/db/`.
-- Vedi [ADR 0002](docs/adr/0002-db-write-isolation.md).
-
-## Test
-
-- Unit: Vitest. File `*.test.ts` accanto al sorgente.
-- Integration: Vitest + mongodb-memory-server. File in `services/api/tests/integration/`.
-- E2E: Playwright. File in `apps/web/e2e/`.
-- Security: `tests/security/`.
-- Load: k6 in `tests/load/`.
-
-## Pre-commit
-
-Husky + lint-staged: ESLint + Prettier auto-fix. Commitlint valida il messaggio.
-
-## Pre-push
-
-`pnpm typecheck` su tutto il workspace.
-
-## Local quality gate (prima di aprire MR)
-
-Comandi consigliati prima di pushare:
+Run from the repository root:
 
 ```bash
-pnpm -w typecheck
-pnpm -w lint
-pnpm -w format:check
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm test:integration
+pnpm lint:openapi
+git diff --check
+```
+
+Useful targeted commands:
+
+```bash
+pnpm --filter @followup/api test
 pnpm --filter @followup/api test:integration
-pnpm --filter @followup/web build
-pnpm --filter @followup/design-ui build
+pnpm --filter @followup/web test
+pnpm --filter @followup/web test:e2e
+pnpm run security:hardening
 ```
 
-## Branch protection (configurazione GitLab)
+## Git Hygiene
 
-- `main` protected.
-- Push diretto vietato.
-- MR approval ≥1 da CODEOWNERS.
-- Pipeline must succeed.
-- Fast-forward merge disabilitato.
-- Squash merge obbligatorio.
-- Merge solo se tutti i thread MR sono risolti.
-- Bloccare merge se pipeline è in stato warning/failed.
-- Cancellazione source branch automatica post-merge.
-- Limitare creazione branch protetti a Maintainer.
-
-## Setup remote GitLab (one-shot, quando il progetto remoto sarà disponibile)
-
-Eseguire dalla root del repo:
+Before committing:
 
 ```bash
-git remote add origin git@gitlab.<host>:<group>/followup-3.0.git
-git push -u origin main
+git status --short --ignored
+git diff --check
+git diff --cached --name-only
 ```
 
-Successivamente abilitare le protezioni di cui sopra in `Settings > Repository > Protected branches` e in `Settings > Merge requests`.
-Riferimento operativo: [docs/runbooks/branch-governance.md](docs/runbooks/branch-governance.md).
+Do not stage `node_modules`, `dist`, `coverage`, `.turbo`, `.env*`, `*.tsbuildinfo`, `playwright-report`, `test-results`, `security-reports`, `.cursor`, `.understand-anything`, or `.githooks`.
+
+## GitLab Remote Setup
+
+The repository should already have `origin` configured. If a fresh clone or local checkout is missing it:
+
+```bash
+git remote add origin https://gitlab.tecmasolutions.com/business/followup-3.0.git
+git branch -M main
+```
+
+Push only when access is available and the baseline or feature branch has passed the local quality gate.

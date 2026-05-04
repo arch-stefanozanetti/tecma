@@ -12,7 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
-import { http } from '../../lib/http';
+import { clearFollowupAuthSession } from '../../lib/authSession';
+import {
+  formatUserFacingApiCopy,
+  http,
+  toUserFacingApiCopyFromUnknown,
+} from '../../lib/http';
 import { parseMePayload } from '../../lib/parseMePayload';
 import { cn } from '../../lib/utils';
 
@@ -116,6 +121,10 @@ export const ProjectAccessPage = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [workspacesError, setWorkspacesError] = useState<string | null>(null);
+  const [workspacesLoading, setWorkspacesLoading] = useState(true);
+
+  /** Chiamate API post-login non riuscite: tendina workspace vuota ma non è “nessun workspace assegnato”. */
+  const apiCallsDegraded = apiConfigWarning != null || workspacesError != null;
 
   const access = useMemo(() => {
     if (meEmail == null) return null;
@@ -129,8 +138,15 @@ export const ProjectAccessPage = ({
   }, [meEmail, isAdmin, projects]);
 
   const loadProjects = useCallback(
-    async (userId: string | null, wsId: string) => {
-      if (userId == null || wsId.trim() === '') {
+    async (userId: string | null, wsId: string, tecmaPlatformAdmin: boolean) => {
+      if (userId == null) {
+        setProjects([]);
+        setLoading(false);
+        setError(null);
+        return;
+      }
+      /* Tecma SuperAdmin: l’API elenca tutti i progetti solo senza workspaceId (GET /v1/projects). */
+      if (!tecmaPlatformAdmin && wsId.trim() === '') {
         setProjects([]);
         setLoading(false);
         setError(null);
@@ -139,7 +155,9 @@ export const ProjectAccessPage = ({
       setLoading(true);
       setError(null);
       try {
-        const path = `/projects?workspaceId=${encodeURIComponent(wsId)}&userId=${encodeURIComponent(userId)}`;
+        const path = tecmaPlatformAdmin
+          ? '/projects'
+          : `/projects?workspaceId=${encodeURIComponent(wsId)}&userId=${encodeURIComponent(userId)}`;
         const res = await http<ProjectsResponse>(path, { method: 'GET', accessToken });
         const list = (res.data ?? []).map(mapApiProject);
         setProjects(list);
@@ -149,7 +167,7 @@ export const ProjectAccessPage = ({
           return prev.filter((id) => allowed.has(id));
         });
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Errore caricamento progetti.');
+        setError(formatUserFacingApiCopy(toUserFacingApiCopyFromUnknown(e)));
         setProjects([]);
       } finally {
         setLoading(false);
@@ -192,9 +210,7 @@ export const ProjectAccessPage = ({
         setAuthStatus('ok');
         setApiConfigWarning(null);
       } catch (e) {
-        const msg = e instanceof Error ? e.message : '';
-        /* Subito dopo login abbiamo già profilo + JWT valido: non buttare l’utente al login se /auth/me
-           fallisce (es. VITE_API_KEY assente → messaggio generico `HTTP 401: /auth/me` senza testo x-api-key). */
+        /* Profilo login già noto: restiamo in app e mostriamo l’errore API (es. 401 x-api-key) tramite mapper unico. */
         if (initialProfile != null) {
           if (!cancelled) {
             const email = initialProfile.email.trim().toLowerCase();
@@ -202,11 +218,11 @@ export const ProjectAccessPage = ({
             setMeUserId(initialProfile.id);
             setIsAdmin(isTecmaPlatformAdmin(initialProfile.systemRole));
             setAuthStatus('ok');
-            const isApiKey = /x-api-key|Missing or invalid x-api-key/i.test(msg);
+            const copy = toUserFacingApiCopyFromUnknown(e);
+            const intro =
+              'Profilo da login disponibile, ma la verifica lato API non è riuscita.';
             setApiConfigWarning(
-              isApiKey
-                ? 'Per le API protette serve la chiave: imposta VITE_API_KEY nel frontend uguale a INTERNAL_API_KEY dell’API, poi ricarica la pagina.'
-                : `Sessione attiva dal login; ${msg}. Verifica VITE_API_KEY se le liste workspace/progetti sono vuote.`,
+              `${intro}\n\n${formatUserFacingApiCopy(copy)}`,
             );
           }
           return;
@@ -226,29 +242,37 @@ export const ProjectAccessPage = ({
       onSessionInvalid();
       return;
     }
-    window.sessionStorage.removeItem('followup.auth.accessToken');
-    window.sessionStorage.removeItem('followup.auth.refreshToken');
+    clearFollowupAuthSession();
     window.location.reload();
   }, [authStatus, onSessionInvalid]);
 
   useEffect(() => {
+    let cancelled = false;
+    setWorkspacesLoading(true);
+    setWorkspacesError(null);
     void http<WorkspacesResponse>('/workspaces', { method: 'GET', accessToken })
       .then((r) => {
+        if (cancelled) return;
         setWorkspaces(Array.isArray(r.data) ? r.data : []);
         setWorkspacesError(null);
       })
       .catch((e) => {
+        if (cancelled) return;
         setWorkspaces([]);
-        setWorkspacesError(
-          e instanceof Error ? e.message : 'Impossibile caricare l’elenco workspace.',
-        );
+        setWorkspacesError(formatUserFacingApiCopy(toUserFacingApiCopyFromUnknown(e)));
+      })
+      .finally(() => {
+        if (!cancelled) setWorkspacesLoading(false);
       });
+    return () => {
+      cancelled = true;
+    };
   }, [accessToken]);
 
   useEffect(() => {
     if (authStatus !== 'ok' || meEmail == null || meUserId == null) return;
-    void loadProjects(meUserId, workspaceId);
-  }, [authStatus, meEmail, meUserId, workspaceId, loadProjects]);
+    void loadProjects(meUserId, workspaceId, isAdmin);
+  }, [authStatus, meEmail, meUserId, workspaceId, isAdmin, loadProjects]);
 
   useEffect(() => {
     setSelected([]);
@@ -337,7 +361,7 @@ export const ProjectAccessPage = ({
   };
 
   const reloadProjects = () => {
-    if (meUserId != null) void loadProjects(meUserId, workspaceId);
+    if (meUserId != null) void loadProjects(meUserId, workspaceId, isAdmin);
   };
 
   if (authStatus === 'pending') {
@@ -381,15 +405,29 @@ export const ProjectAccessPage = ({
             <br />e progetti
           </h1>
           <p className="mt-4 max-w-sm text-sm text-muted-foreground">
-            Prima selezioni il workspace: i progetti mostrati sono solo quelli di quel workspace.
-            Poi scegli uno o più progetti con cui entrare in Followup.
+            {isAdmin ? (
+              <>
+                Come amministratore Tecma vedi <span className="font-medium">tutti i progetti</span>{' '}
+                della piattaforma. Scegli comunque un workspace prima di confermare per salvare il
+                contesto di sessione.
+              </>
+            ) : (
+              <>
+                Prima selezioni il workspace: i progetti mostrati sono solo quelli di quel workspace.
+                Poi scegli uno o più progetti con cui entrare in Followup.
+              </>
+            )}
           </p>
         </div>
 
         <div className="space-y-3 text-xs text-muted-foreground">
           <p className="font-semibold text-card-foreground">Suggerimenti</p>
           <ul className="space-y-1">
-            <li>• Cambia workspace per vedere un altro elenco progetti.</li>
+            {isAdmin ? (
+              <li>• L’elenco progetti è globale; il workspace serve solo per il contesto al passaggio successivo.</li>
+            ) : (
+              <li>• Cambia workspace per vedere un altro elenco progetti.</li>
+            )}
             <li>• Filtra per Rent/Sell e cerca per nome prima di confermare.</li>
           </ul>
         </div>
@@ -401,21 +439,18 @@ export const ProjectAccessPage = ({
             <header className="mb-4 flex-shrink-0">
               {apiConfigWarning != null ? (
                 <p
-                  className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+                  className="mb-3 whitespace-pre-line rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"
                   role="status"
                 >
                   {apiConfigWarning}
                 </p>
               ) : null}
-              {workspacesError != null ? (
+              {workspacesError != null && apiConfigWarning == null ? (
                 <p
-                  className="mb-3 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+                  className="mb-3 whitespace-pre-line rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive"
                   role="alert"
                 >
-                  {workspacesError} Se usi l’API in locale, verifica{' '}
-                  <code className="rounded bg-muted px-1">VITE_API_KEY</code> (deve coincidere con la
-                  chiave dell’API) e che il backend risponda sulla base configurata in{' '}
-                  <code className="rounded bg-muted px-1">VITE_API_BASE_URL</code>.
+                  {workspacesError}
                 </p>
               ) : null}
               {workspacesError == null &&
@@ -470,6 +505,7 @@ export const ProjectAccessPage = ({
                     Workspace
                   </label>
                   <Select
+                    disabled={workspacesLoading || apiCallsDegraded}
                     value={workspaceId === '' ? WORKSPACE_SELECT_PLACEHOLDER : workspaceId}
                     onValueChange={(v) => {
                       if (v === WORKSPACE_SELECT_PLACEHOLDER) return;
@@ -477,7 +513,15 @@ export const ProjectAccessPage = ({
                     }}
                   >
                     <SelectTrigger className="h-9 min-w-[220px] rounded-lg border border-input bg-background text-sm font-medium text-foreground">
-                      <SelectValue placeholder="Scegli un workspace" />
+                      <SelectValue
+                        placeholder={
+                          workspacesLoading
+                            ? 'Caricamento workspace…'
+                            : apiCallsDegraded
+                              ? 'Workspace non disponibile (errore API)'
+                              : 'Scegli un workspace'
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem
@@ -494,6 +538,20 @@ export const ProjectAccessPage = ({
                       ))}
                     </SelectContent>
                   </Select>
+                  {apiCallsDegraded ? (
+                    <p className="mt-2 max-w-md text-xs text-muted-foreground">
+                      La tendina resta vuota perché l’API non ha restituito l’elenco workspace. Segui
+                      l’avviso in alto, correggi configurazione e backend, poi{' '}
+                      <button
+                        type="button"
+                        className="font-medium text-primary underline underline-offset-2"
+                        onClick={() => window.location.reload()}
+                      >
+                        ricarica la pagina
+                      </button>
+                      .
+                    </p>
+                  ) : null}
                 </div>
                 <div className="min-w-0">
                   <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -506,7 +564,7 @@ export const ProjectAccessPage = ({
                       value={meEmail ?? ''}
                       className="h-9 max-w-[220px] min-w-0 rounded-lg bg-muted"
                     />
-                    {meEmail != null && workspaceId !== '' ? (
+                    {meEmail != null && (isAdmin || workspaceId !== '') ? (
                       <Button
                         type="button"
                         variant="outline"
@@ -571,24 +629,44 @@ export const ProjectAccessPage = ({
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-ui border border-border bg-background/80 pb-24 md:pb-0">
-                  {workspaceId === '' ? (
+                  {apiCallsDegraded ? (
+                    <div className="space-y-3 px-4 py-8 text-sm text-muted-foreground">
+                      <p className="font-medium text-foreground">Workspace e progetti non disponibili</p>
+                      <p>
+                        Finché le chiamate a <code className="rounded bg-muted px-1">/auth/me</code> o{' '}
+                        <code className="rounded bg-muted px-1">/workspaces</code> falliscono, non è
+                        possibile popolare la tendina né caricare i progetti: non si tratta di un
+                        account senza workspace, ma di un errore di configurazione o di rete.
+                        Usa le indicazioni nell’avviso in alto (stesso blocco giallo), poi ricarica.
+                      </p>
+                      <Button type="button" variant="secondary" size="sm" onClick={() => window.location.reload()}>
+                        Ricarica pagina
+                      </Button>
+                    </div>
+                  ) : !isAdmin && workspaceId === '' ? (
                     <div className="px-4 py-8 text-sm text-muted-foreground">
                       Seleziona un workspace qui sopra: verranno caricati solo i progetti a te
                       assegnati in quel workspace.
                     </div>
                   ) : null}
-                  {workspaceId !== '' && projects.length === 0 && error == null && loading ? (
+                  {!apiCallsDegraded &&
+                  projects.length === 0 &&
+                  error == null &&
+                  loading &&
+                  (isAdmin || workspaceId !== '') ? (
                     <div className="px-4 py-6 text-sm text-muted-foreground">
                       {meEmail != null ? 'Caricamento progetti…' : 'Caricamento…'}
                     </div>
                   ) : null}
-                  {workspaceId !== '' &&
+                  {!apiCallsDegraded &&
                   projects.length === 0 &&
                   error == null &&
-                  !loading ? (
+                  !loading &&
+                  (isAdmin || workspaceId !== '') ? (
                     <div className="px-4 py-6 text-sm text-muted-foreground">
-                      Nessun progetto visibile in questo workspace per il tuo utente. Contatta un
-                      amministratore per verificare i permessi di accesso ai progetti.
+                      {isAdmin
+                        ? 'Nessun progetto nel database. Crea progetti dall’area organizzazione o verifica il MongoDB collegato.'
+                        : 'Nessun progetto visibile in questo workspace per il tuo utente. Contatta un amministratore per verificare i permessi di accesso ai progetti.'}
                     </div>
                   ) : null}
                   {error != null ? (
@@ -663,7 +741,7 @@ export const ProjectAccessPage = ({
               <Button
                 type="button"
                 onClick={() => void confirmSelection()}
-                disabled={!canConfirm || loading}
+                disabled={!canConfirm || loading || apiCallsDegraded}
                 className="order-1 min-h-11 w-full sm:order-2 sm:w-auto"
               >
                 Entra in Followup

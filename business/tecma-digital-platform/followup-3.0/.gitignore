@@ -27,10 +27,6 @@ security-reports
 
 # Cartelle locali opzionali fuori dallo scope runtime
 /connectors/
-/security-aggregator/
-/performance/
-/load/
-/infra/
 
 # Hook duplicati (il progetto usa Husky in .husky)
 /.githooks/

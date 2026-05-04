@@ -35,6 +35,10 @@ services:
         sync: false
       - key: AUTH_JWT_SECRET
         sync: false
+      - key: SIGNATURE_WEBHOOK_SECRET
+        sync: false
+      - key: ZEUS_SIP_WEBHOOK_SECRET
+        sync: false
       - key: AUTH_JWT_EXPIRES_IN
         value: 15m
       - key: AUTH_REFRESH_EXPIRES_DAYS
