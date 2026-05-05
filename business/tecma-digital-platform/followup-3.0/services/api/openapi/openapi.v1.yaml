@@ -82,7 +82,7 @@ components:
           type: string
         status:
           type: integer
-        tId:
+        traceId:
           type: string
           description: ID transazione / tracing
         details:
@@ -439,7 +439,7 @@ paths:
                     - viewer
                 workspaceId:
                   type: string
-                  description: Se presente, solo owner/admin del workspace possono invitare senza permesso globale users.invite.
+                  description: Workspace in cui si invita (richiede ruolo owner/admin).
       security: *a1
       responses:
         '201':
@@ -1394,17 +1394,10 @@ paths:
   /workspaces/{workspaceId}/invitations:
     post:
       operationId: createWorkspaceInvitation
-      summary: Invito utente nel workspace
+      summary: Invito utente nel workspace (opz. progetti) + notifica mail
       tags:
         - Workspaces
-      description: Crea o riusa utente, membership workspace, assegnazioni progetto opzionali e invio mail stub.
-      parameters:
-        - schema:
-            type: string
-          in: path
-          name: workspaceId
-          required: true
-          description: Identificativo workspace
+      description: Invito utente nel workspace (opz. progetti) + notifica mail
       requestBody:
         required: true
         content:
@@ -1432,6 +1425,12 @@ paths:
                   type: array
                   items:
                     type: string
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: workspaceId
+          required: true
       security: *a1
       responses:
         '201':
@@ -1464,12 +1463,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/def-3'
-        '409':
-          description: Default Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/def-3'
         '500':
           description: Default Response
           content:
@@ -1479,17 +1472,16 @@ paths:
   /workspaces/{workspaceId}/clients:
     get:
       operationId: listWorkspaceClients
-      summary: Clienti workspace
+      summary: Clienti collegati al workspace (scaffolding)
       tags:
         - Workspaces
-      description: Elenco documenti tz_clients per workspace (scaffolding ACL futura).
+      description: Clienti collegati al workspace (scaffolding)
       parameters:
         - schema:
             type: string
           in: path
           name: workspaceId
           required: true
-          description: Identificativo workspace
       security: *a1
       responses:
         '200':
@@ -1534,9 +1526,10 @@ paths:
       tags:
         - Projects
       description:
-        'Senza `workspaceId` Tecma SuperAdmin vede tutti i progetti; gli altri solo progetti accessibili (assegnazioni,
-        membership workspace, grant). Con `workspaceId` richiede membership (salvo Tecma); include progetti da grant
-        verso quel workspace. `userId` solo Tecma SuperAdmin per filtrare altro utente.'
+        'Senza `workspaceId`: Tecma SuperAdmin vede tutti i progetti; gli altri utenti solo progetti accessibili
+        (assegnazioni, membership workspace, grant `tz_project_access`). Con `workspaceId` richiede membership nel
+        workspace (salvo Tecma); elenco include assegnazioni, fallback progetti del workspace e progetti concessi in
+        grant verso quel workspace. `userId` consente a Tecma SuperAdmin di filtrare per un altro utente.'
       parameters:
         - schema:
             type: string
@@ -2144,6 +2137,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/def-3'
+  /admin/audit-events:
+    get:
+      operationId: listAdminAuditEvents
+      summary: Audit events
+      tags:
+        - Admin
+      description: Elenco audit eventi platform, accessibile solo a Tecma SuperAdmin.
+      security: *a1
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - paginationInfo
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  paginationInfo:
+                    $ref: '#/components/schemas/def-0'
+        '401':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/def-3'
+        '403':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/def-3'
+        '500':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/def-3'
 servers:
   - url: /v1
 tags:
@@ -2157,5 +2194,7 @@ tags:
     description: Workspace e membri
   - name: Projects
     description: Progetti e accessi
+  - name: Admin
+    description: Funzioni platform Tecma
   - name: Session
     description: Preferenze e lookup sessione
