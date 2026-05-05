@@ -26,3 +26,9 @@ coverage/
 _sync_logs/
 *.tsbuildinfo
 .understand-anything/
+
+# Claude Code local session config (per-developer)
+.claude/
+
+# Playwright MCP local cache
+.playwright-mcp/

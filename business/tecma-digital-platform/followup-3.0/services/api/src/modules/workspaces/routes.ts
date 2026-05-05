@@ -618,10 +618,10 @@ export const workspacesRoutes = async (app: FastifyInstance): Promise<void> => {
         details: { workspaceId: wsId, invitedEmail: emailLower, projectIds: payload.projectIds },
       });
 
-      await app.mail.sendMail({
+      await app.mail.sendTemplate({
         to: emailLower,
-        subject: 'Invito workspace Followup',
-        text: `Sei stato invitato nel workspace (${wsId}). Accedi all’app per completare l’accesso.`,
+        flowKey: 'workspace_invite',
+        vars: { workspaceId: wsId },
       });
 
       return reply.status(201).send({
@@ -635,7 +635,11 @@ export const workspacesRoutes = async (app: FastifyInstance): Promise<void> => {
     {
       preHandler: [app.authenticate, app.requireCanAccessWorkspace()],
       schema: {
-        ...listSchema('listWorkspaceClients', 'Workspaces', 'Clienti collegati al workspace (scaffolding)'),
+        ...listSchema(
+          'listWorkspaceClients',
+          'Workspaces',
+          'Clienti collegati al workspace (scaffolding)',
+        ),
         params: {
           type: 'object',
           required: ['workspaceId'],

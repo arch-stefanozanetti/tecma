@@ -7,9 +7,7 @@ import { isTecmaPlatformAdmin, normalizeSystemRole } from '@followup/shared-rbac
 
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 
-import {
-  buildUserWorkspaceMembershipFilter,
-} from '../../lib/mongoIdentity.js';
+import { buildUserWorkspaceMembershipFilter } from '../../lib/mongoIdentity.js';
 import { listAccessibleProjectIdsForUser } from '../../lib/projectAccess.js';
 import { isSelfIdentity, resolveUserIdentityCandidates } from '../../lib/userIdentity.js';
 import { singlePagePaginationInfo } from '../../lib/pagination.js';
@@ -118,9 +116,7 @@ export const projectsRoutes = async (app: FastifyInstance): Promise<void> => {
         if (!isAdmin) {
           const membership = await app.mongoDb
             .collection('tz_user_workspaces')
-            .findOne(
-              buildUserWorkspaceMembershipFilter(query.workspaceId, identityList) as any,
-            );
+            .findOne(buildUserWorkspaceMembershipFilter(query.workspaceId, identityList) as any);
           if (membership == null) {
             return reply.status(403).send({
               error: {

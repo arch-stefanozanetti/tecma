@@ -19,8 +19,7 @@ const baseUrlHasV1 = (value: string): boolean => /(^|\/)v1($|\/)/.test(value);
  * le chiamate finiscono su `/auth/login` invece di `/v1/auth/login` (404 o risposta errata).
  */
 export function resolveApiBaseUrl(envValue: string | undefined): string {
-  const raw =
-    envValue != null && envValue.trim() !== '' ? envValue.trim() : '/v1';
+  const raw = envValue != null && envValue.trim() !== '' ? envValue.trim() : '/v1';
   const normalized = normalizeBaseUrl(raw);
   if (baseUrlHasV1(normalized)) return normalized;
   if (normalized === '' || normalized === '/') return '/v1';
@@ -51,9 +50,17 @@ export interface HttpOptions {
   apiKey?: string | null;
 }
 
-export { HttpApiError, isHttpApiError, mapApiErrorToUserCopy, formatUserFacingApiCopy, toUserFacingApiCopyFromUnknown } from './httpError';
+export {
+  HttpApiError,
+  isHttpApiError,
+  mapApiErrorToUserCopy,
+  normalizeApiError,
+  formatUserFacingApiCopy,
+  toUserFacingApiCopyFromUnknown,
+} from './httpError';
 
 export const http = async <T>(path: string, options: HttpOptions = {}): Promise<T> => {
+  const method = options.method ?? 'GET';
   const resolvedApiKey = options.apiKey ?? defaultApiKey;
   if (import.meta.env.DEV && resolvedApiKey == null && !warnedMissingApiKey) {
     warnedMissingApiKey = true;
@@ -63,7 +70,7 @@ export const http = async <T>(path: string, options: HttpOptions = {}): Promise<
   let response: Response;
   try {
     response = await fetch(`${apiBaseUrl}${path}`, {
-      method: options.method ?? 'GET',
+      method,
       headers: {
         'content-type': 'application/json',
         ...(options.accessToken != null ? { authorization: `Bearer ${options.accessToken}` } : {}),
@@ -73,11 +80,11 @@ export const http = async <T>(path: string, options: HttpOptions = {}): Promise<
       body: options.body == null ? null : JSON.stringify(options.body),
     });
   } catch (err) {
-    throw buildHttpApiErrorFromFailedFetch(path, apiBaseUrl, err);
+    throw buildHttpApiErrorFromFailedFetch(path, apiBaseUrl, err, method);
   }
 
   if (!response.ok) {
-    throw await buildHttpApiErrorFromResponse(response, path);
+    throw await buildHttpApiErrorFromResponse(response, path, method);
   }
   return response.json() as Promise<T>;
 };

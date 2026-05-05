@@ -37,7 +37,7 @@ export const registerSharedSchemas = async (app: FastifyInstance): Promise<void>
       code: { type: 'string', description: 'Codice errore' },
       message: { type: 'string' },
       status: { type: 'integer' },
-      tId: { type: 'string', description: 'ID transazione / tracing' },
+      traceId: { type: 'string', description: 'ID transazione / tracing' },
       details: { type: 'array', items: { $ref: 'ErrorDetail#' } },
     },
   });

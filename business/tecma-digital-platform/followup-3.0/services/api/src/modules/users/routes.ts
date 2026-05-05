@@ -100,7 +100,10 @@ export const usersRoutes = async (app: FastifyInstance): Promise<void> => {
             email: { type: 'string', format: 'email' },
             fullName: { type: 'string', minLength: 2 },
             role: { type: 'string', enum: ['owner', 'admin', 'collaborator', 'viewer'] },
-            workspaceId: { type: 'string', description: 'Workspace in cui si invita (richiede ruolo owner/admin).' },
+            workspaceId: {
+              type: 'string',
+              description: 'Workspace in cui si invita (richiede ruolo owner/admin).',
+            },
           },
         },
       },
@@ -124,9 +127,7 @@ export const usersRoutes = async (app: FastifyInstance): Promise<void> => {
           ]);
           const membership = await app.mongoDb
             .collection('tz_user_workspaces')
-            .findOne(
-              buildUserWorkspaceMembershipFilter(payload.workspaceId, identities) as any,
-            );
+            .findOne(buildUserWorkspaceMembershipFilter(payload.workspaceId, identities) as any);
           if (
             membership == null ||
             !['owner', 'admin'].includes(String((membership as { role?: string }).role ?? ''))

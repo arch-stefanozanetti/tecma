@@ -15,6 +15,19 @@ describe('LoginPage', () => {
     httpMock.mockReset();
   });
 
+  it('shows session notice above login form', () => {
+    render(
+      <LoginPage
+        notice="La sessione è scaduta. Accedi di nuovo per continuare."
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText('La sessione è scaduta. Accedi di nuovo per continuare.'),
+    ).toBeInTheDocument();
+  });
+
   it('submits login and forwards profile on success', async () => {
     const user = userEvent.setup();
     const onSuccess = vi.fn();
@@ -53,9 +66,7 @@ describe('LoginPage', () => {
     await user.type(screen.getByLabelText('Password'), 'wrong');
     await user.click(screen.getByRole('button', { name: 'Accedi' }));
 
-    await waitFor(() =>
-      expect(screen.getByText('Credenziali non valide.')).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText('Credenziali non valide.')).toBeInTheDocument());
   });
 
   it('accepts flat body same as wrapped { data: ... } (proxy senza wrapper)', async () => {
@@ -92,9 +103,7 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', { name: 'Accedi' }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/Risposta login non valida/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Risposta login non valida/i)).toBeInTheDocument();
       expect(onSuccess).not.toHaveBeenCalled();
     });
   });
@@ -116,9 +125,7 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', { name: 'Accedi' }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/Risposta login non valida/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Risposta login non valida/i)).toBeInTheDocument();
       expect(onSuccess).not.toHaveBeenCalled();
     });
   });

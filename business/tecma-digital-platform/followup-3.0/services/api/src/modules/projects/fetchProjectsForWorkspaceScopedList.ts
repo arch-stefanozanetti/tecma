@@ -44,12 +44,10 @@ export async function fetchProjectsForWorkspaceScopedList(
   let fallbackAllowed = false;
 
   if (assignmentIds.length === 0) {
-    const membership = await deps.app.mongoDb
-      .collection('tz_user_workspaces')
-      .findOne({
-        ...wsFilter,
-        userId: { $in: userIdIn },
-      } as any);
+    const membership = await deps.app.mongoDb.collection('tz_user_workspaces').findOne({
+      ...wsFilter,
+      userId: { $in: userIdIn },
+    } as any);
     fallbackAllowed = args.isTecmaAdmin || membership != null;
     if (fallbackAllowed) {
       const wsProjectLinks = await deps.workspaceProjectsRepo.findMany({

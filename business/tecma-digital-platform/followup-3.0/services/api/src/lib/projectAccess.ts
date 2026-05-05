@@ -31,7 +31,10 @@ async function loadProject(
   const doc = await app.mongoDb.collection('tz_projects').findOne({ _id: projectId } as any);
   if (doc == null) return null;
   const wid = normalizeToStringId((doc as { workspaceId?: unknown }).workspaceId);
-  return { _id: String((doc as { _id?: unknown })._id ?? projectId), workspaceId: wid ?? undefined };
+  return {
+    _id: String((doc as { _id?: unknown })._id ?? projectId),
+    workspaceId: wid ?? undefined,
+  };
 }
 
 async function membershipRoleForWorkspace(
