@@ -4,7 +4,12 @@ import bcrypt from 'bcryptjs';
 import { ObjectId } from 'mongodb';
 
 import { MongoRepository } from '@followup/db';
-import { isTecmaPlatformAdmin, normalizeSystemRole, PERMISSIONS } from '@followup/shared-rbac';
+import {
+  computeEffectivePermissions,
+  isTecmaPlatformAdmin,
+  normalizeSystemRole,
+  PERMISSIONS,
+} from '@followup/shared-rbac';
 
 import type { FastifyInstance } from 'fastify';
 
@@ -26,13 +31,25 @@ const basePermissions = [
   PERMISSIONS.SESSION_WRITE,
 ] as const;
 
+const readUserOverrides = (user: AuthUser): readonly string[] => {
+  const camel = (user as { permissionsOverride?: unknown }).permissionsOverride;
+  if (Array.isArray(camel)) return camel.filter((id): id is string => typeof id === 'string');
+  const snake = (user as { permissions_override?: unknown }).permissions_override;
+  if (Array.isArray(snake)) return snake.filter((id): id is string => typeof id === 'string');
+  return [];
+};
+
 const buildAccessClaims = (user: AuthUser) => {
   const systemRole = normalizeSystemRole(user) ?? 'user';
   const isTecmaAdmin = isTecmaPlatformAdmin(systemRole);
+  if (isTecmaAdmin) {
+    return { systemRole, isTecmaAdmin, permissions: ['*'] };
+  }
+  const overrides = readUserOverrides(user).filter((id) => id !== '*');
   return {
     systemRole,
     isTecmaAdmin,
-    permissions: isTecmaAdmin ? ['*'] : [...basePermissions],
+    permissions: computeEffectivePermissions([...basePermissions], overrides),
   };
 };
 

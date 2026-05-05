@@ -6,9 +6,11 @@ import { ObjectId } from 'mongodb';
 
 import { MongoRepository } from '@followup/db';
 import {
+  ALL_PERMISSION_IDS,
   hasPermission,
   isTecmaPlatformAdmin,
   normalizeSystemRole,
+  PERMISSION_WILDCARD,
   PERMISSIONS,
 } from '@followup/shared-rbac';
 
@@ -35,6 +37,13 @@ const createUserSchema = z.object({
 const updateUserSchema = z.object({
   fullName: z.string().min(2).optional(),
   systemRole: z.enum(['user', 'tecma_admin']).optional(),
+  /**
+   * Lista permessi extra rispetto al ruolo workspace effettivo.
+   * Validati in route handler: ogni id deve essere nel catalogo
+   * `ALL_PERMISSION_IDS`; la wildcard `*` e ammessa solo se l'attore
+   * e platform admin Tecma.
+   */
+  permissionsOverride: z.array(z.string().min(1)).max(64).optional(),
 });
 
 const omitPasswordHash = (doc: Record<string, unknown>): Record<string, unknown> => {
@@ -220,6 +229,12 @@ export const usersRoutes = async (app: FastifyInstance): Promise<void> => {
           properties: {
             fullName: { type: 'string', minLength: 2 },
             systemRole: { type: 'string', enum: ['user', 'tecma_admin'] },
+            permissionsOverride: {
+              type: 'array',
+              items: { type: 'string', minLength: 1 },
+              description:
+                'Lista permessi extra (catalogo RBAC). La wildcard "*" e ammessa solo per platform admin.',
+            },
           },
         },
       },
@@ -234,6 +249,7 @@ export const usersRoutes = async (app: FastifyInstance): Promise<void> => {
       }
       const payload = updateUserSchema.parse(request.body);
       const actor = request.user as { sub?: string; systemRole?: string; system_role?: string };
+      const actorIsTecmaAdmin = isTecmaPlatformAdmin(normalizeSystemRole(actor));
       const before = await usersRepo.findOne({ _id: userObjectId });
       if (before == null) {
         return reply
@@ -242,7 +258,7 @@ export const usersRoutes = async (app: FastifyInstance): Promise<void> => {
       }
 
       const roleChangeRequested = payload.systemRole != null;
-      if (roleChangeRequested && !isTecmaPlatformAdmin(normalizeSystemRole(actor))) {
+      if (roleChangeRequested && !actorIsTecmaAdmin) {
         return reply.status(403).send({
           error: {
             code: 'Forbidden',
@@ -250,6 +266,32 @@ export const usersRoutes = async (app: FastifyInstance): Promise<void> => {
             status: 403,
           },
         });
+      }
+
+      if (payload.permissionsOverride != null) {
+        for (const id of payload.permissionsOverride) {
+          if (id === PERMISSION_WILDCARD) {
+            if (!actorIsTecmaAdmin) {
+              return reply.status(403).send({
+                error: {
+                  code: 'WildcardPermissionRequiresAdmin',
+                  message: 'Only Tecma admin can grant wildcard permission',
+                  status: 403,
+                },
+              });
+            }
+            continue;
+          }
+          if (!ALL_PERMISSION_IDS.includes(id)) {
+            return reply.status(400).send({
+              error: {
+                code: 'UnknownPermissionId',
+                message: `Unknown permission id "${id}"`,
+                status: 400,
+              },
+            });
+          }
+        }
       }
 
       const beforeIsTecmaAdmin = isTecmaPlatformAdmin(normalizeSystemRole(before));
@@ -284,6 +326,12 @@ export const usersRoutes = async (app: FastifyInstance): Promise<void> => {
         update.$unset = { system_role: '', isTecmaAdmin: '' };
       }
 
+      if (payload.permissionsOverride != null) {
+        const dedup = Array.from(new Set(payload.permissionsOverride));
+        (update.$set as Record<string, unknown>).permissionsOverride = dedup;
+        update.$unset = { ...(update.$unset as object | undefined), permissions_override: '' };
+      }
+
       await usersRepo.updateOne({ _id: userObjectId }, update as any);
       const user = await usersRepo.findOne({ _id: userObjectId });
       if (roleChangeRequested) {
@@ -294,6 +342,16 @@ export const usersRoutes = async (app: FastifyInstance): Promise<void> => {
             targetUserId: userObjectId.toString(),
             before: normalizeSystemRole(before) ?? 'user',
             after: payload.systemRole,
+          },
+        });
+      }
+      if (payload.permissionsOverride != null) {
+        await app.auditService.authEvent({
+          eventType: 'users.permissionsOverride.update',
+          userId: actor.sub ?? 'system',
+          details: {
+            targetUserId: userObjectId.toString(),
+            permissions: payload.permissionsOverride,
           },
         });
       }
