@@ -1,6 +1,7 @@
 import { isTecmaPlatformAdmin } from '@followup/shared-rbac';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { SupportErrorReport } from '../../components/support/SupportErrorReport';
 import { LogoTecma } from '../../components/LogoTecma';
 import { Button } from '../../components/ui/button';
 import { Checkbox } from '../../components/ui/checkbox';
@@ -12,12 +13,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
-import { clearFollowupAuthSession } from '../../lib/authSession';
 import {
-  formatUserFacingApiCopy,
-  http,
-  toUserFacingApiCopyFromUnknown,
-} from '../../lib/http';
+  clearAuthSession,
+  handleSessionExpired,
+  isRecoverableSessionError,
+  type SessionExpiredNotice,
+} from '../../lib/authSession';
+import { http, normalizeApiError } from '../../lib/http';
+import type { NormalizedApiError } from '../../lib/httpError';
 import { parseMePayload } from '../../lib/parseMePayload';
 import { cn } from '../../lib/utils';
 
@@ -34,7 +37,7 @@ interface ProjectAccessPageProps {
   initialProfile?: { id: string; email: string; systemRole: string } | null;
   onContinue: (projectIds: string[]) => void;
   /** Se /auth/me fallisce: pulizia sessione e ritorno al login (niente schermata intermedia). */
-  onSessionInvalid?: () => void;
+  onSessionInvalid?: (notice?: SessionExpiredNotice) => void;
 }
 
 /** Valore sentinella per il Select Radix (nessun workspace ancora scelto). */
@@ -108,7 +111,7 @@ export const ProjectAccessPage = ({
   );
   const [meUserId, setMeUserId] = useState<string | null>(() => initialProfile?.id ?? null);
   const [isAdmin, setIsAdmin] = useState(() => isTecmaPlatformAdmin(initialProfile?.systemRole));
-  const [apiConfigWarning, setApiConfigWarning] = useState<string | null>(null);
+  const [apiConfigError, setApiConfigError] = useState<NormalizedApiError | null>(null);
   const [projects, setProjects] = useState<ProjectAccessProject[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [workspaces, setWorkspaces] = useState<WorkspaceRow[]>([]);
@@ -119,12 +122,34 @@ export const ProjectAccessPage = ({
   const [filter, setFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState<ProjectTypeFilter>('all');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [workspacesError, setWorkspacesError] = useState<string | null>(null);
+  const [error, setError] = useState<NormalizedApiError | null>(null);
+  const [workspacesError, setWorkspacesError] = useState<NormalizedApiError | null>(null);
   const [workspacesLoading, setWorkspacesLoading] = useState(true);
 
   /** Chiamate API post-login non riuscite: tendina workspace vuota ma non è “nessun workspace assegnato”. */
-  const apiCallsDegraded = apiConfigWarning != null || workspacesError != null;
+  const apiCallsDegraded = apiConfigError != null || workspacesError != null;
+  const degradedError = apiConfigError ?? workspacesError;
+
+  const expireSession = useCallback(
+    (e: unknown) => {
+      const notice = handleSessionExpired(e);
+      if (onSessionInvalid != null) {
+        onSessionInvalid(notice);
+        return;
+      }
+      window.location.reload();
+    },
+    [onSessionInvalid],
+  );
+
+  const backToLogin = useCallback(() => {
+    clearAuthSession();
+    if (onSessionInvalid != null) {
+      onSessionInvalid();
+      return;
+    }
+    window.location.reload();
+  }, [onSessionInvalid]);
 
   const access = useMemo(() => {
     if (meEmail == null) return null;
@@ -155,11 +180,12 @@ export const ProjectAccessPage = ({
       setLoading(true);
       setError(null);
       try {
-        const path = trimmedWorkspaceId !== ''
-          ? `/projects?workspaceId=${encodeURIComponent(trimmedWorkspaceId)}&userId=${encodeURIComponent(userId)}`
-          : tecmaPlatformAdmin
-            ? '/projects'
-            : '';
+        const path =
+          trimmedWorkspaceId !== ''
+            ? `/projects?workspaceId=${encodeURIComponent(trimmedWorkspaceId)}&userId=${encodeURIComponent(userId)}`
+            : tecmaPlatformAdmin
+              ? '/projects'
+              : '';
         if (path === '') {
           setProjects([]);
           setLoading(false);
@@ -174,7 +200,11 @@ export const ProjectAccessPage = ({
           return prev.filter((id) => allowed.has(id));
         });
       } catch (e) {
-        setError(formatUserFacingApiCopy(toUserFacingApiCopyFromUnknown(e)));
+        if (isRecoverableSessionError(e)) {
+          expireSession(e);
+          return;
+        }
+        setError(normalizeApiError(e));
         setProjects([]);
       } finally {
         setLoading(false);
@@ -201,9 +231,15 @@ export const ProjectAccessPage = ({
               setMeUserId(initialProfile.id);
               setIsAdmin(isTecmaPlatformAdmin(initialProfile.systemRole));
               setAuthStatus('ok');
-              setApiConfigWarning(
-                'Il backend non ha restituito id/email in /auth/me nel formato atteso. In uso il profilo del login; controlla la risposta dell’API.',
-              );
+              setApiConfigError({
+                category: 'system',
+                reason: 'server_error',
+                endpoint: '/auth/me',
+                method: 'GET',
+                userMessage: 'Non riusciamo a completare la verifica del profilo.',
+                technicalMessage:
+                  'Il backend non ha restituito id/email in /auth/me nel formato atteso.',
+              });
             }
             return;
           }
@@ -215,9 +251,13 @@ export const ProjectAccessPage = ({
         setIsAdmin(isTecmaPlatformAdmin(parsed.systemRole));
         window.sessionStorage.setItem('followup3.lastEmail', parsed.email);
         setAuthStatus('ok');
-        setApiConfigWarning(null);
+        setApiConfigError(null);
       } catch (e) {
-        /* Profilo login già noto: restiamo in app e mostriamo l’errore API (es. 401 x-api-key) tramite mapper unico. */
+        if (isRecoverableSessionError(e)) {
+          if (!cancelled) expireSession(e);
+          return;
+        }
+        /* Profilo login già noto: restiamo in app e mostriamo recovery utente-safe. */
         if (initialProfile != null) {
           if (!cancelled) {
             const email = initialProfile.email.trim().toLowerCase();
@@ -225,12 +265,7 @@ export const ProjectAccessPage = ({
             setMeUserId(initialProfile.id);
             setIsAdmin(isTecmaPlatformAdmin(initialProfile.systemRole));
             setAuthStatus('ok');
-            const copy = toUserFacingApiCopyFromUnknown(e);
-            const intro =
-              'Profilo da login disponibile, ma la verifica lato API non è riuscita.';
-            setApiConfigWarning(
-              `${intro}\n\n${formatUserFacingApiCopy(copy)}`,
-            );
+            setApiConfigError(normalizeApiError(e));
           }
           return;
         }
@@ -249,7 +284,7 @@ export const ProjectAccessPage = ({
       onSessionInvalid();
       return;
     }
-    clearFollowupAuthSession();
+    clearAuthSession();
     window.location.reload();
   }, [authStatus, onSessionInvalid]);
 
@@ -265,8 +300,12 @@ export const ProjectAccessPage = ({
       })
       .catch((e) => {
         if (cancelled) return;
+        if (isRecoverableSessionError(e)) {
+          expireSession(e);
+          return;
+        }
         setWorkspaces([]);
-        setWorkspacesError(formatUserFacingApiCopy(toUserFacingApiCopyFromUnknown(e)));
+        setWorkspacesError(normalizeApiError(e));
       })
       .finally(() => {
         if (!cancelled) setWorkspacesLoading(false);
@@ -295,7 +334,9 @@ export const ProjectAccessPage = ({
         const intersected = prefs.data.projectIds.filter((id) => valid.has(id));
         if (intersected.length > 0) setSelected(intersected);
       })
-      .catch(() => {});
+      .catch((e) => {
+        if (isRecoverableSessionError(e)) expireSession(e);
+      });
     return () => {
       cancelled = true;
     };
@@ -339,8 +380,7 @@ export const ProjectAccessPage = ({
     setSelected(Array.from(new Set([...selected, ...visibleProjects.map((p) => p.id)])));
   };
 
-  const canConfirm =
-    selected.length > 0 && !!access?.found && workspaceId.trim() !== '';
+  const canConfirm = selected.length > 0 && !!access?.found && workspaceId.trim() !== '';
 
   const confirmSelection = async () => {
     if (access == null) return;
@@ -419,8 +459,8 @@ export const ProjectAccessPage = ({
               </>
             ) : (
               <>
-                Prima selezioni il workspace: i progetti mostrati sono solo quelli di quel workspace.
-                Poi scegli uno o più progetti con cui entrare in Followup.
+                Prima selezioni il workspace: i progetti mostrati sono solo quelli di quel
+                workspace. Poi scegli uno o più progetti con cui entrare in Followup.
               </>
             )}
           </p>
@@ -443,21 +483,21 @@ export const ProjectAccessPage = ({
         <div className="flex min-h-0 w-full max-w-4xl flex-1 flex-col overflow-hidden">
           <div className="glass-panel flex min-h-0 flex-1 flex-col overflow-hidden rounded-ui px-6 py-6 shadow-panel">
             <header className="mb-4 flex-shrink-0">
-              {apiConfigWarning != null ? (
-                <p
-                  className="mb-3 whitespace-pre-line rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"
-                  role="status"
-                >
-                  {apiConfigWarning}
-                </p>
-              ) : null}
-              {workspacesError != null && apiConfigWarning == null ? (
-                <p
-                  className="mb-3 whitespace-pre-line rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive"
-                  role="alert"
-                >
-                  {workspacesError}
-                </p>
+              {degradedError != null ? (
+                <div className="mb-3">
+                  <SupportErrorReport
+                    userMessage="Riprova tra qualche secondo. Se il problema continua, invia una segnalazione."
+                    error={degradedError}
+                    context={{
+                      source: 'ProjectAccessPage',
+                      userEmail: meEmail,
+                      workspaceId,
+                      projectIds: selected,
+                    }}
+                    onRetry={() => window.location.reload()}
+                    onBackToLogin={backToLogin}
+                  />
+                </div>
               ) : null}
               {workspacesError == null &&
               authStatus === 'ok' &&
@@ -469,8 +509,8 @@ export const ProjectAccessPage = ({
                 >
                   Nessun workspace assegnato al tuo account. Contatta un amministratore per farti
                   abilitare ai workspace necessari, oppure accedi con un utente{' '}
-                  <span className="font-medium">ruolo amministratore Tecma</span> se devi vedere tutti
-                  i workspace.
+                  <span className="font-medium">ruolo amministratore Tecma</span> se devi vedere
+                  tutti i workspace.
                 </p>
               ) : null}
               {workspacesError == null &&
@@ -527,7 +567,7 @@ export const ProjectAccessPage = ({
                           workspacesLoading
                             ? 'Caricamento workspace…'
                             : apiCallsDegraded
-                              ? 'Workspace non disponibile (errore API)'
+                              ? 'Workspace non disponibile'
                               : 'Scegli un workspace'
                         }
                       />
@@ -549,14 +589,13 @@ export const ProjectAccessPage = ({
                   </Select>
                   {apiCallsDegraded ? (
                     <p className="mt-2 max-w-md text-xs text-muted-foreground">
-                      La tendina resta vuota perché l’API non ha restituito l’elenco workspace. Segui
-                      l’avviso in alto, correggi configurazione e backend, poi{' '}
+                      Non riusciamo a caricare i workspace. Puoi riprovare o tornare al login.
                       <button
                         type="button"
-                        className="font-medium text-primary underline underline-offset-2"
+                        className="ml-1 font-medium text-primary underline underline-offset-2"
                         onClick={() => window.location.reload()}
                       >
-                        ricarica la pagina
+                        Riprova
                       </button>
                       .
                     </p>
@@ -640,15 +679,19 @@ export const ProjectAccessPage = ({
                 <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-ui border border-border bg-background/80 pb-24 md:pb-0">
                   {apiCallsDegraded ? (
                     <div className="space-y-3 px-4 py-8 text-sm text-muted-foreground">
-                      <p className="font-medium text-foreground">Workspace e progetti non disponibili</p>
-                      <p>
-                        Finché le chiamate a <code className="rounded bg-muted px-1">/auth/me</code> o{' '}
-                        <code className="rounded bg-muted px-1">/workspaces</code> falliscono, non è
-                        possibile popolare la tendina né caricare i progetti: non si tratta di un
-                        account senza workspace, ma di un errore di configurazione o di rete.
-                        Usa le indicazioni nell’avviso in alto (stesso blocco giallo), poi ricarica.
+                      <p className="font-medium text-foreground">
+                        Workspace e progetti non disponibili
                       </p>
-                      <Button type="button" variant="secondary" size="sm" onClick={() => window.location.reload()}>
+                      <p>
+                        Non riusciamo a caricare workspace e progetti. Riprova tra qualche secondo.
+                        Se il problema continua, invia una segnalazione.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => window.location.reload()}
+                      >
                         Ricarica pagina
                       </Button>
                     </div>
@@ -679,8 +722,20 @@ export const ProjectAccessPage = ({
                     </div>
                   ) : null}
                   {error != null ? (
-                    <div className="border-b border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                      {error}
+                    <div className="border-b border-border px-4 py-3">
+                      <SupportErrorReport
+                        title="Non riusciamo a caricare i progetti"
+                        userMessage="Riprova tra qualche secondo. Se il problema continua, invia una segnalazione."
+                        error={error}
+                        context={{
+                          source: 'ProjectAccessPage.projects',
+                          userEmail: meEmail,
+                          workspaceId,
+                          projectIds: selected,
+                        }}
+                        onRetry={reloadProjects}
+                        onBackToLogin={backToLogin}
+                      />
                     </div>
                   ) : null}
                   {projects.length > 0 && visibleProjects.length === 0 && error == null ? (

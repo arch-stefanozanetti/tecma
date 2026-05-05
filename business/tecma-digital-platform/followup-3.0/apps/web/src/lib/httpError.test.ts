@@ -7,6 +7,7 @@ import {
   isHttpApiError,
   LOCAL_API_SETUP_HINT,
   mapApiErrorToUserCopy,
+  normalizeApiError,
   toUserFacingApiCopyFromUnknown,
 } from './httpError';
 
@@ -38,8 +39,35 @@ describe('buildHttpApiErrorFromResponse', () => {
     } as Response;
     const err = await buildHttpApiErrorFromResponse(res, '/auth/me');
     expect(err.unauthorizedBecause).toBe('session');
+    expect(normalizeApiError(err)).toMatchObject({
+      category: 'auth',
+      reason: 'invalid_token',
+      userMessage: 'La sessione è scaduta. Accedi di nuovo per continuare.',
+    });
     const copy = mapApiErrorToUserCopy(err);
     expect(copy.hint).toBeUndefined();
+    expect(copy.title).toBe('La sessione è scaduta. Accedi di nuovo per continuare.');
+  });
+
+  it('401 token scaduto → session_expired con trace/request id', async () => {
+    const res = {
+      ok: false,
+      status: 401,
+      headers: new Headers({ 'x-request-id': 'req-1' }),
+      text: async () =>
+        JSON.stringify({
+          error: { message: 'jwt expired', status: 401, traceId: 'trace-1' },
+        }),
+    } as Response;
+    const err = await buildHttpApiErrorFromResponse(res, '/workspaces', 'GET');
+    expect(normalizeApiError(err)).toMatchObject({
+      category: 'auth',
+      reason: 'session_expired',
+      endpoint: '/workspaces',
+      method: 'GET',
+      requestId: 'req-1',
+      traceId: 'trace-1',
+    });
   });
 
   it('429 → rate_limited', async () => {
@@ -62,15 +90,37 @@ describe('buildHttpApiErrorFromResponse', () => {
     } as Response;
     const err = await buildHttpApiErrorFromResponse(res, '/v1/x');
     expect(err.kind).toBe('http');
+    expect(normalizeApiError(err).category).toBe('tenant');
     expect(mapApiErrorToUserCopy(err).hint).toBeUndefined();
+  });
+
+  it('500 → system server_error', async () => {
+    const res = {
+      ok: false,
+      status: 500,
+      text: async () => JSON.stringify({ error: { message: 'Internal server error' } }),
+    } as Response;
+    const err = await buildHttpApiErrorFromResponse(res, '/workspaces');
+    expect(normalizeApiError(err)).toMatchObject({
+      category: 'system',
+      reason: 'server_error',
+    });
   });
 });
 
 describe('buildHttpApiErrorFromFailedFetch', () => {
   it('incapsula errore di rete', () => {
-    const err = buildHttpApiErrorFromFailedFetch('/workspaces', '/v1', new TypeError('Failed to fetch'));
+    const err = buildHttpApiErrorFromFailedFetch(
+      '/workspaces',
+      '/v1',
+      new TypeError('Failed to fetch'),
+    );
     expect(err.kind).toBe('network');
     expect(err.message).toContain('/v1');
+    expect(normalizeApiError(err)).toMatchObject({
+      category: 'network',
+      reason: 'network_error',
+    });
   });
 });
 

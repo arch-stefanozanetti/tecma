@@ -100,13 +100,14 @@ const LOGIN_SHAPE_HINT =
   'Risposta login non valida: il backend greenfield deve restituire { data: { accessToken, refreshToken, user } }. Verifica VITE_API_BASE_URL verso services/api (URL base che termina con /v1).';
 
 interface LoginPageProps {
+  notice?: string | null;
   onSuccess: (
     accessToken: string,
     profile: { id: string; email: string; systemRole: string },
   ) => void;
 }
 
-export const LoginPage = ({ onSuccess }: LoginPageProps) => {
+export const LoginPage = ({ notice = null, onSuccess }: LoginPageProps) => {
   const [email, setEmail] = useState(getStoredEmail);
   const [password, setPassword] = useState('');
   const [rememberCredentials, setRememberCredentials] = useState<boolean>(
@@ -218,6 +219,14 @@ export const LoginPage = ({ onSuccess }: LoginPageProps) => {
             </div>
 
             <form onSubmit={handleAccedi} className="space-y-3">
+              {notice != null ? (
+                <p
+                  className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
+                  role="status"
+                >
+                  {notice}
+                </p>
+              ) : null}
               <div>
                 <label
                   htmlFor="login-email"

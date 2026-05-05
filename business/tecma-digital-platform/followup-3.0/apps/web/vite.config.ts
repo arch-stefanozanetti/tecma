@@ -23,10 +23,7 @@ function readInternalApiKeyFromServicesApi(servicesApiDir: string): string {
     const m = raw.match(/^\s*INTERNAL_API_KEY\s*=\s*(.+)$/m);
     if (m?.[1] == null) continue;
     let v = stripInlineComment(m[1]);
-    if (
-      (v.startsWith('"') && v.endsWith('"')) ||
-      (v.startsWith("'") && v.endsWith("'"))
-    ) {
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
       v = v.slice(1, -1).trim();
     }
     if (v !== '') return v;
