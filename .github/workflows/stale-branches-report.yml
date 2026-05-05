@@ -1,0 +1,71 @@
+name: Stale branches report
+
+# Settimanalmente (lunedi 09:00 UTC) elenca i branch >30 giorni senza
+# commit (escluso main/develop/demo, archive/*, release/*, parking/*) e
+# crea o aggiorna una issue di review come da policy in
+# business/tecma-digital-platform/followup-3.0/docs/branching-policy.md
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build stale branches table
+        id: build
+        env:
+          THRESHOLD_DAYS: '30'
+        run: |
+          set -euo pipefail
+          THRESHOLD_TS=$(date -d "$THRESHOLD_DAYS days ago" +%s)
+          {
+            echo "table<<__END__"
+            echo "| Branch | Ultimo commit | Autore | Giorni inattivo |"
+            echo "|---|---|---|---|"
+          } >> "$GITHUB_OUTPUT"
+
+          git for-each-ref refs/remotes/origin --format='%(refname:short)|%(committerdate:unix)|%(authorname)|%(committerdate:short)' \
+            | while IFS='|' read -r REFNAME TS AUTHOR DATE; do
+                BRANCH="${REFNAME#origin/}"
+                case "$BRANCH" in
+                  HEAD|main|develop|demo)
+                    continue
+                    ;;
+                  archive/*|release/*|parking/*)
+                    continue
+                    ;;
+                esac
+                if [[ "$TS" -lt "$THRESHOLD_TS" ]]; then
+                  DAYS=$(( ( $(date +%s) - TS ) / 86400 ))
+                  printf '| `%s` | %s | %s | %s |\n' "$BRANCH" "$DATE" "$AUTHOR" "$DAYS"
+                fi
+              done >> "$GITHUB_OUTPUT"
+          echo "__END__" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update review issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TABLE: ${{ steps.build.outputs.table }}
+        run: |
+          set -euo pipefail
+          TITLE="Stale branches review ($(date +%Y-%m-%d))"
+          BODY=$(printf 'Branch >30 giorni senza commit. Per ognuno: integrare, archiviare con tag archive/<branch>-<YYYY-MM-DD> e cancellare, oppure giustificare il parking aggiornando docs/branches-parking-2026-05-05.md\n\n%s\n' "$TABLE")
+          EXISTING=$(gh issue list --repo "$REPO" --state open --label stale-branches --json number --jq '.[0].number' || echo '')
+          if [[ -n "$EXISTING" ]]; then
+            gh issue edit "$EXISTING" --repo "$REPO" --title "$TITLE" --body "$BODY"
+          else
+            gh label create stale-branches --repo "$REPO" --color BFD4F2 --description "Weekly report of stale branches" 2>/dev/null || true
+            gh issue create --repo "$REPO" --title "$TITLE" --body "$BODY" --label stale-branches
+          fi

@@ -1,5 +1,12 @@
 # Lessons (agent / team)
 
+## 2026-05-05 — Branch cleanup: scope chiuso, push frequente, delete dopo merge
+
+- **Sintomo:** un singolo branch `chore/baseline-cleanup-and-workspace-fix` con 8 aree mescolate (RBAC, audit, error contract, mail, support UI, repo di dominio, shared-types, OpenAPI) e 4 commit non pushati su `main`. Branch laterali `develop`/`demo` morti (172/182 commit dietro). 8+ branch funzionali vecchi non mergeati. Caos di review e rischi di drift.
+- **Pattern:** un branch tocca **una sola area** alla volta; pushare almeno 1×/giorno; dopo merge **eliminare** locale + tutti i remote subito (con tag `archive/<branch>-<YYYY-MM-DD>` se il branch ha commit unici). Long-lived `prod/demo/dev` vanno **resettati o tenuti vivi via deploy reali**, non lasciati alla deriva. Vedi [`docs/branching-policy.md`](../docs/branching-policy.md) e [`docs/branches-parking-2026-05-05.md`](../docs/branches-parking-2026-05-05.md).
+- **Automation:** abilitate GH Actions [`branch-cleanup-on-merge.yml`](../../../../.github/workflows/branch-cleanup-on-merge.yml) (delete post-merge) e [`stale-branches-report.yml`](../../../../.github/workflows/stale-branches-report.yml) (review settimanale > 30gg).
+- **Doppio remote:** GitLab `main` può avere branch protection che blocca force push; usare un branch sync `sync/from-github-<YYYY-MM-DD>` come canale operativo o sbloccare la protection da UI.
+
 ## 2026-04-30 — Greenfield strict: niente codice legacy in repo attivo
 
 - **Correzione utente:** followup-3.0 deve contenere solo stack greenfield (`apps/web`, `services/api`, `packages/*`) senza copie operative del backend/frontend legacy o cartelle POC spillover.
