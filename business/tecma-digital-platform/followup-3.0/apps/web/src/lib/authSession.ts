@@ -5,7 +5,11 @@ import {
   readSessionSnapshot,
 } from '../core/session/session-store';
 import { sessionOrchestrator } from '../core/session/session-orchestrator';
-import { clearSessionStorage, writeAccessTokenToStorage, writeRefreshTokenToStorage } from '../core/session/session-storage';
+import {
+  clearSessionStorage,
+  writeAccessTokenToStorage,
+  writeRefreshTokenToStorage,
+} from '../core/session/session-storage';
 import { normalizeApiError, type ApiErrorReason, type NormalizedApiError } from './httpError';
 
 /** Chiavi sessione condivise tra login, accesso progetti e shell. */
@@ -72,7 +76,9 @@ export function isRecoverableSessionError(error: unknown): boolean {
   );
 }
 
-export function mapSessionReasonToNotice(reason: ApiErrorReason | 'manual_logout' | 'token_precheck'): string {
+export function mapSessionReasonToNotice(
+  reason: ApiErrorReason | 'manual_logout' | 'token_precheck',
+): string {
   switch (reason) {
     case 'session_expired':
     case 'invalid_token':

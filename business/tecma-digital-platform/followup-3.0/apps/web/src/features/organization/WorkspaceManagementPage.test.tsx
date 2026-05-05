@@ -87,6 +87,8 @@ describe('WorkspaceManagementPage', () => {
         onOpenSetupWizard={onOpenSetupWizard}
       />,
     );
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Crea workspace' })).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Crea workspace' })).toBeInTheDocument(),
+    );
   });
 });

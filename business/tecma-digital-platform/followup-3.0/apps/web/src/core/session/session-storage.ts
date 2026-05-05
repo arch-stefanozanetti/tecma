@@ -19,10 +19,7 @@ const SESSION_STORAGE_FULL_KEYS = [
 
 const LOCAL_STORAGE_AUTH_KEYS = ['followup3.rememberedEmail'] as const;
 
-const removeKeysFromStorage = (
-  storage: Storage,
-  keys: readonly string[],
-): void => {
+const removeKeysFromStorage = (storage: Storage, keys: readonly string[]): void => {
   for (const key of keys) storage.removeItem(key);
 };
 

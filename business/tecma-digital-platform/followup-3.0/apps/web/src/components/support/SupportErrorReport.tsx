@@ -55,7 +55,8 @@ export type SupportErrorReportProps = {
 };
 
 const STORAGE_KEY = 'support_error_reports';
-const SENSITIVE_FIELD_MATCH = /(token|accessToken|refreshToken|authorization|cookie|password|secret|apiKey|jwt)/i;
+const SENSITIVE_FIELD_MATCH =
+  /(token|accessToken|refreshToken|authorization|cookie|password|secret|apiKey|jwt)/i;
 
 const createReportId = (): string => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
@@ -174,41 +175,38 @@ export const SupportErrorReport = ({
 }: SupportErrorReportProps) => {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const report = useMemo(
-    () => {
-      const props: SupportErrorReportProps = {
-        userMessage,
-        technicalContext,
-        severity,
-        source,
-        ...(userEmail != null ? { userEmail } : {}),
-        ...(userId != null ? { userId } : {}),
-        ...(workspaceId != null ? { workspaceId } : {}),
-        ...(projectIds != null ? { projectIds } : {}),
-        ...(endpoint != null ? { endpoint } : {}),
-        ...(method != null ? { method } : {}),
-        ...(requestId != null ? { requestId } : {}),
-        ...(traceId != null ? { traceId } : {}),
-        ...(responseStatus != null ? { responseStatus } : {}),
-      };
-      return buildReport(props);
-    },
-    [
+  const report = useMemo(() => {
+    const props: SupportErrorReportProps = {
       userMessage,
       technicalContext,
       severity,
       source,
-      userEmail,
-      userId,
-      workspaceId,
-      projectIds,
-      endpoint,
-      method,
-      requestId,
-      traceId,
-      responseStatus,
-    ],
-  );
+      ...(userEmail != null ? { userEmail } : {}),
+      ...(userId != null ? { userId } : {}),
+      ...(workspaceId != null ? { workspaceId } : {}),
+      ...(projectIds != null ? { projectIds } : {}),
+      ...(endpoint != null ? { endpoint } : {}),
+      ...(method != null ? { method } : {}),
+      ...(requestId != null ? { requestId } : {}),
+      ...(traceId != null ? { traceId } : {}),
+      ...(responseStatus != null ? { responseStatus } : {}),
+    };
+    return buildReport(props);
+  }, [
+    userMessage,
+    technicalContext,
+    severity,
+    source,
+    userEmail,
+    userId,
+    workspaceId,
+    projectIds,
+    endpoint,
+    method,
+    requestId,
+    traceId,
+    responseStatus,
+  ]);
   const reportText = useMemo(() => JSON.stringify(report, null, 2), [report]);
 
   const copyReport = async () => {
