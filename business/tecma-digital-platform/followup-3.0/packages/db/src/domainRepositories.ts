@@ -1,4 +1,5 @@
 import type {
+  Asset,
   AuditEvent,
   InviteToken,
   Project,
@@ -8,7 +9,7 @@ import type {
   WorkspaceMember,
   WorkspaceUserProject,
 } from '@followup/shared-types';
-import type { Collection, Db, Filter, ObjectId, UpdateFilter } from 'mongodb';
+import { ObjectId, type Collection, type Db, type Filter, type UpdateFilter } from 'mongodb';
 
 import { MongoRepository } from './repository.js';
 
@@ -142,6 +143,59 @@ export class WorkspaceUserProjectsRepository extends MongoRepository<
         },
       } as unknown as UpdateFilter<WorkspaceUserProject & { _id: DomainId }>,
     );
+  }
+}
+
+/**
+ * Repository per `tz_assets`.
+ * Asset workspace/progetto (branding logo, email header, attachments).
+ * Supporta inline base64 fallback (dev/test) e signed URL upload (prod).
+ */
+export class AssetsRepository extends MongoRepository<Asset & { _id: DomainId }> {
+  constructor(db: Db) {
+    super(db.collection<Asset & { _id: DomainId }>('tz_assets'));
+  }
+
+  async listForWorkspace(workspaceId: string): Promise<Array<Asset & { _id: DomainId }>> {
+    return this.collectionRef
+      .find({
+        workspaceId,
+        status: { $ne: 'deleted' },
+      } as unknown as Filter<Asset & { _id: DomainId }>)
+      .sort({ createdAt: -1 })
+      .toArray() as Promise<Array<Asset & { _id: DomainId }>>;
+  }
+
+  async softDelete(workspaceId: string, assetId: string): Promise<boolean> {
+    const idCandidate: DomainId = ObjectId.isValid(assetId)
+      ? (new ObjectId(assetId) as unknown as DomainId)
+      : (assetId as unknown as DomainId);
+    const result = await this.updateOne(
+      { _id: idCandidate, workspaceId } as unknown as Filter<Asset & { _id: DomainId }>,
+      {
+        $set: {
+          status: 'deleted',
+          deletedAt: new Date().toISOString(),
+        },
+      } as unknown as UpdateFilter<Asset & { _id: DomainId }>,
+    );
+    if (result.matchedCount > 0) return true;
+    if (idCandidate instanceof ObjectId) {
+      // Retry with raw string id (in case the document was stored with string _id).
+      const fallback = await this.updateOne(
+        { _id: assetId as unknown as DomainId, workspaceId } as unknown as Filter<
+          Asset & { _id: DomainId }
+        >,
+        {
+          $set: {
+            status: 'deleted',
+            deletedAt: new Date().toISOString(),
+          },
+        } as unknown as UpdateFilter<Asset & { _id: DomainId }>,
+      );
+      return fallback.matchedCount > 0;
+    }
+    return false;
   }
 }
 

@@ -47,7 +47,7 @@ if (
 let warnedMissingApiKey = false;
 
 export interface HttpOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   accessToken?: string | null;
   apiKey?: string | null;

@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/button';
 import { CheckboxWithLabel } from '../../components/ui/checkbox';
 import { Input } from '../../components/ui/input';
 import { http } from '../../lib/http';
+import { WorkspaceAdvancedPanel } from './WorkspaceAdvancedPanel';
 
 type Workspace = {
   _id: string;
@@ -22,6 +23,8 @@ type WorkspaceMember = {
   workspaceId: string;
   userId: string;
   role: 'owner' | 'admin' | 'collaborator' | 'viewer';
+  accessScope?: 'all' | 'assigned';
+  calendarDisplayColor?: string;
 };
 
 type ProjectRow = {
@@ -277,6 +280,35 @@ export const WorkspaceManagementPage = ({
     } catch (requestError) {
       setError(
         requestError instanceof Error ? requestError.message : 'Aggiunta membro non riuscita.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdateMemberAdvanced = async (
+    userId: string,
+    payload: { accessScope?: 'all' | 'assigned'; calendarDisplayColor?: string },
+  ) => {
+    if (selectedWorkspaceId == null) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await http<{ data: WorkspaceMember }>(
+        `/workspaces/${encodeURIComponent(selectedWorkspaceId)}/members/${encodeURIComponent(userId)}`,
+        {
+          method: 'PATCH',
+          accessToken,
+          body: payload,
+        },
+      );
+      setSuccessMessage('Impostazioni avanzate membro aggiornate.');
+      await loadWorkspaceContext(selectedWorkspaceId);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'Aggiornamento avanzato membro fallito.',
       );
     } finally {
       setSaving(false);
@@ -643,6 +675,65 @@ export const WorkspaceManagementPage = ({
                 </>
               )}
             </section>
+
+            {selectedMember != null ? (
+              <section
+                className="space-y-3 rounded-lg border border-border p-4"
+                data-testid="member-advanced-drawer"
+              >
+                <header>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Impostazioni avanzate membro
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Definisci lo scope di accesso e il colore calendario per{' '}
+                    {userLabelById.get(selectedMember.userId) ?? selectedMember.userId}.
+                  </p>
+                </header>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="text-xs font-medium text-foreground">
+                    Access scope
+                    <select
+                      className="mt-1 h-9 w-full rounded-lg border border-input bg-background px-3 text-sm"
+                      value={selectedMember.accessScope ?? 'assigned'}
+                      onChange={(event) =>
+                        void handleUpdateMemberAdvanced(selectedMember.userId, {
+                          accessScope: event.target.value as 'all' | 'assigned',
+                        })
+                      }
+                      data-testid="member-access-scope"
+                    >
+                      <option value="assigned">Solo progetti assegnati</option>
+                      <option value="all">Tutti i progetti del workspace</option>
+                    </select>
+                  </label>
+                  <label className="text-xs font-medium text-foreground">
+                    Colore calendario (#RRGGBB)
+                    <Input
+                      defaultValue={selectedMember.calendarDisplayColor ?? ''}
+                      placeholder="#1A2B3C"
+                      data-testid="member-calendar-color"
+                      onBlur={(event) => {
+                        const value = event.target.value.trim();
+                        if (value === '' && selectedMember.calendarDisplayColor == null) return;
+                        if (value === selectedMember.calendarDisplayColor) return;
+                        void handleUpdateMemberAdvanced(selectedMember.userId, {
+                          calendarDisplayColor: value === '' ? undefined : value,
+                        });
+                      }}
+                    />
+                  </label>
+                </div>
+              </section>
+            ) : null}
+
+            {selectedWorkspaceId != null ? (
+              <WorkspaceAdvancedPanel
+                accessToken={accessToken}
+                workspaceId={selectedWorkspaceId}
+                canManage={isTecmaAdmin}
+              />
+            ) : null}
           </div>
         </div>
       ) : null}

@@ -16,7 +16,7 @@ type Operation = {
 };
 
 describe('OpenAPI generated spec (contract)', () => {
-  it('is valid YAML 3.x with 41 operations, operationId and standard error responses', () => {
+  it('is valid YAML 3.x with 56 operations, operationId and standard error responses', () => {
     const raw = readFileSync(specPath, 'utf8');
     expect(raw.trimStart().startsWith('openapi:')).toBe(true);
 
@@ -27,7 +27,7 @@ describe('OpenAPI generated spec (contract)', () => {
 
     expect(doc.openapi ?? '').toMatch(/^3\./);
     const paths = doc.paths ?? {};
-    const httpMethods = ['get', 'post', 'patch', 'delete'] as const;
+    const httpMethods = ['get', 'post', 'put', 'patch', 'delete'] as const;
 
     let operationCount = 0;
     for (const [p, pathItem] of Object.entries(paths)) {
@@ -55,6 +55,6 @@ describe('OpenAPI generated spec (contract)', () => {
       }
     }
 
-    expect(operationCount).toBe(41);
+    expect(operationCount).toBe(56);
   });
 });
