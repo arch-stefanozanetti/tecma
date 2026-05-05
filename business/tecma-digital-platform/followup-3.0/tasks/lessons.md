@@ -1,5 +1,30 @@
 # Lessons (agent / team)
 
+## 2026-05-05 — POC-plus delivery a 3 milestone sequenziali
+
+- **Correzione utente:** consegnare RBAC users / Workspaces avanzati / Project Detail in **3
+  milestone sequenziali**, ogni branch corto, merge in `main` e cleanup prima della prossima.
+  Non aprire branch in parallelo con scope misti.
+- **Pattern:** `feat/<area>-poc-plus` -> full pyramid (unit + integration + contract + e2e + security)
+  -> OpenAPI `pnpm openapi:generate` -> aggiornare `tests/contract/openapi-routes.contract.test.ts`
+  con il nuovo `operationCount` -> merge `main` -> `git branch -d <branch>` -> ADR/docs se
+  introduce decisioni architetturali.
+
+## 2026-05-05 — Fastify DELETE senza body NON deve avere `content-type: application/json`
+
+- **Sintomo:** integration test con DELETE che includono `content-type: application/json` e body
+  vuoto restituiscono 500 con `FST_ERR_CTP_EMPTY_JSON_BODY`.
+- **Pattern:** introdurre `authHeadersNoBody(token)` che omette `content-type` ed usarlo per le
+  DELETE inject. Vale anche per inject di test con body assente in `assets`/`workspaces` advanced.
+
+## 2026-05-05 — `MongoRepository` typing vs id come stringa
+
+- **Sintomo:** repository M3 con `_id: string` vs `MongoRepository<Record<string, unknown>>`
+  che inferisce `_id: ObjectId` -> errori `TS2322 Condition<ObjectId>` su `findOne`/`updateOne`.
+- **Pattern:** quando l'`_id` è gestito come UUID stringa per le sezioni Project Detail, fare
+  cast esplicito `as any` sul filter (`{ _id: id } as any`) o tipizzare il repo con `unknown` e
+  documentare nel modulo. Non re-introdurre `ObjectId` "cosmetico" su collection POC-style.
+
 ## 2026-05-05 — Branch lifecycle obbligatorio (no branch backlog)
 
 - **Correzione utente:** se una lavorazione è finita, deve andare subito su `main` e il branch funzionale va chiuso (delete locale/remoto o archive esplicito), senza accumulo di branch vecchi.

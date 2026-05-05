@@ -18,6 +18,7 @@ import { AuditService } from './modules/auditService.js';
 import { createMailPort } from './modules/mail/createMailPort.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { projectsRoutes } from './modules/projects/routes.js';
+import { projectDetailRoutes } from './modules/projects/detailRoutes.js';
 import { rbacRoutes } from './modules/rbac/routes.js';
 import { usersRoutes } from './modules/users/routes.js';
 import { workspacesRoutes } from './modules/workspaces/routes.js';
@@ -58,6 +59,8 @@ export const buildServer = async () => {
         { name: 'Workspaces', description: 'Workspace e membri' },
         { name: 'Assets', description: 'Asset workspace (logo, branding, attachments)' },
         { name: 'Projects', description: 'Progetti e accessi' },
+        { name: 'Connectors', description: 'Lookup connettori marketing (stub)' },
+        { name: 'Workflows', description: 'Lookup workflow workspace/progetto' },
         { name: 'Admin', description: 'Funzioni platform Tecma' },
         { name: 'Session', description: 'Preferenze e lookup sessione' },
       ],
@@ -168,6 +171,7 @@ export const buildServer = async () => {
   await app.register(workspacesRoutes);
   await app.register(assetsRoutes);
   await app.register(projectsRoutes);
+  await app.register(projectDetailRoutes);
   await app.register(adminAuditRoutes);
 
   /** Spec OpenAPI 3 in JSON (stesso contenuto generato per YAML); pubblico come `/v1/docs`. */

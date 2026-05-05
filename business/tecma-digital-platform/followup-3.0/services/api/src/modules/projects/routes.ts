@@ -28,6 +28,23 @@ const createProjectSchema = z.object({
 const updateProjectSchema = z.object({
   name: z.string().min(2).optional(),
   code: z.string().min(2).optional(),
+  // Identity (POC-plus)
+  displayName: z.string().min(1).max(255).optional(),
+  mode: z.enum(['rent', 'sell']).optional(),
+  defaultLang: z.string().min(2).max(10).optional(),
+  hostKey: z.string().min(1).max(120).optional(),
+  assetKey: z.string().min(1).max(120).optional(),
+  feVendorKey: z.string().min(1).max(120).optional(),
+  automaticQuoteEnabled: z.boolean().optional(),
+  accountManagerEnabled: z.boolean().optional(),
+  hasDAS: z.boolean().optional(),
+  // Contacts (POC-plus)
+  contactEmail: z.string().email().or(z.literal('')).optional(),
+  contactPhone: z.string().min(1).max(64).or(z.literal('')).optional(),
+  projectUrl: z.string().url().or(z.literal('')).optional(),
+  customDomain: z.string().min(1).max(255).or(z.literal('')).optional(),
+  city: z.string().min(1).max(255).or(z.literal('')).optional(),
+  payoff: z.string().max(500).or(z.literal('')).optional(),
 });
 
 const accessGrantSchema = z.object({
@@ -268,10 +285,7 @@ export const projectsRoutes = async (app: FastifyInstance): Promise<void> => {
         },
         body: {
           type: 'object',
-          properties: {
-            name: { type: 'string', minLength: 2 },
-            code: { type: 'string', minLength: 2 },
-          },
+          additionalProperties: true,
         },
       },
     },

@@ -6,6 +6,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { App } from './App';
 import { ApiDocsPage } from './features/api-docs/ApiDocsPage';
 import { OrganizationSetupPage } from './features/organization/OrganizationSetupPage';
+import { ProjectDetailPage } from './features/projects/ProjectDetailPage';
 import './styles.css';
 
 const rootElement = document.getElementById('root');
@@ -18,6 +19,7 @@ createRoot(rootElement).render(
         <Routes>
           <Route path="/api" element={<ApiDocsPage />} />
           <Route path="/organization/setup" element={<OrganizationSetupPage />} />
+          <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
           <Route path="*" element={<App />} />
         </Routes>
       </BrowserRouter>

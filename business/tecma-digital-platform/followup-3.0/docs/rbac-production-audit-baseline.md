@@ -24,3 +24,44 @@ La produzione deve **superare** il POC su completezza funzionale, edge case, sic
 - Viewer workspace: lettura progetto via membership workspace; **no** PATCH se solo viewer.
 - Grant duplicato / revoca.
 - `GET /v1/projects` senza `workspaceId` come utente normale → mai elenco globale.
+
+## Aggiornamento M1 — RBAC matrix + permission overrides
+
+- `PERMISSIONS` esteso al catalogo POC su 13 moduli (`users`, `workspaces`, `projects`, `clients`,
+  `apartments`, `quotes`, `calendar`, `marketing`, `settings`, `integrations`, `automation`,
+  `audit`, `tecma`).
+- `tz_users.permissionsOverride` aggiunto come `string[]` (camelCase). La wildcard `*` resta
+  riservata a `tecma_admin`. Il merge runtime (`effective = rolePermissions ∪ override`) avviene
+  nel plugin permission e nei JWT claims.
+- Nuovi endpoint `GET /v1/rbac/permission-catalog`, `GET /v1/rbac/roles/:roleKey/effective-permissions`,
+  `GET /v1/workspace-roles`. Il `PATCH /v1/users/:userId` accetta `permissionsOverride` con
+  validazione contro `ALL_PERMISSION_IDS`.
+
+## Aggiornamento M2 — Workspaces avanzati
+
+- Nuove collection `tz_workspace_entitlements`, `tz_workspace_branding`, `tz_workspace_ai_config`,
+  `tz_additional_infos`, `tz_assets` con indici dedicati.
+- Permission required: `workspaces.write` per branding/AI/additional infos, `workspaces.admin`
+  per entitlements; cross-workspace bloccato (403 lookup membership).
+- AI key: persistita in chiaro lato Mongo, sempre **mascherata** in lettura via API
+  (`maskApiKey`). Mai esposta nei logs.
+- Asset module (`tz_assets`) introdotto come prerequisito condiviso per branding workspace e
+  progetto. Feature flag `ENABLE_ASSET_UPLOADS` controlla signed URL vs fallback inline base64.
+
+## Aggiornamento M3 — Project Detail POC-plus (11 sezioni)
+
+| Sezione                  | Permission scrittura       | Permission lettura |
+| ------------------------ | -------------------------- | ------------------ |
+| Identity (PATCH project) | `projects.write` + project access `write` | project access `read` |
+| Contacts (PATCH project) | come Identity              | project access `read` |
+| Branding                 | project access `admin`     | project access `read` |
+| Policies                 | project access `admin`     | project access `read` |
+| Marketing settings       | project access `admin`     | project access `read` |
+| Workflow settings        | project access `admin`     | project access `read` |
+| Email config             | project access `admin`     | project access `read` (smtpPassword sempre mascherata) |
+| Email templates CRUD     | project access `admin`     | project access `read` (unique projectId+name) |
+| PDF templates CRUD       | project access `admin`     | project access `read` (unique projectId+templateKey) |
+| Legacy overrides         | project access `admin`     | project access `read` |
+| Connectors discovery     | tutti i membri workspace   | (lookup, stub feature-flagged) |
+
+Audit: ogni mutazione invoca `withAudit` per tracciare `actorUserId`, `projectId`, e patch.

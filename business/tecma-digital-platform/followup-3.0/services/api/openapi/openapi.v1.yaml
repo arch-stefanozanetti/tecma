@@ -2828,13 +2828,7 @@ paths:
           application/json:
             schema:
               type: object
-              properties:
-                name:
-                  type: string
-                  minLength: 2
-                code:
-                  type: string
-                  minLength: 2
+              additionalProperties: true
       parameters:
         - schema:
             type: string
@@ -3259,6 +3253,1396 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/def-3"
+  /projects/{projectId}/branding:
+    get:
+      operationId: getProjectBranding
+      summary: Read project branding
+      tags:
+        - Projects
+      description: Read project branding
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: projectId
+          required: true
+          description: Project id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+    put:
+      operationId: putProjectBranding
+      summary: Upsert project branding
+      tags:
+        - Projects
+      description: Upsert project branding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: projectId
+          required: true
+          description: Project id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /projects/{projectId}/policies:
+    get:
+      operationId: getProjectPolicies
+      summary: Read project policies
+      tags:
+        - Projects
+      description: Read project policies
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: projectId
+          required: true
+          description: Project id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+    put:
+      operationId: putProjectPolicies
+      summary: Upsert project policies
+      tags:
+        - Projects
+      description: Upsert project policies
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: projectId
+          required: true
+          description: Project id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /projects/{projectId}/marketing-settings:
+    get:
+      operationId: getProjectMarketingSettings
+      summary: Read project marketing-settings
+      tags:
+        - Projects
+      description: Read project marketing-settings
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: projectId
+          required: true
+          description: Project id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+    put:
+      operationId: putProjectMarketingSettings
+      summary: Upsert project marketing-settings
+      tags:
+        - Projects
+      description: Upsert project marketing-settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: projectId
+          required: true
+          description: Project id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /projects/{projectId}/workflow-settings:
+    get:
+      operationId: getProjectWorkflowSettings
+      summary: Read project workflow-settings
+      tags:
+        - Projects
+      description: Read project workflow-settings
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: projectId
+          required: true
+          description: Project id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+    put:
+      operationId: putProjectWorkflowSettings
+      summary: Upsert project workflow-settings
+      tags:
+        - Projects
+      description: Upsert project workflow-settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: projectId
+          required: true
+          description: Project id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /projects/{projectId}/email-config:
+    get:
+      operationId: getProjectEmailConfig
+      summary: Read project email-config
+      tags:
+        - Projects
+      description: Read project email-config
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: projectId
+          required: true
+          description: Project id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+    put:
+      operationId: putProjectEmailConfig
+      summary: Upsert project email-config
+      tags:
+        - Projects
+      description: Upsert project email-config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: projectId
+          required: true
+          description: Project id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /projects/{projectId}/legacy-overrides:
+    get:
+      operationId: getProjectLegacyOverrides
+      summary: Read project legacy-overrides
+      tags:
+        - Projects
+      description: Read project legacy-overrides
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: projectId
+          required: true
+          description: Project id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+    put:
+      operationId: putProjectLegacyOverrides
+      summary: Upsert project legacy-overrides
+      tags:
+        - Projects
+      description: Upsert project legacy-overrides
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: projectId
+          required: true
+          description: Project id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /projects/{projectId}/email-templates:
+    get:
+      operationId: listProjectEmailTemplates
+      summary: List project email templates
+      tags:
+        - Projects
+      description: List project email templates
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: projectId
+          required: true
+          description: Project id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - paginationInfo
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  paginationInfo:
+                    $ref: "#/components/schemas/def-0"
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+    post:
+      operationId: createProjectEmailTemplate
+      summary: Create email template
+      tags:
+        - Projects
+      description: Create email template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: projectId
+          required: true
+          description: Project id
+      security: *a1
+      responses:
+        "201":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /projects/{projectId}/email-templates/{templateId}:
+    patch:
+      operationId: patchProjectEmailTemplate
+      summary: Update email template
+      tags:
+        - Projects
+      description: Update email template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: projectId
+          required: true
+          description: Project id
+        - schema:
+            type: string
+          in: path
+          name: templateId
+          required: true
+          description: Template id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+    delete:
+      operationId: deleteProjectEmailTemplate
+      summary: Delete email template
+      tags:
+        - Projects
+      description: Delete email template
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: projectId
+          required: true
+          description: Project id
+        - schema:
+            type: string
+          in: path
+          name: templateId
+          required: true
+          description: Template id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /projects/{projectId}/pdf-templates:
+    get:
+      operationId: listProjectPdfTemplates
+      summary: List project PDF templates
+      tags:
+        - Projects
+      description: List project PDF templates
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: projectId
+          required: true
+          description: Project id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - paginationInfo
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  paginationInfo:
+                    $ref: "#/components/schemas/def-0"
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+    post:
+      operationId: createProjectPdfTemplate
+      summary: Create PDF template
+      tags:
+        - Projects
+      description: Create PDF template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: projectId
+          required: true
+          description: Project id
+      security: *a1
+      responses:
+        "201":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /projects/{projectId}/pdf-templates/{templateId}:
+    patch:
+      operationId: patchProjectPdfTemplate
+      summary: Update PDF template
+      tags:
+        - Projects
+      description: Update PDF template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: projectId
+          required: true
+          description: Project id
+        - schema:
+            type: string
+          in: path
+          name: templateId
+          required: true
+          description: Template id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+    delete:
+      operationId: deleteProjectPdfTemplate
+      summary: Delete PDF template
+      tags:
+        - Projects
+      description: Delete PDF template
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: projectId
+          required: true
+          description: Project id
+        - schema:
+            type: string
+          in: path
+          name: templateId
+          required: true
+          description: Template id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /workspaces/{workspaceId}/connectors/marketing-google/ads-customers:
+    get:
+      operationId: listConnectorAdsCustomers
+      summary: List Google Ads customer accounts (stub)
+      tags:
+        - Connectors
+      description: List Google Ads customer accounts (stub)
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: workspaceId
+          required: true
+          description: Workspace id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - paginationInfo
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  paginationInfo:
+                    $ref: "#/components/schemas/def-0"
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /workspaces/{workspaceId}/connectors/marketing-google/ga4-properties:
+    get:
+      operationId: listConnectorGa4Properties
+      summary: List GA4 properties (stub)
+      tags:
+        - Connectors
+      description: List GA4 properties (stub)
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: workspaceId
+          required: true
+          description: Workspace id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - paginationInfo
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  paginationInfo:
+                    $ref: "#/components/schemas/def-0"
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /workspaces/{workspaceId}/connectors/marketing-meta/ad-accounts:
+    get:
+      operationId: listConnectorMetaAdAccounts
+      summary: List Meta ad accounts (stub)
+      tags:
+        - Connectors
+      description: List Meta ad accounts (stub)
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: workspaceId
+          required: true
+          description: Workspace id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - paginationInfo
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  paginationInfo:
+                    $ref: "#/components/schemas/def-0"
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /workspaces/{workspaceId}/workflows:
+    get:
+      operationId: listWorkspaceWorkflows
+      summary: List workspace workflows (lookup)
+      tags:
+        - Workflows
+      description: List workspace workflows (lookup)
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: workspaceId
+          required: true
+          description: Workspace id
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - paginationInfo
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  paginationInfo:
+                    $ref: "#/components/schemas/def-0"
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /workflow/config:
+    get:
+      operationId: getWorkflowConfig
+      summary: Get workflow config by lookup
+      tags:
+        - Workflows
+      description: Get workflow config by lookup
+      parameters:
+        - schema:
+            type: string
+          in: query
+          name: workspaceId
+          required: true
+          description: Workspace id
+        - schema:
+            type: string
+          in: query
+          name: projectId
+          required: false
+          description: Project id (optional)
+        - schema:
+            type: string
+          in: query
+          name: flowType
+          required: false
+          description: Flow type filter (optional)
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
   /admin/audit-events:
     get:
       operationId: listAdminAuditEvents
@@ -3320,6 +4704,10 @@ tags:
     description: Asset workspace (logo, branding, attachments)
   - name: Projects
     description: Progetti e accessi
+  - name: Connectors
+    description: Lookup connettori marketing (stub)
+  - name: Workflows
+    description: Lookup workflow workspace/progetto
   - name: Admin
     description: Funzioni platform Tecma
   - name: Session
