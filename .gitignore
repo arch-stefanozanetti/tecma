@@ -26,3 +26,6 @@ coverage/
 _sync_logs/
 *.tsbuildinfo
 .understand-anything/
+
+# Claude Code local session config (per-developer)
+.claude/
