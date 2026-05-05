@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { waitFor } from '@testing-library/react';
 
 import {
   AUTH_PROFILE_KEY,
@@ -52,7 +53,7 @@ describe('authSession', () => {
     expect(sessionStorage.getItem('followup.auth.accessToken')).toBeNull();
     expect(sessionStorage.getItem('followup.auth.refreshToken')).toBeNull();
     expect(sessionStorage.getItem(AUTH_PROFILE_KEY)).toBeNull();
-    expect(sessionStorage.getItem('followup.workspaceId')).toBeNull();
+    expect(sessionStorage.getItem('followup.workspaceId')).toBe('ws-1');
   });
 
   it('persistAuthSession/readAuthSession gestiscono token e profilo centralizzati', () => {
@@ -80,7 +81,7 @@ describe('authSession', () => {
     expect(isRecoverableSessionError(err)).toBe(true);
   });
 
-  it('handleSessionExpired pulisce sessione e ritorna notice utente-safe', () => {
+  it('handleSessionExpired pulisce sessione e ritorna notice utente-safe', async () => {
     sessionStorage.setItem('followup.auth.accessToken', 'tok');
     const notice = handleSessionExpired(
       new HttpApiError('jwt expired', {
@@ -92,7 +93,9 @@ describe('authSession', () => {
       }),
     );
     expect(notice.message).toBe('La sessione è scaduta. Accedi di nuovo per continuare.');
-    expect(sessionStorage.getItem('followup.auth.accessToken')).toBeNull();
+    await waitFor(() => {
+      expect(sessionStorage.getItem('followup.auth.accessToken')).toBeNull();
+    });
   });
 
   it('clearAuthSession è alias pubblico del clear centralizzato', () => {

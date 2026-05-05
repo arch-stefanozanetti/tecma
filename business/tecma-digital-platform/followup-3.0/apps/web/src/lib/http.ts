@@ -2,7 +2,10 @@ import {
   buildHttpApiErrorFromFailedFetch,
   buildHttpApiErrorFromResponse,
   DEV_MISSING_API_KEY_CONSOLE,
+  normalizeApiError,
 } from './httpError';
+import { sessionOrchestrator } from '../core/session/session-orchestrator';
+import { ENABLE_NEW_SESSION_FLOW } from '../config/featureFlags';
 
 const normalizeBaseUrl = (value: string): string => {
   const trimmed = value.trim();
@@ -59,6 +62,15 @@ export {
   toUserFacingApiCopyFromUnknown,
 } from './httpError';
 
+const shouldInvalidateSession = (error: unknown): boolean => {
+  if (!ENABLE_NEW_SESSION_FLOW) return false;
+  const normalized = normalizeApiError(error);
+  return (
+    normalized.category === 'auth' &&
+    ['session_expired', 'invalid_token', 'missing_token'].includes(normalized.reason)
+  );
+};
+
 export const http = async <T>(path: string, options: HttpOptions = {}): Promise<T> => {
   const method = options.method ?? 'GET';
   const resolvedApiKey = options.apiKey ?? defaultApiKey;
@@ -80,11 +92,35 @@ export const http = async <T>(path: string, options: HttpOptions = {}): Promise<
       body: options.body == null ? null : JSON.stringify(options.body),
     });
   } catch (err) {
-    throw buildHttpApiErrorFromFailedFetch(path, apiBaseUrl, err, method);
+    const apiError = buildHttpApiErrorFromFailedFetch(path, apiBaseUrl, err, method);
+    if (shouldInvalidateSession(apiError)) {
+      void sessionOrchestrator.invalidateSession({
+        reason: 'session_expired',
+        source: 'api_interceptor',
+        redirectToLogin: true,
+        strategy: 'auth-only',
+      });
+    }
+    throw apiError;
   }
 
   if (!response.ok) {
-    throw await buildHttpApiErrorFromResponse(response, path, method);
+    const apiError = await buildHttpApiErrorFromResponse(response, path, method);
+    if (shouldInvalidateSession(apiError)) {
+      const normalized = normalizeApiError(apiError);
+      void sessionOrchestrator.invalidateSession({
+        reason:
+          normalized.reason === 'session_expired' ||
+          normalized.reason === 'invalid_token' ||
+          normalized.reason === 'missing_token'
+            ? normalized.reason
+            : 'session_expired',
+        source: 'api_interceptor',
+        redirectToLogin: true,
+        strategy: 'auth-only',
+      });
+    }
+    throw apiError;
   }
   return response.json() as Promise<T>;
 };
