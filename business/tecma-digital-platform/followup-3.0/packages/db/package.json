@@ -24,6 +24,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@followup/shared-types": "workspace:*",
     "@followup/logger": "workspace:*",
     "mongodb": "^6.12.0"
   },
