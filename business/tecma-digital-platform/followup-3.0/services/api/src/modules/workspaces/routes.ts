@@ -34,8 +34,78 @@ const createMemberSchema = z.object({
 });
 
 const updateMemberSchema = z.object({
-  role: z.enum(['owner', 'admin', 'collaborator', 'viewer']),
+  role: z.enum(['owner', 'admin', 'collaborator', 'viewer']).optional(),
+  /** `all` = vede tutti i progetti del workspace. `assigned` = solo quelli linkati esplicitamente. */
+  accessScope: z.enum(['all', 'assigned']).optional(),
+  /** Hex color `#RRGGBB` per visualizzazione calendario (POC parity). */
+  calendarDisplayColor: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, 'Colore richiesto in formato #RRGGBB')
+    .optional(),
 });
+
+const entitlementUpdateSchema = z.object({
+  status: z.enum(['enabled', 'disabled']),
+  metadata: z.record(z.unknown()).optional(),
+});
+
+const aiConfigSchema = z
+  .object({
+    provider: z.enum(['claude', 'openai', 'gemini']),
+    apiKey: z.string().min(8).max(512).optional(),
+    model: z.string().min(1).max(120).optional(),
+    temperature: z.number().min(0).max(2).optional(),
+    enabled: z.boolean().optional(),
+  })
+  .strict();
+
+const additionalInfoCreateSchema = z.object({
+  label: z.string().min(1).max(120),
+  value: z.string().min(0).max(10_000).default(''),
+  sortOrder: z.number().int().nonnegative().optional(),
+});
+
+const additionalInfoUpdateSchema = z.object({
+  label: z.string().min(1).max(120).optional(),
+  value: z.string().min(0).max(10_000).optional(),
+  sortOrder: z.number().int().nonnegative().optional(),
+});
+
+const brandingSchema = z
+  .object({
+    logoUrl: z.string().url().optional(),
+    emailHeaderUrl: z.string().url().optional(),
+    primaryColor: z
+      .string()
+      .regex(/^#[0-9A-Fa-f]{6}$/, 'Colore richiesto in formato #RRGGBB')
+      .optional(),
+    footerText: z.string().max(500).optional(),
+  })
+  .strict();
+
+const KNOWN_FEATURES = [
+  'ai',
+  'analytics',
+  'connectors-marketing',
+  'email-templates',
+  'pdf-templates',
+] as const;
+
+const maskApiKey = (raw: string | undefined): string | undefined => {
+  if (raw == null || raw.length <= 4) return raw;
+  return `${'*'.repeat(Math.max(0, raw.length - 4))}${raw.slice(-4)}`;
+};
+
+const sanitizeAiConfigForResponse = (
+  doc: Record<string, unknown> | null,
+): Record<string, unknown> | null => {
+  if (doc == null) return null;
+  const sanitized = { ...doc } as Record<string, unknown>;
+  if (typeof sanitized.apiKey === 'string') {
+    sanitized.apiKey = maskApiKey(sanitized.apiKey);
+  }
+  return sanitized;
+};
 
 const addMemberProjectBodySchema = z.object({
   projectId: z.string().min(1),
@@ -284,7 +354,11 @@ export const workspacesRoutes = async (app: FastifyInstance): Promise<void> => {
     {
       preHandler: [app.authenticate, app.requireWorkspaceAdminOrOwner()],
       schema: {
-        ...singleObjectSchema('patchWorkspaceMember', 'Workspaces', 'Aggiorna ruolo membro'),
+        ...singleObjectSchema(
+          'patchWorkspaceMember',
+          'Workspaces',
+          'Aggiorna ruolo membro / access scope / colore calendario',
+        ),
         params: {
           type: 'object',
           required: ['workspaceId', 'userId'],
@@ -295,9 +369,18 @@ export const workspacesRoutes = async (app: FastifyInstance): Promise<void> => {
         },
         body: {
           type: 'object',
-          required: ['role'],
           properties: {
             role: { type: 'string', enum: ['owner', 'admin', 'collaborator', 'viewer'] },
+            accessScope: {
+              type: 'string',
+              enum: ['all', 'assigned'],
+              description: 'Strategia di visibilita progetti per il membro',
+            },
+            calendarDisplayColor: {
+              type: 'string',
+              pattern: '^#[0-9A-Fa-f]{6}$',
+              description: 'Colore visualizzazione calendario (#RRGGBB)',
+            },
           },
         },
       },
@@ -305,9 +388,15 @@ export const workspacesRoutes = async (app: FastifyInstance): Promise<void> => {
     async (request, reply) => {
       const params = request.params as { workspaceId: string; userId: string };
       const payload = updateMemberSchema.parse(request.body);
+      const update: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+      if (payload.role != null) update.role = payload.role;
+      if (payload.accessScope != null) update.accessScope = payload.accessScope;
+      if (payload.calendarDisplayColor != null) {
+        update.calendarDisplayColor = payload.calendarDisplayColor;
+      }
       await membersRepo.updateOne(
         { workspaceId: params.workspaceId, userId: params.userId },
-        { $set: { role: payload.role, updatedAt: new Date().toISOString() } },
+        { $set: update },
       );
       const member = await membersRepo.findOne({
         workspaceId: params.workspaceId,
@@ -627,6 +716,448 @@ export const workspacesRoutes = async (app: FastifyInstance): Promise<void> => {
       return reply.status(201).send({
         data: { userId: targetUserId, workspaceId: wsId, email: emailLower },
       });
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // M2: Workspace advanced sections (entitlements, ai-config, additional-infos,
+  //     branding). Tutte usano collection dedicate `tz_workspace_*`.
+  // ---------------------------------------------------------------------------
+
+  const entitlementsRepo = new MongoRepository<any>(
+    app.mongoDb.collection('tz_workspace_entitlements'),
+  );
+  const aiConfigRepo = new MongoRepository<any>(app.mongoDb.collection('tz_workspace_ai_config'));
+  const additionalInfosRepo = new MongoRepository<any>(
+    app.mongoDb.collection('tz_additional_infos'),
+  );
+  const brandingRepo = new MongoRepository<any>(app.mongoDb.collection('tz_workspace_branding'));
+
+  app.get(
+    '/v1/workspaces/:workspaceId/entitlements',
+    {
+      preHandler: [app.authenticate, app.requireCanAccessWorkspace()],
+      schema: {
+        ...listSchema('listWorkspaceEntitlements', 'Workspaces', 'Entitlements workspace'),
+        params: {
+          type: 'object',
+          required: ['workspaceId'],
+          properties: { workspaceId: { type: 'string' } },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { workspaceId: string };
+      const stored = await entitlementsRepo.findMany({ workspaceId: params.workspaceId } as any);
+      const map = new Map<string, any>();
+      for (const row of stored) map.set(String((row as { feature?: string }).feature ?? ''), row);
+      const data = KNOWN_FEATURES.map((feature) => {
+        const row = map.get(feature);
+        return {
+          workspaceId: params.workspaceId,
+          feature,
+          status: row?.status ?? 'disabled',
+          metadata: row?.metadata ?? null,
+          updatedAt: row?.updatedAt ?? null,
+        };
+      });
+      return reply.send({ data, paginationInfo: singlePagePaginationInfo(data.length) });
+    },
+  );
+
+  app.patch(
+    '/v1/workspaces/:workspaceId/entitlements/:feature',
+    {
+      preHandler: [app.authenticate, app.requireWorkspaceAdminOrOwner()],
+      schema: {
+        ...singleObjectSchema(
+          'patchWorkspaceEntitlement',
+          'Workspaces',
+          'Aggiorna entitlement workspace',
+        ),
+        params: {
+          type: 'object',
+          required: ['workspaceId', 'feature'],
+          properties: {
+            workspaceId: { type: 'string' },
+            feature: {
+              type: 'string',
+              enum: KNOWN_FEATURES as unknown as string[],
+            },
+          },
+        },
+        body: {
+          type: 'object',
+          required: ['status'],
+          properties: {
+            status: { type: 'string', enum: ['enabled', 'disabled'] },
+            metadata: { type: 'object', additionalProperties: true },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { workspaceId: string; feature: string };
+      if (!KNOWN_FEATURES.includes(params.feature as (typeof KNOWN_FEATURES)[number])) {
+        return reply.status(400).send({
+          error: {
+            code: 'UnknownFeature',
+            message: `Unknown feature "${params.feature}"`,
+            status: 400,
+          },
+        });
+      }
+      const payload = entitlementUpdateSchema.parse(request.body);
+      const now = new Date().toISOString();
+      const filter = { workspaceId: params.workspaceId, feature: params.feature } as any;
+      const existing = await entitlementsRepo.findOne(filter);
+      if (existing == null) {
+        await entitlementsRepo.create({
+          _id: crypto.randomUUID(),
+          workspaceId: params.workspaceId,
+          feature: params.feature,
+          status: payload.status,
+          metadata: payload.metadata ?? null,
+          createdAt: now,
+          updatedAt: now,
+        } as any);
+      } else {
+        await entitlementsRepo.updateOne(filter, {
+          $set: {
+            status: payload.status,
+            metadata: payload.metadata ?? (existing as { metadata?: unknown }).metadata ?? null,
+            updatedAt: now,
+          },
+        });
+      }
+      const row = await entitlementsRepo.findOne(filter);
+      const actor = request.user as { sub?: string };
+      await app.auditService.authEvent({
+        eventType: 'workspaces.entitlement.update',
+        userId: actor.sub ?? 'system',
+        details: {
+          workspaceId: params.workspaceId,
+          feature: params.feature,
+          status: payload.status,
+        },
+      });
+      return reply.send({ data: row });
+    },
+  );
+
+  app.get(
+    '/v1/workspaces/:workspaceId/ai-config',
+    {
+      preHandler: [app.authenticate, app.requireCanAccessWorkspace()],
+      schema: {
+        ...singleObjectSchema('getWorkspaceAiConfig', 'Workspaces', 'Configurazione AI workspace'),
+        params: {
+          type: 'object',
+          required: ['workspaceId'],
+          properties: { workspaceId: { type: 'string' } },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { workspaceId: string };
+      const doc = await aiConfigRepo.findOne({ workspaceId: params.workspaceId } as any);
+      return reply.send({ data: sanitizeAiConfigForResponse(doc) });
+    },
+  );
+
+  app.put(
+    '/v1/workspaces/:workspaceId/ai-config',
+    {
+      preHandler: [app.authenticate, app.requireWorkspaceAdminOrOwner()],
+      schema: {
+        ...singleObjectSchema(
+          'putWorkspaceAiConfig',
+          'Workspaces',
+          'Salva configurazione AI workspace',
+        ),
+        params: {
+          type: 'object',
+          required: ['workspaceId'],
+          properties: { workspaceId: { type: 'string' } },
+        },
+        body: {
+          type: 'object',
+          required: ['provider'],
+          properties: {
+            provider: { type: 'string', enum: ['claude', 'openai', 'gemini'] },
+            apiKey: { type: 'string', minLength: 8, maxLength: 512 },
+            model: { type: 'string', minLength: 1, maxLength: 120 },
+            temperature: { type: 'number', minimum: 0, maximum: 2 },
+            enabled: { type: 'boolean' },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { workspaceId: string };
+      const payload = aiConfigSchema.parse(request.body);
+      const now = new Date().toISOString();
+      const filter = { workspaceId: params.workspaceId } as any;
+      const existing = await aiConfigRepo.findOne(filter);
+      const doc = {
+        provider: payload.provider,
+        ...(payload.apiKey != null ? { apiKey: payload.apiKey } : {}),
+        ...(payload.model != null ? { model: payload.model } : {}),
+        ...(payload.temperature != null ? { temperature: payload.temperature } : {}),
+        ...(payload.enabled != null ? { enabled: payload.enabled } : {}),
+        updatedAt: now,
+      };
+      if (existing == null) {
+        await aiConfigRepo.create({
+          _id: crypto.randomUUID(),
+          workspaceId: params.workspaceId,
+          ...doc,
+          createdAt: now,
+        } as any);
+      } else {
+        await aiConfigRepo.updateOne(filter, { $set: doc });
+      }
+      const row = await aiConfigRepo.findOne(filter);
+      const actor = request.user as { sub?: string };
+      await app.auditService.authEvent({
+        eventType: 'workspaces.aiConfig.update',
+        userId: actor.sub ?? 'system',
+        details: { workspaceId: params.workspaceId, provider: payload.provider },
+      });
+      return reply.send({ data: sanitizeAiConfigForResponse(row) });
+    },
+  );
+
+  app.get(
+    '/v1/workspaces/:workspaceId/additional-infos',
+    {
+      preHandler: [app.authenticate, app.requireCanAccessWorkspace()],
+      schema: {
+        ...listSchema(
+          'listWorkspaceAdditionalInfos',
+          'Workspaces',
+          'Additional infos workspace',
+        ),
+        params: {
+          type: 'object',
+          required: ['workspaceId'],
+          properties: { workspaceId: { type: 'string' } },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { workspaceId: string };
+      const rows = await app.mongoDb
+        .collection('tz_additional_infos')
+        .find({ workspaceId: params.workspaceId } as any)
+        .sort({ sortOrder: 1, createdAt: 1 })
+        .toArray();
+      return reply.send({ data: rows, paginationInfo: singlePagePaginationInfo(rows.length) });
+    },
+  );
+
+  app.post(
+    '/v1/workspaces/:workspaceId/additional-infos',
+    {
+      preHandler: [app.authenticate, app.requireWorkspaceAdminOrOwner()],
+      schema: {
+        ...createdObjectSchema(
+          'createWorkspaceAdditionalInfo',
+          'Workspaces',
+          'Crea additional info workspace',
+        ),
+        params: {
+          type: 'object',
+          required: ['workspaceId'],
+          properties: { workspaceId: { type: 'string' } },
+        },
+        body: {
+          type: 'object',
+          required: ['label'],
+          properties: {
+            label: { type: 'string', minLength: 1, maxLength: 120 },
+            value: { type: 'string', maxLength: 10000 },
+            sortOrder: { type: 'integer', minimum: 0 },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { workspaceId: string };
+      const payload = additionalInfoCreateSchema.parse(request.body);
+      const now = new Date().toISOString();
+      const doc = {
+        _id: crypto.randomUUID(),
+        workspaceId: params.workspaceId,
+        label: payload.label,
+        value: payload.value,
+        sortOrder: payload.sortOrder ?? 0,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await additionalInfosRepo.create(doc as any);
+      return reply.status(201).send({ data: doc });
+    },
+  );
+
+  app.patch(
+    '/v1/workspaces/:workspaceId/additional-infos/:infoId',
+    {
+      preHandler: [app.authenticate, app.requireWorkspaceAdminOrOwner()],
+      schema: {
+        ...singleObjectSchema(
+          'patchWorkspaceAdditionalInfo',
+          'Workspaces',
+          'Aggiorna additional info workspace',
+        ),
+        params: {
+          type: 'object',
+          required: ['workspaceId', 'infoId'],
+          properties: {
+            workspaceId: { type: 'string' },
+            infoId: { type: 'string' },
+          },
+        },
+        body: {
+          type: 'object',
+          properties: {
+            label: { type: 'string', minLength: 1, maxLength: 120 },
+            value: { type: 'string', maxLength: 10000 },
+            sortOrder: { type: 'integer', minimum: 0 },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { workspaceId: string; infoId: string };
+      const payload = additionalInfoUpdateSchema.parse(request.body);
+      const filter = { _id: params.infoId, workspaceId: params.workspaceId } as any;
+      const existing = await additionalInfosRepo.findOne(filter);
+      if (existing == null) {
+        return reply.status(404).send({
+          error: { code: 'AdditionalInfoNotFound', message: 'Not found', status: 404 },
+        });
+      }
+      await additionalInfosRepo.updateOne(filter, {
+        $set: {
+          ...payload,
+          updatedAt: new Date().toISOString(),
+        },
+      });
+      const updated = await additionalInfosRepo.findOne(filter);
+      return reply.send({ data: updated });
+    },
+  );
+
+  app.delete(
+    '/v1/workspaces/:workspaceId/additional-infos/:infoId',
+    {
+      preHandler: [app.authenticate, app.requireWorkspaceAdminOrOwner()],
+      schema: {
+        ...okDeletedSchema(
+          'deleteWorkspaceAdditionalInfo',
+          'Workspaces',
+          'Elimina additional info workspace',
+        ),
+        params: {
+          type: 'object',
+          required: ['workspaceId', 'infoId'],
+          properties: {
+            workspaceId: { type: 'string' },
+            infoId: { type: 'string' },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { workspaceId: string; infoId: string };
+      const result = await additionalInfosRepo.deleteOne({
+        _id: params.infoId,
+        workspaceId: params.workspaceId,
+      } as any);
+      if (result.deletedCount === 0) {
+        return reply.status(404).send({
+          error: { code: 'AdditionalInfoNotFound', message: 'Not found', status: 404 },
+        });
+      }
+      return reply.send({ data: { deleted: true } });
+    },
+  );
+
+  app.get(
+    '/v1/workspaces/:workspaceId/branding',
+    {
+      preHandler: [app.authenticate, app.requireCanAccessWorkspace()],
+      schema: {
+        ...singleObjectSchema('getWorkspaceBranding', 'Workspaces', 'Branding workspace'),
+        params: {
+          type: 'object',
+          required: ['workspaceId'],
+          properties: { workspaceId: { type: 'string' } },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { workspaceId: string };
+      const doc = await brandingRepo.findOne({ workspaceId: params.workspaceId } as any);
+      return reply.send({ data: doc });
+    },
+  );
+
+  app.patch(
+    '/v1/workspaces/:workspaceId/branding',
+    {
+      preHandler: [app.authenticate, app.requireWorkspaceAdminOrOwner()],
+      schema: {
+        ...singleObjectSchema(
+          'patchWorkspaceBranding',
+          'Workspaces',
+          'Aggiorna branding workspace',
+        ),
+        params: {
+          type: 'object',
+          required: ['workspaceId'],
+          properties: { workspaceId: { type: 'string' } },
+        },
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            logoUrl: { type: 'string', format: 'uri' },
+            emailHeaderUrl: { type: 'string', format: 'uri' },
+            primaryColor: { type: 'string', pattern: '^#[0-9A-Fa-f]{6}$' },
+            footerText: { type: 'string', maxLength: 500 },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const params = request.params as { workspaceId: string };
+      const payload = brandingSchema.parse(request.body);
+      const filter = { workspaceId: params.workspaceId } as any;
+      const now = new Date().toISOString();
+      const existing = await brandingRepo.findOne(filter);
+      if (existing == null) {
+        await brandingRepo.create({
+          _id: crypto.randomUUID(),
+          workspaceId: params.workspaceId,
+          ...payload,
+          createdAt: now,
+          updatedAt: now,
+        } as any);
+      } else {
+        await brandingRepo.updateOne(filter, {
+          $set: { ...payload, updatedAt: now },
+        });
+      }
+      const row = await brandingRepo.findOne(filter);
+      const actor = request.user as { sub?: string };
+      await app.auditService.authEvent({
+        eventType: 'workspaces.branding.update',
+        userId: actor.sub ?? 'system',
+        details: { workspaceId: params.workspaceId, fields: Object.keys(payload) },
+      });
+      return reply.send({ data: row });
     },
   );
 

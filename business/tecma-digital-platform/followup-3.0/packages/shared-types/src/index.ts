@@ -253,6 +253,47 @@ export const RoleDefinitionSchema = z.object({
 export type RoleDefinition = z.infer<typeof RoleDefinitionSchema>;
 
 // =============================================================================
+// Workspace Assets (tz_assets): branding logo, email header, attachments
+// =============================================================================
+
+export const AssetKindSchema = z.enum([
+  'workspace.logo',
+  'workspace.email-header',
+  'workspace.favicon',
+  'project.logo',
+  'project.branding',
+  'project.email-header',
+  'generic',
+]);
+export type AssetKind = z.infer<typeof AssetKindSchema>;
+
+export const AssetStatusSchema = z.enum(['pending', 'active', 'deleted']);
+export type AssetStatus = z.infer<typeof AssetStatusSchema>;
+
+export const AssetSchema = z.object({
+  _id: ObjectIdLike,
+  workspaceId: z.string().min(1),
+  /** Optional project scope (per project-level assets). */
+  projectId: z.string().min(1).optional(),
+  kind: AssetKindSchema.default('generic'),
+  fileName: z.string().min(1),
+  contentType: z.string().min(1),
+  /** Size in bytes (informational, not enforced if storage is external). */
+  byteSize: z.number().int().nonnegative().optional(),
+  /** Storage location key (e.g. S3 key) when feature flag is on. */
+  storageKey: z.string().min(1).optional(),
+  /** Inline base64 fallback when feature flag is off (dev/test). Truncated in list responses. */
+  inlineData: z.string().optional(),
+  status: AssetStatusSchema.default('active'),
+  uploadedBy: ObjectIdLike.optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+  deletedAt: z.string().optional(),
+});
+
+export type Asset = z.infer<typeof AssetSchema>;
+
+// =============================================================================
 // Audit Event (tz_authEvents)
 // =============================================================================
 

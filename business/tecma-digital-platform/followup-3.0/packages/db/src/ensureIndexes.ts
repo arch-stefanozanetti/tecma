@@ -159,4 +159,40 @@ export const ensureCoreIndexes = async (db: Db): Promise<void> => {
     { permissionsOverride: 1 },
     { name: 'tz_users_permissionsOverride_idx', sparse: true },
   );
+
+  // Workspace assets (M2): query per workspace + sort cronologico, status filter.
+  await ensureIndex(
+    db,
+    'tz_assets',
+    { workspaceId: 1, createdAt: -1 },
+    { name: 'tz_assets_workspace_createdAt_idx' },
+  );
+  await ensureIndex(db, 'tz_assets', { status: 1 }, { name: 'tz_assets_status_idx' });
+  await ensureIndex(
+    db,
+    'tz_assets',
+    { workspaceId: 1, kind: 1 },
+    { name: 'tz_assets_workspace_kind_idx' },
+  );
+
+  // Workspace entitlements / branding / ai-config (M2 advanced workspaces):
+  // tz_workspace_entitlements gia coperto sopra (workspaceId+feature unique).
+  await ensureIndex(
+    db,
+    'tz_workspace_branding',
+    { workspaceId: 1 },
+    { unique: true, name: 'tz_workspace_branding_workspace_unique' },
+  );
+  await ensureIndex(
+    db,
+    'tz_workspace_ai_config',
+    { workspaceId: 1 },
+    { unique: true, name: 'tz_workspace_ai_config_workspace_unique' },
+  );
+  await ensureIndex(
+    db,
+    'tz_additional_infos',
+    { workspaceId: 1, sortOrder: 1 },
+    { name: 'tz_additional_infos_workspace_sort_idx' },
+  );
 };

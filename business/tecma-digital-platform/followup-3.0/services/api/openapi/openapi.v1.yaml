@@ -88,7 +88,7 @@ components:
         details:
           type: array
           items:
-            $ref: '#/components/schemas/def-1'
+            $ref: "#/components/schemas/def-1"
       title: ErrorEnvelope
     def-3:
       type: object
@@ -96,7 +96,7 @@ components:
         - error
       properties:
         error:
-          $ref: '#/components/schemas/def-2'
+          $ref: "#/components/schemas/def-2"
       title: ErrorResponse
 paths:
   /health:
@@ -107,7 +107,7 @@ paths:
       description: Liveness/readiness; pubblico.
       security: []
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -128,12 +128,12 @@ paths:
                       appEnv:
                         type: string
                         example: dev-1
-        '500':
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /auth/login:
     post:
       operationId: authLogin
@@ -161,7 +161,7 @@ paths:
                   description: Password
       security: []
       responses:
-        '200':
+        "200":
           description: Token e profilo
           content:
             application/json:
@@ -169,18 +169,18 @@ paths:
                 type: object
                 additionalProperties: true
                 description: Token e profilo
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /auth/refresh:
     post:
       operationId: authRefresh
@@ -203,25 +203,25 @@ paths:
                   description: Refresh token opaco
       security: []
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
               schema:
                 type: object
                 additionalProperties: true
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /auth/logout:
     post:
       operationId: authLogout
@@ -243,25 +243,25 @@ paths:
                   minLength: 20
       security: []
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
               schema:
                 type: object
                 additionalProperties: true
-        '400':
+        "400":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /auth/me:
     get:
       operationId: authMe
@@ -273,7 +273,7 @@ paths:
         - ApiKeyAuth: []
           BearerAuth: []
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -297,24 +297,24 @@ paths:
                         type: array
                         items:
                           type: string
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /auth/sso-exchange:
     post:
       operationId: authSsoExchange
@@ -337,31 +337,31 @@ paths:
                   description: Access token OIDC
       security: []
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
               schema:
                 type: object
                 additionalProperties: true
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '503':
+                $ref: "#/components/schemas/def-3"
+        "503":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /users:
     get:
       operationId: listUsers
@@ -373,7 +373,7 @@ paths:
         - ApiKeyAuth: []
           BearerAuth: []
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -389,25 +389,25 @@ paths:
                       type: object
                       additionalProperties: true
                   paginationInfo:
-                    $ref: '#/components/schemas/def-0'
-        '401':
+                    $ref: "#/components/schemas/def-0"
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
     post:
       operationId: inviteUser
       summary: Invita utente
@@ -442,7 +442,7 @@ paths:
                   description: Workspace in cui si invita (richiede ruolo owner/admin).
       security: *a1
       responses:
-        '201':
+        "201":
           description: Default Response
           content:
             application/json:
@@ -454,30 +454,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '400':
+        "400":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '401':
+                $ref: "#/components/schemas/def-3"
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /users/{userId}:
     get:
       operationId: getUserById
@@ -494,7 +494,7 @@ paths:
           description: ObjectId utente
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -506,30 +506,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '404':
+                $ref: "#/components/schemas/def-3"
+        "404":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
     patch:
       operationId: patchUser
       summary: Aggiorna utente
@@ -565,7 +565,7 @@ paths:
           required: true
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -577,30 +577,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '404':
+                $ref: "#/components/schemas/def-3"
+        "404":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
     delete:
       operationId: deleteUser
       summary: Elimina utente
@@ -615,7 +615,7 @@ paths:
           required: true
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -627,30 +627,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '404':
+                $ref: "#/components/schemas/def-3"
+        "404":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /users/{userId}/password-reset:
     post:
       operationId: requestUserPasswordReset
@@ -666,7 +666,7 @@ paths:
           required: true
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -678,30 +678,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '404':
+                $ref: "#/components/schemas/def-3"
+        "404":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /rbac/permission-catalog:
     get:
       operationId: getPermissionCatalog
@@ -711,7 +711,7 @@ paths:
       description: Catalogo permessi (gruppi modulo + azione)
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -723,30 +723,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '404':
+                $ref: "#/components/schemas/def-3"
+        "404":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /rbac/roles/{roleKey}/effective-permissions:
     get:
       operationId: getRoleEffectivePermissions
@@ -763,7 +763,7 @@ paths:
           description: Chiave ruolo workspace (owner, admin, collaborator, viewer, custom)
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -775,30 +775,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '404':
+                $ref: "#/components/schemas/def-3"
+        "404":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /workspace-roles:
     get:
       operationId: listWorkspaceRoles
@@ -808,7 +808,7 @@ paths:
       description: Elenco ruoli workspace builtin
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -824,37 +824,36 @@ paths:
                       type: object
                       additionalProperties: true
                   paginationInfo:
-                    $ref: '#/components/schemas/def-0'
-        '401':
+                    $ref: "#/components/schemas/def-0"
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /workspaces:
     get:
       operationId: listWorkspaces
       summary: Elenco workspace
       tags:
         - Workspaces
-      description:
-        Elenco workspace visibili al chiamante. Per Tecma SuperAdmin restituisce tutti i record in `tz_workspaces`;
+      description: Elenco workspace visibili al chiamante. Per Tecma SuperAdmin restituisce tutti i record in `tz_workspaces`;
         per gli altri utenti solo i workspace con membership risolta da sub/email/ObjectId.
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -870,25 +869,25 @@ paths:
                       type: object
                       additionalProperties: true
                   paginationInfo:
-                    $ref: '#/components/schemas/def-0'
-        '401':
+                    $ref: "#/components/schemas/def-0"
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
     post:
       operationId: createWorkspace
       summary: Crea workspace
@@ -911,7 +910,7 @@ paths:
                   type: boolean
       security: *a1
       responses:
-        '201':
+        "201":
           description: Default Response
           content:
             application/json:
@@ -923,30 +922,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '400':
+        "400":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '401':
+                $ref: "#/components/schemas/def-3"
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /workspaces/{workspaceId}:
     get:
       operationId: getWorkspaceById
@@ -962,7 +961,7 @@ paths:
           required: true
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -974,30 +973,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '404':
+                $ref: "#/components/schemas/def-3"
+        "404":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
     patch:
       operationId: patchWorkspace
       summary: Aggiorna workspace
@@ -1024,7 +1023,7 @@ paths:
           required: true
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -1036,30 +1035,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '404':
+                $ref: "#/components/schemas/def-3"
+        "404":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
     delete:
       operationId: deleteWorkspace
       summary: Elimina workspace
@@ -1074,7 +1073,7 @@ paths:
           required: true
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -1086,30 +1085,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '404':
+                $ref: "#/components/schemas/def-3"
+        "404":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /workspaces/{workspaceId}/members:
     get:
       operationId: listWorkspaceMembers
@@ -1125,7 +1124,7 @@ paths:
           required: true
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -1141,25 +1140,25 @@ paths:
                       type: object
                       additionalProperties: true
                   paginationInfo:
-                    $ref: '#/components/schemas/def-0'
-        '401':
+                    $ref: "#/components/schemas/def-0"
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
     post:
       operationId: addWorkspaceMember
       summary: Aggiungi membro
@@ -1193,7 +1192,7 @@ paths:
           required: true
       security: *a1
       responses:
-        '201':
+        "201":
           description: Default Response
           content:
             application/json:
@@ -1205,45 +1204,43 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '400':
+        "400":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '401':
+                $ref: "#/components/schemas/def-3"
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /workspaces/{workspaceId}/members/{userId}:
     patch:
       operationId: patchWorkspaceMember
-      summary: Aggiorna ruolo membro
+      summary: Aggiorna ruolo membro / access scope / colore calendario
       tags:
         - Workspaces
-      description: Aggiorna ruolo membro
+      description: Aggiorna ruolo membro / access scope / colore calendario
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required:
-                - role
               properties:
                 role:
                   type: string
@@ -1252,6 +1249,16 @@ paths:
                     - admin
                     - collaborator
                     - viewer
+                accessScope:
+                  type: string
+                  enum:
+                    - all
+                    - assigned
+                  description: Strategia di visibilita progetti per il membro
+                calendarDisplayColor:
+                  type: string
+                  pattern: ^#[0-9A-Fa-f]{6}$
+                  description: Colore visualizzazione calendario (#RRGGBB)
       parameters:
         - schema:
             type: string
@@ -1265,7 +1272,7 @@ paths:
           required: true
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -1277,30 +1284,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '404':
+                $ref: "#/components/schemas/def-3"
+        "404":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
     delete:
       operationId: removeWorkspaceMember
       summary: Rimuovi membro
@@ -1320,7 +1327,7 @@ paths:
           required: true
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -1332,30 +1339,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '404':
+                $ref: "#/components/schemas/def-3"
+        "404":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /workspaces/{workspaceId}/members/{userId}/projects:
     get:
       operationId: listMemberProjectAssignments
@@ -1376,7 +1383,7 @@ paths:
           required: true
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -1392,25 +1399,25 @@ paths:
                       type: object
                       additionalProperties: true
                   paginationInfo:
-                    $ref: '#/components/schemas/def-0'
-        '401':
+                    $ref: "#/components/schemas/def-0"
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
     post:
       operationId: addMemberProjectAssignment
       summary: Assegna progetto a un membro del workspace
@@ -1441,7 +1448,7 @@ paths:
           required: true
       security: *a1
       responses:
-        '201':
+        "201":
           description: Default Response
           content:
             application/json:
@@ -1453,30 +1460,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '400':
+        "400":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '401':
+                $ref: "#/components/schemas/def-3"
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /workspaces/{workspaceId}/members/{userId}/projects/{projectId}:
     delete:
       operationId: removeMemberProjectAssignment
@@ -1502,7 +1509,7 @@ paths:
           required: true
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -1514,30 +1521,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '404':
+                $ref: "#/components/schemas/def-3"
+        "404":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /workspaces/{workspaceId}/invitations:
     post:
       operationId: createWorkspaceInvitation
@@ -1580,7 +1587,7 @@ paths:
           required: true
       security: *a1
       responses:
-        '201':
+        "201":
           description: Default Response
           content:
             application/json:
@@ -1592,30 +1599,657 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '400':
+        "400":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '401':
+                $ref: "#/components/schemas/def-3"
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
+  /workspaces/{workspaceId}/entitlements:
+    get:
+      operationId: listWorkspaceEntitlements
+      summary: Entitlements workspace
+      tags:
+        - Workspaces
+      description: Entitlements workspace
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: workspaceId
+          required: true
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - paginationInfo
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  paginationInfo:
+                    $ref: "#/components/schemas/def-0"
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /workspaces/{workspaceId}/entitlements/{feature}:
+    patch:
+      operationId: patchWorkspaceEntitlement
+      summary: Aggiorna entitlement workspace
+      tags:
+        - Workspaces
+      description: Aggiorna entitlement workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - enabled
+                    - disabled
+                metadata:
+                  type: object
+                  additionalProperties: true
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: workspaceId
+          required: true
+        - schema:
+            type: string
+            enum:
+              - ai
+              - analytics
+              - connectors-marketing
+              - email-templates
+              - pdf-templates
+          in: path
+          name: feature
+          required: true
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /workspaces/{workspaceId}/ai-config:
+    get:
+      operationId: getWorkspaceAiConfig
+      summary: Configurazione AI workspace
+      tags:
+        - Workspaces
+      description: Configurazione AI workspace
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: workspaceId
+          required: true
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+    put:
+      operationId: putWorkspaceAiConfig
+      summary: Salva configurazione AI workspace
+      tags:
+        - Workspaces
+      description: Salva configurazione AI workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - provider
+              properties:
+                provider:
+                  type: string
+                  enum:
+                    - claude
+                    - openai
+                    - gemini
+                apiKey:
+                  type: string
+                  minLength: 8
+                  maxLength: 512
+                model:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                temperature:
+                  type: number
+                  minimum: 0
+                  maximum: 2
+                enabled:
+                  type: boolean
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: workspaceId
+          required: true
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /workspaces/{workspaceId}/additional-infos:
+    get:
+      operationId: listWorkspaceAdditionalInfos
+      summary: Additional infos workspace
+      tags:
+        - Workspaces
+      description: Additional infos workspace
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: workspaceId
+          required: true
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - paginationInfo
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  paginationInfo:
+                    $ref: "#/components/schemas/def-0"
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+    post:
+      operationId: createWorkspaceAdditionalInfo
+      summary: Crea additional info workspace
+      tags:
+        - Workspaces
+      description: Crea additional info workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - label
+              properties:
+                label:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                value:
+                  type: string
+                  maxLength: 10000
+                sortOrder:
+                  type: integer
+                  minimum: 0
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: workspaceId
+          required: true
+      security: *a1
+      responses:
+        "201":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /workspaces/{workspaceId}/additional-infos/{infoId}:
+    patch:
+      operationId: patchWorkspaceAdditionalInfo
+      summary: Aggiorna additional info workspace
+      tags:
+        - Workspaces
+      description: Aggiorna additional info workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                value:
+                  type: string
+                  maxLength: 10000
+                sortOrder:
+                  type: integer
+                  minimum: 0
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: workspaceId
+          required: true
+        - schema:
+            type: string
+          in: path
+          name: infoId
+          required: true
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+    delete:
+      operationId: deleteWorkspaceAdditionalInfo
+      summary: Elimina additional info workspace
+      tags:
+        - Workspaces
+      description: Elimina additional info workspace
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: workspaceId
+          required: true
+        - schema:
+            type: string
+          in: path
+          name: infoId
+          required: true
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /workspaces/{workspaceId}/branding:
+    get:
+      operationId: getWorkspaceBranding
+      summary: Branding workspace
+      tags:
+        - Workspaces
+      description: Branding workspace
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: workspaceId
+          required: true
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+    patch:
+      operationId: patchWorkspaceBranding
+      summary: Aggiorna branding workspace
+      tags:
+        - Workspaces
+      description: Aggiorna branding workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                logoUrl:
+                  type: string
+                  format: uri
+                emailHeaderUrl:
+                  type: string
+                  format: uri
+                primaryColor:
+                  type: string
+                  pattern: ^#[0-9A-Fa-f]{6}$
+                footerText:
+                  type: string
+                  maxLength: 500
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: workspaceId
+          required: true
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
   /workspaces/{workspaceId}/clients:
     get:
       operationId: listWorkspaceClients
@@ -1631,7 +2265,7 @@ paths:
           required: true
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -1647,36 +2281,377 @@ paths:
                       type: object
                       additionalProperties: true
                   paginationInfo:
-                    $ref: '#/components/schemas/def-0'
-        '401':
+                    $ref: "#/components/schemas/def-0"
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
+  /workspaces/{workspaceId}/assets/upload-url:
+    post:
+      operationId: requestAssetUploadUrl
+      summary: Richiede signed URL per upload asset workspace
+      tags:
+        - Assets
+      description: Richiede signed URL per upload asset workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - fileName
+                - contentType
+              properties:
+                fileName:
+                  type: string
+                  minLength: 1
+                  maxLength: 256
+                contentType:
+                  type: string
+                  minLength: 3
+                  maxLength: 120
+                kind:
+                  type: string
+                  enum:
+                    - workspace.logo
+                    - workspace.email-header
+                    - workspace.favicon
+                    - project.logo
+                    - project.branding
+                    - project.email-header
+                    - generic
+                byteSize:
+                  type: integer
+                  minimum: 1
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: workspaceId
+          required: true
+          description: Workspace target
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /workspaces/{workspaceId}/assets:
+    post:
+      operationId: createAsset
+      summary: Registra asset workspace
+      tags:
+        - Assets
+      description: Registra asset workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - fileName
+                - contentType
+              properties:
+                fileName:
+                  type: string
+                  minLength: 1
+                  maxLength: 256
+                contentType:
+                  type: string
+                  minLength: 3
+                  maxLength: 120
+                kind:
+                  type: string
+                  enum:
+                    - workspace.logo
+                    - workspace.email-header
+                    - workspace.favicon
+                    - project.logo
+                    - project.branding
+                    - project.email-header
+                    - generic
+                storageKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 512
+                inlineData:
+                  type: string
+                  description: Base64 (senza prefix data:) usato come fallback quando ENABLE_ASSET_UPLOADS=false
+                projectId:
+                  type: string
+                  minLength: 1
+                byteSize:
+                  type: integer
+                  minimum: 0
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: workspaceId
+          required: true
+          description: Workspace target
+      security: *a1
+      responses:
+        "201":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+    get:
+      operationId: listAssets
+      summary: Asset workspace
+      tags:
+        - Assets
+      description: Asset workspace
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: workspaceId
+          required: true
+          description: Workspace target
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - paginationInfo
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  paginationInfo:
+                    $ref: "#/components/schemas/def-0"
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /workspaces/{workspaceId}/assets/{assetId}/download-url:
+    get:
+      operationId: getAssetDownloadUrl
+      summary: Signed URL download asset workspace
+      tags:
+        - Assets
+      description: Signed URL download asset workspace
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: workspaceId
+          required: true
+          description: Workspace target
+        - schema:
+            type: string
+          in: path
+          name: assetId
+          required: true
+          description: ObjectId asset
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+  /workspaces/{workspaceId}/assets/{assetId}:
+    delete:
+      operationId: deleteAsset
+      summary: Soft-delete asset workspace
+      tags:
+        - Assets
+      description: Soft-delete asset workspace
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: workspaceId
+          required: true
+          description: Workspace target
+        - schema:
+            type: string
+          in: path
+          name: assetId
+          required: true
+          description: ObjectId asset
+      security: *a1
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "403":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
+        "500":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/def-3"
   /projects:
     get:
       operationId: listProjects
       summary: Elenco progetti
       tags:
         - Projects
-      description:
-        'Senza `workspaceId`: Tecma SuperAdmin vede tutti i progetti; gli altri utenti solo progetti accessibili
+      description: "Senza `workspaceId`: Tecma SuperAdmin vede tutti i progetti; gli altri utenti solo progetti accessibili
         (assegnazioni, membership workspace, grant `tz_project_access`). Con `workspaceId` richiede membership nel
         workspace (salvo Tecma); elenco include assegnazioni, fallback progetti del workspace e progetti concessi in
-        grant verso quel workspace. `userId` consente a Tecma SuperAdmin di filtrare per un altro utente.'
+        grant verso quel workspace. `userId` consente a Tecma SuperAdmin di filtrare per un altro utente."
       parameters:
         - schema:
             type: string
@@ -1692,7 +2667,7 @@ paths:
           description: Solo Tecma SuperAdmin; ObjectId o email dell’utente di cui elencare i progetti nel workspace.
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -1708,25 +2683,25 @@ paths:
                       type: object
                       additionalProperties: true
                   paginationInfo:
-                    $ref: '#/components/schemas/def-0'
-        '401':
+                    $ref: "#/components/schemas/def-0"
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
     post:
       operationId: createProject
       summary: Crea progetto
@@ -1754,7 +2729,7 @@ paths:
                   minLength: 2
       security: *a1
       responses:
-        '201':
+        "201":
           description: Default Response
           content:
             application/json:
@@ -1766,30 +2741,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '400':
+        "400":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '401':
+                $ref: "#/components/schemas/def-3"
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /projects/{projectId}:
     get:
       operationId: getProjectById
@@ -1805,7 +2780,7 @@ paths:
           required: true
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -1817,30 +2792,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '404':
+                $ref: "#/components/schemas/def-3"
+        "404":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
     patch:
       operationId: patchProject
       summary: Aggiorna progetto
@@ -1868,7 +2843,7 @@ paths:
           required: true
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -1880,30 +2855,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '404':
+                $ref: "#/components/schemas/def-3"
+        "404":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
     delete:
       operationId: deleteProject
       summary: Elimina progetto
@@ -1918,7 +2893,7 @@ paths:
           required: true
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -1930,30 +2905,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '404':
+                $ref: "#/components/schemas/def-3"
+        "404":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /projects/{projectId}/access:
     get:
       operationId: listProjectAccessGrants
@@ -1969,7 +2944,7 @@ paths:
           required: true
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -1985,25 +2960,25 @@ paths:
                       type: object
                       additionalProperties: true
                   paginationInfo:
-                    $ref: '#/components/schemas/def-0'
-        '401':
+                    $ref: "#/components/schemas/def-0"
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
     post:
       operationId: createProjectAccessGrant
       summary: Crea grant access
@@ -2036,7 +3011,7 @@ paths:
           required: true
       security: *a1
       responses:
-        '201':
+        "201":
           description: Default Response
           content:
             application/json:
@@ -2048,30 +3023,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '400':
+        "400":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '401':
+                $ref: "#/components/schemas/def-3"
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /projects/{projectId}/access/{grantId}:
     delete:
       operationId: deleteProjectAccessGrant
@@ -2092,7 +3067,7 @@ paths:
           required: true
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -2104,30 +3079,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '404':
+                $ref: "#/components/schemas/def-3"
+        "404":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /session/projects-by-email:
     post:
       operationId: listSessionProjectsByEmail
@@ -2149,7 +3124,7 @@ paths:
                   type: string
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -2165,25 +3140,25 @@ paths:
                       type: object
                       additionalProperties: true
                   paginationInfo:
-                    $ref: '#/components/schemas/def-0'
-        '401':
+                    $ref: "#/components/schemas/def-0"
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /session/preferences:
     get:
       operationId: getSessionPreferences
@@ -2193,7 +3168,7 @@ paths:
       description: Leggi preferenze sessione
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -2205,30 +3180,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '404':
+                $ref: "#/components/schemas/def-3"
+        "404":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
     post:
       operationId: setSessionPreferences
       summary: Salva preferenze sessione
@@ -2248,7 +3223,7 @@ paths:
                     type: string
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -2260,30 +3235,30 @@ paths:
                   data:
                     type: object
                     additionalProperties: true
-        '401':
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '404':
+                $ref: "#/components/schemas/def-3"
+        "404":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
   /admin/audit-events:
     get:
       operationId: listAdminAuditEvents
@@ -2293,7 +3268,7 @@ paths:
       description: Elenco audit eventi platform, accessibile solo a Tecma SuperAdmin.
       security: *a1
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -2309,25 +3284,25 @@ paths:
                       type: object
                       additionalProperties: true
                   paginationInfo:
-                    $ref: '#/components/schemas/def-0'
-        '401':
+                    $ref: "#/components/schemas/def-0"
+        "401":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '403':
+                $ref: "#/components/schemas/def-3"
+        "403":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
-        '500':
+                $ref: "#/components/schemas/def-3"
+        "500":
           description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/def-3'
+                $ref: "#/components/schemas/def-3"
 servers:
   - url: /v1
 tags:
@@ -2341,6 +3316,8 @@ tags:
     description: Catalogo permessi e ruoli RBAC
   - name: Workspaces
     description: Workspace e membri
+  - name: Assets
+    description: Asset workspace (logo, branding, attachments)
   - name: Projects
     description: Progetti e accessi
   - name: Admin

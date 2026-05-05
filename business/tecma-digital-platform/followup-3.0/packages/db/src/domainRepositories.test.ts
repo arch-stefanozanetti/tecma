@@ -5,6 +5,7 @@ import { ObjectId } from 'mongodb';
 import { getAllowedWriteDbName } from './constants.js';
 import { startInMemoryMongo, stopInMemoryMongo } from './testing/index.js';
 import {
+  AssetsRepository,
   AuditEventsRepository,
   RoleDefinitionsRepository,
   UsersRepository,
@@ -107,6 +108,68 @@ describe('domain repositories', () => {
       await repo.revoke('ws-2', 'user-2', 'proj-3');
       const after = await repo.listForUser('ws-2', 'user-2');
       expect(after).toHaveLength(0);
+    });
+  });
+
+  describe('AssetsRepository', () => {
+    it('listForWorkspace ritorna asset non deleted ordinati per createdAt desc', async () => {
+      const repo = new AssetsRepository(mongoContext.client.db(getAllowedWriteDbName()));
+      await repo.create({
+        _id: new ObjectId(),
+        workspaceId: 'ws-assets',
+        kind: 'workspace.logo',
+        fileName: 'old.png',
+        contentType: 'image/png',
+        status: 'active',
+        createdAt: '2026-05-01T08:00:00.000Z',
+      } as any);
+      await repo.create({
+        _id: new ObjectId(),
+        workspaceId: 'ws-assets',
+        kind: 'workspace.email-header',
+        fileName: 'header.png',
+        contentType: 'image/png',
+        status: 'deleted',
+        createdAt: '2026-05-02T08:00:00.000Z',
+        deletedAt: '2026-05-02T09:00:00.000Z',
+      } as any);
+      await repo.create({
+        _id: new ObjectId(),
+        workspaceId: 'ws-assets',
+        kind: 'workspace.logo',
+        fileName: 'new.png',
+        contentType: 'image/png',
+        status: 'active',
+        createdAt: '2026-05-03T08:00:00.000Z',
+      } as any);
+
+      const list = await repo.listForWorkspace('ws-assets');
+      expect(list.map((entry) => entry.fileName)).toEqual(['new.png', 'old.png']);
+    });
+
+    it('softDelete marca asset come deleted e ritorna true', async () => {
+      const repo = new AssetsRepository(mongoContext.client.db(getAllowedWriteDbName()));
+      const id = 'asset-soft-delete';
+      await repo.create({
+        _id: id,
+        workspaceId: 'ws-soft',
+        kind: 'generic',
+        fileName: 'sample.bin',
+        contentType: 'application/octet-stream',
+        status: 'active',
+        createdAt: new Date().toISOString(),
+      } as any);
+
+      const ok = await repo.softDelete('ws-soft', id);
+      expect(ok).toBe(true);
+      const list = await repo.listForWorkspace('ws-soft');
+      expect(list).toHaveLength(0);
+    });
+
+    it('softDelete ritorna false se asset non trovato', async () => {
+      const repo = new AssetsRepository(mongoContext.client.db(getAllowedWriteDbName()));
+      const ok = await repo.softDelete('ws-missing', 'asset-not-exist');
+      expect(ok).toBe(false);
     });
   });
 
