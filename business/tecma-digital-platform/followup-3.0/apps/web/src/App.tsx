@@ -6,6 +6,7 @@ import {
   AUTH_ACCESS_TOKEN_KEY,
   clearFollowupAuthSession,
   readStoredLoginProfile,
+  type SessionExpiredNotice,
 } from './lib/authSession';
 import { PageTemplate } from './shell/PageTemplate';
 
@@ -28,21 +29,27 @@ export const App = () => {
   const initialBootstrap = useMemo(readInitialBootstrap, []);
   const [accessToken, setAccessToken] = useState<string | null>(initialToken);
   const [stage, setStage] = useState<AppStage>(initialToken != null ? 'project-access' : 'login');
-  const [loginBootstrap, setLoginBootstrap] = useState<LoginBootstrapProfile | null>(initialBootstrap);
+  const [loginBootstrap, setLoginBootstrap] = useState<LoginBootstrapProfile | null>(
+    initialBootstrap,
+  );
+  const [loginNotice, setLoginNotice] = useState<string | null>(null);
 
-  const handleSessionInvalid = useCallback(() => {
+  const handleSessionInvalid = useCallback((notice?: SessionExpiredNotice) => {
     clearFollowupAuthSession();
     setAccessToken(null);
     setLoginBootstrap(null);
+    setLoginNotice(notice?.message ?? null);
     setStage('login');
   }, []);
 
   if (stage == 'login') {
     return (
       <LoginPage
+        notice={loginNotice}
         onSuccess={(token: string, profile: LoginBootstrapProfile) => {
           setAccessToken(token);
           setLoginBootstrap(profile);
+          setLoginNotice(null);
           setStage('project-access');
         }}
       />
@@ -66,9 +73,11 @@ export const App = () => {
   if (accessToken == null) {
     return (
       <LoginPage
+        notice={loginNotice}
         onSuccess={(token: string, profile: LoginBootstrapProfile) => {
           setAccessToken(token);
           setLoginBootstrap(profile);
+          setLoginNotice(null);
           setStage('project-access');
         }}
       />
