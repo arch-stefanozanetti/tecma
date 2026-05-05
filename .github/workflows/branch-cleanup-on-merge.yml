@@ -1,0 +1,55 @@
+name: Branch cleanup on merge
+
+# Cancella automaticamente il branch sorgente di una PR appena viene mergiata
+# in `main`, `develop` o `demo`. Allinea il repo alla policy in
+# `business/tecma-digital-platform/followup-3.0/docs/branching-policy.md`.
+#
+# Eccezioni:
+# - long-lived (`main`/`develop`/`demo`) e prefissi protetti
+#   (`archive/*`, `release/*`, `parking/*`) non vengono toccati
+# - PR chiuse senza merge non triggerano il cleanup
+#
+# Sicurezza: il head ref della PR e' un input untrusted; lo recuperiamo via
+# `gh api` dal numero PR e lo usiamo solo come argomento, mai come stringa
+# interpolata in shell.
+on:
+  pull_request:
+    types: [closed]
+    branches: [main, develop, demo]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  delete-branch:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete merged branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          PAYLOAD=$(gh api "repos/$REPO/pulls/$PR_NUMBER" --jq '{ref: .head.ref, sameRepo: (.head.repo.full_name == .base.repo.full_name)}')
+          REF=$(printf '%s' "$PAYLOAD" | jq -r '.ref')
+          SAME_REPO=$(printf '%s' "$PAYLOAD" | jq -r '.sameRepo')
+          if [[ "$SAME_REPO" != "true" ]]; then
+            echo "Skip cleanup: PR comes from a forked repository."
+            exit 0
+          fi
+          case "$REF" in
+            main|develop|demo)
+              echo "Skip cleanup: '$REF' is a long-lived branch."
+              exit 0
+              ;;
+            archive/*|release/*|parking/*)
+              echo "Skip cleanup: '$REF' matches preserved prefix."
+              exit 0
+              ;;
+          esac
+          echo "Deleting merged branch: $REF"
+          gh api -X DELETE "repos/$REPO/git/refs/heads/$REF" \
+            || echo "Branch already deleted or missing - nothing to do."
