@@ -14,27 +14,27 @@ archiviare con tag `archive/<branch>-2026-05` e cancellare.
 
 ## Riepilogo branch parcheggiati
 
-| Branch (remote) | Ahead | Behind | Ultimo commit | Autore | Tema | Review entro | Decisione attesa |
-|---|---|---|---|---|---|---|---|
-| `origin/feature/keycloak-migration` | 15 | 72 | 2026-03-25 | Stefano Zanetti | Migrazione SSO/OIDC verso Keycloak (Big Data, marketing connectors, API hardening) | 2026-06-30 | Decidere se riprendere come long-running feature o archiviare. Strettamente legato a `pr/followup-keycloak-to-main` e `cursor/keycloak-identity-provider-b16b`. |
-| `origin/pr/followup-keycloak-to-main` | 11 | 72 | 2026-03-25 | Stefano Zanetti | Merge target alternativo per keycloak-migration | 2026-06-30 | Da chiudere o assorbire insieme alla decisione su `keycloak-migration`. |
-| `origin/cursor/keycloak-identity-provider-b16b` | 1 | 72 | 2026-03-24 | Cursor Agent | FE login OIDC Keycloak (PKCE) + callback verso sso-exchange | 2026-06-30 | Cherry-pick mirato su una `feat/auth-keycloak-pkce` se la migrazione viene ripresa. |
-| `feature/big-data-marketing-ui` (locale, no upstream) | 12 | 72 | 2026-03-25 | Stefano Zanetti | UI Big Data + marketing connectors (CI required checks alignment) | 2026-06-30 | Valutare estrazione del solo allineamento CI; il resto può confluire in keycloak-migration. |
-| `origin/feature/appuntamenti-design-system-v2` | 11 | 108 | 2026-03-19 | Francesco Stravino | Design System v2 per modulo Appuntamenti (fix CI npm ci in design-system) | 2026-06-30 | Coordinare con il team Design System: rebase su main o estrarre i fix CI separatamente. |
-| `origin/feat/followup-experimental-editor` | 1 | 48 | 2026-03-27 | Stefano Zanetti | Superadmin experimental area + integrazione Pascal Editor | 2026-07-31 | Decidere se promuovere a feature stabile o trattare come spike e archiviare. |
-| `origin/fix/fe-recharts-render-build` | 1 | 52 | 2026-03-26 | Stefano Zanetti | Fix build Recharts (legacy progetto, workflow hard-cut, reporting e UI) | 2026-06-30 | Verificare se il fix è ancora rilevante post baseline; se sì, riportare con cherry-pick mirato. |
-| `origin/fix/render-be-tsc-build` | 2 | 71 | 2026-03-25 | Stefano Zanetti | Fix Render build TS (ga4 RowMetrics type per strict tsc) | 2026-06-30 | Cherry-pick su `fix/be-render-tsc-strict` se il problema è ancora riproducibile. |
-| `origin/cursor/vercel-deploy-problema-41da` | 2 | 174 | 2026-03-13 | Cursor Agent | Fix build Vercel — uso tema tailwind dal design-system sorgente | 2026-06-30 | Verifica se il problema è ancora aperto; in caso contrario archive. |
+| Branch (remote)                                       | Ahead | Behind | Ultimo commit | Autore             | Tema                                                                               | Review entro | Decisione attesa                                                                                                                                                |
+| ----------------------------------------------------- | ----- | ------ | ------------- | ------------------ | ---------------------------------------------------------------------------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `origin/feature/keycloak-migration`                   | 15    | 72     | 2026-03-25    | Stefano Zanetti    | Migrazione SSO/OIDC verso Keycloak (Big Data, marketing connectors, API hardening) | 2026-06-30   | Decidere se riprendere come long-running feature o archiviare. Strettamente legato a `pr/followup-keycloak-to-main` e `cursor/keycloak-identity-provider-b16b`. |
+| `origin/pr/followup-keycloak-to-main`                 | 11    | 72     | 2026-03-25    | Stefano Zanetti    | Merge target alternativo per keycloak-migration                                    | 2026-06-30   | Da chiudere o assorbire insieme alla decisione su `keycloak-migration`.                                                                                         |
+| `origin/cursor/keycloak-identity-provider-b16b`       | 1     | 72     | 2026-03-24    | Cursor Agent       | FE login OIDC Keycloak (PKCE) + callback verso sso-exchange                        | 2026-06-30   | Cherry-pick mirato su una `feat/auth-keycloak-pkce` se la migrazione viene ripresa.                                                                             |
+| `feature/big-data-marketing-ui` (locale, no upstream) | 12    | 72     | 2026-03-25    | Stefano Zanetti    | UI Big Data + marketing connectors (CI required checks alignment)                  | 2026-06-30   | Valutare estrazione del solo allineamento CI; il resto può confluire in keycloak-migration.                                                                     |
+| `origin/feature/appuntamenti-design-system-v2`        | 11    | 108    | 2026-03-19    | Francesco Stravino | Design System v2 per modulo Appuntamenti (fix CI npm ci in design-system)          | 2026-06-30   | Coordinare con il team Design System: rebase su main o estrarre i fix CI separatamente.                                                                         |
+| `origin/feat/followup-experimental-editor`            | 1     | 48     | 2026-03-27    | Stefano Zanetti    | Superadmin experimental area + integrazione Pascal Editor                          | 2026-07-31   | Decidere se promuovere a feature stabile o trattare come spike e archiviare.                                                                                    |
+| `origin/fix/fe-recharts-render-build`                 | 1     | 52     | 2026-03-26    | Stefano Zanetti    | Fix build Recharts (legacy progetto, workflow hard-cut, reporting e UI)            | 2026-06-30   | Verificare se il fix è ancora rilevante post baseline; se sì, riportare con cherry-pick mirato.                                                                 |
+| `origin/fix/render-be-tsc-build`                      | 2     | 71     | 2026-03-25    | Stefano Zanetti    | Fix Render build TS (ga4 RowMetrics type per strict tsc)                           | 2026-06-30   | Cherry-pick su `fix/be-render-tsc-strict` se il problema è ancora riproducibile.                                                                                |
+| `origin/cursor/vercel-deploy-problema-41da`           | 2     | 174    | 2026-03-13    | Cursor Agent       | Fix build Vercel — uso tema tailwind dal design-system sorgente                    | 2026-06-30   | Verifica se il problema è ancora aperto; in caso contrario archive.                                                                                             |
 
 ## Branch locali in parking
 
-| Branch | Stato | Note |
-|---|---|---|
-| `feature/keycloak-migration` | mirror di `origin/feature/keycloak-migration` | da mantenere finché non si decide sulla feature. |
-| `feat/followup-experimental-editor` | mirror di `origin/feat/followup-experimental-editor` | come sopra. |
-| `fix/fe-recharts-render-build` | mirror di `origin/fix/fe-recharts-render-build` | come sopra. |
-| `feature/big-data-marketing-ui` | NO upstream (`origin` non lo ha) | da pubblicare su `origin/feature/big-data-marketing-ui` se si decide di riprenderlo. |
-| `codex/ds-panel-unification-wave` | chiuso | worktree rimosso e branch locale eliminato; resta il tag archive `archive/codex-ds-panel-unification-wave-2026-03-19`. |
+| Branch                              | Stato                                                | Note                                                                                                                   |
+| ----------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `feature/keycloak-migration`        | mirror di `origin/feature/keycloak-migration`        | da mantenere finché non si decide sulla feature.                                                                       |
+| `feat/followup-experimental-editor` | mirror di `origin/feat/followup-experimental-editor` | come sopra.                                                                                                            |
+| `fix/fe-recharts-render-build`      | mirror di `origin/fix/fe-recharts-render-build`      | come sopra.                                                                                                            |
+| `feature/big-data-marketing-ui`     | NO upstream (`origin` non lo ha)                     | da pubblicare su `origin/feature/big-data-marketing-ui` se si decide di riprenderlo.                                   |
+| `codex/ds-panel-unification-wave`   | chiuso                                               | worktree rimosso e branch locale eliminato; resta il tag archive `archive/codex-ds-panel-unification-wave-2026-03-19`. |
 
 ## Gitlab — branch da gestire
 

@@ -6,11 +6,11 @@ Versione vigente dal **2026-05-05**. Allineata alle workspace rules
 
 ## 1. Long-lived branches
 
-| Branch | Ruolo | Ambiente | Note |
-|--------|-------|----------|------|
-| `main` | Produzione (= `prod`) | MongoDB **prod** | Deploy automatico via GitLab CI (`CI_DEFAULT_BRANCH`). |
-| `demo` | Demo / staging | MongoDB **demo** | Deploy demo via `.gitlab/ci/deploy-demo.yml`. |
-| `develop` | Integrazione team (= `dev`) | MongoDB **dev1** | Deploy dev1 via `.gitlab/ci/deploy-dev1.yml`. |
+| Branch    | Ruolo                       | Ambiente         | Note                                                   |
+| --------- | --------------------------- | ---------------- | ------------------------------------------------------ |
+| `main`    | Produzione (= `prod`)       | MongoDB **prod** | Deploy automatico via GitLab CI (`CI_DEFAULT_BRANCH`). |
+| `demo`    | Demo / staging              | MongoDB **demo** | Deploy demo via `.gitlab/ci/deploy-demo.yml`.          |
+| `develop` | Integrazione team (= `dev`) | MongoDB **dev1** | Deploy dev1 via `.gitlab/ci/deploy-dev1.yml`.          |
 
 > Vietato lavorare direttamente su questi branch. Sempre branch funzionali
 > temporanei.
