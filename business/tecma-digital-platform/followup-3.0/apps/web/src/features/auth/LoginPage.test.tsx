@@ -1,5 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactElement } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LoginPage } from './LoginPage';
@@ -10,13 +12,15 @@ vi.mock('../../lib/http', () => ({
   http: (...args: unknown[]) => httpMock(...args),
 }));
 
+const renderLoginPage = (ui: ReactElement) => render(<MemoryRouter>{ui}</MemoryRouter>);
+
 describe('LoginPage', () => {
   beforeEach(() => {
     httpMock.mockReset();
   });
 
   it('shows session notice above login form', () => {
-    render(
+    renderLoginPage(
       <LoginPage
         notice="La sessione è scaduta. Accedi di nuovo per continuare."
         onSuccess={vi.fn()}
@@ -39,7 +43,7 @@ describe('LoginPage', () => {
       },
     });
 
-    render(<LoginPage onSuccess={onSuccess} />);
+    renderLoginPage(<LoginPage onSuccess={onSuccess} />);
     await user.type(screen.getByLabelText('Email'), 'user@tecma.test');
     await user.type(screen.getByLabelText('Password'), 'Password123!');
     await user.click(screen.getByRole('button', { name: 'Accedi' }));
@@ -60,7 +64,7 @@ describe('LoginPage', () => {
   it('shows user-facing error on failed login', async () => {
     const user = userEvent.setup();
     httpMock.mockRejectedValueOnce(new Error('Credenziali non valide.'));
-    render(<LoginPage onSuccess={vi.fn()} />);
+    renderLoginPage(<LoginPage onSuccess={vi.fn()} />);
 
     await user.type(screen.getByLabelText('Email'), 'user@tecma.test');
     await user.type(screen.getByLabelText('Password'), 'wrong');
@@ -78,7 +82,7 @@ describe('LoginPage', () => {
       user: { id: '1', email: 'a@b.c', systemRole: 'user' },
     });
 
-    render(<LoginPage onSuccess={onSuccess} />);
+    renderLoginPage(<LoginPage onSuccess={onSuccess} />);
     await user.type(screen.getByLabelText('Email'), 'user@tecma.test');
     await user.type(screen.getByLabelText('Password'), 'Password123!');
     await user.click(screen.getByRole('button', { name: 'Accedi' }));
@@ -97,7 +101,7 @@ describe('LoginPage', () => {
     const onSuccess = vi.fn();
     httpMock.mockResolvedValueOnce({ foo: 1 });
 
-    render(<LoginPage onSuccess={onSuccess} />);
+    renderLoginPage(<LoginPage onSuccess={onSuccess} />);
     await user.type(screen.getByLabelText('Email'), 'user@tecma.test');
     await user.type(screen.getByLabelText('Password'), 'Password123!');
     await user.click(screen.getByRole('button', { name: 'Accedi' }));
@@ -119,7 +123,7 @@ describe('LoginPage', () => {
       },
     });
 
-    render(<LoginPage onSuccess={onSuccess} />);
+    renderLoginPage(<LoginPage onSuccess={onSuccess} />);
     await user.type(screen.getByLabelText('Email'), 'user@tecma.test');
     await user.type(screen.getByLabelText('Password'), 'Password123!');
     await user.click(screen.getByRole('button', { name: 'Accedi' }));

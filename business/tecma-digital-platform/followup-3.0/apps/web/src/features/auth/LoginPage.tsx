@@ -1,12 +1,13 @@
 import { isTecmaPlatformAdmin } from '@followup/shared-rbac';
 import { type FormEvent, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 
 import { LogoTecma } from '../../components/LogoTecma';
 import { Button } from '../../components/ui/button';
 import { CheckboxWithLabel } from '../../components/ui/checkbox';
 import { Input } from '../../components/ui/input';
 import { PasswordInput } from '../../components/ui/password-input';
-import { persistLoginProfile } from '../../lib/authSession';
+import { mapSessionReasonToNotice, persistAuthSession } from '../../lib/authSession';
 import { http } from '../../lib/http';
 
 const FORGOT_CREDENTIALS_URL = import.meta.env.VITE_FORGOT_CREDENTIALS_URL ?? '#';
@@ -107,7 +108,25 @@ interface LoginPageProps {
   ) => void;
 }
 
+type LoginReason = 'session_expired' | 'invalid_token' | 'missing_token';
+
+const isLoginReason = (value: string): value is LoginReason =>
+  value === 'session_expired' || value === 'invalid_token' || value === 'missing_token';
+
+const readNoticeFromLocation = (location: ReturnType<typeof useLocation>): string | null => {
+  const stateReason = (location.state as { reason?: unknown } | null)?.reason;
+  if (typeof stateReason === 'string' && isLoginReason(stateReason)) {
+    return mapSessionReasonToNotice(stateReason);
+  }
+  const reason = new URLSearchParams(location.search).get('reason');
+  if (reason != null && isLoginReason(reason)) {
+    return mapSessionReasonToNotice(reason);
+  }
+  return null;
+};
+
 export const LoginPage = ({ notice = null, onSuccess }: LoginPageProps) => {
+  const location = useLocation();
   const [email, setEmail] = useState(getStoredEmail);
   const [password, setPassword] = useState('');
   const [rememberCredentials, setRememberCredentials] = useState<boolean>(
@@ -115,6 +134,7 @@ export const LoginPage = ({ notice = null, onSuccess }: LoginPageProps) => {
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const effectiveNotice = notice ?? readNoticeFromLocation(location);
 
   const handleAccedi = async (event: FormEvent) => {
     event.preventDefault();
@@ -146,17 +166,17 @@ export const LoginPage = ({ notice = null, onSuccess }: LoginPageProps) => {
         systemRole: u.systemRole ?? 'user',
       };
       if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem('followup.auth.accessToken', payload.accessToken);
-        window.sessionStorage.setItem('followup.auth.refreshToken', payload.refreshToken);
-        window.sessionStorage.setItem('followup3.accessToken', payload.accessToken);
-        window.sessionStorage.setItem('followup3.lastEmail', payload.user.email);
+        persistAuthSession({
+          accessToken: payload.accessToken,
+          refreshToken: payload.refreshToken,
+          profile,
+        });
         window.sessionStorage.setItem(
           'followup3.isAdmin',
           isTecmaPlatformAdmin(payload.user.systemRole) ? '1' : '0',
         );
         window.sessionStorage.removeItem('followup.apiEnvironment');
         window.sessionStorage.removeItem('followup.workspaceId');
-        persistLoginProfile(profile);
         if (rememberCredentials) {
           try {
             window.localStorage.setItem(STORAGE_EMAIL, normalizedEmail);
@@ -219,12 +239,12 @@ export const LoginPage = ({ notice = null, onSuccess }: LoginPageProps) => {
             </div>
 
             <form onSubmit={handleAccedi} className="space-y-3">
-              {notice != null ? (
+              {effectiveNotice != null ? (
                 <p
                   className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
                   role="status"
                 >
-                  {notice}
+                  {effectiveNotice}
                 </p>
               ) : null}
               <div>

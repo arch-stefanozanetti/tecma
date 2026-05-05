@@ -1,14 +1,19 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { LoginPage } from './features/auth/LoginPage';
 import { ProjectAccessPage } from './features/projects/ProjectAccessPage';
 import {
   AUTH_ACCESS_TOKEN_KEY,
   clearFollowupAuthSession,
+  isTokenExpired,
+  mapSessionReasonToNotice,
   readStoredLoginProfile,
   type SessionExpiredNotice,
 } from './lib/authSession';
 import { PageTemplate } from './shell/PageTemplate';
+import { sessionOrchestrator } from './core/session/session-orchestrator';
+import { subscribeSessionInvalidatedEvent } from './core/session/session-events';
+import { ENABLE_NEW_SESSION_FLOW } from './config/featureFlags';
 
 type AppStage = 'login' | 'project-access' | 'app';
 
@@ -16,7 +21,8 @@ export type LoginBootstrapProfile = { id: string; email: string; systemRole: str
 
 const readInitialToken = (): string | null => {
   const token = sessionStorage.getItem(AUTH_ACCESS_TOKEN_KEY);
-  return token == null || token.trim() === '' ? null : token;
+  if (token == null || token.trim() === '') return null;
+  return isTokenExpired(token) ? null : token;
 };
 
 const readInitialBootstrap = (): LoginBootstrapProfile | null => {
@@ -34,12 +40,29 @@ export const App = () => {
   );
   const [loginNotice, setLoginNotice] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!ENABLE_NEW_SESSION_FLOW) return;
+    sessionOrchestrator.initMultiTabSync();
+    const unsubscribe = subscribeSessionInvalidatedEvent((event) => {
+      clearFollowupAuthSession();
+      setAccessToken(null);
+      setLoginBootstrap(null);
+      setStage('login');
+      if (event.redirectToLogin) {
+        setLoginNotice(mapSessionReasonToNotice(event.reason));
+      }
+    });
+    return unsubscribe;
+  }, []);
+
   const handleSessionInvalid = useCallback((notice?: SessionExpiredNotice) => {
-    clearFollowupAuthSession();
-    setAccessToken(null);
-    setLoginBootstrap(null);
-    setLoginNotice(notice?.message ?? null);
-    setStage('login');
+    void sessionOrchestrator.invalidateSession({
+      reason: notice?.reason ?? 'session_expired',
+      source: 'project_access',
+      redirectToLogin: true,
+      strategy: 'auth-only',
+    });
+    setLoginNotice(notice?.message ?? mapSessionReasonToNotice(notice?.reason ?? 'session_expired'));
   }, []);
 
   if (stage == 'login') {

@@ -20,7 +20,7 @@ import {
   Users,
 } from 'lucide-react';
 
-import { clearFollowupAuthSession } from '../lib/authSession';
+import { sessionOrchestrator } from '../core/session/session-orchestrator';
 import logotipoTecma from '../assets/logotipoTecma.svg?url';
 import { LogoTecma } from '../components/LogoTecma';
 import { Checkbox } from '../components/ui/checkbox';
@@ -691,7 +691,12 @@ export const PageTemplate = ({ accessToken, children }: PageTemplateProps) => {
     e.stopPropagation();
     const refreshToken = window.sessionStorage.getItem('followup.auth.refreshToken');
     const clear = () => {
-      clearFollowupAuthSession();
+      void sessionOrchestrator.invalidateSession({
+        reason: 'manual_logout',
+        source: 'logout',
+        redirectToLogin: true,
+        strategy: 'auth-only',
+      });
       window.location.reload();
     };
     if (refreshToken != null && refreshToken.length > 0) {
@@ -879,7 +884,12 @@ export const PageTemplate = ({ accessToken, children }: PageTemplateProps) => {
                       type="button"
                       onClick={() => {
                         setUserMenuOpen(false);
-                        clearFollowupAuthSession();
+                        void sessionOrchestrator.invalidateSession({
+                          reason: 'manual_logout',
+                          source: 'manual',
+                          redirectToLogin: true,
+                          strategy: 'auth-only',
+                        });
                         window.location.reload();
                       }}
                       className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted"

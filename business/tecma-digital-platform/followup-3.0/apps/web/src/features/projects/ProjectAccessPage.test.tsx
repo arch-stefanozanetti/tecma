@@ -197,7 +197,7 @@ describe('ProjectAccessPage', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Qualcosa non ha funzionato')).toBeInTheDocument();
+      expect(screen.getByText('Qualcosa non ha funzionato.')).toBeInTheDocument();
     });
     expect(screen.getByRole('button', { name: 'Segnala problema' })).toBeInTheDocument();
     expect(screen.queryByText('Failed to fetch')).not.toBeInTheDocument();

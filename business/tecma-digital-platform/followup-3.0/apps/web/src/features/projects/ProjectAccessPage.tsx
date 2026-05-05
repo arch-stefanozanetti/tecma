@@ -14,11 +14,12 @@ import {
   SelectValue,
 } from '../../components/ui/select';
 import {
-  clearAuthSession,
   handleSessionExpired,
+  isTokenExpired,
   isRecoverableSessionError,
   type SessionExpiredNotice,
 } from '../../lib/authSession';
+import { sessionOrchestrator } from '../../core/session/session-orchestrator';
 import { http, normalizeApiError } from '../../lib/http';
 import type { NormalizedApiError } from '../../lib/httpError';
 import { parseMePayload } from '../../lib/parseMePayload';
@@ -143,9 +144,17 @@ export const ProjectAccessPage = ({
   );
 
   const backToLogin = useCallback(() => {
-    clearAuthSession();
+    void sessionOrchestrator.invalidateSession({
+      reason: 'manual_logout',
+      source: 'project_access',
+      redirectToLogin: true,
+      strategy: 'auth-only',
+    });
     if (onSessionInvalid != null) {
-      onSessionInvalid();
+      onSessionInvalid({
+        reason: 'session_expired',
+        message: 'La sessione è scaduta. Accedi di nuovo per continuare.',
+      });
       return;
     }
     window.location.reload();
@@ -214,6 +223,23 @@ export const ProjectAccessPage = ({
   );
 
   useEffect(() => {
+    if (isTokenExpired(accessToken)) {
+      void sessionOrchestrator.invalidateSession({
+        reason: 'token_precheck',
+        source: 'bootstrap',
+        redirectToLogin: true,
+        strategy: 'auth-only',
+      });
+      if (onSessionInvalid != null) {
+        onSessionInvalid({
+          reason: 'session_expired',
+          message: 'La sessione è scaduta. Accedi di nuovo per continuare.',
+        });
+      } else {
+        window.location.reload();
+      }
+      return;
+    }
     let cancelled = false;
     const run = async () => {
       if (initialProfile == null) {
@@ -276,7 +302,7 @@ export const ProjectAccessPage = ({
     return () => {
       cancelled = true;
     };
-  }, [accessToken, initialProfile]);
+  }, [accessToken, initialProfile, onSessionInvalid]);
 
   useEffect(() => {
     if (authStatus !== 'fail') return;
@@ -284,7 +310,12 @@ export const ProjectAccessPage = ({
       onSessionInvalid();
       return;
     }
-    clearAuthSession();
+    void sessionOrchestrator.invalidateSession({
+      reason: 'session_expired',
+      source: 'project_access',
+      redirectToLogin: true,
+      strategy: 'auth-only',
+    });
     window.location.reload();
   }, [authStatus, onSessionInvalid]);
 
@@ -487,13 +518,18 @@ export const ProjectAccessPage = ({
                 <div className="mb-3">
                   <SupportErrorReport
                     userMessage="Riprova tra qualche secondo. Se il problema continua, invia una segnalazione."
-                    error={degradedError}
-                    context={{
-                      source: 'ProjectAccessPage',
-                      userEmail: meEmail,
-                      workspaceId,
-                      projectIds: selected,
-                    }}
+                    technicalContext={degradedError}
+                    severity="high"
+                    source="ProjectAccessPage.degraded"
+                    userEmail={meEmail ?? undefined}
+                    userId={meUserId ?? undefined}
+                    workspaceId={workspaceId}
+                    projectIds={selected}
+                    endpoint={degradedError.endpoint}
+                    method={degradedError.method}
+                    requestId={degradedError.requestId}
+                    traceId={degradedError.traceId}
+                    responseStatus={degradedError.httpStatus}
                     onRetry={() => window.location.reload()}
                     onBackToLogin={backToLogin}
                   />
@@ -507,10 +543,8 @@ export const ProjectAccessPage = ({
                   className="mb-3 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
                   role="status"
                 >
-                  Nessun workspace assegnato al tuo account. Contatta un amministratore per farti
-                  abilitare ai workspace necessari, oppure accedi con un utente{' '}
-                  <span className="font-medium">ruolo amministratore Tecma</span> se devi vedere
-                  tutti i workspace.
+                  Nessun workspace assegnato al tuo account. Contatta un amministratore per
+                  abilitare i workspace necessari.
                 </p>
               ) : null}
               {workspacesError == null &&
@@ -521,9 +555,7 @@ export const ProjectAccessPage = ({
                   className="mb-3 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
                   role="status"
                 >
-                  Sei amministratore Tecma ma non risultano workspace in database (
-                  <code className="rounded bg-muted px-1">tz_workspaces</code> vuota). Crea un
-                  workspace dall’area organizzazione o verifica di puntare al MongoDB corretto.
+                  Nessun workspace disponibile al momento. Riprova o crea un nuovo workspace.
                 </p>
               ) : null}
               <h2 className="text-xl font-semibold text-foreground">
@@ -692,7 +724,10 @@ export const ProjectAccessPage = ({
                         size="sm"
                         onClick={() => window.location.reload()}
                       >
-                        Ricarica pagina
+                        Riprova
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" onClick={backToLogin}>
+                        Torna al login
                       </Button>
                     </div>
                   ) : !isAdmin && workspaceId === '' ? (
@@ -717,22 +752,26 @@ export const ProjectAccessPage = ({
                   (isAdmin || workspaceId !== '') ? (
                     <div className="px-4 py-6 text-sm text-muted-foreground">
                       {isAdmin
-                        ? 'Nessun progetto nel database. Crea progetti dall’area organizzazione o verifica il MongoDB collegato.'
+                        ? 'Nessun progetto disponibile al momento nel workspace selezionato.'
                         : 'Nessun progetto visibile in questo workspace per il tuo utente. Contatta un amministratore per verificare i permessi di accesso ai progetti.'}
                     </div>
                   ) : null}
                   {error != null ? (
                     <div className="border-b border-border px-4 py-3">
                       <SupportErrorReport
-                        title="Non riusciamo a caricare i progetti"
                         userMessage="Riprova tra qualche secondo. Se il problema continua, invia una segnalazione."
-                        error={error}
-                        context={{
-                          source: 'ProjectAccessPage.projects',
-                          userEmail: meEmail,
-                          workspaceId,
-                          projectIds: selected,
-                        }}
+                        technicalContext={error}
+                        severity="medium"
+                        source="ProjectAccessPage.projects"
+                        userEmail={meEmail ?? undefined}
+                        userId={meUserId ?? undefined}
+                        workspaceId={workspaceId}
+                        projectIds={selected}
+                        endpoint={error.endpoint}
+                        method={error.method}
+                        requestId={error.requestId}
+                        traceId={error.traceId}
+                        responseStatus={error.httpStatus}
                         onRetry={reloadProjects}
                         onBackToLogin={backToLogin}
                       />
