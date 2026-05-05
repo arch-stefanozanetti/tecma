@@ -195,4 +195,66 @@ export const ensureCoreIndexes = async (db: Db): Promise<void> => {
     { workspaceId: 1, sortOrder: 1 },
     { name: 'tz_additional_infos_workspace_sort_idx' },
   );
+
+  // Project Detail (M3): unique constraints on per-project singleton sections + templates.
+  await ensureIndex(
+    db,
+    'tz_project_branding',
+    { projectId: 1 },
+    { unique: true, name: 'tz_project_branding_project_unique' },
+  );
+  await ensureIndex(
+    db,
+    'tz_project_policies',
+    { projectId: 1 },
+    { unique: true, name: 'tz_project_policies_project_unique' },
+  );
+  await ensureIndex(
+    db,
+    'tz_project_marketing_settings',
+    { projectId: 1 },
+    { unique: true, name: 'tz_project_marketing_settings_project_unique' },
+  );
+  await ensureIndex(
+    db,
+    'tz_project_workflow_settings',
+    { projectId: 1 },
+    { unique: true, name: 'tz_project_workflow_settings_project_unique' },
+  );
+  await ensureIndex(
+    db,
+    'tz_project_email_config',
+    { projectId: 1 },
+    { unique: true, name: 'tz_project_email_config_project_unique' },
+  );
+  await ensureIndex(
+    db,
+    'tz_project_legacy_overrides',
+    { projectId: 1 },
+    { unique: true, name: 'tz_project_legacy_overrides_project_unique' },
+  );
+  await ensureIndex(
+    db,
+    'tz_project_email_templates',
+    { projectId: 1, name: 1 },
+    { unique: true, name: 'tz_project_email_templates_project_name_unique' },
+  );
+  await ensureIndex(
+    db,
+    'tz_project_pdf_templates',
+    { projectId: 1, templateKey: 1 },
+    { unique: true, name: 'tz_project_pdf_templates_project_templateKey_unique' },
+  );
+  await ensureIndex(
+    db,
+    'tz_workflows',
+    { workspaceId: 1 },
+    { name: 'tz_workflows_workspaceId_idx' },
+  );
+  await ensureIndex(
+    db,
+    'tz_workflow_configs',
+    { workspaceId: 1, projectId: 1, flowType: 1 },
+    { name: 'tz_workflow_configs_lookup_idx' },
+  );
 };

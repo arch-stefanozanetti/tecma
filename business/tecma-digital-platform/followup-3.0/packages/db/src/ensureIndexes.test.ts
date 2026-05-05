@@ -21,7 +21,7 @@ describe('ensureCoreIndexes', () => {
 
     await ensureCoreIndexes(db);
 
-    expect(createIndex).toHaveBeenCalledTimes(25);
+    expect(createIndex).toHaveBeenCalledTimes(35);
     expect(db.collection).toHaveBeenNthCalledWith(1, 'tz_users');
     expect(createIndex).toHaveBeenNthCalledWith(
       1,
@@ -36,6 +36,16 @@ describe('ensureCoreIndexes', () => {
     expect(db.collection).toHaveBeenNthCalledWith(23, 'tz_workspace_branding');
     expect(db.collection).toHaveBeenNthCalledWith(24, 'tz_workspace_ai_config');
     expect(db.collection).toHaveBeenNthCalledWith(25, 'tz_additional_infos');
+    expect(db.collection).toHaveBeenNthCalledWith(26, 'tz_project_branding');
+    expect(db.collection).toHaveBeenNthCalledWith(27, 'tz_project_policies');
+    expect(db.collection).toHaveBeenNthCalledWith(28, 'tz_project_marketing_settings');
+    expect(db.collection).toHaveBeenNthCalledWith(29, 'tz_project_workflow_settings');
+    expect(db.collection).toHaveBeenNthCalledWith(30, 'tz_project_email_config');
+    expect(db.collection).toHaveBeenNthCalledWith(31, 'tz_project_legacy_overrides');
+    expect(db.collection).toHaveBeenNthCalledWith(32, 'tz_project_email_templates');
+    expect(db.collection).toHaveBeenNthCalledWith(33, 'tz_project_pdf_templates');
+    expect(db.collection).toHaveBeenNthCalledWith(34, 'tz_workflows');
+    expect(db.collection).toHaveBeenNthCalledWith(35, 'tz_workflow_configs');
   });
 
   it('ignores benign existing index name conflicts', async () => {
@@ -48,7 +58,7 @@ describe('ensureCoreIndexes', () => {
       .mockResolvedValue('ok');
 
     await expect(ensureCoreIndexes(makeDb(createIndex))).resolves.toBeUndefined();
-    expect(createIndex).toHaveBeenCalledTimes(25);
+    expect(createIndex).toHaveBeenCalledTimes(35);
   });
 
   it('logs and continues when duplicate data blocks a unique index build', async () => {
@@ -63,7 +73,7 @@ describe('ensureCoreIndexes', () => {
 
     await expect(ensureCoreIndexes(makeDb(createIndex))).resolves.toBeUndefined();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('indice unique non creato'));
-    expect(createIndex).toHaveBeenCalledTimes(25);
+    expect(createIndex).toHaveBeenCalledTimes(35);
   });
 
   it('rethrows unexpected index creation errors', async () => {
