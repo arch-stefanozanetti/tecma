@@ -145,8 +145,8 @@ export const ProjectAccessPage = ({
         setError(null);
         return;
       }
-      /* Tecma SuperAdmin: l’API elenca tutti i progetti solo senza workspaceId (GET /v1/projects). */
-      if (!tecmaPlatformAdmin && wsId.trim() === '') {
+      const trimmedWorkspaceId = wsId.trim();
+      if (!tecmaPlatformAdmin && trimmedWorkspaceId === '') {
         setProjects([]);
         setLoading(false);
         setError(null);
@@ -155,9 +155,16 @@ export const ProjectAccessPage = ({
       setLoading(true);
       setError(null);
       try {
-        const path = tecmaPlatformAdmin
-          ? '/projects'
-          : `/projects?workspaceId=${encodeURIComponent(wsId)}&userId=${encodeURIComponent(userId)}`;
+        const path = trimmedWorkspaceId !== ''
+          ? `/projects?workspaceId=${encodeURIComponent(trimmedWorkspaceId)}&userId=${encodeURIComponent(userId)}`
+          : tecmaPlatformAdmin
+            ? '/projects'
+            : '';
+        if (path === '') {
+          setProjects([]);
+          setLoading(false);
+          return;
+        }
         const res = await http<ProjectsResponse>(path, { method: 'GET', accessToken });
         const list = (res.data ?? []).map(mapApiProject);
         setProjects(list);
@@ -407,9 +414,8 @@ export const ProjectAccessPage = ({
           <p className="mt-4 max-w-sm text-sm text-muted-foreground">
             {isAdmin ? (
               <>
-                Come amministratore Tecma vedi <span className="font-medium">tutti i progetti</span>{' '}
-                della piattaforma. Scegli comunque un workspace prima di confermare per salvare il
-                contesto di sessione.
+                Come amministratore Tecma vedi tutti i workspace. La lista progetti segue il
+                workspace selezionato; senza selezione resta disponibile solo il fallback globale.
               </>
             ) : (
               <>
@@ -424,7 +430,7 @@ export const ProjectAccessPage = ({
           <p className="font-semibold text-card-foreground">Suggerimenti</p>
           <ul className="space-y-1">
             {isAdmin ? (
-              <li>• L’elenco progetti è globale; il workspace serve solo per il contesto al passaggio successivo.</li>
+              <li>• Cambia workspace per ricaricare i progetti collegati a quel contesto.</li>
             ) : (
               <li>• Cambia workspace per vedere un altro elenco progetti.</li>
             )}
@@ -512,7 +518,10 @@ export const ProjectAccessPage = ({
                       setWorkspaceId(v);
                     }}
                   >
-                    <SelectTrigger className="h-9 min-w-[220px] rounded-lg border border-input bg-background text-sm font-medium text-foreground">
+                    <SelectTrigger
+                      aria-label="Workspace"
+                      className="h-9 min-w-[220px] rounded-lg border border-input bg-background text-sm font-medium text-foreground"
+                    >
                       <SelectValue
                         placeholder={
                           workspacesLoading

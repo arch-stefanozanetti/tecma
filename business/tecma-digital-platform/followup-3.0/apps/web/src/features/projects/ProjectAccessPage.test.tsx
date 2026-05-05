@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ProjectAccessPage } from './ProjectAccessPage';
@@ -87,7 +88,56 @@ describe('ProjectAccessPage', () => {
     expect(screen.queryByText(/Reindirizzamento al login/i)).not.toBeInTheDocument();
   });
 
-  it('Tecma SuperAdmin: carica GET /projects senza workspaceId (elenco globale)', async () => {
+  it('Tecma SuperAdmin: se workspaceId è selezionato carica progetti filtrati per workspace', async () => {
+    window.sessionStorage.setItem('followup.workspaceId', 'ws-1');
+    const calls: string[] = [];
+    httpMock.mockImplementation((path: string) => {
+      calls.push(path);
+      if (path === '/auth/me') {
+        return Promise.resolve({
+          data: { id: 'admin-id', email: 'admin@tecma.test', systemRole: 'tecma_admin' },
+        });
+      }
+      if (path === '/workspaces') {
+        return Promise.resolve({ data: [{ _id: 'ws-1', name: 'WS 1' }] });
+      }
+      if (path === '/projects?workspaceId=ws-1&userId=admin-id') {
+        return Promise.resolve({
+          data: [{ _id: 'p-ws-1', name: 'Project WS 1', displayName: 'Project WS 1', mode: 'sell' }],
+        });
+      }
+      if (path === '/projects') {
+        return Promise.resolve({
+          data: [{ _id: 'global', name: 'Global Project', displayName: 'Global Project' }],
+        });
+      }
+      if (path === '/session/preferences') {
+        return Promise.resolve({ data: { projectIds: [] } });
+      }
+      return Promise.resolve({ data: [] });
+    });
+
+    render(
+      <ProjectAccessPage
+        accessToken="access-token"
+        initialProfile={{
+          id: 'admin-id',
+          email: 'admin@tecma.test',
+          systemRole: 'tecma_admin',
+        }}
+        onContinue={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(calls).toContain('/projects?workspaceId=ws-1&userId=admin-id');
+    });
+    expect(calls).not.toContain('/projects');
+    expect(screen.getByText('Project WS 1')).toBeInTheDocument();
+    expect(screen.queryByText('Global Project')).not.toBeInTheDocument();
+  });
+
+  it('Tecma SuperAdmin: senza workspaceId usa GET /projects come fallback globale', async () => {
     window.sessionStorage.setItem('followup.workspaceId', '');
     const calls: string[] = [];
     httpMock.mockImplementation((path: string) => {
@@ -134,6 +184,69 @@ describe('ProjectAccessPage', () => {
       expect(screen.getByText('P1')).toBeInTheDocument();
     });
     expect(screen.getByText('P2')).toBeInTheDocument();
+  });
+
+  it('Tecma SuperAdmin: cambiando workspace aggiorna la lista progetti', async () => {
+    const user = userEvent.setup();
+    window.sessionStorage.setItem('followup.workspaceId', 'ws-1');
+    const calls: string[] = [];
+    httpMock.mockImplementation((path: string) => {
+      calls.push(path);
+      if (path === '/auth/me') {
+        return Promise.resolve({
+          data: { id: 'admin-id', email: 'admin@tecma.test', systemRole: 'tecma_admin' },
+        });
+      }
+      if (path === '/workspaces') {
+        return Promise.resolve({
+          data: [
+            { _id: 'ws-1', name: 'Workspace 1' },
+            { _id: 'ws-2', name: 'Workspace 2' },
+          ],
+        });
+      }
+      if (path === '/projects?workspaceId=ws-1&userId=admin-id') {
+        return Promise.resolve({
+          data: [{ _id: 'p-ws-1', name: 'Project WS 1', displayName: 'Project WS 1' }],
+        });
+      }
+      if (path === '/projects?workspaceId=ws-2&userId=admin-id') {
+        return Promise.resolve({
+          data: [{ _id: 'p-ws-2', name: 'Project WS 2', displayName: 'Project WS 2' }],
+        });
+      }
+      if (path === '/session/preferences') {
+        return Promise.resolve({ data: { projectIds: [] } });
+      }
+      return Promise.resolve({ data: [] });
+    });
+
+    render(
+      <ProjectAccessPage
+        accessToken="access-token"
+        initialProfile={{
+          id: 'admin-id',
+          email: 'admin@tecma.test',
+          systemRole: 'tecma_admin',
+        }}
+        onContinue={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Project WS 1')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('combobox', { name: /workspace/i }));
+    await user.click(await screen.findByText('Workspace 2'));
+
+    await waitFor(() => {
+      expect(calls).toContain('/projects?workspaceId=ws-2&userId=admin-id');
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Project WS 2')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Project WS 1')).not.toBeInTheDocument();
   });
 
   it('interpreta /auth/me anche senza wrapper data (nessun banner di profilo incompleto)', async () => {
