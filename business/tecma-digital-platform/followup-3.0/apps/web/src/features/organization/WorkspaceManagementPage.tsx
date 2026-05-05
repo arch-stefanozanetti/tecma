@@ -717,9 +717,12 @@ export const WorkspaceManagementPage = ({
                         const value = event.target.value.trim();
                         if (value === '' && selectedMember.calendarDisplayColor == null) return;
                         if (value === selectedMember.calendarDisplayColor) return;
-                        void handleUpdateMemberAdvanced(selectedMember.userId, {
-                          calendarDisplayColor: value === '' ? undefined : value,
-                        });
+                        const payload: {
+                          accessScope?: 'all' | 'assigned';
+                          calendarDisplayColor?: string;
+                        } = {};
+                        if (value !== '') payload.calendarDisplayColor = value;
+                        void handleUpdateMemberAdvanced(selectedMember.userId, payload);
                       }}
                     />
                   </label>
