@@ -2,17 +2,11 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { SupportErrorReport, supportErrorReportStorageKey } from './SupportErrorReport';
-import type { NormalizedApiError } from '../../lib/httpError';
-
-const error: NormalizedApiError = {
-  category: 'network',
-  reason: 'network_error',
-  endpoint: '/workspaces',
-  method: 'GET',
-  userMessage: 'Non riusciamo a collegarci al servizio. Riprova tra qualche secondo.',
-  technicalMessage: 'Failed to fetch',
-};
+import {
+  SupportErrorReport,
+  sanitizeSupportPayload,
+  supportErrorReportStorageKey,
+} from './SupportErrorReport';
 
 let writeTextMock: ReturnType<typeof vi.fn>;
 
@@ -31,14 +25,16 @@ describe('SupportErrorReport', () => {
     render(
       <SupportErrorReport
         userMessage="Riprova tra qualche secondo."
-        error={error}
-        context={{ source: 'ProjectAccessPage', userEmail: 'user@tecma.test' }}
+        severity="medium"
+        source="ProjectAccessPage"
+        userEmail="user@tecma.test"
+        technicalContext={{ endpoint: '/workspaces', method: 'GET' }}
         onRetry={vi.fn()}
         onBackToLogin={vi.fn()}
       />,
     );
 
-    expect(screen.getByText('Qualcosa non ha funzionato')).toBeInTheDocument();
+    expect(screen.getByText('Qualcosa non ha funzionato.')).toBeInTheDocument();
     expect(screen.getByText('Riprova tra qualche secondo.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Riprova' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Torna al login' })).toBeInTheDocument();
@@ -50,20 +46,27 @@ describe('SupportErrorReport', () => {
     render(
       <SupportErrorReport
         userMessage="Riprova tra qualche secondo."
-        error={error}
-        context={{ source: 'ProjectAccessPage', workspaceId: 'ws-1', projectIds: ['p1'] }}
+        severity="high"
+        source="ProjectAccessPage"
+        workspaceId="ws-1"
+        projectIds={['p1']}
+        endpoint="/workspaces"
+        method="GET"
+        responseStatus={503}
       />,
     );
 
     await user.click(screen.getByRole('button', { name: 'Segnala problema' }));
 
     const stored = JSON.parse(localStorage.getItem(supportErrorReportStorageKey) ?? '[]') as Array<{
-      context: { source: string; workspaceId: string; projectIds: string[] };
-      error: { reason: string; endpoint: string };
+      source: string;
+      session: { workspaceId: string; projectIds: string[] };
+      request: { endpoint: string; method: string; responseStatus: number };
     }>;
     expect(stored[0]).toMatchObject({
-      context: { source: 'ProjectAccessPage', workspaceId: 'ws-1', projectIds: ['p1'] },
-      error: { reason: 'network_error', endpoint: '/workspaces' },
+      source: 'ProjectAccessPage',
+      session: { workspaceId: 'ws-1', projectIds: ['p1'] },
+      request: { endpoint: '/workspaces', method: 'GET', responseStatus: 503 },
     });
     expect(
       screen.getByText(
@@ -77,13 +80,28 @@ describe('SupportErrorReport', () => {
     render(
       <SupportErrorReport
         userMessage="Riprova tra qualche secondo."
-        error={error}
-        context={{ source: 'ProjectAccessPage' }}
+        severity="low"
+        source="ProjectAccessPage"
+        technicalContext={{ endpoint: '/workspaces' }}
       />,
     );
 
     await user.click(screen.getByRole('button', { name: 'Copia dettagli' }));
 
     expect(screen.getByText('Dettagli copiati.')).toBeInTheDocument();
+  });
+
+  it('sanitizeSupportPayload rimuove campi sensibili in modo ricorsivo', () => {
+    const input = {
+      token: 'abc',
+      nested: {
+        authorization: 'Bearer x',
+        keep: 'ok',
+        deep: [{ apiKey: '123' }, { data: 1 }],
+      },
+    };
+    expect(sanitizeSupportPayload(input)).toEqual({
+      nested: { keep: 'ok', deep: [{}, { data: 1 }] },
+    });
   });
 });
