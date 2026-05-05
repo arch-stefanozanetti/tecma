@@ -4,8 +4,8 @@
 
 - **Sintomo:** un singolo branch `chore/baseline-cleanup-and-workspace-fix` con 8 aree mescolate (RBAC, audit, error contract, mail, support UI, repo di dominio, shared-types, OpenAPI) e 4 commit non pushati su `main`. Branch laterali `develop`/`demo` morti (172/182 commit dietro). 8+ branch funzionali vecchi non mergeati. Caos di review e rischi di drift.
 - **Pattern:** un branch tocca **una sola area** alla volta; pushare almeno 1×/giorno; dopo merge **eliminare** locale + tutti i remote subito (con tag `archive/<branch>-<YYYY-MM-DD>` se il branch ha commit unici). Long-lived `prod/demo/dev` vanno **resettati o tenuti vivi via deploy reali**, non lasciati alla deriva. Vedi [`docs/branching-policy.md`](../docs/branching-policy.md) e [`docs/branches-parking-2026-05-05.md`](../docs/branches-parking-2026-05-05.md).
-- **Automation:** abilitate GH Actions [`branch-cleanup-on-merge.yml`](../../../../.github/workflows/branch-cleanup-on-merge.yml) (delete post-merge) e [`stale-branches-report.yml`](../../../../.github/workflows/stale-branches-report.yml) (review settimanale > 30gg).
-- **Doppio remote:** GitLab `main` può avere branch protection che blocca force push; usare un branch sync `sync/from-github-<YYYY-MM-DD>` come canale operativo o sbloccare la protection da UI.
+- **Automation:** mantenere un job periodico CI su GitLab per segnalare branch >30gg e imporre cleanup post-merge nel flusso operativo.
+- **Doppio remote:** GitLab `main` può avere branch protection che blocca force push; usare un branch sync `sync/from-main-<YYYY-MM-DD>` come canale operativo o sbloccare la protection da UI.
 
 ## 2026-04-30 — Greenfield strict: niente codice legacy in repo attivo
 
@@ -36,7 +36,7 @@
 ## 2026-04-08 — Priorità prodotto solo nel repo Followup
 
 - **Problema:** suggerire Jira/etichette esterne per A/B/C non risponde al bisogno di tracciare e implementare tutto _dentro_ `followup-3.0`.
-- **Pattern:** backlog e stato in issue tracker (GitHub/GitLab) o board del team; link dalla documentazione in `docs/` dove serve tracciabilità.
+- **Pattern:** backlog e stato in issue tracker del team o board interna; link dalla documentazione in `docs/` dove serve tracciabilità.
 
 ## 2026-04-08 — Matching score non costante
 

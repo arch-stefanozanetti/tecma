@@ -34,14 +34,14 @@ archiviare con tag `archive/<branch>-2026-05` e cancellare.
 | `feat/followup-experimental-editor` | mirror di `origin/feat/followup-experimental-editor` | come sopra. |
 | `fix/fe-recharts-render-build` | mirror di `origin/fix/fe-recharts-render-build` | come sopra. |
 | `feature/big-data-marketing-ui` | NO upstream (`origin` non lo ha) | da pubblicare su `origin/feature/big-data-marketing-ui` se si decide di riprenderlo. |
-| `codex/ds-panel-unification-wave` | locale, **bloccato da worktree esterno** (`~/.codex/worktrees/60e9/tecma`) | tag archive `archive/codex-ds-panel-unification-wave-2026-03-19` già presente. Da cancellare quando il worktree viene chiuso (`git worktree remove ~/.codex/worktrees/60e9/tecma && git branch -D codex/ds-panel-unification-wave`). |
+| `codex/ds-panel-unification-wave` | chiuso | worktree rimosso e branch locale eliminato; resta il tag archive `archive/codex-ds-panel-unification-wave-2026-03-19`. |
 
 ## Gitlab — branch da gestire
 
-- `gitlab/main` resta su `f1086c95` (init/README) per **branch protection**: il push di `main` locale è stato pubblicato come `gitlab/sync/from-github-2026-05-05`. Decidere con il team se sbloccare la protection per allineare anche `gitlab/main`, oppure tenere lo sync branch come canale operativo.
-- `gitlab/sync/main-from-github` (vecchio sync, push delete rifiutato): valutare se necessita protezione/cleanup manuale dalla UI GitLab.
+- `gitlab/main` resta su `f1086c95` (init/README) per **branch protection**: il push di `main` locale è pubblicato su branch sync dedicato. Decidere con il team se sbloccare la protection per allineare anche `gitlab/main`, oppure tenere lo sync branch come canale operativo.
+- vecchio branch `gitlab/sync/main-from-legacy` (nome storico nel remote, push delete rifiutato): valutare se necessita protezione/cleanup manuale dalla UI GitLab.
 - `gitlab/feature/appuntamenti-design-system-v2` e `gitlab/cursor/vercel-deploy-problema-41da` rimangono come mirror dei rispettivi `origin/`. Stessa decisione del corrispondente origin.
-- `gitlab/archive/gitlab-pre-github-mirror-2026-03-23` è già un branch di archivio storico — non toccare.
+- branch di archivio storico già presente nel remote GitLab — non toccare.
 
 ## Tag di archivio creati durante la cleanup
 
@@ -55,6 +55,5 @@ archiviare con tag `archive/<branch>-2026-05` e cancellare.
 
 ## Azioni manuali residue (richiedono UI o token elevato)
 
-1. **Branch protection**: applicare a `develop` e `demo` su GitHub (e GitLab dove serve) le stesse regole di `main` (review obbligatoria + status check `followup-3.0-ci-cd` e `followup-3.0-security`).
-2. **Cleanup worktree codex**: chiudere il worktree `~/.codex/worktrees/60e9/tecma` per liberare il branch locale `codex/ds-panel-unification-wave`.
-3. **GitLab `main`**: decidere se sbloccare la protection per allineare a `e835397f` o tenere lo sync branch.
+1. **Branch protection**: applicare a `develop` e `demo` su GitLab con regole equivalenti a `main` (review obbligatoria + status check `followup-3.0-ci-cd` e `followup-3.0-security`).
+2. **GitLab `main`**: decidere se sbloccare la protection per allineare a `b2f86a19` o tenere lo sync branch.

@@ -26,6 +26,8 @@ import { LogoTecma } from '../components/LogoTecma';
 import { Checkbox } from '../components/ui/checkbox';
 import { Input } from '../components/ui/input';
 import { WorkspaceManagementPage } from '../features/organization/WorkspaceManagementPage';
+import { UsersManagementPage } from '../features/users/UsersManagementPage';
+import { ProjectsManagementPage } from '../features/projects/ProjectsManagementPage';
 import { Sheet, SheetContent, SheetTrigger } from '../components/ui/sheet';
 import type { ProjectAccessProject } from '../features/projects/ProjectAccessPage';
 import { http } from '../lib/http';
@@ -40,6 +42,7 @@ export type AppSection =
   | 'customer360'
   | 'reports'
   | 'projects'
+  | 'users'
   | 'workspaces'
   | 'integrations'
   | 'accountSecurity';
@@ -69,6 +72,7 @@ const INSIGHTS_NAV: Array<{ id: AppSection; label: string; icon: typeof BarChart
 const SETTINGS_NAV: Array<{ id: AppSection; label: string; icon: typeof Plug }> = [
   { id: 'workspaces', label: 'Workspace management', icon: FolderKanban },
   { id: 'projects', label: 'Progetti', icon: Building2 },
+  { id: 'users', label: 'Users', icon: UserCircle },
   { id: 'integrations', label: 'Integrazioni', icon: Plug },
   { id: 'accountSecurity', label: 'Sicurezza account', icon: Shield },
 ];
@@ -398,7 +402,7 @@ const SideNav = ({
   const secondaryNav = useMemo(
     () => [
       ...INSIGHTS_NAV,
-      ...SETTINGS_NAV.filter((item) => item.id === 'workspaces' || isAdmin),
+      ...SETTINGS_NAV.filter((item) => item.id === 'workspaces' || item.id === 'projects' || isAdmin),
     ],
     [isAdmin],
   );
@@ -560,7 +564,7 @@ const SideNav = ({
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                       Impostazioni
                     </p>
-                    {SETTINGS_NAV.filter((item) => item.id === 'workspaces' || isAdmin).map((item) => {
+                    {SETTINGS_NAV.filter((item) => item.id === 'workspaces' || item.id === 'projects' || isAdmin).map((item) => {
                       const Icon = item.icon;
                       const isActive = section === item.id;
                       return (
@@ -798,6 +802,7 @@ export const PageTemplate = ({ accessToken, children }: PageTemplateProps) => {
                       id: 'workspaces' as AppSection,
                     },
                     { label: 'Progetti', icon: Building2, id: 'projects' as AppSection },
+                    { label: 'Users', icon: UserCircle, id: 'users' as AppSection },
                     { label: 'Integrazioni', icon: Plug, id: 'integrations' as AppSection },
                     {
                       label: 'Sicurezza account',
@@ -805,7 +810,9 @@ export const PageTemplate = ({ accessToken, children }: PageTemplateProps) => {
                       id: 'accountSecurity' as AppSection,
                     },
                   ]
-                    .filter((entry) => entry.id === 'workspaces' || isAdmin)
+                    .filter(
+                      (entry) => entry.id === 'workspaces' || entry.id === 'projects' || isAdmin,
+                    )
                     .map((entry) => {
                       const Icon = entry.icon;
                       return (
@@ -928,6 +935,10 @@ export const PageTemplate = ({ accessToken, children }: PageTemplateProps) => {
                 window.location.assign('/organization/setup');
               }}
             />
+          ) : section === 'users' ? (
+            <UsersManagementPage accessToken={accessToken} isTecmaAdmin={isAdmin} />
+          ) : section === 'projects' ? (
+            <ProjectsManagementPage accessToken={accessToken} isTecmaAdmin={isAdmin} />
           ) : (
             children
           )}

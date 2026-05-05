@@ -8,7 +8,7 @@ Versione vigente dal **2026-05-05**. Allineata alle workspace rules
 
 | Branch | Ruolo | Ambiente | Note |
 |--------|-------|----------|------|
-| `main` | Produzione (= `prod`) | MongoDB **prod** | Deploy automatico via GitHub Actions e GitLab CI (`CI_DEFAULT_BRANCH`). |
+| `main` | Produzione (= `prod`) | MongoDB **prod** | Deploy automatico via GitLab CI (`CI_DEFAULT_BRANCH`). |
 | `demo` | Demo / staging | MongoDB **demo** | Deploy demo via `.gitlab/ci/deploy-demo.yml`. |
 | `develop` | Integrazione team (= `dev`) | MongoDB **dev1** | Deploy dev1 via `.gitlab/ci/deploy-dev1.yml`. |
 
@@ -69,24 +69,22 @@ Allineata a `testing-definition-of-done`:
 
 ## 6. Cleanup branch — policy + automation
 
-- **Cleanup post-merge automatico**: il workflow GitHub
-  [`.github/workflows/branch-cleanup-on-merge.yml`](../../../.github/workflows/branch-cleanup-on-merge.yml)
-  cancella il branch sorgente di una PR mergiata su `main`.
-- **Stale-branch report**: il workflow settimanale
-  [`.github/workflows/stale-branches-report.yml`](../../../.github/workflows/stale-branches-report.yml)
-  apre una issue di review per branch >30 giorni senza commit.
+- **Cleanup post-merge**: cancellazione immediata del branch sorgente dopo
+  merge (locale + remote usati dal team).
+- **Stale-branch report**: controllo settimanale su branch >30 giorni senza
+  commit, con apertura ticket interno di review.
 - **Archiviazione manuale**: per branch con commit unici da non perdere ma
   da rimuovere, prima `git tag archive/<branch>-<YYYY-MM-DD> <branch>` poi
   `git branch -D <branch>` + `git push <remote> --delete <branch>`.
 
-## 7. Doppio remote (`origin` GitHub + `gitlab`)
+## 7. Doppio remote (`origin` + `gitlab`)
 
-- `origin` (GitHub) è **default** per dev e CI principale.
-- `gitlab` è mirror operativo per CI/CD interna (deploy dev1/demo/prod).
+- `origin` è il remote primario per lo sviluppo.
+- `gitlab` è il remote operativo per CI/CD interna (deploy dev1/demo/prod).
 - Quando si crea o si cancella un branch funzionale, replicare su entrambi i
   remote se il branch deve essere visibile alla CI GitLab.
 - `gitlab/main` ha **branch protection** che blocca force push: se serve
-  resync, usare un branch `sync/from-github-<YYYY-MM-DD>` e gestire da UI
+  resync, usare un branch `sync/from-main-<YYYY-MM-DD>` e gestire da UI
   GitLab.
 
 ## 8. Eccezioni

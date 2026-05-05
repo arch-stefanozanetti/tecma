@@ -25,6 +25,9 @@ describe('WorkspaceManagementPage', () => {
           { _id: 'ws-2', name: 'Workspace Due', mfaRequired: true },
         ],
       })
+      .mockResolvedValueOnce({ data: [] }) // members
+      .mockResolvedValueOnce({ data: [] }) // users
+      .mockResolvedValueOnce({ data: [] }) // projects
       .mockResolvedValueOnce({
         data: { _id: 'ws-1', name: 'Workspace Uno Aggiornato', mfaRequired: true },
       });
@@ -55,7 +58,11 @@ describe('WorkspaceManagementPage', () => {
   });
 
   it('shows create workspace button only to tecma admin', async () => {
-    httpMock.mockResolvedValueOnce({ data: [{ _id: 'ws-1', name: 'Workspace Uno' }] });
+    httpMock
+      .mockResolvedValueOnce({ data: [{ _id: 'ws-1', name: 'Workspace Uno' }] })
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ data: [] });
     const onOpenSetupWizard = vi.fn();
     const { rerender } = render(
       <WorkspaceManagementPage
@@ -68,7 +75,11 @@ describe('WorkspaceManagementPage', () => {
     await waitFor(() => expect(screen.getByText('Workspace Uno')).toBeInTheDocument());
     expect(screen.queryByRole('button', { name: 'Crea workspace' })).not.toBeInTheDocument();
 
-    httpMock.mockResolvedValueOnce({ data: [{ _id: 'ws-1', name: 'Workspace Uno' }] });
+    httpMock
+      .mockResolvedValueOnce({ data: [{ _id: 'ws-1', name: 'Workspace Uno' }] })
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ data: [] });
     rerender(
       <WorkspaceManagementPage
         accessToken="token-test"

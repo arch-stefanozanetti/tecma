@@ -11,6 +11,32 @@ type Workspace = {
   mfaRequired?: boolean;
 };
 
+type UserRow = {
+  _id: string;
+  email?: string;
+  fullName?: string;
+};
+
+type WorkspaceMember = {
+  _id: string;
+  workspaceId: string;
+  userId: string;
+  role: 'owner' | 'admin' | 'collaborator' | 'viewer';
+};
+
+type ProjectRow = {
+  _id: string;
+  name?: string;
+  code?: string;
+};
+
+type MemberProjectAssignment = {
+  _id: string;
+  workspaceId: string;
+  userId: string;
+  projectId: string;
+};
+
 interface WorkspaceManagementPageProps {
   accessToken: string;
   isTecmaAdmin: boolean;
@@ -26,6 +52,16 @@ export const WorkspaceManagementPage = ({
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
   const [workspaceName, setWorkspaceName] = useState('');
   const [mfaRequired, setMfaRequired] = useState(false);
+  const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>([]);
+  const [allUsers, setAllUsers] = useState<UserRow[]>([]);
+  const [workspaceProjects, setWorkspaceProjects] = useState<ProjectRow[]>([]);
+  const [selectedMemberId, setSelectedMemberId] = useState<string>('');
+  const [memberProjectAssignments, setMemberProjectAssignments] = useState<MemberProjectAssignment[]>([]);
+  const [newMemberUserId, setNewMemberUserId] = useState('');
+  const [newMemberRole, setNewMemberRole] = useState<'owner' | 'admin' | 'collaborator' | 'viewer'>(
+    'collaborator',
+  );
+  const [newAssignmentProjectId, setNewAssignmentProjectId] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +71,74 @@ export const WorkspaceManagementPage = ({
     () => workspaces.find((workspace) => workspace._id === selectedWorkspaceId) ?? null,
     [selectedWorkspaceId, workspaces],
   );
+
+  const selectedMember = useMemo(
+    () => workspaceMembers.find((member) => member.userId === selectedMemberId) ?? null,
+    [workspaceMembers, selectedMemberId],
+  );
+
+  const userLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const user of allUsers) {
+      const label = user.fullName?.trim() || user.email?.trim() || user._id;
+      map.set(user._id, label);
+    }
+    return map;
+  }, [allUsers]);
+
+  const projectLabelById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const project of workspaceProjects) {
+      map.set(project._id, project.name?.trim() || project.code?.trim() || project._id);
+    }
+    return map;
+  }, [workspaceProjects]);
+
+  const loadWorkspaceContext = async (workspaceId: string) => {
+    if (workspaceId.trim() === '') {
+      setWorkspaceMembers([]);
+      setWorkspaceProjects([]);
+      setMemberProjectAssignments([]);
+      setSelectedMemberId('');
+      return;
+    }
+    const [membersResponse, usersResponse, projectsResponse] = await Promise.all([
+      http<{ data: WorkspaceMember[] }>(`/workspaces/${encodeURIComponent(workspaceId)}/members`, {
+        method: 'GET',
+        accessToken,
+      }),
+      http<{ data: UserRow[] }>('/users', { method: 'GET', accessToken }),
+      http<{ data: ProjectRow[] }>(`/projects?workspaceId=${encodeURIComponent(workspaceId)}`, {
+        method: 'GET',
+        accessToken,
+      }),
+    ]);
+
+    const members = Array.isArray(membersResponse.data) ? membersResponse.data : [];
+    setWorkspaceMembers(members);
+    setAllUsers(Array.isArray(usersResponse.data) ? usersResponse.data : []);
+    setWorkspaceProjects(Array.isArray(projectsResponse.data) ? projectsResponse.data : []);
+
+    setSelectedMemberId((currentId) => {
+      if (currentId !== '' && members.some((member) => member.userId === currentId)) return currentId;
+      return members[0]?.userId ?? '';
+    });
+  };
+
+  const loadMemberAssignments = async (workspaceId: string, memberUserId: string) => {
+    if (workspaceId.trim() === '' || memberUserId.trim() === '') {
+      setMemberProjectAssignments([]);
+      return;
+    }
+    const response = await http<{ data: MemberProjectAssignment[] }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(memberUserId)}/projects`,
+      {
+        method: 'GET',
+        accessToken,
+      },
+    );
+    setMemberProjectAssignments(Array.isArray(response.data) ? response.data : []);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -68,6 +172,37 @@ export const WorkspaceManagementPage = ({
       cancelled = true;
     };
   }, [accessToken]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (selectedWorkspaceId == null) return;
+    void loadWorkspaceContext(selectedWorkspaceId)
+      .catch((requestError) => {
+        if (cancelled) return;
+        setError(
+          requestError instanceof Error
+            ? requestError.message
+            : 'Impossibile caricare membri e progetti del workspace.',
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedWorkspaceId, accessToken]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (selectedWorkspaceId == null || selectedMemberId.trim() === '') {
+      setMemberProjectAssignments([]);
+      return;
+    }
+    void loadMemberAssignments(selectedWorkspaceId, selectedMemberId).catch(() => {
+      if (!cancelled) setMemberProjectAssignments([]);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedWorkspaceId, selectedMemberId, accessToken]);
 
   useEffect(() => {
     if (selectedWorkspace == null) {
@@ -114,6 +249,128 @@ export const WorkspaceManagementPage = ({
         requestError instanceof Error
           ? requestError.message
           : 'Aggiornamento workspace non riuscito.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddMember = async () => {
+    if (selectedWorkspaceId == null || newMemberUserId.trim() === '') return;
+    setSaving(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      await http<{ data: WorkspaceMember }>(
+        `/workspaces/${encodeURIComponent(selectedWorkspaceId)}/members`,
+        {
+          method: 'POST',
+          accessToken,
+          body: { userId: newMemberUserId, role: newMemberRole },
+        },
+      );
+      setSuccessMessage('Membro aggiunto al workspace.');
+      setNewMemberUserId('');
+      await loadWorkspaceContext(selectedWorkspaceId);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Aggiunta membro non riuscita.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdateMemberRole = async (userId: string, role: WorkspaceMember['role']) => {
+    if (selectedWorkspaceId == null) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await http<{ data: WorkspaceMember }>(
+        `/workspaces/${encodeURIComponent(selectedWorkspaceId)}/members/${encodeURIComponent(userId)}`,
+        {
+          method: 'PATCH',
+          accessToken,
+          body: { role },
+        },
+      );
+      setSuccessMessage('Ruolo membro aggiornato.');
+      await loadWorkspaceContext(selectedWorkspaceId);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error ? requestError.message : 'Aggiornamento ruolo membro fallito.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemoveMember = async (userId: string) => {
+    if (selectedWorkspaceId == null) return;
+    if (!window.confirm('Rimuovere questo membro dal workspace?')) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await http<{ data: { deleted: boolean } }>(
+        `/workspaces/${encodeURIComponent(selectedWorkspaceId)}/members/${encodeURIComponent(userId)}`,
+        {
+          method: 'DELETE',
+          accessToken,
+        },
+      );
+      setSuccessMessage('Membro rimosso dal workspace.');
+      await loadWorkspaceContext(selectedWorkspaceId);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Rimozione membro fallita.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddMemberProject = async () => {
+    if (selectedWorkspaceId == null || selectedMemberId.trim() === '' || newAssignmentProjectId.trim() === '') {
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await http<{ data: MemberProjectAssignment }>(
+        `/workspaces/${encodeURIComponent(selectedWorkspaceId)}/members/${encodeURIComponent(selectedMemberId)}/projects`,
+        {
+          method: 'POST',
+          accessToken,
+          body: { projectId: newAssignmentProjectId },
+        },
+      );
+      setSuccessMessage('Progetto assegnato al membro.');
+      setNewAssignmentProjectId('');
+      await loadMemberAssignments(selectedWorkspaceId, selectedMemberId);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error ? requestError.message : 'Assegnazione progetto al membro fallita.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemoveMemberProject = async (projectId: string) => {
+    if (selectedWorkspaceId == null || selectedMemberId.trim() === '') return;
+    setSaving(true);
+    setError(null);
+    try {
+      await http<{ data: { deleted: boolean } }>(
+        `/workspaces/${encodeURIComponent(selectedWorkspaceId)}/members/${encodeURIComponent(
+          selectedMemberId,
+        )}/projects/${encodeURIComponent(projectId)}`,
+        {
+          method: 'DELETE',
+          accessToken,
+        },
+      );
+      setSuccessMessage('Assegnazione progetto rimossa.');
+      await loadMemberAssignments(selectedWorkspaceId, selectedMemberId);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error ? requestError.message : 'Rimozione assegnazione progetto fallita.',
       );
     } finally {
       setSaving(false);
@@ -175,32 +432,192 @@ export const WorkspaceManagementPage = ({
             })}
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="workspace-name" className="mb-1 block text-xs font-medium text-foreground">
-                Nome workspace
-              </label>
-              <Input
-                id="workspace-name"
-                value={workspaceName}
-                onChange={(event) => setWorkspaceName(event.target.value)}
-                placeholder="Nome workspace"
+          <div className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-border p-4">
+              <div>
+                <label htmlFor="workspace-name" className="mb-1 block text-xs font-medium text-foreground">
+                  Nome workspace
+                </label>
+                <Input
+                  id="workspace-name"
+                  value={workspaceName}
+                  onChange={(event) => setWorkspaceName(event.target.value)}
+                  placeholder="Nome workspace"
+                />
+              </div>
+
+              <CheckboxWithLabel
+                checked={mfaRequired}
+                onCheckedChange={(checked) => setMfaRequired(checked)}
+                label="Richiedi MFA obbligatoria per il workspace"
               />
-            </div>
 
-            <CheckboxWithLabel
-              checked={mfaRequired}
-              onCheckedChange={(checked) => setMfaRequired(checked)}
-              label="Richiedi MFA obbligatoria per il workspace"
-            />
+              {successMessage != null ? <p className="text-sm text-emerald-600">{successMessage}</p> : null}
+              {error != null ? <p className="text-sm text-destructive">{error}</p> : null}
 
-            {successMessage != null ? <p className="text-sm text-emerald-600">{successMessage}</p> : null}
-            {error != null ? <p className="text-sm text-destructive">{error}</p> : null}
+              <Button type="submit" disabled={saving || selectedWorkspaceId == null}>
+                {saving ? 'Salvataggio...' : 'Salva modifiche'}
+              </Button>
+            </form>
 
-            <Button type="submit" disabled={saving || selectedWorkspaceId == null}>
-              {saving ? 'Salvataggio...' : 'Salva modifiche'}
-            </Button>
-          </form>
+            <section className="space-y-4 rounded-lg border border-border p-4">
+              <h3 className="text-sm font-semibold text-foreground">Membri workspace</h3>
+              <div className="grid gap-3 sm:grid-cols-[1fr_180px_auto]">
+                <select
+                  className="h-9 rounded-lg border border-input bg-background px-3 text-sm"
+                  value={newMemberUserId}
+                  onChange={(event) => setNewMemberUserId(event.target.value)}
+                >
+                  <option value="">Seleziona utente</option>
+                  {allUsers
+                    .filter((user) => !workspaceMembers.some((member) => member.userId === user._id))
+                    .map((user) => (
+                      <option key={user._id} value={user._id}>
+                        {userLabelById.get(user._id) ?? user._id}
+                      </option>
+                    ))}
+                </select>
+                <select
+                  className="h-9 rounded-lg border border-input bg-background px-3 text-sm"
+                  value={newMemberRole}
+                  onChange={(event) =>
+                    setNewMemberRole(
+                      event.target.value as 'owner' | 'admin' | 'collaborator' | 'viewer',
+                    )
+                  }
+                >
+                  <option value="owner">Owner</option>
+                  <option value="admin">Admin</option>
+                  <option value="collaborator">Collaborator</option>
+                  <option value="viewer">Viewer</option>
+                </select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleAddMember}
+                  disabled={saving || newMemberUserId.trim() === ''}
+                >
+                  Aggiungi membro
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                {workspaceMembers.map((member) => (
+                  <div
+                    key={member._id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2"
+                  >
+                    <button
+                      type="button"
+                      className={`text-left text-sm ${
+                        selectedMemberId === member.userId ? 'text-primary' : 'text-foreground'
+                      }`}
+                      onClick={() => setSelectedMemberId(member.userId)}
+                    >
+                      {userLabelById.get(member.userId) ?? member.userId}
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <select
+                        className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                        value={member.role}
+                        onChange={(event) => {
+                          void handleUpdateMemberRole(
+                            member.userId,
+                            event.target.value as WorkspaceMember['role'],
+                          );
+                        }}
+                      >
+                        <option value="owner">Owner</option>
+                        <option value="admin">Admin</option>
+                        <option value="collaborator">Collaborator</option>
+                        <option value="viewer">Viewer</option>
+                      </select>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => {
+                          void handleRemoveMember(member.userId);
+                        }}
+                      >
+                        Rimuovi
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {workspaceMembers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nessun membro nel workspace.</p>
+                ) : null}
+              </div>
+            </section>
+
+            <section className="space-y-4 rounded-lg border border-border p-4">
+              <h3 className="text-sm font-semibold text-foreground">Assegnazione progetti ai membri</h3>
+              {selectedMember == null ? (
+                <p className="text-sm text-muted-foreground">
+                  Seleziona un membro per gestire i progetti assegnati.
+                </p>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    Membro selezionato: {userLabelById.get(selectedMember.userId) ?? selectedMember.userId}
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                    <select
+                      className="h-9 rounded-lg border border-input bg-background px-3 text-sm"
+                      value={newAssignmentProjectId}
+                      onChange={(event) => setNewAssignmentProjectId(event.target.value)}
+                    >
+                      <option value="">Seleziona progetto</option>
+                      {workspaceProjects
+                        .filter(
+                          (project) =>
+                            !memberProjectAssignments.some(
+                              (assignment) => assignment.projectId === project._id,
+                            ),
+                        )
+                        .map((project) => (
+                          <option key={project._id} value={project._id}>
+                            {projectLabelById.get(project._id) ?? project._id}
+                          </option>
+                        ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleAddMemberProject}
+                      disabled={saving || newAssignmentProjectId.trim() === ''}
+                    >
+                      Assegna progetto
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {memberProjectAssignments.map((assignment) => (
+                      <div
+                        key={assignment._id}
+                        className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                      >
+                        <span>
+                          {projectLabelById.get(assignment.projectId) ?? assignment.projectId}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => {
+                            void handleRemoveMemberProject(assignment.projectId);
+                          }}
+                        >
+                          Rimuovi
+                        </Button>
+                      </div>
+                    ))}
+                    {memberProjectAssignments.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Nessun progetto assegnato.</p>
+                    ) : null}
+                  </div>
+                </>
+              )}
+            </section>
+          </div>
         </div>
       ) : null}
     </section>
