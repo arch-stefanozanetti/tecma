@@ -12,6 +12,7 @@ import { loadEnv, type AppConfig } from '@followup/shared-config';
 
 import './types.js';
 import { initSentry, installRequestContextHooks } from './infra/observability.js';
+import { adminAuditRoutes } from './modules/admin/auditRoutes.js';
 import { AuditService } from './modules/auditService.js';
 import { createMailPort } from './modules/mail/createMailPort.js';
 import { authRoutes } from './modules/auth/routes.js';
@@ -53,6 +54,7 @@ export const buildServer = async () => {
         { name: 'Users', description: 'Gestione utenti' },
         { name: 'Workspaces', description: 'Workspace e membri' },
         { name: 'Projects', description: 'Progetti e accessi' },
+        { name: 'Admin', description: 'Funzioni platform Tecma' },
         { name: 'Session', description: 'Preferenze e lookup sessione' },
       ],
       components: {
@@ -116,6 +118,7 @@ export const buildServer = async () => {
     } as unknown as Db);
     app.decorate('auditService', {
       authEvent: async () => undefined,
+      listAuthEvents: async () => [],
     } as unknown as AuditService);
     app.decorate('mail', createMailPort({ nodeEnv: 'test' }));
   }
@@ -159,6 +162,7 @@ export const buildServer = async () => {
   await app.register(usersRoutes);
   await app.register(workspacesRoutes);
   await app.register(projectsRoutes);
+  await app.register(adminAuditRoutes);
 
   /** Spec OpenAPI 3 in JSON (stesso contenuto generato per YAML); pubblico come `/v1/docs`. */
   app.get(
