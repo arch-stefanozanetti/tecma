@@ -1,6 +1,0 @@
-apiVersion: v2
-name: followup-api
-description: Followup 3.0 API chart
-type: application
-version: 0.1.0
-appVersion: '0.1.0'

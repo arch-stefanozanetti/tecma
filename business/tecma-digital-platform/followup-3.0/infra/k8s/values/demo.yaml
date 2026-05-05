@@ -1,6 +1,0 @@
-api:
-  env:
-    APP_ENV: demo
-web:
-  ingress:
-    host: followup-demo.tecmasolutions.com

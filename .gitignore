@@ -32,3 +32,8 @@ _sync_logs/
 
 # Playwright MCP local cache
 .playwright-mcp/
+
+# Followup 3.0 is a standalone Git repository.
+# Do not track it from the parent /Users/s.zanetti/dev/tecma repo.
+business/tecma-digital-platform/followup-3.0/
+.followup-git-rescue/
