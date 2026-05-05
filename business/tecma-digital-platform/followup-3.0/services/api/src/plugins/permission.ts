@@ -8,7 +8,14 @@ import {
   normalizeSystemRole,
   type Permission,
 } from '@followup/shared-rbac';
+import type { WorkspaceRole } from '@followup/shared-types';
 
+import {
+  badRequest,
+  forbidden as forbiddenError,
+  sendApiError,
+  unauthorized,
+} from '../lib/apiError.js';
 import { buildUserWorkspaceMembershipFilter } from '../lib/mongoIdentity.js';
 import type { ProjectAccessCapability } from '../lib/projectAccess.js';
 import { userHasProjectAccess } from '../lib/projectAccess.js';
@@ -22,20 +29,12 @@ type JwtUser = {
   email?: string;
 };
 
-const forbidden = (reply: FastifyReply) =>
-  reply.status(403).send({
-    error: { code: 'Forbidden', message: 'Missing required permission', status: 403 },
-  });
+type WorkspaceRoleOptions = {
+  allowTecmaAdmin?: boolean;
+};
 
-const forbiddenAny = (reply: FastifyReply) =>
-  reply.status(403).send({
-    error: { code: 'Forbidden', message: 'Missing required permissions', status: 403 },
-  });
-
-const forbiddenTecmaAdmin = (reply: FastifyReply) =>
-  reply.status(403).send({
-    error: { code: 'Forbidden', message: 'Tecma admin required', status: 403 },
-  });
+const getTraceId = (request: FastifyRequest): string | undefined =>
+  typeof request.headers['x-request-id'] === 'string' ? request.headers['x-request-id'] : undefined;
 
 const isTecmaAdmin = (user: JwtUser | undefined): boolean =>
   user != null && isTecmaPlatformAdmin(normalizeSystemRole(user));
@@ -49,7 +48,11 @@ export const permissionPlugin = fp(async (app: FastifyInstance) => {
       if (isTecmaAdmin(user)) return;
 
       if (!hasPermission(permissions, permission)) {
-        return forbidden(reply);
+        return sendApiError(
+          reply,
+          forbiddenError('Missing required permission'),
+          getTraceId(request),
+        );
       }
     };
   });
@@ -62,113 +65,94 @@ export const permissionPlugin = fp(async (app: FastifyInstance) => {
       if (isTecmaAdmin(user)) return;
 
       if (!hasAnyPermission(permissions, requiredPermissions)) {
-        return forbiddenAny(reply);
+        return sendApiError(
+          reply,
+          forbiddenError('Missing required permissions'),
+          getTraceId(request),
+        );
       }
     };
   });
 
-  app.decorate('requireTecmaAdmin', () => {
+  app.decorate('requireSystemRole', (role: 'tecma_admin') => {
     return async (request: FastifyRequest, reply: FastifyReply) => {
       const user = request.user as JwtUser | undefined;
-      if (isTecmaAdmin(user)) return;
-      return forbiddenTecmaAdmin(reply);
+      if (role === 'tecma_admin' && isTecmaAdmin(user)) return;
+      return sendApiError(reply, forbiddenError('Tecma admin required'), getTraceId(request));
     };
   });
 
-  app.decorate('requireCanAccessWorkspace', () => {
-    return async (request: FastifyRequest, reply: FastifyReply) => {
-      const params = request.params as { workspaceId?: string };
-      const workspaceId = params.workspaceId;
-      if (workspaceId == null || workspaceId.length === 0) {
-        return reply.status(400).send({
-          error: { code: 'BadRequest', message: 'workspaceId is required', status: 400 },
-        });
-      }
+  app.decorate('requireTecmaAdmin', () => app.requireSystemRole('tecma_admin'));
 
-      const user = request.user as JwtUser | undefined;
-      if (user?.sub == null) {
-        return reply.status(401).send({
-          error: { code: 'Unauthorized', message: 'Not authenticated', status: 401 },
-        });
-      }
+  app.decorate(
+    'requireWorkspaceRole',
+    (roles: readonly WorkspaceRole[], opts: WorkspaceRoleOptions = { allowTecmaAdmin: true }) => {
+      return async (request: FastifyRequest, reply: FastifyReply) => {
+        const params = request.params as { workspaceId?: string };
+        const workspaceId = params.workspaceId;
+        if (workspaceId == null || workspaceId.length === 0) {
+          return sendApiError(reply, badRequest('workspaceId is required'), getTraceId(request));
+        }
 
-      if (isTecmaAdmin(user)) return;
+        const user = request.user as JwtUser | undefined;
+        if (user?.sub == null) {
+          return sendApiError(reply, unauthorized(), getTraceId(request));
+        }
 
-      const identityCandidates = await resolveUserIdentityCandidates(app, [user.sub, user.email]);
-      const membership = await app.mongoDb
-        .collection('tz_user_workspaces')
-        .findOne(buildUserWorkspaceMembershipFilter(workspaceId, identityCandidates) as any);
+        if ((opts.allowTecmaAdmin ?? true) && isTecmaAdmin(user)) return;
 
-      if (membership == null) {
-        return reply.status(403).send({
-          error: { code: 'Forbidden', message: 'No access to this workspace', status: 403 },
-        });
-      }
-    };
-  });
+        const identityCandidates = await resolveUserIdentityCandidates(app, [user.sub, user.email]);
+        const membership = await app.mongoDb
+          .collection('tz_user_workspaces')
+          .findOne(buildUserWorkspaceMembershipFilter(workspaceId, identityCandidates) as any);
 
-  app.decorate('requireWorkspaceAdminOrOwner', () => {
-    return async (request: FastifyRequest, reply: FastifyReply) => {
-      const params = request.params as { workspaceId?: string };
-      const workspaceId = params.workspaceId;
-      if (workspaceId == null || workspaceId.length === 0) {
-        return reply.status(400).send({
-          error: { code: 'BadRequest', message: 'workspaceId is required', status: 400 },
-        });
-      }
+        const role = String((membership as { role?: unknown } | null)?.role ?? '');
+        if (membership == null || !roles.includes(role as WorkspaceRole)) {
+          return sendApiError(
+            reply,
+            forbiddenError('Workspace role required'),
+            getTraceId(request),
+          );
+        }
+      };
+    },
+  );
 
-      const user = request.user as JwtUser | undefined;
-      if (user?.sub == null) {
-        return reply.status(401).send({
-          error: { code: 'Unauthorized', message: 'Not authenticated', status: 401 },
-        });
-      }
+  app.decorate('requireCanAccessWorkspace', () =>
+    app.requireWorkspaceRole(['owner', 'admin', 'collaborator', 'viewer'], {
+      allowTecmaAdmin: true,
+    }),
+  );
 
-      if (isTecmaAdmin(user)) return;
-
-      const identityCandidates = await resolveUserIdentityCandidates(app, [user.sub, user.email]);
-      const membership = await app.mongoDb
-        .collection('tz_user_workspaces')
-        .findOne(buildUserWorkspaceMembershipFilter(workspaceId, identityCandidates) as any);
-
-      if (
-        membership == null ||
-        !['owner', 'admin'].includes(String((membership as any).role ?? ''))
-      ) {
-        return reply.status(403).send({
-          error: {
-            code: 'Forbidden',
-            message: 'Workspace admin/owner role required',
-            status: 403,
-          },
-        });
-      }
-    };
-  });
+  app.decorate('requireWorkspaceAdminOrOwner', () =>
+    app.requireWorkspaceRole(['owner', 'admin'], { allowTecmaAdmin: true }),
+  );
 
   app.decorate('requireCanAccessProject', (capability: ProjectAccessCapability = 'read') => {
     return async (request: FastifyRequest, reply: FastifyReply) => {
       const params = request.params as { projectId?: string };
       const projectId = params.projectId;
       if (projectId == null || projectId.length === 0) {
-        return reply.status(400).send({
-          error: { code: 'BadRequest', message: 'projectId is required', status: 400 },
-        });
+        return sendApiError(reply, badRequest('projectId is required'), getTraceId(request));
       }
 
       const user = request.user as JwtUser | undefined;
       if (user?.sub == null) {
-        return reply.status(401).send({
-          error: { code: 'Unauthorized', message: 'Not authenticated', status: 401 },
-        });
+        return sendApiError(reply, unauthorized(), getTraceId(request));
       }
 
       const allowed = await userHasProjectAccess(app, user, projectId, capability);
       if (!allowed) {
-        return reply.status(403).send({
-          error: { code: 'Forbidden', message: 'No access to this project', status: 403 },
-        });
+        return sendApiError(
+          reply,
+          forbiddenError('No access to this project'),
+          getTraceId(request),
+        );
       }
     };
   });
+
+  app.decorate('requireProjectRole', (capability: ProjectAccessCapability = 'read') =>
+    app.requireCanAccessProject(capability),
+  );
 });

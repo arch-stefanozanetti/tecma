@@ -71,8 +71,20 @@ describe('RBAC roadmap integration', () => {
     const wsHome = 'ws-rbac-home';
     const wsGuest = 'ws-rbac-guest';
     await app.mongoDb.collection('tz_workspaces').insertMany([
-      { _id: wsHome, name: 'Home WS', owner_user_id: ownerId.toString(), createdAt: now, updatedAt: now },
-      { _id: wsGuest, name: 'Guest WS', owner_user_id: viewerId.toString(), createdAt: now, updatedAt: now },
+      {
+        _id: wsHome,
+        name: 'Home WS',
+        owner_user_id: ownerId.toString(),
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        _id: wsGuest,
+        name: 'Guest WS',
+        owner_user_id: viewerId.toString(),
+        createdAt: now,
+        updatedAt: now,
+      },
     ]);
 
     await app.mongoDb.collection('tz_user_workspaces').insertMany([

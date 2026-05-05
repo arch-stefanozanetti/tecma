@@ -378,4 +378,49 @@ describe('workspaces permissions integration', () => {
     expect(res.statusCode).toBe(409);
     expect(res.json().error?.code).toBe('LastTecmaAdmin');
   });
+
+  it('espone audit events solo a Tecma SuperAdmin con filtri platform', async () => {
+    await app.mongoDb
+      .collection('tz_users')
+      .updateOne(
+        { email: 'admin-perm@tecma.test' },
+        { $set: { status: 'active', systemRole: 'tecma_admin' } },
+      );
+    const adminToken = await loginToken('admin-perm@tecma.test');
+    const userToken = await loginToken('owner-perm@tecma.test');
+
+    await app.auditService.authEvent({
+      eventType: 'admin.audit.test',
+      actorUserId: soloAdminId,
+      workspaceId: 'ws-audit-test',
+      targetUserId,
+      severity: 'warning',
+      traceId: 'trace-audit-test',
+    });
+
+    const forbidden = await app.inject({
+      method: 'GET',
+      url: '/v1/admin/audit-events?workspaceId=ws-audit-test',
+      headers: authHeaders(userToken),
+    });
+    expect(forbidden.statusCode).toBe(403);
+
+    const allowed = await app.inject({
+      method: 'GET',
+      url: '/v1/admin/audit-events?workspaceId=ws-audit-test&eventType=admin.audit.test',
+      headers: authHeaders(adminToken),
+    });
+    expect(allowed.statusCode).toBe(200);
+    expect(allowed.json().data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          eventType: 'admin.audit.test',
+          actorUserId: soloAdminId,
+          workspaceId: 'ws-audit-test',
+          targetUserId,
+          traceId: 'trace-audit-test',
+        }),
+      ]),
+    );
+  });
 });
