@@ -11,12 +11,14 @@ import {
   ProjectRoleSchema,
   ProjectSchema,
   RecordStatusSchema,
+  RoleDefinitionSchema,
   SystemRoleSchema,
   UserSchema,
   UserStatusSchema,
   WorkspaceMemberSchema,
   WorkspaceRoleSchema,
   WorkspaceSchema,
+  WorkspaceUserProjectSchema,
 } from './index';
 
 const ISO = '2026-05-04T18:00:00.000Z';
@@ -284,6 +286,104 @@ describe('shared-types domain schemas', () => {
         const out = InviteTokenSchema.parse({ ...validToken, status: s });
         expect(out.status).toBe(s);
       });
+    });
+  });
+
+  describe('UserSchema permissionsOverride', () => {
+    const validUser = { _id: ID, email: 'foo@example.com' };
+
+    it('accetta permissionsOverride camelCase come array', () => {
+      const out = UserSchema.parse({
+        ...validUser,
+        permissionsOverride: ['users.read', 'projects.write'],
+      });
+      expect(out.permissionsOverride).toEqual(['users.read', 'projects.write']);
+    });
+
+    it('accetta permissions_override snake_case (legacy)', () => {
+      const out = UserSchema.parse({
+        ...validUser,
+        permissions_override: ['users.read'],
+      });
+      expect(out.permissions_override).toEqual(['users.read']);
+    });
+
+    it('rifiuta override con stringhe vuote', () => {
+      expect(() =>
+        UserSchema.parse({
+          ...validUser,
+          permissionsOverride: [''],
+        }),
+      ).toThrow();
+    });
+  });
+
+  describe('WorkspaceUserProjectSchema', () => {
+    it('parsa assignment minimo con default status active', () => {
+      const out = WorkspaceUserProjectSchema.parse({
+        _id: ID,
+        workspaceId: ID,
+        userId: ID,
+        projectId: ID,
+      });
+      expect(out.status).toBe('active');
+    });
+
+    it('accetta status revoked', () => {
+      const out = WorkspaceUserProjectSchema.parse({
+        _id: ID,
+        workspaceId: ID,
+        userId: ID,
+        projectId: ID,
+        status: 'revoked',
+      });
+      expect(out.status).toBe('revoked');
+    });
+
+    it('rifiuta status sconosciuto', () => {
+      expect(() =>
+        WorkspaceUserProjectSchema.parse({
+          _id: ID,
+          workspaceId: ID,
+          userId: ID,
+          projectId: ID,
+          status: 'pending',
+        }),
+      ).toThrow();
+    });
+  });
+
+  describe('RoleDefinitionSchema', () => {
+    it('parsa role definition minima', () => {
+      const out = RoleDefinitionSchema.parse({
+        _id: ID,
+        roleKey: 'admin',
+        permissions: ['users.read', 'projects.read'],
+      });
+      expect(out.roleKey).toBe('admin');
+      expect(out.permissions).toEqual(['users.read', 'projects.read']);
+    });
+
+    it('rifiuta roleKey vuoto', () => {
+      expect(() =>
+        RoleDefinitionSchema.parse({
+          _id: ID,
+          roleKey: '',
+          permissions: ['users.read'],
+        }),
+      ).toThrow();
+    });
+
+    it('accetta wildcard nei permessi', () => {
+      const out = RoleDefinitionSchema.parse({
+        _id: ID,
+        roleKey: 'tecma_admin',
+        permissions: ['*'],
+        label: 'Tecma admin',
+        description: 'Bypass full',
+      });
+      expect(out.permissions).toEqual(['*']);
+      expect(out.label).toBe('Tecma admin');
     });
   });
 

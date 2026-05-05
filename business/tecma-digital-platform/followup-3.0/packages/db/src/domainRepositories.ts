@@ -2,9 +2,11 @@ import type {
   AuditEvent,
   InviteToken,
   Project,
+  RoleDefinition,
   User,
   Workspace,
   WorkspaceMember,
+  WorkspaceUserProject,
 } from '@followup/shared-types';
 import type { Collection, Db, Filter, ObjectId, UpdateFilter } from 'mongodb';
 
@@ -101,5 +103,71 @@ export class AuditEventsRepository extends MongoRepository<AuditEvent & { _id: D
       .sort({ createdAt: -1 })
       .limit(limit)
       .toArray() as Promise<AuditEvent[]>;
+  }
+}
+
+/**
+ * Repository per `tz_workspace_user_projects`.
+ * Tiene traccia delle assegnazioni progetto per utente all'interno di un workspace.
+ */
+export class WorkspaceUserProjectsRepository extends MongoRepository<
+  WorkspaceUserProject & { _id: DomainId }
+> {
+  constructor(db: Db) {
+    super(db.collection<WorkspaceUserProject & { _id: DomainId }>('tz_workspace_user_projects'));
+  }
+
+  async listForUser(
+    workspaceId: string,
+    userId: string,
+  ): Promise<Array<WorkspaceUserProject & { _id: DomainId }>> {
+    return this.collectionRef
+      .find({
+        workspaceId,
+        userId,
+        status: { $ne: 'revoked' },
+      } as unknown as Filter<WorkspaceUserProject & { _id: DomainId }>)
+      .toArray() as Promise<Array<WorkspaceUserProject & { _id: DomainId }>>;
+  }
+
+  async revoke(workspaceId: string, userId: string, projectId: string): Promise<void> {
+    await this.updateOne(
+      { workspaceId, userId, projectId } as unknown as Filter<
+        WorkspaceUserProject & { _id: DomainId }
+      >,
+      {
+        $set: {
+          status: 'revoked',
+          updatedAt: new Date().toISOString(),
+        },
+      } as unknown as UpdateFilter<WorkspaceUserProject & { _id: DomainId }>,
+    );
+  }
+}
+
+/**
+ * Repository per `tz_roleDefinitions`.
+ * Override DB dei permessi per ruolo (chiave -> lista permessi).
+ */
+export class RoleDefinitionsRepository extends MongoRepository<RoleDefinition & { _id: DomainId }> {
+  constructor(db: Db) {
+    super(db.collection<RoleDefinition & { _id: DomainId }>('tz_roleDefinitions'));
+  }
+
+  /**
+   * Restituisce una mappa `{ [roleKey]: permissions[] }` con tutte le definizioni note in DB.
+   * Le chiavi sono normalizzate a lower-case trim per convenzione (idempotente con shared-rbac).
+   */
+  async loadDefinitions(): Promise<Record<string, readonly string[]>> {
+    const docs = (await this.collectionRef.find({}).toArray()) as Array<
+      RoleDefinition & { _id: DomainId }
+    >;
+    const map: Record<string, readonly string[]> = {};
+    for (const doc of docs) {
+      const key = doc.roleKey?.trim().toLowerCase();
+      if (!key) continue;
+      map[key] = doc.permissions ?? [];
+    }
+    return map;
   }
 }
