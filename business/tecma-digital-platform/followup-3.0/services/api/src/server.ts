@@ -17,6 +17,7 @@ import { AuditService } from './modules/auditService.js';
 import { createMailPort } from './modules/mail/createMailPort.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { projectsRoutes } from './modules/projects/routes.js';
+import { rbacRoutes } from './modules/rbac/routes.js';
 import { usersRoutes } from './modules/users/routes.js';
 import { workspacesRoutes } from './modules/workspaces/routes.js';
 import { apiKeyPlugin } from './plugins/apiKey.js';
@@ -52,6 +53,7 @@ export const buildServer = async () => {
         { name: 'Health', description: 'Probe e stato servizio' },
         { name: 'Auth', description: 'Login, token e SSO' },
         { name: 'Users', description: 'Gestione utenti' },
+        { name: 'Rbac', description: 'Catalogo permessi e ruoli RBAC' },
         { name: 'Workspaces', description: 'Workspace e membri' },
         { name: 'Projects', description: 'Progetti e accessi' },
         { name: 'Admin', description: 'Funzioni platform Tecma' },
@@ -160,6 +162,7 @@ export const buildServer = async () => {
 
   await app.register(authRoutes);
   await app.register(usersRoutes);
+  await app.register(rbacRoutes);
   await app.register(workspacesRoutes);
   await app.register(projectsRoutes);
   await app.register(adminAuditRoutes);

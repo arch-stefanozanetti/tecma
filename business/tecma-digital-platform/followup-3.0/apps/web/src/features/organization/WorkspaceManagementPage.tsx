@@ -56,7 +56,9 @@ export const WorkspaceManagementPage = ({
   const [allUsers, setAllUsers] = useState<UserRow[]>([]);
   const [workspaceProjects, setWorkspaceProjects] = useState<ProjectRow[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState<string>('');
-  const [memberProjectAssignments, setMemberProjectAssignments] = useState<MemberProjectAssignment[]>([]);
+  const [memberProjectAssignments, setMemberProjectAssignments] = useState<
+    MemberProjectAssignment[]
+  >([]);
   const [newMemberUserId, setNewMemberUserId] = useState('');
   const [newMemberRole, setNewMemberRole] = useState<'owner' | 'admin' | 'collaborator' | 'viewer'>(
     'collaborator',
@@ -120,7 +122,8 @@ export const WorkspaceManagementPage = ({
     setWorkspaceProjects(Array.isArray(projectsResponse.data) ? projectsResponse.data : []);
 
     setSelectedMemberId((currentId) => {
-      if (currentId !== '' && members.some((member) => member.userId === currentId)) return currentId;
+      if (currentId !== '' && members.some((member) => member.userId === currentId))
+        return currentId;
       return members[0]?.userId ?? '';
     });
   };
@@ -176,15 +179,14 @@ export const WorkspaceManagementPage = ({
   useEffect(() => {
     let cancelled = false;
     if (selectedWorkspaceId == null) return;
-    void loadWorkspaceContext(selectedWorkspaceId)
-      .catch((requestError) => {
-        if (cancelled) return;
-        setError(
-          requestError instanceof Error
-            ? requestError.message
-            : 'Impossibile caricare membri e progetti del workspace.',
-        );
-      });
+    void loadWorkspaceContext(selectedWorkspaceId).catch((requestError) => {
+      if (cancelled) return;
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : 'Impossibile caricare membri e progetti del workspace.',
+      );
+    });
     return () => {
       cancelled = true;
     };
@@ -273,7 +275,9 @@ export const WorkspaceManagementPage = ({
       setNewMemberUserId('');
       await loadWorkspaceContext(selectedWorkspaceId);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Aggiunta membro non riuscita.');
+      setError(
+        requestError instanceof Error ? requestError.message : 'Aggiunta membro non riuscita.',
+      );
     } finally {
       setSaving(false);
     }
@@ -296,7 +300,9 @@ export const WorkspaceManagementPage = ({
       await loadWorkspaceContext(selectedWorkspaceId);
     } catch (requestError) {
       setError(
-        requestError instanceof Error ? requestError.message : 'Aggiornamento ruolo membro fallito.',
+        requestError instanceof Error
+          ? requestError.message
+          : 'Aggiornamento ruolo membro fallito.',
       );
     } finally {
       setSaving(false);
@@ -326,7 +332,11 @@ export const WorkspaceManagementPage = ({
   };
 
   const handleAddMemberProject = async () => {
-    if (selectedWorkspaceId == null || selectedMemberId.trim() === '' || newAssignmentProjectId.trim() === '') {
+    if (
+      selectedWorkspaceId == null ||
+      selectedMemberId.trim() === '' ||
+      newAssignmentProjectId.trim() === ''
+    ) {
       return;
     }
     setSaving(true);
@@ -345,7 +355,9 @@ export const WorkspaceManagementPage = ({
       await loadMemberAssignments(selectedWorkspaceId, selectedMemberId);
     } catch (requestError) {
       setError(
-        requestError instanceof Error ? requestError.message : 'Assegnazione progetto al membro fallita.',
+        requestError instanceof Error
+          ? requestError.message
+          : 'Assegnazione progetto al membro fallita.',
       );
     } finally {
       setSaving(false);
@@ -370,7 +382,9 @@ export const WorkspaceManagementPage = ({
       await loadMemberAssignments(selectedWorkspaceId, selectedMemberId);
     } catch (requestError) {
       setError(
-        requestError instanceof Error ? requestError.message : 'Rimozione assegnazione progetto fallita.',
+        requestError instanceof Error
+          ? requestError.message
+          : 'Rimozione assegnazione progetto fallita.',
       );
     } finally {
       setSaving(false);
@@ -397,7 +411,9 @@ export const WorkspaceManagementPage = ({
         )}
       </div>
 
-      {loading ? <p className="mt-6 text-sm text-muted-foreground">Caricamento workspace...</p> : null}
+      {loading ? (
+        <p className="mt-6 text-sm text-muted-foreground">Caricamento workspace...</p>
+      ) : null}
       {!loading && error != null ? <p className="mt-6 text-sm text-destructive">{error}</p> : null}
       {!loading && error == null && workspaces.length === 0 ? (
         <p className="mt-6 text-sm text-muted-foreground">Nessun workspace disponibile.</p>
@@ -435,7 +451,10 @@ export const WorkspaceManagementPage = ({
           <div className="space-y-6">
             <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-border p-4">
               <div>
-                <label htmlFor="workspace-name" className="mb-1 block text-xs font-medium text-foreground">
+                <label
+                  htmlFor="workspace-name"
+                  className="mb-1 block text-xs font-medium text-foreground"
+                >
                   Nome workspace
                 </label>
                 <Input
@@ -452,7 +471,9 @@ export const WorkspaceManagementPage = ({
                 label="Richiedi MFA obbligatoria per il workspace"
               />
 
-              {successMessage != null ? <p className="text-sm text-emerald-600">{successMessage}</p> : null}
+              {successMessage != null ? (
+                <p className="text-sm text-emerald-600">{successMessage}</p>
+              ) : null}
               {error != null ? <p className="text-sm text-destructive">{error}</p> : null}
 
               <Button type="submit" disabled={saving || selectedWorkspaceId == null}>
@@ -470,7 +491,9 @@ export const WorkspaceManagementPage = ({
                 >
                   <option value="">Seleziona utente</option>
                   {allUsers
-                    .filter((user) => !workspaceMembers.some((member) => member.userId === user._id))
+                    .filter(
+                      (user) => !workspaceMembers.some((member) => member.userId === user._id),
+                    )
                     .map((user) => (
                       <option key={user._id} value={user._id}>
                         {userLabelById.get(user._id) ?? user._id}
@@ -551,7 +574,9 @@ export const WorkspaceManagementPage = ({
             </section>
 
             <section className="space-y-4 rounded-lg border border-border p-4">
-              <h3 className="text-sm font-semibold text-foreground">Assegnazione progetti ai membri</h3>
+              <h3 className="text-sm font-semibold text-foreground">
+                Assegnazione progetti ai membri
+              </h3>
               {selectedMember == null ? (
                 <p className="text-sm text-muted-foreground">
                   Seleziona un membro per gestire i progetti assegnati.
@@ -559,7 +584,8 @@ export const WorkspaceManagementPage = ({
               ) : (
                 <>
                   <p className="text-xs text-muted-foreground">
-                    Membro selezionato: {userLabelById.get(selectedMember.userId) ?? selectedMember.userId}
+                    Membro selezionato:{' '}
+                    {userLabelById.get(selectedMember.userId) ?? selectedMember.userId}
                   </p>
                   <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
                     <select

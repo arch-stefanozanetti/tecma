@@ -44,10 +44,17 @@ class SessionOrchestrator {
         at: new Date().toISOString(),
       };
       emitSessionInvalidatedEvent(event);
-      if (options.writeMarker !== false && !this.applyingRemoteMarker && typeof window !== 'undefined') {
+      if (
+        options.writeMarker !== false &&
+        !this.applyingRemoteMarker &&
+        typeof window !== 'undefined'
+      ) {
         const marker: SessionInvalidationMarker = {
           ...event,
-          markerId: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Date.now()),
+          markerId:
+            typeof crypto !== 'undefined' && 'randomUUID' in crypto
+              ? crypto.randomUUID()
+              : String(Date.now()),
         };
         window.localStorage.setItem(SESSION_INVALIDATED_AT_KEY, JSON.stringify(marker));
       }

@@ -62,7 +62,9 @@ export const App = () => {
       redirectToLogin: true,
       strategy: 'auth-only',
     });
-    setLoginNotice(notice?.message ?? mapSessionReasonToNotice(notice?.reason ?? 'session_expired'));
+    setLoginNotice(
+      notice?.message ?? mapSessionReasonToNotice(notice?.reason ?? 'session_expired'),
+    );
   }, []);
 
   if (stage == 'login') {

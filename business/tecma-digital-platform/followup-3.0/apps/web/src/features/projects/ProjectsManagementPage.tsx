@@ -6,7 +6,11 @@ import { http } from '../../lib/http';
 
 type WorkspaceRow = { _id: string; name?: string };
 type ProjectRow = { _id: string; name?: string; code?: string; workspaceId?: string };
-type AccessGrantRow = { _id: string; workspace_id: string; role: 'owner' | 'collaborator' | 'viewer' };
+type AccessGrantRow = {
+  _id: string;
+  workspace_id: string;
+  role: 'owner' | 'collaborator' | 'viewer';
+};
 
 type WorkspacesResponse = { data: WorkspaceRow[] };
 type ProjectsResponse = { data: ProjectRow[] };
@@ -17,7 +21,10 @@ interface ProjectsManagementPageProps {
   isTecmaAdmin: boolean;
 }
 
-export const ProjectsManagementPage = ({ accessToken, isTecmaAdmin }: ProjectsManagementPageProps) => {
+export const ProjectsManagementPage = ({
+  accessToken,
+  isTecmaAdmin,
+}: ProjectsManagementPageProps) => {
   const [workspaces, setWorkspaces] = useState<WorkspaceRow[]>([]);
   const [workspaceId, setWorkspaceId] = useState('');
   const [projects, setProjects] = useState<ProjectRow[]>([]);
@@ -54,10 +61,13 @@ export const ProjectsManagementPage = ({ accessToken, isTecmaAdmin }: ProjectsMa
   };
 
   const loadAccess = async (projectId: string): Promise<AccessGrantRow[]> => {
-    const response = await http<AccessResponse>(`/projects/${encodeURIComponent(projectId)}/access`, {
-      method: 'GET',
-      accessToken,
-    });
+    const response = await http<AccessResponse>(
+      `/projects/${encodeURIComponent(projectId)}/access`,
+      {
+        method: 'GET',
+        accessToken,
+      },
+    );
     return Array.isArray(response.data) ? response.data : [];
   };
 
@@ -130,7 +140,11 @@ export const ProjectsManagementPage = ({ accessToken, isTecmaAdmin }: ProjectsMa
     setError(null);
     setSuccessMessage(null);
     try {
-      if (workspaceId.trim() === '' || createName.trim().length < 2 || createCode.trim().length < 2) {
+      if (
+        workspaceId.trim() === '' ||
+        createName.trim().length < 2 ||
+        createCode.trim().length < 2
+      ) {
         setError('Workspace, nome e codice progetto sono obbligatori.');
         return;
       }
@@ -148,7 +162,9 @@ export const ProjectsManagementPage = ({ accessToken, isTecmaAdmin }: ProjectsMa
       setSuccessMessage('Progetto creato con successo.');
       await refreshProjectsForWorkspace(workspaceId);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Creazione progetto non riuscita.');
+      setError(
+        requestError instanceof Error ? requestError.message : 'Creazione progetto non riuscita.',
+      );
     } finally {
       setSaving(false);
     }
@@ -172,7 +188,9 @@ export const ProjectsManagementPage = ({ accessToken, isTecmaAdmin }: ProjectsMa
       await refreshProjectsForWorkspace(workspaceId);
     } catch (requestError) {
       setError(
-        requestError instanceof Error ? requestError.message : 'Aggiornamento progetto non riuscito.',
+        requestError instanceof Error
+          ? requestError.message
+          : 'Aggiornamento progetto non riuscito.',
       );
     } finally {
       setSaving(false);
@@ -181,19 +199,25 @@ export const ProjectsManagementPage = ({ accessToken, isTecmaAdmin }: ProjectsMa
 
   const handleDeleteProject = async () => {
     if (selectedProject == null) return;
-    if (!window.confirm(`Eliminare progetto ${selectedProject.name ?? selectedProject._id}?`)) return;
+    if (!window.confirm(`Eliminare progetto ${selectedProject.name ?? selectedProject._id}?`))
+      return;
     setSaving(true);
     setError(null);
     setSuccessMessage(null);
     try {
-      await http<{ data: { deleted: boolean } }>(`/projects/${encodeURIComponent(selectedProject._id)}`, {
-        method: 'DELETE',
-        accessToken,
-      });
+      await http<{ data: { deleted: boolean } }>(
+        `/projects/${encodeURIComponent(selectedProject._id)}`,
+        {
+          method: 'DELETE',
+          accessToken,
+        },
+      );
       setSuccessMessage('Progetto eliminato.');
       await refreshProjectsForWorkspace(workspaceId);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Eliminazione progetto fallita.');
+      setError(
+        requestError instanceof Error ? requestError.message : 'Eliminazione progetto fallita.',
+      );
     } finally {
       setSaving(false);
     }
@@ -205,14 +229,17 @@ export const ProjectsManagementPage = ({ accessToken, isTecmaAdmin }: ProjectsMa
     setSaving(true);
     setError(null);
     try {
-      await http<{ data: AccessGrantRow }>(`/projects/${encodeURIComponent(selectedProject._id)}/access`, {
-        method: 'POST',
-        accessToken,
-        body: {
-          workspaceId: grantWorkspaceId,
-          role: grantRole,
+      await http<{ data: AccessGrantRow }>(
+        `/projects/${encodeURIComponent(selectedProject._id)}/access`,
+        {
+          method: 'POST',
+          accessToken,
+          body: {
+            workspaceId: grantWorkspaceId,
+            role: grantRole,
+          },
         },
-      });
+      );
       setGrantWorkspaceId('');
       setGrantRole('viewer');
       setSuccessMessage('Grant access aggiunto.');
@@ -255,7 +282,9 @@ export const ProjectsManagementPage = ({ accessToken, isTecmaAdmin }: ProjectsMa
       </div>
 
       {error != null ? <p className="mb-3 text-sm text-destructive">{error}</p> : null}
-      {successMessage != null ? <p className="mb-3 text-sm text-emerald-600">{successMessage}</p> : null}
+      {successMessage != null ? (
+        <p className="mb-3 text-sm text-emerald-600">{successMessage}</p>
+      ) : null}
 
       <label className="mb-4 block text-xs font-medium text-foreground">
         Workspace attivo
@@ -280,7 +309,9 @@ export const ProjectsManagementPage = ({ accessToken, isTecmaAdmin }: ProjectsMa
       {!loading ? (
         <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Progetti</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Progetti
+            </p>
             {projects.map((project) => {
               const selected = project._id === selectedProjectId;
               return (
@@ -300,15 +331,22 @@ export const ProjectsManagementPage = ({ accessToken, isTecmaAdmin }: ProjectsMa
               );
             })}
             {projects.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nessun progetto nel workspace selezionato.</p>
+              <p className="text-sm text-muted-foreground">
+                Nessun progetto nel workspace selezionato.
+              </p>
             ) : null}
           </div>
 
           <div className="space-y-6">
-            <form onSubmit={handleCreateProject} className="space-y-3 rounded-lg border border-border p-4">
+            <form
+              onSubmit={handleCreateProject}
+              className="space-y-3 rounded-lg border border-border p-4"
+            >
               <h3 className="text-sm font-semibold text-foreground">Crea progetto</h3>
               <div>
-                <label className="mb-1 block text-xs font-medium text-foreground">Nome progetto</label>
+                <label className="mb-1 block text-xs font-medium text-foreground">
+                  Nome progetto
+                </label>
                 <Input
                   value={createName}
                   onChange={(event) => setCreateName(event.target.value)}
@@ -335,7 +373,9 @@ export const ProjectsManagementPage = ({ accessToken, isTecmaAdmin }: ProjectsMa
               ) : (
                 <>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-foreground">Nome progetto</label>
+                    <label className="mb-1 block text-xs font-medium text-foreground">
+                      Nome progetto
+                    </label>
                     <Input
                       value={projectName}
                       onChange={(event) => setProjectName(event.target.value)}
@@ -352,7 +392,12 @@ export const ProjectsManagementPage = ({ accessToken, isTecmaAdmin }: ProjectsMa
                     <Button type="button" onClick={handleUpdateProject} disabled={saving}>
                       Salva progetto
                     </Button>
-                    <Button type="button" variant="destructive" onClick={handleDeleteProject} disabled={saving}>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={handleDeleteProject}
+                      disabled={saving}
+                    >
                       Elimina progetto
                     </Button>
                   </div>
@@ -381,9 +426,7 @@ export const ProjectsManagementPage = ({ accessToken, isTecmaAdmin }: ProjectsMa
                           className="h-9 rounded-lg border border-input bg-background px-3 text-sm"
                           value={grantRole}
                           onChange={(event) =>
-                            setGrantRole(
-                              event.target.value as 'owner' | 'collaborator' | 'viewer',
-                            )
+                            setGrantRole(event.target.value as 'owner' | 'collaborator' | 'viewer')
                           }
                         >
                           <option value="owner">Owner</option>
@@ -406,8 +449,8 @@ export const ProjectsManagementPage = ({ accessToken, isTecmaAdmin }: ProjectsMa
                             className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-sm"
                           >
                             <span>
-                              {workspaces.find((workspace) => workspace._id === grant.workspace_id)?.name ??
-                                grant.workspace_id}{' '}
+                              {workspaces.find((workspace) => workspace._id === grant.workspace_id)
+                                ?.name ?? grant.workspace_id}{' '}
                               · {grant.role}
                             </span>
                             <Button

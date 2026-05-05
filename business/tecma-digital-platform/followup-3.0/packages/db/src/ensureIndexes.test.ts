@@ -21,14 +21,15 @@ describe('ensureCoreIndexes', () => {
 
     await ensureCoreIndexes(db);
 
-    expect(createIndex).toHaveBeenCalledTimes(17);
+    expect(createIndex).toHaveBeenCalledTimes(19);
     expect(db.collection).toHaveBeenNthCalledWith(1, 'tz_users');
     expect(createIndex).toHaveBeenNthCalledWith(
       1,
       { email: 1 },
       { unique: true, name: 'tz_users_email_unique' },
     );
-    expect(db.collection).toHaveBeenNthCalledWith(17, 'tz_workspace_projects');
+    expect(db.collection).toHaveBeenNthCalledWith(18, 'tz_roleDefinitions');
+    expect(db.collection).toHaveBeenNthCalledWith(19, 'tz_users');
   });
 
   it('ignores benign existing index name conflicts', async () => {
@@ -41,7 +42,7 @@ describe('ensureCoreIndexes', () => {
       .mockResolvedValue('ok');
 
     await expect(ensureCoreIndexes(makeDb(createIndex))).resolves.toBeUndefined();
-    expect(createIndex).toHaveBeenCalledTimes(17);
+    expect(createIndex).toHaveBeenCalledTimes(19);
   });
 
   it('logs and continues when duplicate data blocks a unique index build', async () => {
@@ -56,7 +57,7 @@ describe('ensureCoreIndexes', () => {
 
     await expect(ensureCoreIndexes(makeDb(createIndex))).resolves.toBeUndefined();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('indice unique non creato'));
-    expect(createIndex).toHaveBeenCalledTimes(17);
+    expect(createIndex).toHaveBeenCalledTimes(19);
   });
 
   it('rethrows unexpected index creation errors', async () => {

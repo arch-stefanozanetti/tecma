@@ -4,7 +4,9 @@ export const SESSION_INVALIDATED_EVENT_NAME = 'followup:session_invalidated';
 
 export const emitSessionInvalidatedEvent = (detail: SessionInvalidationEvent): void => {
   if (typeof window === 'undefined') return;
-  window.dispatchEvent(new CustomEvent<SessionInvalidationEvent>(SESSION_INVALIDATED_EVENT_NAME, { detail }));
+  window.dispatchEvent(
+    new CustomEvent<SessionInvalidationEvent>(SESSION_INVALIDATED_EVENT_NAME, { detail }),
+  );
 };
 
 export const subscribeSessionInvalidatedEvent = (

@@ -176,7 +176,9 @@ const WorkspaceSelector = ({
           </div>
           <div className="py-1">
             {options.length === 0 ? (
-              <p className="px-4 py-2.5 text-sm text-muted-foreground">Nessun workspace disponibile</p>
+              <p className="px-4 py-2.5 text-sm text-muted-foreground">
+                Nessun workspace disponibile
+              </p>
             ) : null}
             {options.map((option) => (
               <button
@@ -402,7 +404,9 @@ const SideNav = ({
   const secondaryNav = useMemo(
     () => [
       ...INSIGHTS_NAV,
-      ...SETTINGS_NAV.filter((item) => item.id === 'workspaces' || item.id === 'projects' || isAdmin),
+      ...SETTINGS_NAV.filter(
+        (item) => item.id === 'workspaces' || item.id === 'projects' || isAdmin,
+      ),
     ],
     [isAdmin],
   );
@@ -564,7 +568,9 @@ const SideNav = ({
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                       Impostazioni
                     </p>
-                    {SETTINGS_NAV.filter((item) => item.id === 'workspaces' || item.id === 'projects' || isAdmin).map((item) => {
+                    {SETTINGS_NAV.filter(
+                      (item) => item.id === 'workspaces' || item.id === 'projects' || isAdmin,
+                    ).map((item) => {
                       const Icon = item.icon;
                       const isActive = section === item.id;
                       return (

@@ -1,5 +1,10 @@
 # Lessons (agent / team)
 
+## 2026-05-05 — Branch lifecycle obbligatorio (no branch backlog)
+
+- **Correzione utente:** se una lavorazione è finita, deve andare subito su `main` e il branch funzionale va chiuso (delete locale/remoto o archive esplicito), senza accumulo di branch vecchi.
+- **Pattern operativo fisso:** branch corto -> test/gate -> merge `main` -> cleanup immediato branch. Non aspettare reminder utente.
+
 ## 2026-05-05 — Branch cleanup: scope chiuso, push frequente, delete dopo merge
 
 - **Sintomo:** un singolo branch `chore/baseline-cleanup-and-workspace-fix` con 8 aree mescolate (RBAC, audit, error contract, mail, support UI, repo di dominio, shared-types, OpenAPI) e 4 commit non pushati su `main`. Branch laterali `develop`/`demo` morti (172/182 commit dietro). 8+ branch funzionali vecchi non mergeati. Caos di review e rischi di drift.

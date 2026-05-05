@@ -143,4 +143,20 @@ export const ensureCoreIndexes = async (db: Db): Promise<void> => {
     { projectId: 1 },
     { name: 'tz_workspace_projects_projectId_idx' },
   );
+
+  // Override permessi per ruolo (catalogo POC).
+  await ensureIndex(
+    db,
+    'tz_roleDefinitions',
+    { roleKey: 1 },
+    { unique: true, name: 'tz_roleDefinitions_roleKey_unique' },
+  );
+
+  // Multi-key index su tz_users.permissionsOverride per query RBAC future.
+  await ensureIndex(
+    db,
+    'tz_users',
+    { permissionsOverride: 1 },
+    { name: 'tz_users_permissionsOverride_idx', sparse: true },
+  );
 };

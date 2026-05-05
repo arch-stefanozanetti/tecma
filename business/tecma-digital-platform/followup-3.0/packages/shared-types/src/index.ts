@@ -76,6 +76,14 @@ export const UserSchema = z.object({
   systemRole: SystemRoleSchema.optional(),
   /** @deprecated usa `systemRole` (camelCase). Tenuto per legacy DB/JWT payload. */
   system_role: z.string().optional(),
+  /**
+   * Permessi addizionali rispetto a quelli del ruolo workspace effettivo.
+   * Validati da shared-rbac (`isValidPermissionId`); la wildcard `*`
+   * e ammessa solo se l'attore e platform admin.
+   */
+  permissionsOverride: z.array(z.string().min(1)).optional(),
+  /** @deprecated usa `permissionsOverride` (camelCase). */
+  permissions_override: z.array(z.string().min(1)).optional(),
 
   // Lifecycle timestamps
   createdAt: z.string().optional(),
@@ -208,6 +216,41 @@ export const InviteTokenSchema = z.object({
 });
 
 export type InviteToken = z.infer<typeof InviteTokenSchema>;
+
+// =============================================================================
+// Workspace user project assignments (tz_workspace_user_projects)
+// =============================================================================
+
+export const WorkspaceUserProjectSchema = z.object({
+  _id: ObjectIdLike,
+  workspaceId: ObjectIdLike,
+  userId: ObjectIdLike,
+  projectId: ObjectIdLike,
+  status: z.enum(['active', 'revoked']).default('active'),
+  assignedBy: ObjectIdLike.optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+});
+
+export type WorkspaceUserProject = z.infer<typeof WorkspaceUserProjectSchema>;
+
+// =============================================================================
+// Role definitions (tz_roleDefinitions): override DB dei permessi per ruolo
+// =============================================================================
+
+export const RoleDefinitionSchema = z.object({
+  _id: ObjectIdLike,
+  /** Chiave ruolo (es. 'admin', 'collaborator', 'tecma_admin'). */
+  roleKey: z.string().min(1),
+  /** Lista permessi (id catalogo o '*'). */
+  permissions: z.array(z.string().min(1)),
+  label: z.string().optional(),
+  description: z.string().optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+});
+
+export type RoleDefinition = z.infer<typeof RoleDefinitionSchema>;
 
 // =============================================================================
 // Audit Event (tz_authEvents)

@@ -551,6 +551,12 @@ paths:
                   enum:
                     - user
                     - tecma_admin
+                permissionsOverride:
+                  type: array
+                  items:
+                    type: string
+                    minLength: 1
+                  description: Lista permessi extra (catalogo RBAC). La wildcard "*" e ammessa solo per platform admin.
       parameters:
         - schema:
             type: string
@@ -685,6 +691,147 @@ paths:
               schema:
                 $ref: '#/components/schemas/def-3'
         '404':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/def-3'
+        '500':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/def-3'
+  /rbac/permission-catalog:
+    get:
+      operationId: getPermissionCatalog
+      summary: Catalogo permessi (gruppi modulo + azione)
+      tags:
+        - Rbac
+      description: Catalogo permessi (gruppi modulo + azione)
+      security: *a1
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        '401':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/def-3'
+        '403':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/def-3'
+        '404':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/def-3'
+        '500':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/def-3'
+  /rbac/roles/{roleKey}/effective-permissions:
+    get:
+      operationId: getRoleEffectivePermissions
+      summary: Permessi effettivi di un ruolo (preview wizard utenti)
+      tags:
+        - Rbac
+      description: Permessi effettivi di un ruolo (preview wizard utenti)
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: roleKey
+          required: true
+          description: Chiave ruolo workspace (owner, admin, collaborator, viewer, custom)
+      security: *a1
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    additionalProperties: true
+        '401':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/def-3'
+        '403':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/def-3'
+        '404':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/def-3'
+        '500':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/def-3'
+  /workspace-roles:
+    get:
+      operationId: listWorkspaceRoles
+      summary: Elenco ruoli workspace builtin
+      tags:
+        - Rbac
+      description: Elenco ruoli workspace builtin
+      security: *a1
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - paginationInfo
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  paginationInfo:
+                    $ref: '#/components/schemas/def-0'
+        '401':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/def-3'
+        '403':
           description: Default Response
           content:
             application/json:
@@ -2190,6 +2337,8 @@ tags:
     description: Login, token e SSO
   - name: Users
     description: Gestione utenti
+  - name: Rbac
+    description: Catalogo permessi e ruoli RBAC
   - name: Workspaces
     description: Workspace e membri
   - name: Projects
