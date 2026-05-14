@@ -19,6 +19,7 @@ import { initOtel, shutdownOtel } from "./observability/otel.js";
 import { requestContextMiddleware } from "./routes/requestContextMiddleware.js";
 import { requireAuth } from "./routes/authMiddleware.js";
 import { zeusWebhookRouter } from "./routes/zeus-webhook.routes.js";
+import { registerRootPublicRoutes } from "./routes/root-public.routes.js";
 
 /** I job schedulati (comms, marketing, retention, MLS) sono eseguiti dal worker: node dist/job-runner.js */
 
@@ -79,6 +80,7 @@ const bootstrap = async () => {
       credentials: true
     })
   );
+  registerRootPublicRoutes(app);
   /** Webhook Sumsub: body raw per verifica firma HMAC (prima di express.json). */
   app.use(
     "/v1/webhooks/sumsub/:workspaceId",
