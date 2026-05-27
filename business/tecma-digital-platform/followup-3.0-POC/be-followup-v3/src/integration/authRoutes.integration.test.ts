@@ -394,6 +394,81 @@ describe("integration: auth HTTP routes", () => {
     expect(res2.status).toBe(409);
   });
 
+  it("POST /users/:id/resend-invite sends a new invite email for invited users", async () => {
+    const { signAccessToken } = await import("../core/auth/token.service.js");
+    const { resetEmailMockOutbox, getEmailMockOutbox } = await import("../core/email/email.service.js");
+    const { getDb } = await import("../config/db.js");
+    await getDb().collection("tz_users").deleteOne({ email: "resend-invite@test.local" });
+    resetEmailMockOutbox();
+    const token = signAccessToken({
+      sub: adminId,
+      email: "admin-auth-api@test.local",
+      role: "admin",
+      isAdmin: true,
+      permissions: ["*"],
+      projectId: "proj-auth-1",
+    });
+    const inviteRes = await st()
+      .post("/v1/users")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        email: "resend-invite@test.local",
+        projectId: "proj-auth-1",
+        projectName: "Resend project",
+        roleLabel: "Collaborator",
+        appPublicUrl: "https://followup-3-fe.onrender.com",
+      });
+    expect(inviteRes.status).toBe(200);
+    const userId = inviteRes.body.userId as string;
+    resetEmailMockOutbox();
+    const resendRes = await st()
+      .post(`/v1/users/${userId}/resend-invite`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ appPublicUrl: "https://followup-3-fe.onrender.com" });
+    expect(resendRes.status).toBe(200);
+    expect(resendRes.body.ok).toBe(true);
+    expect(getEmailMockOutbox().some((o) => o.kind === "invite")).toBe(true);
+  });
+
+  it("DELETE /users/:id removes invited user and memberships", async () => {
+    const { signAccessToken } = await import("../core/auth/token.service.js");
+    const { resetEmailMockOutbox } = await import("../core/email/email.service.js");
+    const { getDb } = await import("../config/db.js");
+    const email = "delete-invite@test.local";
+    await getDb().collection("tz_users").deleteOne({ email });
+    await getDb().collection("tz_user_workspaces").deleteMany({ userId: email });
+    resetEmailMockOutbox();
+    const token = signAccessToken({
+      sub: adminId,
+      email: "admin-auth-api@test.local",
+      role: "admin",
+      isAdmin: true,
+      permissions: ["*"],
+      projectId: "proj-auth-1",
+    });
+    const inviteRes = await st()
+      .post("/v1/users")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        email,
+        projectId: "proj-auth-1",
+        projectName: "Delete project",
+        roleLabel: "Collaborator",
+      });
+    const userId = inviteRes.body.userId as string;
+    await getDb().collection("tz_user_workspaces").insertOne({
+      workspaceId: "ws-delete-test",
+      userId: email,
+      role: "collaborator",
+    });
+    const delRes = await st()
+      .delete(`/v1/users/${userId}`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(delRes.status).toBe(200);
+    expect(await getDb().collection("tz_users").findOne({ email })).toBeNull();
+    expect(await getDb().collection("tz_user_workspaces").findOne({ userId: email })).toBeNull();
+  });
+
   it("PATCH /users/:id persists permissions_override", async () => {
     const { signAccessToken } = await import("../core/auth/token.service.js");
     const { getDb } = await import("../config/db.js");

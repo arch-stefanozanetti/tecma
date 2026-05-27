@@ -565,6 +565,21 @@ export const followupApi = {
       `/users/${encodeURIComponent(userId)}`,
       body
     ),
+  resendUserInvite: (
+    userId: string,
+    body?: {
+      roleLabel?: string;
+      projectName?: string;
+      projectId?: string;
+      appPublicUrl?: string;
+    }
+  ) =>
+    postJson<{ ok: boolean }>(`/users/${encodeURIComponent(userId)}/resend-invite`, {
+      ...body,
+      appPublicUrl: body?.appPublicUrl ?? (typeof window !== "undefined" ? window.location.origin : undefined),
+    }),
+  deleteAdminUser: (userId: string) =>
+    deleteJson<{ ok: boolean }>(`/users/${encodeURIComponent(userId)}`),
   listEmailFlows: () =>
     getJson<
       Array<{

@@ -18,6 +18,8 @@ export interface UserWithVisibilityRow {
   /** _id tz_users quando presente */
   userId: string | null;
   email: string;
+  /** Stato account da tz_users (invited | active | disabled) */
+  status?: "invited" | "active" | "disabled" | null;
   /** Ruolo globale derivato (owner, admin, collaborator, viewer) */
   role: string | null;
   isAdmin: boolean;
@@ -45,6 +47,16 @@ function normalizeMembershipRole(r: string): string {
   return "collaborator";
 }
 
+function resolveListedUserStatus(doc: {
+  status?: unknown;
+  isDisabled?: unknown;
+}): "invited" | "active" | "disabled" {
+  if (doc.isDisabled === true) return "disabled";
+  if (doc.status === "invited") return "invited";
+  if (doc.status === "disabled") return "disabled";
+  return "active";
+}
+
 /** Lista tutti gli utenti con visibilità e associazioni. Solo per admin. */
 export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibilityRow[] }> => {
   const db = getDb();
@@ -56,7 +68,7 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
   const [userDocs, membershipDocs, workspaceDocs] = await Promise.all([
     usersColl
       .find({})
-      .project({ email: 1, role: 1, project_ids: 1, _id: 1, permissions_override: 1, system_role: 1 })
+      .project({ email: 1, role: 1, project_ids: 1, _id: 1, permissions_override: 1, system_role: 1, status: 1, isDisabled: 1 })
       .toArray(),
     uwColl.find({}).toArray(),
     wsColl.find({}).project({ _id: 1, name: 1 }).toArray(),
@@ -76,6 +88,7 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
       userId: string | null;
       permissions_override: string[];
       system_role: "tecma_admin" | null;
+      status: "invited" | "active" | "disabled" | null;
     }
   >();
   const emailsFromUsers = new Set<string>();
@@ -86,6 +99,8 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
     project_ids?: unknown[];
     permissions_override?: unknown[];
     system_role?: unknown;
+    status?: unknown;
+    isDisabled?: unknown;
   }[]) {
     const email = normalizeEmail(u.email);
     if (!email) continue;
@@ -99,7 +114,8 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
       : [];
     const system_role = u.system_role === "tecma_admin" ? "tecma_admin" : null;
     const userId = u._id && typeof u._id.toHexString === "function" ? u._id.toHexString() : null;
-    userByEmail.set(email, { role, projectIds, userId, permissions_override, system_role });
+    const status = resolveListedUserStatus(u);
+    userByEmail.set(email, { role, projectIds, userId, permissions_override, system_role, status });
   }
 
   const membershipsByUser = new Map<string, { workspaceId: string; role: string }[]>();
@@ -144,6 +160,7 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
     const userId = fromTzUsers?.userId ?? null;
     const permissions_override = fromTzUsers?.permissions_override ?? [];
     const system_role = fromTzUsers?.system_role ?? null;
+    const status = fromTzUsers?.status ?? null;
     const memberships = (membershipsByUser.get(email) ?? []).map((m) => ({
       workspaceId: m.workspaceId,
       workspaceName: workspaceNames.get(m.workspaceId) ?? m.workspaceId,
@@ -155,6 +172,7 @@ export const listUsersWithVisibility = async (): Promise<{ users: UserWithVisibi
     users.push({
       userId,
       email,
+      status,
       role,
       isAdmin,
       projectIds,

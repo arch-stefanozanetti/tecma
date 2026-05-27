@@ -16,6 +16,13 @@ import { Checkbox } from "../../components/ui/checkbox";
 import { Input } from "../../components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../../components/ui/sheet";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -49,11 +56,18 @@ interface EntityAssignmentRow {
   userId: string;
 }
 
+function userStatusLabel(status: UserWithVisibilityRow["status"]): string {
+  if (status === "invited") return "Invitato (in attesa password)";
+  if (status === "disabled") return "Disabilitato";
+  if (status === "active") return "Attivo";
+  return "Solo membership";
+}
+
 export const UsersPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isAdmin, isTecmaAdmin, email: currentEmail } = useWorkspace();
-  const { toastError } = useToast();
+  const { toastError, toastSuccess } = useToast();
   const [users, setUsers] = useState<UserWithVisibilityRow[]>([]);
   const [usersViewMode, setUsersViewMode] = useState<"cards" | "list">("cards");
   const [usersSearch, setUsersSearch] = useState("");
@@ -77,6 +91,9 @@ export const UsersPage = () => {
   const [addUserRole, setAddUserRole] = useState<WorkspaceUserRole>("collaborator");
   const [addUserSaving, setAddUserSaving] = useState(false);
   const [addUserError, setAddUserError] = useState<string | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [resendInviteLoading, setResendInviteLoading] = useState(false);
+  const [deleteUserLoading, setDeleteUserLoading] = useState(false);
   /** invite = nuovo utente con email set-password; existing = solo membership workspace */
   const [addUserMode, setAddUserMode] = useState<"invite" | "existing">("invite");
   const [workspaceProjectsForInvite, setWorkspaceProjectsForInvite] = useState<
@@ -926,8 +943,11 @@ export const UsersPage = () => {
                       if (addUserMode === "invite") {
                         const dup = users.some((u) => u.email.toLowerCase() === email.toLowerCase());
                         if (dup) {
+                          const existing = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
                           setAddUserError(
-                            'Questa email è già in elenco. Usa "Già registrato" oppure un\'altra email.'
+                            existing?.status === "invited"
+                              ? 'Questa email è già invitata. Apri "Gestisci" sull\'utente e usa "Reinvia invito".'
+                              : 'Questa email è già in elenco. Usa "Già registrato" oppure un\'altra email.'
                           );
                           setAddUserSaving(false);
                           return;
@@ -999,8 +1019,54 @@ export const UsersPage = () => {
                   {getMaxWorkspaceRole(selectedUser.workspaces.map((w) => w.role))}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
+                  Stato: {userStatusLabel(selectedUser.status)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
                   System role: {selectedUser.system_role === "tecma_admin" ? "tecma_admin" : "—"}
                 </p>
+                {selectedUser.status === "invited" && selectedUser.userId && (
+                  <div className="mt-3">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="min-h-9"
+                      disabled={resendInviteLoading || deleteUserLoading}
+                      onClick={async () => {
+                        if (!selectedUser.userId) return;
+                        setResendInviteLoading(true);
+                        try {
+                          const primaryWs = selectedUser.workspaces[0];
+                          const projectIds =
+                            primaryWs != null ? userProjectIdsByWorkspace[primaryWs.workspaceId] ?? [] : [];
+                          await followupApi.resendUserInvite(selectedUser.userId, {
+                            roleLabel: primaryWs ? getRoleLabel(primaryWs.role as WorkspaceUserRole) : undefined,
+                            projectId: projectIds[0],
+                          });
+                          toastSuccess("Email di invito reinviata", selectedUser.email);
+                        } catch (e) {
+                          toastError(e instanceof Error ? e.message : "Impossibile reinviare l'invito");
+                        } finally {
+                          setResendInviteLoading(false);
+                        }
+                      }}
+                    >
+                      {resendInviteLoading ? "Invio…" : "Reinvia invito"}
+                    </Button>
+                  </div>
+                )}
+                {selectedUser.userId && selectedUser.email !== currentEmail && (
+                  <div className="mt-2">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="min-h-9"
+                      disabled={resendInviteLoading || deleteUserLoading}
+                      onClick={() => setDeleteConfirmOpen(true)}
+                    >
+                      Elimina utente
+                    </Button>
+                  </div>
+                )}
                 {isTecmaAdmin && selectedUser.userId && selectedUser.email !== currentEmail && (
                   <div className="mt-2">
                     {selectedUser.system_role === "tecma_admin" ? (
@@ -1246,6 +1312,45 @@ export const UsersPage = () => {
           )}
         </SheetContent>
       </Sheet>
+
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Eliminare questo utente?</DialogTitle>
+            <DialogDescription>
+              Verranno rimossi profilo, membership workspace e token di invito per{" "}
+              <span className="font-medium text-foreground">{selectedUser?.email}</span>. L&apos;operazione non è
+              reversibile.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-wrap justify-end gap-2 pt-2">
+            <Button variant="outline" disabled={deleteUserLoading} onClick={() => setDeleteConfirmOpen(false)}>
+              Annulla
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteUserLoading || !selectedUser?.userId}
+              onClick={async () => {
+                if (!selectedUser?.userId) return;
+                setDeleteUserLoading(true);
+                try {
+                  await followupApi.deleteAdminUser(selectedUser.userId);
+                  toastSuccess("Utente eliminato");
+                  setDeleteConfirmOpen(false);
+                  setSelectedUser(null);
+                  load();
+                } catch (e) {
+                  toastError(e instanceof Error ? e.message : "Eliminazione non riuscita");
+                } finally {
+                  setDeleteUserLoading(false);
+                }
+              }}
+            >
+              {deleteUserLoading ? "Eliminazione…" : "Elimina utente"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

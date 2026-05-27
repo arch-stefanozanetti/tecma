@@ -40,6 +40,8 @@ vi.mock("../../api/followupApi", () => ({
       data: { roleKey: "collaborator", permissions: ["clients.read"] },
     }),
     patchAdminUser: vi.fn(),
+    resendUserInvite: vi.fn(),
+    deleteAdminUser: vi.fn(),
     getWorkspaceRoles: vi.fn().mockResolvedValue([
       { roleKey: "owner", label: "Owner" },
       { roleKey: "admin", label: "Admin" },

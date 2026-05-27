@@ -9,7 +9,8 @@ import {
   inviteUser,
   findUserById,
   updateUserById,
-  deleteUserById,
+  deleteUserAccount,
+  resendInviteForUser,
 } from "../../core/users/users-mutations.service.js";
 import { requirePermission, requireAnyPermission } from "../permissionMiddleware.js";
 import { listUsersWithVisibility } from "../../core/users/users-admin.service.js";
@@ -165,6 +166,49 @@ usersAdminRoutes.patch(
   })
 );
 
+usersAdminRoutes.post(
+  "/users/:id/resend-invite",
+  requirePermission(PERMISSIONS.USERS_INVITE),
+  handleAsync(async (req) => {
+    const id = req.params.id;
+    const before = await findUserById(id);
+    if (!before) throw new HttpError("Utente non trovato", 404);
+
+    const body = z
+      .object({
+        appPublicUrl: z.string().url().optional(),
+        projectName: z.string().min(1).optional(),
+        roleLabel: z.string().min(1).optional(),
+        projectId: z.string().min(1).optional(),
+        workspaceId: z.string().optional(),
+      })
+      .parse(req.body ?? {});
+
+    const { resolveInviteAppBaseUrl } = await import("../../utils/inviteLinkBaseUrl.js");
+    const appPublicBaseUrl = resolveInviteAppBaseUrl(req, body.appPublicUrl ?? null);
+
+    await resendInviteForUser({
+      userId: id,
+      appPublicBaseUrl,
+      projectName: body.projectName,
+      roleLabel: body.roleLabel,
+      projectId: body.projectId,
+    });
+
+    await writeAuditLog({
+      userId: req.user!.sub,
+      action: "user.invite.resend",
+      entityType: "user",
+      entityId: id,
+      changes: { after: { email: before.email } },
+      projectId: req.user!.projectId,
+      ...(body.workspaceId && { workspaceId: body.workspaceId }),
+    });
+
+    return { ok: true };
+  })
+);
+
 usersAdminRoutes.delete(
   "/users/:id",
   requirePermission(PERMISSIONS.USERS_DELETE),
@@ -172,6 +216,10 @@ usersAdminRoutes.delete(
     const id = req.params.id;
     const before = await findUserById(id);
     if (!before) throw new HttpError("Utente non trovato", 404);
+
+    if (req.user!.sub === id) {
+      throw new HttpError("Non puoi eliminare il tuo account da qui", 400);
+    }
 
     await writeAuditLog({
       userId: req.user!.sub,
@@ -182,7 +230,7 @@ usersAdminRoutes.delete(
       projectId: req.user!.projectId,
     });
 
-    const ok = await deleteUserById(id);
+    const ok = await deleteUserAccount(id);
     if (!ok) throw new HttpError("Eliminazione non riuscita", 500);
     return { ok: true };
   })

@@ -105,6 +105,8 @@ export interface UserWithVisibilityRow {
   /** Presente se l’utente esiste in tz_users */
   userId?: string | null;
   email: string;
+  /** Stato account (invited | active | disabled) se profilo in tz_users */
+  status?: "invited" | "active" | "disabled" | null;
   role: string | null;
   system_role?: "tecma_admin" | null;
   isAdmin: boolean;

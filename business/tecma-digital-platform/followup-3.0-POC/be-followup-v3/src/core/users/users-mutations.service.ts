@@ -228,6 +228,79 @@ export async function deleteUserById(userId: string): Promise<boolean> {
   return (r.deletedCount ?? 0) > 0;
 }
 
+/** Elimina account utente e dati collegati (membership workspace, progetti, token invito). */
+export async function deleteUserAccount(userId: string): Promise<boolean> {
+  if (!ObjectId.isValid(userId)) return false;
+  const doc = await findUserById(userId);
+  if (!doc) return false;
+  const email = normalizeEmail(doc.email || "");
+  const db = getDb();
+  await deleteInviteTokensForUserId(userId);
+  if (email) {
+    await db.collection("tz_user_workspaces").deleteMany({ userId: email });
+    await db.collection("tz_workspace_user_projects").deleteMany({ userId: email });
+    await db.collection("tz_entity_assignments").deleteMany({ userId: email });
+  }
+  return deleteUserById(userId);
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  owner: "Owner",
+  admin: "Admin",
+  collaborator: "Collaborator",
+  viewer: "Viewer",
+};
+
+export async function resendInviteForUser(params: {
+  userId: string;
+  appPublicBaseUrl: string;
+  projectName?: string;
+  roleLabel?: string;
+  projectId?: string;
+}): Promise<void> {
+  const doc = await findUserById(params.userId);
+  if (!doc) throw new HttpError("Utente non trovato", 404);
+  if (!isInvitedWithoutPassword(doc)) {
+    throw new HttpError("L'utente ha già attivato l'account o non è più in stato invito", 409);
+  }
+  if (!isInviteEmailDeliverable() && !MOCK_INVITE_OK()) {
+    throw new HttpError(
+      "Invio email non configurato: imposta EMAIL_TRANSPORT=smtp e credenziali SES.",
+      503
+    );
+  }
+  const email = normalizeEmail(doc.email || "");
+  if (!email) throw new HttpError("Email utente mancante", 400);
+  const projectId = params.projectId?.trim() || doc.project_ids?.[0];
+  if (!projectId) throw new HttpError("Nessun progetto associato all'invito", 400);
+  const roleLabel =
+    params.roleLabel?.trim() ||
+    ROLE_LABELS[(doc.role || "").toLowerCase()] ||
+    "Collaborator";
+  const projectName = params.projectName?.trim() || projectId;
+
+  await deleteInviteTokensForUserId(params.userId);
+  const rawToken = await createInviteToken({
+    email,
+    role: roleLabel,
+    projectId,
+    userId: params.userId,
+  });
+  try {
+    await sendInviteEmail({
+      to: email,
+      token: rawToken,
+      projectName,
+      roleLabel,
+      appPublicBaseUrl: params.appPublicBaseUrl,
+    });
+  } catch (err) {
+    await deleteInviteTokensForUserId(params.userId);
+    const detail = err instanceof Error ? err.message : String(err);
+    throw new HttpError(`Impossibile inviare l'email di invito. Dettaglio: ${detail}`, 502);
+  }
+}
+
 export async function listUsersWithId(): Promise<
   Array<{
     id: string;
