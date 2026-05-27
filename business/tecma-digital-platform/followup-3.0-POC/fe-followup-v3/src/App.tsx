@@ -757,6 +757,9 @@ export const App = () => {
     const isTz = isTzWorkspaceRef;
     const filtered = filteredProjectsRef;
     const selected = filteredSelectedRef;
+    const canAutoSelectAll =
+      scope?.isAdmin === true || scope?.isTecmaAdmin === true;
+    if (!canAutoSelectAll) return;
     if (!isTz || selected.length > 0 || filtered.length === 0 || !scope) return;
     const allIds = filtered.map((p) => p.id);
     updateSelectedProjectIds(allIds);
@@ -815,16 +818,22 @@ export const App = () => {
         !isTzWorkspace || wsIds === null || (Array.isArray(wsIds) && wsIds.length === 0)
           ? allProjects
           : allProjects.filter((p) => wsIds.includes(p.id));
-      // Fallback difensiva: se mapping workspace->project è incoerente, non bloccare UI/liste.
+      const allowProjectFallback = projectScope.isAdmin === true || projectScope.isTecmaAdmin === true;
       const filteredProjects =
-        filteredProjectsRaw.length === 0 && allProjects.length > 0 ? allProjects : filteredProjectsRaw;
+        filteredProjectsRaw.length === 0 && allProjects.length > 0 && allowProjectFallback
+          ? allProjects
+          : filteredProjectsRaw;
       const filteredSelectedRaw = projectScope.selectedProjectIds?.filter((id) =>
         filteredProjects.some((p) => p.id === id)
       ) ?? [];
       const filteredSelected =
-        filteredSelectedRaw.length === 0 && filteredProjects.length > 0
+        filteredSelectedRaw.length === 0 && filteredProjects.length > 0 && allowProjectFallback
           ? filteredProjects.map((p) => p.id)
-          : filteredSelectedRaw;
+          : filteredSelectedRaw.length > 0
+            ? filteredSelectedRaw
+            : filteredProjects.length === 1
+              ? [filteredProjects[0]!.id]
+              : filteredSelectedRaw;
 
       const templateProps = {
         section: effectiveSection,
@@ -868,9 +877,15 @@ export const App = () => {
               .then(([projectAccess, workspaceProjects]) => {
                 const wsProjectIds = (workspaceProjects.data ?? []).map((wp) => wp.projectId);
                 const serverProjects = projectAccess.projects ?? [];
+                const allowProjectFallback = projectAccess.isAdmin === true;
                 const filteredProjects =
-                  wsProjectIds.length === 0 ? serverProjects : serverProjects.filter((p) => wsProjectIds.includes(p.id));
-                const normalizedProjects = filteredProjects.length > 0 ? filteredProjects : serverProjects;
+                  wsProjectIds.length === 0
+                    ? serverProjects
+                    : serverProjects.filter((p) => wsProjectIds.includes(p.id));
+                const normalizedProjects =
+                  filteredProjects.length > 0 || !allowProjectFallback
+                    ? filteredProjects
+                    : serverProjects;
                 const newSelected = normalizedProjects.map((p) => p.id);
                 saveProjectScope({
                   ...currentScope,

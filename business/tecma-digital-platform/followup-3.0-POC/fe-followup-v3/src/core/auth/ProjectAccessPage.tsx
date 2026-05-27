@@ -65,14 +65,14 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
 
   const canConfirm = useMemo(() => selected.length > 0 && !!access?.found && !!workspaceId, [selected.length, access?.found, workspaceId]);
 
-  // Carica workspaces (admin) o usa legacy
+  // Carica workspaces per admin e, in fallback, per utenti con membership
   useEffect(() => {
-    if (!access?.isAdmin) return;
+    if (!access) return;
     followupApi
       .listWorkspaces()
       .then((list) => setWorkspaces(Array.isArray(list) ? list : []))
       .catch(() => setWorkspaces([]));
-  }, [access?.isAdmin]);
+  }, [access]);
 
   // Quando arrivano i dati: imposta workspace, selected, preferenze
   useEffect(() => {
@@ -97,15 +97,23 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
     };
   }, [access]);
 
-  // Default workspace: se esistono tz_workspaces preferire il primo; altrimenti legacy (dev-1/demo)
+  // Default workspace: admin → lista workspace; altri → membership o defaultWorkspaceId API
   useEffect(() => {
     if (!access || workspaceId) return;
-    if (workspaces.length > 0) {
+    if (access.defaultWorkspaceId) {
+      setWorkspaceId(access.defaultWorkspaceId);
+      return;
+    }
+    if (access.isAdmin && workspaces.length > 0) {
+      setWorkspaceId(workspaces[0]._id);
+    } else if (access.isAdmin) {
+      setWorkspaceId("dev-1");
+    } else if (workspaces.length > 0) {
       setWorkspaceId(workspaces[0]._id);
     } else {
-      setWorkspaceId(access.isAdmin ? "dev-1" : "demo");
+      setWorkspaceId("demo");
     }
-  }, [access, workspaceId, workspaces]);
+  }, [access, workspaceId, workspaces, access?.defaultWorkspaceId]);
 
   // Carica progetti del workspace quando cambia (solo admin con tz_workspace)
   useEffect(() => {

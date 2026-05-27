@@ -2,6 +2,8 @@ import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "../../config/db.js";
 import { listWorkspaceUserProjects } from "../workspaces/workspace-user-projects.service.js";
+import { listWorkspaceIdsForUser } from "../workspaces/workspace-users.service.js";
+import type { AccessScope } from "../../types/models.js";
 
 const InputSchema = z.object({
   email: z.string().email(),
@@ -36,6 +38,78 @@ const normalizeId = (id: string | ObjectId): string => {
 const USERS_COLLECTION = "tz_users";
 const PROJECTS_COLLECTION = "tz_projects";
 const WORKSPACE_PROJECTS_COLLECTION = "tz_workspace_projects";
+
+const WORKSPACE_USERS_COLLECTION = "tz_user_workspaces";
+
+const loadMembershipForWorkspace = async (
+  workspaceId: string,
+  email: string
+): Promise<{ role: string; access_scope: AccessScope } | null> => {
+  const db = getDb();
+  const row = await db.collection(WORKSPACE_USERS_COLLECTION).findOne({
+    workspaceId,
+    userId: email.trim().toLowerCase(),
+  });
+  if (!row) return null;
+  const access_scope = (row as { access_scope?: string }).access_scope === "assigned" ? "assigned" : "all";
+  return {
+    role: String((row as { role?: string }).role ?? "collaborator"),
+    access_scope,
+  };
+};
+
+/** Allineato a followup-3.0: collaborator/viewer con righe in tz_workspace_user_projects → solo assegnati. */
+export function shouldRestrictToAssignments(
+  membershipRole: string | undefined,
+  accessScope: AccessScope | undefined,
+  hasWorkspaceAssignments: boolean
+): boolean {
+  if (accessScope === "assigned") return true;
+  const role = (membershipRole || "").toLowerCase();
+  if ((role === "collaborator" || role === "viewer") && hasWorkspaceAssignments) return true;
+  if (accessScope === "all") return false;
+  return hasWorkspaceAssignments;
+}
+
+async function fetchMergedProjectsForIds(
+  projectsCollection: ReturnType<ReturnType<typeof getDb>["collection"]>,
+  projectIds: string[]
+): Promise<ProjectDoc[]> {
+  if (projectIds.length === 0) return [];
+  const objectIds = projectIds.filter((id) => ObjectId.isValid(id)).map((id) => new ObjectId(id));
+  const [fromProjectDb, fromTz] = await Promise.all([
+    projectsCollection
+      .find({
+        $or: [{ _id: { $in: objectIds } }, { _id: { $in: projectIds as unknown as ObjectId[] } }],
+        archived: { $ne: true },
+      } as Record<string, unknown>)
+      .project({ _id: 1, name: 1, displayName: 1, mode: 1, broker: 1, legacyProjectId: 1 })
+      .toArray() as Promise<ProjectDoc[]>,
+    fetchTzProjects(projectIds).catch(() => []),
+  ]);
+  const byId = new Map<string, ProjectDoc>();
+  for (const p of [...fromProjectDb, ...fromTz]) {
+    const id = normalizeId(p._id ?? "");
+    if (!id) continue;
+    const prev = byId.get(id);
+    byId.set(id, prev ? { ...prev, ...p, _id: prev._id ?? p._id } : p);
+  }
+  return [...byId.values()];
+}
+
+function filterProjectsToWorkspace(
+  projects: ReturnType<typeof buildProjectOutput>[],
+  merged: ProjectDoc[],
+  workspaceProjectIds: string[]
+): ReturnType<typeof buildProjectOutput>[] {
+  if (workspaceProjectIds.length === 0) return projects;
+  const wsSet = new Set(workspaceProjectIds);
+  return projects.filter((p) => {
+    if (wsSet.has(p.id)) return true;
+    const matchedById = merged.find((m) => normalizeId(m._id ?? "") === p.id);
+    return typeof matchedById?.legacyProjectId === "string" && wsSet.has(matchedById.legacyProjectId);
+  });
+}
 
 const loadWorkspaceProjectIds = async (workspaceId: string): Promise<string[]> => {
   const wid = workspaceId.trim();
@@ -159,25 +233,33 @@ export const getProjectAccessByEmail = async (rawInput: unknown) => {
   const allNormalizedProjects = merged.map(buildProjectOutput).sort((a, b) => a.displayName.localeCompare(b.displayName));
   let normalizedProjects = allNormalizedProjects;
 
-  if (workspaceId) {
-    const inWorkspace = await loadWorkspaceProjectIds(workspaceId);
-    if (inWorkspace.length > 0) {
-      const wsSet = new Set(inWorkspace);
-      normalizedProjects = normalizedProjects.filter((p) => {
-        if (wsSet.has(p.id)) return true;
-        const matchedById = merged.find((m) => normalizeId(m._id ?? "") === p.id);
-        return typeof matchedById?.legacyProjectId === "string" && wsSet.has(matchedById.legacyProjectId);
-      });
+  const emailKey = email.trim().toLowerCase();
+  let effectiveWorkspaceId = workspaceId;
+  if (!effectiveWorkspaceId) {
+    const membershipWorkspaceIds = await listWorkspaceIdsForUser(emailKey);
+    if (membershipWorkspaceIds.length === 1) {
+      effectiveWorkspaceId = membershipWorkspaceIds[0];
     }
-    if (!isAdmin && inWorkspace.length > 0) {
-      const emailKey = email.trim().toLowerCase();
-      const { data: userProjectIds } = await listWorkspaceUserProjects(workspaceId, emailKey);
-      if (userProjectIds.length > 0) {
-        const allowed = new Set(userProjectIds);
-        normalizedProjects = normalizedProjects.filter((p) => allowed.has(p.id));
+  }
+
+  if (effectiveWorkspaceId) {
+    const inWorkspace = await loadWorkspaceProjectIds(effectiveWorkspaceId);
+    const membership = await loadMembershipForWorkspace(effectiveWorkspaceId, emailKey);
+    const { data: userProjectIds } = await listWorkspaceUserProjects(effectiveWorkspaceId, emailKey);
+    const hasAssignments = userProjectIds.length > 0;
+    const restrict = !isAdmin && shouldRestrictToAssignments(membership?.role, membership?.access_scope, hasAssignments);
+
+    if (restrict) {
+      const assignmentMerged = await fetchMergedProjectsForIds(projectsCollection, userProjectIds);
+      const assignmentNormalized = assignmentMerged.map(buildProjectOutput);
+      normalizedProjects = filterProjectsToWorkspace(assignmentNormalized, assignmentMerged, inWorkspace);
+    } else if (inWorkspace.length > 0) {
+      normalizedProjects = filterProjectsToWorkspace(allNormalizedProjects, merged, inWorkspace);
+      if (!isAdmin && normalizedProjects.length === 0 && allNormalizedProjects.length > 0) {
+        normalizedProjects = allNormalizedProjects;
       }
     }
-    // Hardening: evita lockout admin se i riferimenti projectId nel workspace sono incoerenti.
+
     if (isAdmin && normalizedProjects.length === 0 && allNormalizedProjects.length > 0) {
       normalizedProjects = allNormalizedProjects;
     }
@@ -188,6 +270,7 @@ export const getProjectAccessByEmail = async (rawInput: unknown) => {
     email,
     role: role || null,
     isAdmin,
-    projects: normalizedProjects
+    projects: normalizedProjects,
+    defaultWorkspaceId: effectiveWorkspaceId ?? null,
   };
 };

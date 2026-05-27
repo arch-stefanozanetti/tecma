@@ -39,6 +39,17 @@ const mocks = vi.hoisted(() => {
     project: () => ({ toArray: workspaceUserProjectsToArrayMock }),
   }));
 
+  const workspaceUsersFindMock = vi.fn();
+  const workspaceUsersCollection = {
+    createIndex: vi.fn().mockResolvedValue("ok"),
+    find: workspaceUsersFindMock,
+    findOne: vi.fn().mockResolvedValue(null),
+  };
+
+  workspaceUsersFindMock.mockImplementation(() => ({
+    project: () => ({ toArray: vi.fn().mockResolvedValue([]) }),
+  }));
+
   return {
     usersFindOneMock,
     projectsFindMock,
@@ -47,10 +58,12 @@ const mocks = vi.hoisted(() => {
     workspaceProjectsToArrayMock,
     workspaceUserProjectsFindMock,
     workspaceUserProjectsToArrayMock,
+    workspaceUserProjectsCollection,
+    workspaceUsersCollection,
+    workspaceUsersFindMock,
     usersCollection,
     projectsCollection,
     workspaceProjectsCollection,
-    workspaceUserProjectsCollection,
   };
 });
 
@@ -61,12 +74,27 @@ vi.mock("../../config/db.js", () => ({
       if (name === "tz_projects") return mocks.projectsCollection;
       if (name === "tz_workspace_projects") return mocks.workspaceProjectsCollection;
       if (name === "tz_workspace_user_projects") return mocks.workspaceUserProjectsCollection;
+      if (name === "tz_user_workspaces") return mocks.workspaceUsersCollection;
       throw new Error(`Unexpected collection: ${name}`);
     },
   }),
 }));
 
-import { getProjectAccessByEmail } from "./projectAccess.service.js";
+import { getProjectAccessByEmail, shouldRestrictToAssignments } from "./projectAccess.service.js";
+
+describe("shouldRestrictToAssignments", () => {
+  it("collaborator con assegnazioni → restrict", () => {
+    expect(shouldRestrictToAssignments("collaborator", "all", true)).toBe(true);
+  });
+
+  it("owner con access all → no restrict anche con assegnazioni", () => {
+    expect(shouldRestrictToAssignments("owner", "all", true)).toBe(false);
+  });
+
+  it("access_scope assigned → restrict", () => {
+    expect(shouldRestrictToAssignments("admin", "assigned", false)).toBe(true);
+  });
+});
 
 describe("projectAccess.service", () => {
   beforeEach(() => {
@@ -245,12 +273,46 @@ describe("projectAccess.service", () => {
     });
     mocks.projectsToArrayMock
       .mockResolvedValueOnce([{ _id: p1, name: "One" }, { _id: p2, name: "Two" }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ _id: p1, name: "One" }])
       .mockResolvedValueOnce([]);
     mocks.workspaceProjectsToArrayMock.mockResolvedValueOnce([
       { projectId: p1.toHexString() },
       { projectId: p2.toHexString() },
     ]);
     mocks.workspaceUserProjectsToArrayMock.mockResolvedValueOnce([{ projectId: p1.toHexString() }]);
+    mocks.workspaceUsersCollection.findOne.mockResolvedValueOnce({
+      role: "collaborator",
+      access_scope: "all",
+    });
+
+    const result = await getProjectAccessByEmail({
+      email: "agent@example.com",
+      workspaceId: "507f1f77bcf86cd799439011",
+    });
+
+    expect(result.projects).toHaveLength(1);
+    expect(result.projects[0]?.id).toBe(p1.toHexString());
+  });
+
+  it("non-admin restricted loads assignment by legacy project id", async () => {
+    const p1 = new ObjectId();
+    mocks.usersFindOneMock.mockResolvedValueOnce({
+      email: "agent@example.com",
+      role: "agent",
+      project_ids: [],
+    });
+    mocks.projectsToArrayMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { _id: p1, legacyProjectId: "legacy-proj-1", displayName: "Legacy One" },
+      ]);
+    mocks.workspaceProjectsToArrayMock.mockResolvedValueOnce([{ projectId: "legacy-proj-1" }]);
+    mocks.workspaceUserProjectsToArrayMock.mockResolvedValueOnce([{ projectId: "legacy-proj-1" }]);
+    mocks.workspaceUsersCollection.findOne.mockResolvedValueOnce({
+      role: "collaborator",
+      access_scope: "assigned",
+    });
 
     const result = await getProjectAccessByEmail({
       email: "agent@example.com",

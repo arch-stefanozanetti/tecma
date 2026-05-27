@@ -622,6 +622,8 @@ export interface ProjectAccessResponse {
   role: string | null;
   isAdmin: boolean;
   projects: ProjectAccessProject[];
+  /** Workspace tz suggerito quando l'utente ha una sola membership */
+  defaultWorkspaceId?: string | null;
 }
 
 export interface UserPreferences {

@@ -88,6 +88,7 @@ export async function createWorkspaceInvitation(
     await addWorkspaceUser(workspaceId, {
       userId: email,
       role: params.role,
+      access_scope: "assigned",
     });
     membershipAdded = true;
 
@@ -95,9 +96,13 @@ export async function createWorkspaceInvitation(
       await addWorkspaceUserProject(workspaceId, email, projectId);
     }
 
+    const userPatch: { permissions_override?: string[]; project_ids: string[] } = {
+      project_ids: projectIds,
+    };
     if (params.permissionsOverride !== undefined && params.permissionsOverride.length > 0) {
-      await updateUserById(userId, { permissions_override: params.permissionsOverride });
+      userPatch.permissions_override = params.permissionsOverride;
     }
+    await updateUserById(userId, userPatch);
 
     return {
       userId,

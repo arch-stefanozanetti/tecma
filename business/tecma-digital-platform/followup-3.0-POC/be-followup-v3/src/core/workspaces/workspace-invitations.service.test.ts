@@ -88,10 +88,12 @@ describe("createWorkspaceInvitation", () => {
     expect(addWorkspaceUser).toHaveBeenCalledWith("ws-1", {
       userId: "user@test.local",
       role: "collaborator",
+      access_scope: "assigned",
     });
     expect(addWorkspaceUserProject).toHaveBeenCalledWith("ws-1", "user@test.local", "proj-1");
     expect(updateUserById).toHaveBeenCalledWith("mongo-id-1", {
       permissions_override: ["clients.read"],
+      project_ids: ["proj-1"],
     });
   });
 
