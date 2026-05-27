@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { followupApi } from "../../api/followupApi";
-import type { UserProjectAccessRow, WorkspaceProjectOption, WorkspaceUserRole } from "../../types/domain";
+import type { UserProjectAccessRow, WorkspaceUserRole } from "../../types/domain";
 import { Button } from "../../components/ui/button";
 import { Checkbox } from "../../components/ui/checkbox";
 import {
@@ -15,6 +15,12 @@ import {
   PermissionOverrideMatrix,
   type PermissionCatalogGroup,
 } from "./PermissionOverrideMatrix";
+
+type WorkspaceProjectOption = {
+  projectId: string;
+  displayName?: string;
+  name?: string;
+};
 
 type Props = {
   workspaceId: string;

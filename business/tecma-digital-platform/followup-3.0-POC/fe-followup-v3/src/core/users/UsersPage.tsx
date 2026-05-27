@@ -1254,7 +1254,7 @@ export const UsersPage = () => {
                       <UserProjectAccessPanel
                         workspaceId={w.workspaceId}
                         userEmail={selectedUser.email}
-                        workspaceRole={w.role}
+                        workspaceRole={w.role as WorkspaceUserRole}
                         projects={workspaceProjectsByWorkspace[w.workspaceId] ?? []}
                         restrictedProjectIds={userProjectIdsByWorkspace[w.workspaceId] ?? []}
                         onAddProject={(projectId) => addProject(w.workspaceId, projectId)}
