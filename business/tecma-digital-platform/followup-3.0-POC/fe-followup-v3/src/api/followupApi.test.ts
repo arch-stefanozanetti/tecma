@@ -207,6 +207,26 @@ describe("followupApi", () => {
     });
   });
 
+  it("createWorkspaceInvitation posta su /workspaces/:id/invitations", async () => {
+    await followupApi.createWorkspaceInvitation("ws-1", {
+      email: "inv@tecma.test",
+      role: "collaborator",
+      projectIds: ["proj-1"],
+      roleLabel: "Collaborator",
+      permissions_override: ["clients.read"],
+    });
+    expect(http.postJson).toHaveBeenCalledWith(
+      "/workspaces/ws-1/invitations",
+      expect.objectContaining({
+        email: "inv@tecma.test",
+        role: "collaborator",
+        projectIds: ["proj-1"],
+        roleLabel: "Collaborator",
+        permissionsOverride: ["clients.read"],
+      })
+    );
+  });
+
   it("inviteUser include appPublicUrl da window.location.origin se omesso", async () => {
     Object.defineProperty(window, "location", {
       value: { ...window.location, origin: "https://fe-origin.test" },

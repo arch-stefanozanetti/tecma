@@ -48,6 +48,23 @@ services:
         sync: false
       - key: AWS_REGION
         value: eu-west-1
+      # Inviti utente / email attivazione — vedi docs/RENDER_FOLLOWUP_ENV.md
+      - key: APP_PUBLIC_URL
+        sync: false
+      - key: EMAIL_TRANSPORT
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: SES_SMTP_HOST
+        value: email-smtp.eu-central-1.amazonaws.com
+      - key: SES_SMTP_PORT
+        value: "587"
+      - key: SES_SMTP_USER
+        sync: false
+      - key: SES_SMTP_PASS
+        sync: false
+      - key: INVITE_TOKEN_EXPIRES_HOURS
+        value: "168"
 
   # Static: niente `region` né `plan` nel Blueprint (Render non li accetta su static).
   - type: web

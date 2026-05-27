@@ -664,6 +664,31 @@ export const followupApi = {
       ...body,
       appPublicUrl: body.appPublicUrl ?? (typeof window !== "undefined" ? window.location.origin : undefined)
     }),
+  /** Invito unificato workspace: utente + membership + progetti (+ override opz.) in una chiamata. */
+  createWorkspaceInvitation: (
+    workspaceId: string,
+    body: {
+      email: string;
+      role: WorkspaceUserRole;
+      projectIds: string[];
+      roleLabel?: string;
+      appPublicUrl?: string;
+      permissions_override?: string[];
+    }
+  ) =>
+    postJson<{
+      data: {
+        userId: string;
+        email: string;
+        workspaceId: string;
+        role: WorkspaceUserRole;
+        projectIds: string[];
+      };
+    }>(`/workspaces/${encodeURIComponent(workspaceId)}/invitations`, {
+      ...body,
+      permissionsOverride: body.permissions_override,
+      appPublicUrl: body.appPublicUrl ?? (typeof window !== "undefined" ? window.location.origin : undefined),
+    }),
   listWorkspaces: () => getJson<WorkspaceRow[]>("/workspaces"),
   /** Ruoli per membership workspace (da DB). In caso errore restituisce array vuoto. */
   getWorkspaceRoles: async (): Promise<{ roleKey: string; label: string }[]> => {

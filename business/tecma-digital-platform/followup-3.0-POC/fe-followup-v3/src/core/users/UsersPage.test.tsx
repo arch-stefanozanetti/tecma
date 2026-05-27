@@ -32,6 +32,7 @@ vi.mock("../../api/followupApi", () => ({
     unassignEntity: vi.fn(),
     assignEntity: vi.fn(),
     inviteUser: vi.fn(),
+    createWorkspaceInvitation: vi.fn(),
     addWorkspaceUser: vi.fn(),
     updateWorkspaceUser: vi.fn(),
     getPermissionCatalog: vi.fn().mockResolvedValue({ data: { groups: [] } }),
@@ -80,11 +81,19 @@ describe("UsersPage — invito utente", () => {
     vi.mocked(followupApi.listWorkspaceProjects).mockResolvedValue({
       data: [{ projectId: "proj-x", displayName: "Progetto X" }],
     });
-    vi.mocked(followupApi.inviteUser).mockResolvedValue({ userId: "uid-new" });
+    vi.mocked(followupApi.createWorkspaceInvitation).mockResolvedValue({
+      data: {
+        userId: "uid-new",
+        email: "brandnew@invite.test",
+        workspaceId: "ws1",
+        role: "collaborator",
+        projectIds: ["proj-x"],
+      },
+    });
     vi.mocked(followupApi.addWorkspaceUser).mockResolvedValue({ workspaceUser: {} } as never);
   });
 
-  it("invita via email: wizard 4 passi, inviteUser, addWorkspaceUser e addWorkspaceUserProject", async () => {
+  it("invita via email: wizard 4 passi con invito workspace unificato", async () => {
     renderUsers();
     expect(await screen.findByText("already@registered.local")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /aggiungi utente/i }));
@@ -112,24 +121,22 @@ describe("UsersPage — invito utente", () => {
     await userEvent.click(screen.getByRole("button", { name: /invita e aggiungi al workspace/i }));
 
     await vi.waitFor(() => {
-      expect(followupApi.inviteUser).toHaveBeenCalledWith(
+      expect(followupApi.createWorkspaceInvitation).toHaveBeenCalledWith(
+        "ws1",
         expect.objectContaining({
           email: "brandnew@invite.test",
-          projectId: "proj-x",
-          projectName: "Progetto X",
+          role: "collaborator",
+          projectIds: ["proj-x"],
           roleLabel: "Collaborator",
         })
       );
     });
-    expect(followupApi.addWorkspaceUser).toHaveBeenCalledWith("ws1", {
-      userId: "brandnew@invite.test",
-      role: "collaborator",
-    });
-    expect(followupApi.addWorkspaceUserProject).toHaveBeenCalledWith("ws1", "brandnew@invite.test", "proj-x");
+    expect(followupApi.inviteUser).not.toHaveBeenCalled();
+    expect(followupApi.addWorkspaceUser).not.toHaveBeenCalled();
   });
 
-  it("mostra errore se inviteUser fallisce (es. 502)", async () => {
-    vi.mocked(followupApi.inviteUser).mockRejectedValue(new Error("502 Bad Gateway"));
+  it("mostra errore se createWorkspaceInvitation fallisce (es. 502)", async () => {
+    vi.mocked(followupApi.createWorkspaceInvitation).mockRejectedValue(new Error("502 Bad Gateway"));
     renderUsers();
     await screen.findByText("already@registered.local");
     await userEvent.click(screen.getByRole("button", { name: /aggiungi utente/i }));

@@ -917,14 +917,7 @@ export const UsersPage = () => {
                     setAddUserSaving(true);
                     setAddUserError(null);
                     const email = addUserEmail.trim();
-                    const primaryProjectId = inviteSelectedProjectIds[0] ?? "";
                     try {
-                      const applyOverridesIfAny = async (mongoUserId: string | null | undefined) => {
-                        if (addUserOverrideDraft.length === 0 || !mongoUserId) return;
-                        await followupApi.patchAdminUser(mongoUserId, {
-                          permissions_override: addUserOverrideDraft,
-                        });
-                      };
                       const attachProjects = async () => {
                         for (const pid of inviteSelectedProjectIds) {
                           await followupApi.addWorkspaceUserProject(addUserWorkspaceId, email, pid);
@@ -939,26 +932,15 @@ export const UsersPage = () => {
                           setAddUserSaving(false);
                           return;
                         }
-                        const proj = workspaceProjectsForInvite.find((p) => p.projectId === primaryProjectId);
-                        const projectName = proj?.displayName ?? proj?.name ?? primaryProjectId;
-                        const { userId: invitedMongoId } = await followupApi.inviteUser({
+                        await followupApi.createWorkspaceInvitation(addUserWorkspaceId, {
                           email,
-                          projectId: primaryProjectId,
-                          projectName,
+                          role: addUserRole,
+                          projectIds: inviteSelectedProjectIds,
                           roleLabel: getRoleLabel(addUserRole),
+                          ...(addUserOverrideDraft.length > 0
+                            ? { permissions_override: addUserOverrideDraft }
+                            : {}),
                         });
-                        try {
-                          await followupApi.addWorkspaceUser(addUserWorkspaceId, { userId: email, role: addUserRole });
-                          await attachProjects();
-                        } catch (e2) {
-                          setAddUserError(
-                            `Invito inviato, ma aggiunta al workspace fallita: ${e2 instanceof Error ? e2.message : "errore"}. Aggiungi l'utente al workspace dopo l'attivazione.`
-                          );
-                          await applyOverridesIfAny(invitedMongoId);
-                          load();
-                          return;
-                        }
-                        await applyOverridesIfAny(invitedMongoId);
                       } else {
                         await followupApi.addWorkspaceUser(addUserWorkspaceId, { userId: email, role: addUserRole });
                         await attachProjects();

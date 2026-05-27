@@ -332,6 +332,37 @@ describe("integration: auth HTTP routes", () => {
     expect(u?.status).toBe("invited");
   });
 
+  it("POST /users invite accepts FE payload with roleLabel (not role)", async () => {
+    const { signAccessToken } = await import("../core/auth/token.service.js");
+    const { resetEmailMockOutbox, getEmailMockOutbox } = await import("../core/email/email.service.js");
+    const { getDb } = await import("../config/db.js");
+    await getDb().collection("tz_users").deleteOne({ email: "invite-rolelabel@test.local" });
+    resetEmailMockOutbox();
+    const token = signAccessToken({
+      sub: adminId,
+      email: "admin-auth-api@test.local",
+      role: "admin",
+      isAdmin: true,
+      permissions: ["*"],
+      projectId: "proj-auth-1",
+    });
+    const res = await st()
+      .post("/v1/users")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        email: "invite-rolelabel@test.local",
+        projectId: "proj-auth-1",
+        projectName: "Render project",
+        roleLabel: "Collaborator",
+        appPublicUrl: "https://followup-3-fe.onrender.com",
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.userId).toBeTruthy();
+    const html = getEmailMockOutbox()[0]?.html ?? "";
+    expect(html).toContain("Collaborator");
+    expect(html).toContain("followup-3-fe.onrender.com/set-password");
+  });
+
   it("POST /users duplicate email returns 409", async () => {
     const { signAccessToken } = await import("../core/auth/token.service.js");
     const token = signAccessToken({
@@ -361,6 +392,75 @@ describe("integration: auth HTTP routes", () => {
         projectName: "P"
       });
     expect(res2.status).toBe(409);
+  });
+
+  it("PATCH /users/:id persists permissions_override", async () => {
+    const { signAccessToken } = await import("../core/auth/token.service.js");
+    const { getDb } = await import("../config/db.js");
+    const { resetEmailMockOutbox } = await import("../core/email/email.service.js");
+    resetEmailMockOutbox();
+    const token = signAccessToken({
+      sub: adminId,
+      email: "admin-auth-api@test.local",
+      role: "admin",
+      isAdmin: true,
+      permissions: ["*"],
+      projectId: "proj-auth-1",
+    });
+    const inviteRes = await st()
+      .post("/v1/users")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        email: "override-patch@test.local",
+        roleLabel: "Collaborator",
+        projectId: "proj-auth-1",
+        projectName: "P",
+      });
+    expect(inviteRes.status).toBe(200);
+    const userId = inviteRes.body.userId as string;
+    const patchRes = await st()
+      .patch(`/v1/users/${userId}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ permissions_override: ["clients.read"] });
+    expect(patchRes.status).toBe(200);
+    const u = await getDb().collection("tz_users").findOne({ _id: new (await import("mongodb")).ObjectId(userId) });
+    expect(u?.permissions_override).toEqual(["clients.read"]);
+  });
+
+  it("POST /users invite then set-password activates user", async () => {
+    const { signAccessToken } = await import("../core/auth/token.service.js");
+    const { resetEmailMockOutbox, getEmailMockOutbox } = await import("../core/email/email.service.js");
+    const { getDb } = await import("../config/db.js");
+    await getDb().collection("tz_users").deleteOne({ email: "activate-flow@test.local" });
+    resetEmailMockOutbox();
+    const token = signAccessToken({
+      sub: adminId,
+      email: "admin-auth-api@test.local",
+      role: "admin",
+      isAdmin: true,
+      permissions: ["*"],
+      projectId: "proj-auth-1",
+    });
+    const inviteRes = await st()
+      .post("/v1/users")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        email: "activate-flow@test.local",
+        roleLabel: "Collaborator",
+        projectId: "proj-auth-1",
+        projectName: "Activation",
+        appPublicUrl: "http://localhost:5177",
+      });
+    expect(inviteRes.status).toBe(200);
+    const html = getEmailMockOutbox()[0]?.html ?? "";
+    const m = html.match(/token=([a-f0-9]+)/i);
+    expect(m).toBeTruthy();
+    const activate = await st()
+      .post("/v1/auth/set-password-from-invite")
+      .send({ token: m![1], password: "ActivateFlow99!" });
+    expect(activate.status).toBe(200);
+    const u = await getDb().collection("tz_users").findOne({ email: "activate-flow@test.local" });
+    expect(u?.status).toBe("active");
   });
 
   it("parallel set-password-from-invite: only first succeeds", async () => {

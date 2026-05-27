@@ -21,6 +21,7 @@ import {
   addWorkspaceUserProject,
   removeWorkspaceUserProject,
 } from "../../core/workspaces/workspace-user-projects.service.js";
+import { createWorkspaceInvitation } from "../../core/workspaces/workspace-invitations.service.js";
 import {
   listEntityAssignments,
   listEntityAssignmentsByUser,
@@ -58,6 +59,7 @@ import { getOpenRentRequestBadgesByApartmentIds } from "../../core/requests/requ
 import type { MembershipRole } from "../../types/models.js";
 import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
+import { z } from "zod";
 import { requireAdmin, requireTecmaAdmin } from "../authMiddleware.js";
 import { requireCanAccessWorkspace } from "../accessMiddleware.js";
 import { requireAnyPermission, requirePermission, requirePermissionOrTecmaAdmin } from "../permissionMiddleware.js";
@@ -97,6 +99,61 @@ workspacesRoutes.get(
   requireCanAccessWorkspace("id"),
   handleAsync((req) => listWorkspaceUsers(req.params.id))
 );
+
+const workspaceInvitationBodySchema = z.object({
+  email: z.string().email(),
+  role: z.enum(["owner", "admin", "collaborator", "viewer"]).default("collaborator"),
+  projectIds: z.array(z.string().min(1)).min(1).max(100),
+  roleLabel: z.string().min(1).optional(),
+  appPublicUrl: z.string().url().optional(),
+  permissionsOverride: z.array(z.string()).optional(),
+  permissions_override: z.array(z.string()).optional(),
+});
+
+workspacesRoutes.post(
+  "/workspaces/:id/invitations",
+  requireAdmin,
+  requireCanAccessWorkspace("id"),
+  handleAsync(async (req) => {
+    const workspaceId = req.params.id;
+    const body = workspaceInvitationBodySchema.parse(req.body);
+    const permissionsOverride =
+      body.permissionsOverride !== undefined ? body.permissionsOverride : body.permissions_override;
+    const { resolveInviteAppBaseUrl } = await import("../../utils/inviteLinkBaseUrl.js");
+    const appPublicBaseUrl = resolveInviteAppBaseUrl(req, body.appPublicUrl ?? null);
+    const result = await createWorkspaceInvitation({
+      workspaceId,
+      email: body.email,
+      role: body.role,
+      projectIds: body.projectIds,
+      roleLabel: body.roleLabel,
+      appPublicBaseUrl,
+      permissionsOverride,
+    });
+    safeAsync(
+      auditRecord({
+        action: "workspace.invitation.created",
+        workspaceId,
+        entityType: "user",
+        entityId: result.userId,
+        actor: { type: "user", userId: req.user?.sub, email: req.user?.email },
+        payload: {
+          email: result.email,
+          role: result.role,
+          projectIds: result.projectIds,
+        },
+      }),
+      {
+        operation: "audit.workspace.invitation.created",
+        workspaceId,
+        entityId: result.userId,
+        userId: req.user?.sub,
+      }
+    );
+    return { data: result };
+  })
+);
+
 workspacesRoutes.post(
   "/workspaces/:id/users",
   requireAdmin,

@@ -11,6 +11,26 @@ Se il messaggio è **«Impossibile raggiungere le API … Failed to fetch»** do
 | `APP_PUBLIC_URL` | `https://followup-3-fe.onrender.com` (URL pubblico del sito statico, **senza** slash finale) |
 | `CORS_ORIGINS` | (opzionale) altri domini, separati da virgola |
 
+### Email inviti utente (obbligatorio per creazione collaboratore)
+
+Senza SMTP configurato, `POST /v1/users` e `POST /v1/workspaces/:id/invitations` rispondono **503** (invio email non configurato). In produzione usare **SES SMTP**.
+
+| Variabile | Obbligatorio | Valore tipico |
+|-----------|--------------|----------------|
+| `EMAIL_TRANSPORT` | sì | `smtp` (in locale/test: `mock` + `INVITE_ALLOW_MOCK_EMAIL=true`) |
+| `SES_SMTP_HOST` | sì con smtp | `email-smtp.eu-central-1.amazonaws.com` |
+| `SES_SMTP_PORT` | no | `587` |
+| `SES_SMTP_USER` | sì con smtp | Username IAM SMTP SES |
+| `SES_SMTP_PASS` | sì con smtp | Password IAM SMTP SES |
+| `EMAIL_FROM` | sì con smtp | Mittente verificato in SES, es. `noreply@tuodominio.it` |
+| `INVITE_TOKEN_EXPIRES_HOURS` | no | `168` (7 giorni) |
+| `INVITE_LINK_ALLOWED_HOSTS` | no | Host extra per link invito (virgola) |
+| `INVITE_ALLOW_MOCK_EMAIL` | no | `true` solo dev/staging senza consegna reale |
+
+Il link nell’email punta a `{APP_PUBLIC_URL}/set-password?token=...` — **`APP_PUBLIC_URL` deve coincidere con l’URL del frontend statico**.
+
+Dopo deploy BE: invita un utente di test dal wizard **Utenti**; verifica email e completamento su `/set-password`.
+
 Dopo il deploy, `APP_PUBLIC_URL` può elencare più origini separate da virgola, es.  
 `https://followup-3-fe.onrender.com,http://localhost:5177`
 
