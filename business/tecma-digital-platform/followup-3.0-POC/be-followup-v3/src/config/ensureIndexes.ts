@@ -64,6 +64,7 @@ const CORE_INDEXES: IndexDefinition[] = [
   { collection: "tz_proactive_outreach_log", keys: { workspaceId: 1, clientId: 1, sentAt: -1 } },
   { collection: "tz_workspace_users", keys: { workspaceId: 1, userId: 1 }, options: { unique: true } },
   { collection: "tz_workspace_user_projects", keys: { workspaceId: 1, userId: 1, projectId: 1 }, options: { unique: true } },
+  { collection: "tz_user_project_access", keys: { workspaceId: 1, userId: 1, projectId: 1 }, options: { unique: true } },
   { collection: "tz_entity_assignments", keys: { workspaceId: 1, entityType: 1, entityId: 1, userId: 1 }, options: { unique: true } },
   { collection: "tz_entity_assignments", keys: { workspaceId: 1, userId: 1 } },
 

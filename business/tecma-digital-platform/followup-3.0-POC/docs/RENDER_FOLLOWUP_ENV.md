@@ -65,3 +65,7 @@ Impostare in **Environment** del servizio statico (Build-time env), poi **Clear 
 1. Da browser: apri DevTools → Network → una richiesta verso il BE: se **nessuna risposta** e in console errore CORS, controlla `APP_PUBLIC_URL` sul BE.
 2. `curl -I https://followup-3-be.onrender.com/v1/health` deve rispondere 200.
 3. Verifica proprietà dominio Aikido (file sul BE): `curl -sS https://followup-3-be.onrender.com/aikido.txt` deve rispondere 200 con il token atteso (route root `registerRootPublicRoutes` in `be-followup-v3`). Sul FE statico esiste anche `public/aikido.txt` per lo stesso token se Aikido richiede l’URL `followup-3-fe`.
+
+## Deploy note (2026-05-27)
+
+Redeploy BE+FE dopo epic Access & Visibility (`ListQueryContext`, `permissions_deny`, `tz_user_project_access`). Migrazione dati legacy: `POST /v1/workspaces/:id/project-access/migrate-legacy` (admin) oppure `npm run migrate:user-project-access -- <workspaceId>` in `be-followup-v3`.

@@ -61,6 +61,7 @@ import {
   listUserProjectAccessForUser,
   upsertUserProjectAccess,
   bulkReplaceUserProjectAccess,
+  migrateLegacyUserProjectAccessForWorkspace,
 } from "../../core/access/user-project-access.service.js";
 import { buildListQueryContext, clampProjectIds, toEntityAssignmentViewer } from "../../core/access/listQueryContext.js";
 import type { MembershipRole } from "../../types/models.js";
@@ -350,6 +351,16 @@ workspacesRoutes.put(
     };
     const data = await bulkReplaceUserProjectAccess(req.params.id, userId, body.rows ?? []);
     return { data };
+  })
+);
+
+workspacesRoutes.post(
+  "/workspaces/:id/project-access/migrate-legacy",
+  requireCanAccessWorkspace("id"),
+  requireAdmin,
+  handleAsync(async (req) => {
+    const result = await migrateLegacyUserProjectAccessForWorkspace(req.params.id);
+    return { data: result };
   })
 );
 

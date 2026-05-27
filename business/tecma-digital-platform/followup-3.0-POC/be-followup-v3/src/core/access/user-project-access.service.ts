@@ -131,3 +131,23 @@ export async function migrateLegacyUserProjectAccess(workspaceId: string, userId
   }
   return created;
 }
+
+/** Migra tutti gli utenti con membership nel workspace. */
+export async function migrateLegacyUserProjectAccessForWorkspace(
+  workspaceId: string
+): Promise<{ users: number; rowsCreated: number }> {
+  const wid = workspaceId.trim();
+  const db = getDb();
+  const members = await db
+    .collection("tz_user_workspaces")
+    .find({ workspaceId: wid })
+    .project({ userId: 1 })
+    .toArray();
+  let rowsCreated = 0;
+  for (const m of members) {
+    const userId = String((m as { userId?: string }).userId ?? "").trim();
+    if (!userId) continue;
+    rowsCreated += await migrateLegacyUserProjectAccess(wid, userId);
+  }
+  return { users: members.length, rowsCreated };
+}

@@ -8,7 +8,7 @@ import { followupApi } from "../../api/followupApi";
 import type { UserWithVisibilityRow, WorkspaceRow, WorkspaceUserRole } from "../../types/domain";
 import { getMaxWorkspaceRole } from "../../constants/workspaceRoles";
 import { useWorkspaceRoles } from "../../hooks/useWorkspaceRoles";
-import { useWorkspace } from "../../auth/projectScope";
+import { loadProjectScope, saveProjectScope, useWorkspace } from "../../auth/projectScope";
 import { useToast } from "../../contexts/ToastContext";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
@@ -417,6 +417,27 @@ export const UsersPage = () => {
             }
           : null
       );
+      toastSuccess(
+        selectedUser.email.trim().toLowerCase() === (currentEmail ?? "").trim().toLowerCase()
+          ? "Permessi salvati. Sessione aggiornata."
+          : "Permessi salvati. L'utente deve cambiare workspace/progetto o rifare login."
+      );
+      if (selectedUser.email.trim().toLowerCase() === (currentEmail ?? "").trim().toLowerCase()) {
+        try {
+          const u = await followupApi.me();
+          const cur = loadProjectScope();
+          if (cur) {
+            saveProjectScope({
+              ...cur,
+              permissions: u.permissions ?? [],
+              isTecmaAdmin: u.isTecmaAdmin === true,
+              isAdmin: u.isAdmin === true,
+            });
+          }
+        } catch {
+          /* rete */
+        }
+      }
       load();
     } catch (e) {
       toastError(e instanceof Error ? e.message : "Errore salvataggio permessi");

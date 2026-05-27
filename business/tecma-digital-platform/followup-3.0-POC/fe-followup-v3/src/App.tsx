@@ -651,10 +651,10 @@ export const App = () => {
     void followupApi
       .getEffectiveAccess(wid, pid)
       .then((res) => {
-        if (cancelled || !res.data?.permissions?.length) return;
+        if (cancelled || !res.data) return;
         const cur = loadProjectScope();
         if (!cur) return;
-        saveProjectScope({ ...cur, permissions: res.data.permissions });
+        saveProjectScope({ ...cur, permissions: res.data.permissions ?? [] });
         setAccessVersion((v) => v + 1);
       })
       .catch(() => {});
