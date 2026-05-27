@@ -113,7 +113,20 @@ export interface UserWithVisibilityRow {
   projectIds: string[];
   /** Permessi aggiuntivi (additivi al ruolo workspace), da tz_users */
   permissions_override?: string[];
+  /** Permessi revocati rispetto al ruolo */
+  permissions_deny?: string[];
   workspaces: UserWorkspaceMembership[];
+}
+
+/** Accesso per-progetto (tz_user_project_access). */
+export interface UserProjectAccessRow {
+  workspaceId: string;
+  userId: string;
+  projectId: string;
+  role?: string;
+  access_scope?: "all" | "assigned";
+  permissions_override?: string[];
+  permissions_deny?: string[];
 }
 
 export type AdditionalInfoType = "text" | "radio" | "slider" | "number" | "checkbox";

@@ -5,6 +5,7 @@ import { HttpError, PaginatedResponse } from "../../types/http.js";
 import { dispatchEvent } from "../automations/automation-events.service.js";
 import { logger } from "../../observability/logger.js";
 import { hasPermission, PERMISSIONS } from "../rbac/permissions.js";
+import { isNoAccessProjectIds, emptyListResult } from "../access/listQueryContext.js";
 import {
   CalendarEventCreateExtendedSchema,
   CalendarEventUpdateExtendedSchema,
@@ -16,6 +17,9 @@ import {
   type CalendarActivityStatus,
   type CalendarOutcome,
 } from "./calendar-domain.js";
+import type { EntityAssignmentListViewer } from "../workspaces/entity-assignment-query.util.js";
+import { shouldApplyEntityAssignmentListFilter } from "../workspaces/entity-assignment-query.util.js";
+import { calendarEntityAssignmentVisibilityStages } from "../workspaces/entity-assignment-pipeline.util.js";
 
 export interface CalendarEvent {
   _id: string;
@@ -46,6 +50,7 @@ export interface CalendarEvent {
 export type CalendarQueryContext = {
   userEmail: string;
   permissions: string[];
+  viewer?: EntityAssignmentListViewer;
 };
 
 async function assertWorkspaceMember(workspaceId: string, userIdEmail: string): Promise<void> {
@@ -173,14 +178,41 @@ const queryPrimaryCalendarEvents = async (
   const db = getDb();
   const collection = db.collection("calendar_events");
 
+  const { page, perPage } = input;
+  const { skip, limit } = buildPagination(page, perPage);
+  const match = buildMatch(input, ctx);
+
+  if (shouldApplyEntityAssignmentListFilter(ctx?.viewer)) {
+    const visibility = calendarEntityAssignmentVisibilityStages(input.workspaceId, ctx!.viewer);
+    const basePipeline = [{ $match: match }, ...visibility];
+    const [raw, countArr] = await Promise.all([
+      collection
+        .aggregate([
+          ...basePipeline,
+          { $sort: { startsAt: 1 } },
+          { $skip: skip },
+          { $limit: limit },
+          { $project: { __client_ea: 0 } },
+        ])
+        .toArray(),
+      collection.aggregate([...basePipeline, { $count: "total" }]).toArray(),
+    ]);
+    const total = typeof countArr[0]?.total === "number" ? countArr[0].total : 0;
+    const data = (raw as CalendarEventRecord[]).map(docToEvent);
+    return {
+      data,
+      pagination: { page, perPage, total, totalPages: Math.ceil(total / perPage) },
+    };
+  }
+
   const [raw, total] = await Promise.all([
     collection
-      .find(buildMatch(input, ctx))
+      .find(match)
       .sort({ startsAt: 1 })
-      .skip(buildPagination(input.page, input.perPage).skip)
-      .limit(buildPagination(input.page, input.perPage).limit)
+      .skip(skip)
+      .limit(limit)
       .toArray(),
-    collection.countDocuments(buildMatch(input, ctx)),
+    collection.countDocuments(match),
   ]);
 
   const data = (raw as CalendarEventRecord[]).map(docToEvent);
@@ -200,6 +232,9 @@ export const queryCalendarEvents = async (
   ctx?: CalendarQueryContext
 ): Promise<PaginatedResponse<CalendarEvent>> => {
   const input = ListQuerySchema.parse(rawInput);
+  if (isNoAccessProjectIds(input.projectIds)) {
+    return emptyListResult(input.page, input.perPage);
+  }
   return queryPrimaryCalendarEvents(input, ctx);
 };
 

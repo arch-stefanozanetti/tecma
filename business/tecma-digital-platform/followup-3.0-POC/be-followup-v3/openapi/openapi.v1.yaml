@@ -1332,6 +1332,13 @@
                       "type": "string"
                     }
                   },
+                  "permissions_deny": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Permessi revocati rispetto al ruolo (override negativo)"
+                  },
                   "isDisabled": {
                     "type": "boolean"
                   }
@@ -1670,6 +1677,45 @@
           "500": {
             "description": "Errore server"
           }
+        }
+      }
+    },
+    "/session/effective-access": {
+      "get": {
+        "tags": [
+          "session"
+        ],
+        "operationId": "getSessionEffectiveAccess",
+        "summary": "Permessi effettivi per workspace e progetto attivo",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ruolo, accessScope e permissions effettivi"
+          },
+          "401": {},
+          "403": {}
         }
       }
     },

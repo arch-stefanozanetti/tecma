@@ -640,6 +640,29 @@ export const App = () => {
     };
   }, [pathname, projectScope?.selectedProjectIds?.length, projectScope?.email]);
 
+  /** Permessi effettivi per progetto attivo (tz_user_project_access + membership). */
+  useEffect(() => {
+    if (isPublicAppRoute(pathname)) return;
+    const scope = loadProjectScope();
+    const wid = scope?.workspaceId?.trim();
+    const pid = scope?.selectedProjectIds?.[0];
+    if (!wid || !pid || isLegacyWorkspaceId(wid)) return;
+    let cancelled = false;
+    void followupApi
+      .getEffectiveAccess(wid, pid)
+      .then((res) => {
+        if (cancelled || !res.data?.permissions?.length) return;
+        const cur = loadProjectScope();
+        if (!cur) return;
+        saveProjectScope({ ...cur, permissions: res.data.permissions });
+        setAccessVersion((v) => v + 1);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, projectScope?.workspaceId, projectScope?.selectedProjectIds?.[0]]);
+
   /** Corregge sessioni con workspaceId legacy (demo/dev-1/prod) salvato al posto dell'id Mongo. */
   useEffect(() => {
     if (isPublicAppRoute(pathname)) return;
@@ -921,6 +944,20 @@ export const App = () => {
                   selectedProjectIds: newSelected,
                 });
                 updateSelectedProjectIds(newSelected);
+                void followupApi
+                  .me()
+                  .then((u) => {
+                    const cur = loadProjectScope();
+                    if (!cur?.email) return;
+                    saveProjectScope({
+                      ...cur,
+                      permissions: u.permissions ?? cur.permissions,
+                      isAdmin: u.isAdmin ?? cur.isAdmin,
+                      isTecmaAdmin: u.isTecmaAdmin === true,
+                    });
+                    setAccessVersion((v) => v + 1);
+                  })
+                  .catch(() => {});
                 return followupApi.saveUserPreferences(currentScope.email, targetWorkspaceId, newSelected);
               })
               .catch(() => {});

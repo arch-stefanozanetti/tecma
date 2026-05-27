@@ -6,14 +6,17 @@ import { requirePermission } from "../permissionMiddleware.js";
 import { PERMISSIONS } from "../../core/rbac/permissions.js";
 import { canAccess } from "../../core/access/canAccess.js";
 import { HttpError } from "../../types/http.js";
+import { resolveListQueryFromRequest } from "../helpers/listQueryViewer.js";
+import type { AccessTokenPayload } from "../../core/auth/token.service.js";
 
-function calendarCtx(req: { user?: { email?: string; permissions?: string[] } }): {
+function calendarCtx(req: { user?: AccessTokenPayload }, viewer?: ReturnType<typeof import("../../core/access/listQueryContext.js").toEntityAssignmentViewer>): {
   userEmail: string;
   permissions: string[];
+  viewer?: typeof viewer;
 } {
   const email = req.user?.email?.trim().toLowerCase();
   if (!email) throw new HttpError("Unauthorized", 401);
-  return { userEmail: email, permissions: req.user?.permissions ?? [] };
+  return { userEmail: email, permissions: req.user?.permissions ?? [], viewer };
 }
 
 export const calendarRoutes = Router();
@@ -28,7 +31,10 @@ calendarRoutes.post(
   "/calendar/events/query",
   requirePermission(PERMISSIONS.CALENDAR_READ),
   requireCanAccessWorkspace("workspaceId"),
-  handleAsync((req) => queryCalendarEvents(req.body, calendarCtx(req)))
+  handleAsync(async (req) => {
+    const { input, viewer } = await resolveListQueryFromRequest(req.user, req.body);
+    return queryCalendarEvents(input, calendarCtx(req, viewer));
+  })
 );
 calendarRoutes.post(
   "/calendar/events",

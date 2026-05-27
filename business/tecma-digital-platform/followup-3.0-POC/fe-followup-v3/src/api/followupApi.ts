@@ -136,6 +136,7 @@ import type {
   WorkspaceUserRole,
   AccessScope,
   UserWithVisibilityRow,
+  UserProjectAccessRow,
   CustomerNeedRow,
   OpportunityRow,
   InitiativeRow,
@@ -557,11 +558,12 @@ export const followupApi = {
       role: string;
       status: "invited" | "active" | "disabled";
       permissions_override: string[];
+      permissions_deny: string[];
       isDisabled: boolean;
       system_role: "tecma_admin" | null;
     }>
   ) =>
-    patchJson<{ ok: boolean; user: { permissions_override?: string[] } | null }>(
+    patchJson<{ ok: boolean; user: { permissions_override?: string[]; permissions_deny?: string[] } | null }>(
       `/users/${encodeURIComponent(userId)}`,
       body
     ),
@@ -1269,6 +1271,38 @@ export const followupApi = {
       email,
       ...(workspaceId ? { workspaceId } : {}),
     }),
+  getEffectiveAccess: (workspaceId: string, projectId: string) =>
+    getJson<{
+      data: {
+        role: string;
+        accessScope: "all" | "assigned";
+        permissions: string[];
+        inScope: boolean;
+      };
+    }>(`/session/effective-access?workspaceId=${encodeURIComponent(workspaceId)}&projectId=${encodeURIComponent(projectId)}`),
+  listUserProjectAccess: (workspaceId: string, userId: string) =>
+    getJson<{ data: UserProjectAccessRow[] }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/users/${encodeURIComponent(userId)}/project-access`
+    ),
+  putUserProjectAccess: (
+    workspaceId: string,
+    userId: string,
+    projectId: string,
+    body: Partial<UserProjectAccessRow>
+  ) =>
+    putJson<{ data: UserProjectAccessRow }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/users/${encodeURIComponent(userId)}/projects/${encodeURIComponent(projectId)}/access`,
+      body
+    ),
+  bulkReplaceUserProjectAccess: (
+    workspaceId: string,
+    userId: string,
+    rows: UserProjectAccessRow[]
+  ) =>
+    putJson<{ data: UserProjectAccessRow[] }>(
+      `/workspaces/${encodeURIComponent(workspaceId)}/users/${encodeURIComponent(userId)}/project-access`,
+      { rows }
+    ),
   getUserPreferences: (email: string) =>
     getJson<UserPreferences>(`/session/preferences?email=${encodeURIComponent(email)}`),
   saveUserPreferences: (email: string, workspaceId: string, selectedProjectIds: string[]) =>

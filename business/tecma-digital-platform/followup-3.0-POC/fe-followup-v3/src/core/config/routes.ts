@@ -145,6 +145,10 @@ export type SectionPermissionSpec = string | readonly string[];
  * Sezione assente = nessun gate permesso (solo feature flag / admin dove già previsto).
  */
 export const SECTION_REQUIRED_PERMISSION: Partial<Record<Section, SectionPermissionSpec>> = {
+  users: "users.read",
+  workspaces: "settings.read",
+  projects: "settings.read",
+  workflowConfig: "settings.read",
   calendar: "calendar.read",
   clients: "clients.read",
   apartments: "apartments.read",

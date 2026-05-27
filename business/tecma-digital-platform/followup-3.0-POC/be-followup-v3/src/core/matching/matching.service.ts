@@ -6,6 +6,7 @@ import { namesFromDoc } from "../clients/client-name.util.js";
 import { getApartmentById } from "../apartments/apartments.service.js";
 import type { RawPrice } from "../pricing/price-normalizer.js";
 import { scoreApartmentForClient, scoreClientForApartment } from "./matching-score.util.js";
+import type { EntityAssignmentListViewer } from "../workspaces/entity-assignment-query.util.js";
 
 export interface ClientCandidateItem {
   _id: string;
@@ -91,12 +92,16 @@ async function loadClientMatchingFields(clientId: string): Promise<{
  */
 export async function getClientCandidates(
   clientId: string,
-  _workspaceId: string,
-  _projectIds: string[]
+  workspaceId: string,
+  projectIds: string[],
+  viewer?: EntityAssignmentListViewer
 ): Promise<{ data: CandidateEntry<ApartmentCandidateItem>[] }> {
-  const { client } = await getClientById(clientId);
+  const { client } = await getClientById(clientId, viewer);
   const projectId = client.projectId;
   if (!projectId) return { data: [] };
+  if (workspaceId && projectIds.length > 0 && !projectIds.includes(projectId)) {
+    return { data: [] };
+  }
 
   const extra = await loadClientMatchingFields(clientId);
   const db = getDb();
@@ -155,12 +160,16 @@ export async function getClientCandidates(
  */
 export async function getApartmentCandidates(
   apartmentId: string,
-  _workspaceId: string,
-  _projectIds: string[]
+  workspaceId: string,
+  projectIds: string[],
+  viewer?: EntityAssignmentListViewer
 ): Promise<{ data: CandidateEntry<ClientCandidateItem>[] }> {
-  const { apartment } = await getApartmentById(apartmentId);
+  const { apartment } = await getApartmentById(apartmentId, viewer);
   const projectId = apartment.projectId;
   if (!projectId) return { data: [] };
+  if (workspaceId && projectIds.length > 0 && !projectIds.includes(projectId)) {
+    return { data: [] };
+  }
 
   const apartmentHex =
     typeof apartment._id === "string" && ObjectId.isValid(apartmentId)

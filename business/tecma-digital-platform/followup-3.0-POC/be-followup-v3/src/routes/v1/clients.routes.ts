@@ -7,8 +7,10 @@ import { requireCanAccessWorkspace, requireCanAccessProject } from "../accessMid
 import { requirePermission } from "../permissionMiddleware.js";
 import { PERMISSIONS } from "../../core/rbac/permissions.js";
 import { auditAndDispatchEntityEvent } from "../helpers/auditAndDispatch.js";
-import { parseListQueryFromRequest } from "../helpers/parseListQuery.js";
-import { toEntityAssignmentListViewer } from "../helpers/listQueryViewer.js";
+import { resolveListQueryFromRequestQuery } from "../helpers/parseListQuery.js";
+import { resolveListQueryFromRequest, toEntityAssignmentListViewer } from "../helpers/listQueryViewer.js";
+import { buildListQueryContext, clampProjectIds, toEntityAssignmentViewer } from "../../core/access/listQueryContext.js";
+import { HttpError } from "../../types/http.js";
 
 export const clientsRoutes = Router();
 
@@ -16,13 +18,26 @@ clientsRoutes.post(
   "/clients/query",
   requirePermission(PERMISSIONS.CLIENTS_READ),
   requireCanAccessWorkspace("workspaceId"),
-  handleAsync((req) => queryClients(req.body, toEntityAssignmentListViewer(req.user)))
+  handleAsync(async (req) => {
+    const { input, viewer } = await resolveListQueryFromRequest(req.user, req.body);
+    return queryClients(input, viewer);
+  })
 );
 clientsRoutes.get(
   "/clients/:id",
   requirePermission(PERMISSIONS.CLIENTS_READ),
   requireCanAccessWorkspace("workspaceId"),
-  handleAsync((req) => getClientById(req.params.id, toEntityAssignmentListViewer(req.user)))
+  handleAsync(async (req) => {
+    const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+    const ctx = workspaceId ? await buildListQueryContext(req.user, workspaceId) : null;
+    const viewer = ctx ? toEntityAssignmentViewer(ctx) : toEntityAssignmentListViewer(req.user);
+    const result = await getClientById(req.params.id, viewer);
+    if (ctx && !ctx.isAdmin && !ctx.isTecmaAdmin && result.client.projectId) {
+      const allowed = clampProjectIds([result.client.projectId], ctx.allowedProjectIds, false);
+      if (allowed.length === 0) throw new HttpError("Client not found", 404);
+    }
+    return result;
+  })
 );
 
 clientsRoutes.get(
@@ -30,14 +45,14 @@ clientsRoutes.get(
   requirePermission(PERMISSIONS.REQUESTS_READ),
   requireCanAccessWorkspace("workspaceId"),
   handleAsync(async (req) => {
-    const { workspaceId, projectIds, page, perPage } = parseListQueryFromRequest(req);
-    return queryRequests({
-      workspaceId,
-      projectIds,
-      page,
-      perPage,
-      filters: { clientId: req.params.id },
-    });
+    const { input, viewer } = await resolveListQueryFromRequestQuery(req.user, req);
+    return queryRequests(
+      {
+        ...input,
+        filters: { clientId: req.params.id },
+      },
+      viewer
+    );
   })
 );
 
@@ -96,15 +111,18 @@ clientsRoutes.post(
   handleAsync(async (req) => {
   const clientId = req.params.clientId;
   const body = z.object({ type: z.enum(["mail_received", "mail_sent", "call_completed", "meeting_scheduled"]) }).parse(req.body);
-  const clientRes = await getClientById(clientId).catch(() => null);
-  const workspaceId = clientRes?.client?.workspaceId ?? "";
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+  const ctx = workspaceId ? await buildListQueryContext(req.user, workspaceId) : null;
+  const viewer = ctx ? toEntityAssignmentViewer(ctx) : toEntityAssignmentListViewer(req.user);
+  const clientRes = await getClientById(clientId, viewer).catch(() => null);
+  const resolvedWorkspaceId = clientRes?.client?.workspaceId ?? "";
   const { getDb } = await import("../../config/db.js");
   const db = getDb();
   const now = new Date();
   const doc = {
     at: now,
     action: `client.${body.type}`,
-    workspaceId,
+    workspaceId: resolvedWorkspaceId,
     projectId: clientRes?.client?.projectId,
     entityType: "client",
     entityId: clientId,

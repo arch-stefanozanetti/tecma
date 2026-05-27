@@ -36,6 +36,16 @@ const mocks = vi.hoisted(() => {
       }
       return null;
     }),
+    find: vi.fn((query: Record<string, unknown>) => ({
+      toArray: vi.fn(async () => {
+        const emailRegex = (query.email as { $regex?: string })?.$regex;
+        if (emailRegex) {
+          const cleaned = emailRegex.replace(/^\^/, "").replace(/\$$/, "").replace(/\\/g, "").toLowerCase();
+          return users.filter((u) => String(u.email ?? "").toLowerCase() === cleaned);
+        }
+        return [...users];
+      }),
+    })),
     updateOne: vi.fn(async (query: Record<string, unknown>, update: Record<string, unknown>) => {
       const id = query._id instanceof ObjectId ? query._id.toHexString() : String(query._id ?? "");
       const idx = users.findIndex((u) => (u._id as ObjectId).toHexString() === id);

@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { Router } from "express";
 import { z } from "zod";
 import { getProjectAccessByEmail } from "../../core/auth/projectAccess.service.js";
+import { resolveProjectEffectiveAccess } from "../../core/access/projectEffectiveAccess.service.js";
 import { getUserPreferences, upsertUserPreferences } from "../../core/auth/userPreferences.service.js";
 import { HttpError } from "../../types/http.js";
 import { handleAsync, sendError } from "../asyncHandler.js";
@@ -42,6 +43,21 @@ sessionRoutes.post(
     return typeof e === "string" ? e : undefined;
   }),
   handleAsync((req) => getProjectAccessByEmail(req.body))
+);
+
+sessionRoutes.get(
+  "/session/effective-access",
+  handleAsync(async (req) => {
+    if (!req.user?.email) throw new HttpError("Unauthorized", 401);
+    const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+    const projectId = typeof req.query.projectId === "string" ? req.query.projectId.trim() : "";
+    if (!workspaceId || !projectId) throw new HttpError("workspaceId and projectId required", 400);
+    const data = await resolveProjectEffectiveAccess(req.user.email, workspaceId, projectId, {
+      isAdmin: req.user.isAdmin,
+      isTecmaAdmin: req.user.isTecmaAdmin,
+    });
+    return { data };
+  })
 );
 
 sessionRoutes.get(

@@ -2,8 +2,8 @@ import type { OptionalId } from "mongodb";
 import { getDb } from "../../config/db.js";
 import {
   BUILTIN_ROLE_PERMISSIONS,
-  mergeRoleAndOverrides,
-  PERMISSIONS
+  PERMISSIONS,
+  resolveEffectivePermissionsList,
 } from "./permissions.js";
 
 const COLLECTION = "tz_roleDefinitions";
@@ -167,8 +167,9 @@ export async function reconcileWorkspaceRoleDefinitionsWithBuiltin(): Promise<vo
 
 export async function resolveEffectivePermissions(
   role: string | null | undefined,
-  overrides: string[] | undefined
+  overrides: string[] | undefined,
+  deny?: string[] | undefined
 ): Promise<string[]> {
   const rolePerms = await getPermissionsForRole(role || "");
-  return mergeRoleAndOverrides(rolePerms, overrides);
+  return resolveEffectivePermissionsList(rolePerms, overrides, deny);
 }

@@ -22,6 +22,13 @@ import { setInventoryStatus } from "../inventory/inventory.service.js";
 import { dispatchEvent } from "../automations/automation-events.service.js";
 import { logger } from "../../observability/logger.js";
 import { batchLoadApartmentCodes, batchLoadClientNames } from "../shared/batch-enrich.service.js";
+import {
+  shouldApplyEntityAssignmentListFilter,
+  useStrictEntityAssignmentOnly,
+  type EntityAssignmentListViewer,
+} from "../workspaces/entity-assignment-query.util.js";
+import { isNoAccessProjectIds, emptyListResult } from "../access/listQueryContext.js";
+import { requestEntityAssignmentVisibilityStages } from "../workspaces/entity-assignment-pipeline.util.js";
 import { namesFromDoc } from "../clients/client-name.util.js";
 
 /** Ruolo del cliente rispetto all'immobile (compravendita: venditore vs acquirente). */
@@ -169,14 +176,10 @@ const mapDocToRow = (doc: Record<string, unknown>): RequestRow => ({
   quoteTotalPrice: typeof doc.quoteTotalPrice === "number" ? doc.quoteTotalPrice : undefined,
 });
 
-/**
- * Query requests/deals with ListQuery contract (workspaceId, projectIds, pagination, filters, search).
- * Returns empty data if collection is empty or no matches.
- */
-export const queryRequests = async (
-  rawInput: unknown
+const queryPrimaryRequests = async (
+  input: ListQueryInput,
+  viewer?: EntityAssignmentListViewer
 ): Promise<PaginatedResponse<RequestRow>> => {
-  const input = ListQuerySchema.parse(rawInput);
   const db = getDb();
   const collection = db.collection(COLLECTION_NAME);
 
@@ -187,6 +190,42 @@ export const queryRequests = async (
     input.sort?.field && sortable[input.sort.field] ? input.sort.field : "updatedAt";
   const sortDirection = input.sort?.direction ?? -1;
 
+  if (shouldApplyEntityAssignmentListFilter(viewer)) {
+    const visibility = requestEntityAssignmentVisibilityStages(input.workspaceId, viewer);
+    const basePipeline = [{ $match: match }, ...visibility];
+
+    const [rawData, countArr] = await Promise.all([
+      collection
+        .aggregate([
+          ...basePipeline,
+          { $sort: { [sortField]: sortDirection } },
+          { $skip: skip },
+          { $limit: limit },
+          { $project: { __client_ea: 0, __apt_ea: 0 } },
+        ])
+        .toArray(),
+      collection.aggregate([...basePipeline, { $count: "total" }]).toArray(),
+    ]);
+    const total = typeof countArr[0]?.total === "number" ? countArr[0].total : 0;
+    const rows: RequestRow[] = rawData.map((doc) =>
+      mapDocToRow(doc as Record<string, unknown>)
+    );
+    const clientIdToName = await batchLoadClientNames(db, rows.map((row) => row.clientId));
+    const apartmentIdToCode = await batchLoadApartmentCodes(
+      db,
+      rows.map((row) => row.apartmentId).filter(Boolean) as string[]
+    );
+    const data: RequestRow[] = rows.map((r) => ({
+      ...r,
+      clientName: r.clientId ? clientIdToName[r.clientId] : undefined,
+      apartmentCode: r.apartmentId ? apartmentIdToCode[r.apartmentId] : undefined,
+    }));
+    return {
+      data,
+      pagination: { page, perPage, total, totalPages: Math.ceil(total / perPage) },
+    };
+  }
+
   const [rawData, total] = await Promise.all([
     collection
       .find(match)
@@ -194,7 +233,7 @@ export const queryRequests = async (
       .skip(skip)
       .limit(limit)
       .toArray(),
-    collection.countDocuments(match)
+    collection.countDocuments(match),
   ]);
 
   const rows: RequestRow[] = rawData.map((doc) =>
@@ -219,9 +258,24 @@ export const queryRequests = async (
       page,
       perPage,
       total,
-      totalPages: Math.ceil(total / perPage)
-    }
+      totalPages: Math.ceil(total / perPage),
+    },
   };
+};
+
+/**
+ * Query requests/deals with ListQuery contract (workspaceId, projectIds, pagination, filters, search).
+ * Returns empty data if collection is empty or no matches.
+ */
+export const queryRequests = async (
+  rawInput: unknown,
+  viewer?: EntityAssignmentListViewer
+): Promise<PaginatedResponse<RequestRow>> => {
+  const input = ListQuerySchema.parse(rawInput);
+  if (isNoAccessProjectIds(input.projectIds)) {
+    return emptyListResult(input.page, input.perPage);
+  }
+  return queryPrimaryRequests(input, viewer);
 };
 
 export type OpenRentRequestBadge = {
@@ -237,7 +291,8 @@ export type OpenRentRequestBadge = {
 export const getOpenRentRequestBadgesByApartmentIds = async (
   workspaceId: string,
   projectIds: string[],
-  apartmentHexIds: string[]
+  apartmentHexIds: string[],
+  viewer?: EntityAssignmentListViewer
 ): Promise<Record<string, OpenRentRequestBadge>> => {
   if (!workspaceId?.trim() || !projectIds.length || !apartmentHexIds.length) return {};
   const validIds = [...new Set(apartmentHexIds.map((id) => id.trim()).filter((id) => ObjectId.isValid(id)))];
@@ -280,6 +335,14 @@ export const getOpenRentRequestBadgesByApartmentIds = async (
   const out: Record<string, OpenRentRequestBadge> = {};
   for (const [aptId, doc] of pickedByApartment) {
     const row = mapDocToRow(doc);
+    if (shouldApplyEntityAssignmentListFilter(viewer)) {
+      try {
+        const { getClientById } = await import("../clients/clients.service.js");
+        await getClientById(row.clientId, viewer);
+      } catch {
+        continue;
+      }
+    }
     const cid = row.clientId;
     out[aptId] = {
       requestId: row._id,
@@ -294,7 +357,10 @@ export const getOpenRentRequestBadgesByApartmentIds = async (
  * Get a single request by id. Throws HttpError 404 if not found.
  * Enriches with clientName and apartmentCode when available.
  */
-export const getRequestById = async (rawId: unknown): Promise<{ request: RequestRow }> => {
+export const getRequestById = async (
+  rawId: unknown,
+  viewer?: EntityAssignmentListViewer
+): Promise<{ request: RequestRow }> => {
   const id = typeof rawId === "string" ? rawId : String(rawId);
   if (!ObjectId.isValid(id)) {
     throw new HttpError("Request not found", 404);
@@ -306,6 +372,19 @@ export const getRequestById = async (rawId: unknown): Promise<{ request: Request
     throw new HttpError("Request not found", 404);
   }
   const row = mapDocToRow(doc as unknown as Record<string, unknown>);
+
+  if (shouldApplyEntityAssignmentListFilter(viewer) && row.workspaceId) {
+    const { getClientById } = await import("../clients/clients.service.js");
+    await getClientById(row.clientId, viewer).catch(() => {
+      throw new HttpError("Request not found", 404);
+    });
+    if (row.apartmentId) {
+      const { getApartmentById } = await import("../apartments/apartments.service.js");
+      await getApartmentById(row.apartmentId, viewer).catch(() => {
+        throw new HttpError("Request not found", 404);
+      });
+    }
+  }
   let clientName: string | undefined;
   let apartmentCode: string | undefined;
   if (row.clientId && ObjectId.isValid(row.clientId)) {

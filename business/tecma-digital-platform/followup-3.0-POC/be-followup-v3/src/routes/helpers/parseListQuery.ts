@@ -3,6 +3,10 @@
  * Usato nelle route che espongono liste paginate (es. GET /clients/:id/requests).
  */
 import type { Request } from "express";
+import type { AccessTokenPayload } from "../../core/auth/token.service.js";
+import { applyListQueryContext, buildListQueryContext, toEntityAssignmentViewer } from "../../core/access/listQueryContext.js";
+import type { EntityAssignmentListViewer } from "../../core/workspaces/entity-assignment-query.util.js";
+import type { ListQueryInput } from "../../core/shared/list-query.js";
 import { HttpError } from "../../types/http.js";
 
 export interface ParsedListQuery {
@@ -39,4 +43,23 @@ export function parseListQueryFromRequest(req: Request): ParsedListQuery {
   const perPage = Number.isNaN(perPageRaw) ? defaultPerPage : Math.max(1, Math.min(100, perPageRaw));
 
   return { workspaceId, projectIds, page, perPage };
+}
+
+export async function resolveListQueryFromRequestQuery(
+  user: AccessTokenPayload | undefined,
+  req: Request
+): Promise<{ input: ListQueryInput; viewer: EntityAssignmentListViewer | undefined }> {
+  const parsed = parseListQueryFromRequest(req);
+  const ctx = await buildListQueryContext(user, parsed.workspaceId);
+  const input = applyListQueryContext(
+    {
+      workspaceId: parsed.workspaceId,
+      projectIds: parsed.projectIds,
+      page: parsed.page,
+      perPage: parsed.perPage,
+    },
+    ctx ?? undefined
+  );
+  const viewer = ctx ? toEntityAssignmentViewer(ctx) : undefined;
+  return { input, viewer };
 }

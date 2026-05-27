@@ -26,14 +26,19 @@ import {
   type OnDuplicate,
 } from "../../core/units-import/units-import.service.js";
 import { previewTecmaCatalogImport, executeTecmaCatalogImport } from "../../core/catalog/tecma-catalog-import.service.js";
-import { toEntityAssignmentListViewer } from "../helpers/listQueryViewer.js";
+import { resolveListQueryFromRequest, toEntityAssignmentListViewer } from "../helpers/listQueryViewer.js";
+import { buildListQueryContext, clampProjectIds, toEntityAssignmentViewer } from "../../core/access/listQueryContext.js";
+import { resolveListQueryFromRequestQuery } from "../helpers/parseListQuery.js";
 export const apartmentsRoutes = Router();
 
 apartmentsRoutes.post(
   "/apartments/query",
   requirePermission(PERMISSIONS.APARTMENTS_READ),
   requireCanAccessWorkspace("workspaceId"),
-  handleAsync((req) => queryApartments(req.body, toEntityAssignmentListViewer(req.user)))
+  handleAsync(async (req) => {
+    const { input, viewer } = await resolveListQueryFromRequest(req.user, req.body);
+    return queryApartments(input, viewer);
+  })
 );
 
 apartmentsRoutes.post(
@@ -84,7 +89,17 @@ apartmentsRoutes.get(
   "/apartments/:id",
   requirePermission(PERMISSIONS.APARTMENTS_READ),
   requireCanAccessWorkspace("workspaceId"),
-  handleAsync((req) => getApartmentById(req.params.id, toEntityAssignmentListViewer(req.user)))
+  handleAsync(async (req) => {
+    const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+    const ctx = workspaceId ? await buildListQueryContext(req.user, workspaceId) : null;
+    const viewer = ctx ? toEntityAssignmentViewer(ctx) : toEntityAssignmentListViewer(req.user);
+    const result = await getApartmentById(req.params.id, viewer);
+    if (ctx && !ctx.isAdmin && !ctx.isTecmaAdmin && result.apartment.projectId) {
+      const allowed = clampProjectIds([String(result.apartment.projectId)], ctx.allowedProjectIds, false);
+      if (allowed.length === 0) throw new HttpError("Apartment not found", 404);
+    }
+    return result;
+  })
 );
 
 apartmentsRoutes.get(
@@ -288,21 +303,13 @@ apartmentsRoutes.get(
   requirePermission(PERMISSIONS.REQUESTS_READ),
   requireCanAccessWorkspace("workspaceId"),
   handleAsync(async (req) => {
-    const apartmentId = req.params.id;
-    const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";
-    const projectIdsRaw = typeof req.query.projectIds === "string" ? req.query.projectIds : "";
-    const projectIds = projectIdsRaw ? projectIdsRaw.split(",").map((s) => s.trim()).filter(Boolean) : [];
-    if (!workspaceId || projectIds.length === 0) {
-      throw new HttpError("Missing workspaceId or projectIds query params", 400);
-    }
-    const page = typeof req.query.page === "string" ? parseInt(req.query.page, 10) : 1;
-    const perPage = typeof req.query.perPage === "string" ? parseInt(req.query.perPage, 10) : 25;
-    return queryRequests({
-      workspaceId,
-      projectIds,
-      page: Number.isNaN(page) ? 1 : page,
-      perPage: Number.isNaN(perPage) ? 25 : perPage,
-      filters: { apartmentId },
-    });
+    const { input, viewer } = await resolveListQueryFromRequestQuery(req.user, req);
+    return queryRequests(
+      {
+        ...input,
+        filters: { apartmentId: req.params.id },
+      },
+      viewer
+    );
   })
 );

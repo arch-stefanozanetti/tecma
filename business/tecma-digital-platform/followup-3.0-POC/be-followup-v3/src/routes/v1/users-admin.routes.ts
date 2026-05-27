@@ -102,6 +102,8 @@ usersAdminRoutes.patch(
         status: z.enum(["invited", "active", "disabled"]).optional(),
         permissions_override: z.array(z.string()).optional(),
         permissionsOverride: z.array(z.string()).optional(),
+        permissions_deny: z.array(z.string()).optional(),
+        permissionsDeny: z.array(z.string()).optional(),
         isDisabled: z.boolean().optional(),
         system_role: z.union([z.literal("tecma_admin"), z.null()]).optional(),
         workspaceId: z.string().optional(),
@@ -110,21 +112,27 @@ usersAdminRoutes.patch(
 
     const permissionsOverride =
       body.permissionsOverride !== undefined ? body.permissionsOverride : body.permissions_override;
+    const permissionsDeny =
+      body.permissionsDeny !== undefined ? body.permissionsDeny : body.permissions_deny;
 
-    if (permissionsOverride !== undefined) {
+    const validatePermissionList = (list: string[] | undefined, label: string) => {
+      if (list === undefined) return;
       const granted = (req.user?.permissions as string[]) ?? [];
       const isAdmin =
         req.user?.system_role === "admin" ||
         req.user?.system_role === "tecma_admin" ||
         hasPermission(granted, PERMISSIONS.ALL);
-      for (const p of permissionsOverride) {
+      for (const p of list) {
         if (p === PERMISSIONS.ALL || p === "*") {
-          if (!isAdmin) throw new HttpError("Solo gli admin possono assegnare il permesso '*'", 403);
+          if (!isAdmin) throw new HttpError(`Solo gli admin possono assegnare il permesso '*' in ${label}`, 403);
         } else if (!ALL_PERMISSION_IDS.includes(p)) {
           throw new HttpError(`Permesso non valido: ${p}`, 400);
         }
       }
-    }
+    };
+
+    validatePermissionList(permissionsOverride, "override");
+    validatePermissionList(permissionsDeny, "deny");
 
     if (body.system_role !== undefined) {
       const isTecmaAdmin = req.user?.system_role === "tecma_admin" || req.user?.isTecmaAdmin === true;
@@ -137,6 +145,7 @@ usersAdminRoutes.patch(
       ...(body.role !== undefined && { role: body.role }),
       ...(body.status !== undefined && { status: body.status }),
       ...(permissionsOverride !== undefined && { permissions_override: permissionsOverride }),
+      ...(permissionsDeny !== undefined && { permissions_deny: permissionsDeny }),
       ...(body.isDisabled !== undefined && { isDisabled: body.isDisabled }),
       ...(body.system_role !== undefined && { system_role: body.system_role }),
     };
@@ -148,6 +157,7 @@ usersAdminRoutes.patch(
       system_role: u.system_role ?? null,
       status: u.status,
       permissions_override: u.permissions_override,
+      permissions_deny: u.permissions_deny ?? [],
       isDisabled: u.isDisabled,
     });
 

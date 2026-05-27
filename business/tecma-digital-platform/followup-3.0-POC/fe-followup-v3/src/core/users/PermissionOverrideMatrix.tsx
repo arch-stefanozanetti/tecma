@@ -24,6 +24,8 @@ type Props = {
   selectedIds: string[];
   onChange: (ids: string[]) => void;
   disabled?: boolean;
+  /** grant = permessi extra; deny = revoche rispetto al ruolo */
+  mode?: "grant" | "deny";
 };
 
 /**
@@ -37,8 +39,10 @@ export function PermissionOverrideMatrix({
   selectedIds,
   onChange,
   disabled,
+  mode = "grant",
 }: Props) {
   const set = new Set(selectedIds);
+  const modeLabel = mode === "deny" ? "Revoca" : "Concedi";
 
   const toggle = (id: string, checked: boolean) => {
     const next = new Set(selectedIds);
@@ -59,6 +63,9 @@ export function PermissionOverrideMatrix({
 
   return (
     <div className="space-y-3 max-h-[min(420px,55vh)] overflow-y-auto pr-1">
+      <p className="text-xs text-muted-foreground">
+        Modalità: <span className="font-medium text-foreground">{modeLabel}</span>
+      </p>
       {groups.map((g) => {
         const n = g.permissions.length;
         const sel = g.permissions.filter((p) => set.has(p.id)).length;

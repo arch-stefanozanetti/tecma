@@ -8,9 +8,11 @@ import { emitDomainEvent } from "../events/event-log.service.js";
 import { listEntityAssignments } from "../workspaces/entity-assignments.service.js";
 import {
   shouldApplyEntityAssignmentListFilter,
+  useStrictEntityAssignmentOnly,
   viewerAssignmentUserId,
   type EntityAssignmentListViewer,
 } from "../workspaces/entity-assignment-query.util.js";
+import { isNoAccessProjectIds, emptyListResult } from "../access/listQueryContext.js";
 import { escapeForMongoRegexSubstring } from "../shared/searchTextRegex.js";
 import { getCatalogBundleForUnit, mergeCatalogIntoApartmentPayload } from "../catalog/catalog.service.js";
 
@@ -183,9 +185,9 @@ const queryPrimaryApartments = async (
         },
       },
       {
-        $match: {
-          $or: [{ __ea: { $size: 0 } }, { "__ea.0.userId": viewerId }],
-        },
+        $match: useStrictEntityAssignmentOnly(viewer)
+          ? { "__ea.0.userId": viewerId }
+          : { $or: [{ __ea: { $size: 0 } }, { "__ea.0.userId": viewerId }] },
       },
     ];
     const basePipeline: Document[] = [{ $match: match }, ...lookupAndVisibility];
@@ -257,6 +259,9 @@ export const queryApartments = async (
   viewer?: EntityAssignmentListViewer
 ): Promise<PaginatedResponse<ApartmentListRow>> => {
   const input = ListQuerySchema.parse(rawInput);
+  if (isNoAccessProjectIds(input.projectIds)) {
+    return emptyListResult(input.page, input.perPage);
+  }
   return queryPrimaryApartments(input, viewer);
 };
 
@@ -271,7 +276,12 @@ export const getApartmentById = async (
     const apartment = mapApartment(tzDoc);
     if (shouldApplyEntityAssignmentListFilter(viewer) && apartment.workspaceId) {
       const { data } = await listEntityAssignments(apartment.workspaceId, "apartment", apartment._id);
-      if (data.length > 0 && data[0].userId !== viewerAssignmentUserId(viewer!)) {
+      const strict = useStrictEntityAssignmentOnly(viewer);
+      if (strict) {
+        if (data.length === 0 || data[0].userId !== viewerAssignmentUserId(viewer!)) {
+          throw new HttpError("Apartment not found", 404);
+        }
+      } else if (data.length > 0 && data[0].userId !== viewerAssignmentUserId(viewer!)) {
         throw new HttpError("Apartment not found", 404);
       }
     }

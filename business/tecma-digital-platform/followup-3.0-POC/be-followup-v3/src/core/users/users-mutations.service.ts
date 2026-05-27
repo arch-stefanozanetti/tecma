@@ -34,6 +34,7 @@ export interface TzUserDoc {
   isDisabled?: boolean;
   status?: UserStatus;
   permissions_override?: string[];
+  permissions_deny?: string[];
   email_verified?: boolean;
   project_ids?: string[];
 }
@@ -198,6 +199,7 @@ export async function updateUserById(
     role: string;
     status: UserStatus;
     permissions_override: string[];
+    permissions_deny: string[];
     project_ids: string[];
     isDisabled: boolean;
     system_role: "tecma_admin" | null;
@@ -208,6 +210,7 @@ export async function updateUserById(
   if (patch.role !== undefined) $set.role = patch.role;
   if (patch.status !== undefined) $set.status = patch.status;
   if (patch.permissions_override !== undefined) $set.permissions_override = patch.permissions_override;
+  if (patch.permissions_deny !== undefined) $set.permissions_deny = patch.permissions_deny;
   if (patch.project_ids !== undefined) $set.project_ids = patch.project_ids;
   if (patch.system_role !== undefined) {
     $set.system_role = patch.system_role;

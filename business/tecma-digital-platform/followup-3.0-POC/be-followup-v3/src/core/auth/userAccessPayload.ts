@@ -1,5 +1,5 @@
 import type { ObjectId } from "mongodb";
-import { mergeRoleAndOverrides, PERMISSIONS } from "../rbac/permissions.js";
+import { mergeRoleAndOverrides, PERMISSIONS, resolveEffectivePermissionsList } from "../rbac/permissions.js";
 import {
   getPermissionsForRole,
   resolveEffectivePermissions
@@ -50,6 +50,7 @@ export type UserDocForAccessPayload = {
   email?: string;
   role?: string;
   permissions_override?: string[];
+  permissions_deny?: string[];
   project_ids?: string[];
   system_role?: string | null;
 };
@@ -94,14 +95,14 @@ export async function buildAccessPayloadFromUserDoc(
       roles.push(m.role);
     }
     if (allPerms.has(PERMISSIONS.ALL)) {
-      perms = [PERMISSIONS.ALL];
+      perms = resolveEffectivePermissionsList(PERMISSIONS.ALL, user.permissions_override, user.permissions_deny);
     } else {
-      perms = mergeRoleAndOverrides([...allPerms], user.permissions_override);
+      perms = resolveEffectivePermissionsList([...allPerms], user.permissions_override, user.permissions_deny);
     }
     role = maxRole(roles);
   } else {
     const legacyRole = (user.role || "").toLowerCase() || null;
-    perms = await resolveEffectivePermissions(legacyRole, user.permissions_override);
+    perms = await resolveEffectivePermissions(legacyRole, user.permissions_override, user.permissions_deny);
     role = legacyRole;
   }
 

@@ -52,6 +52,7 @@ export type GetPriceAvailabilityMatrixOptions = {
   unitIds?: string[];
   /** Se true, solo unità in modalità affitto (viste calendario affitti / listini rent). */
   onlyRentMode?: boolean;
+  viewer?: import("../workspaces/entity-assignment-query.util.js").EntityAssignmentListViewer;
 };
 
 export const getPriceAvailabilityMatrix = async (
@@ -68,14 +69,17 @@ export const getPriceAvailabilityMatrix = async (
   const dates = generateDateRange(fromDate, toDate);
   if (dates.length === 0) return { units: [], dates, cells: {} };
 
-  const apartmentsRes = await queryApartments({
-    workspaceId,
-    projectIds,
-    page: 1,
-    perPage: 200,
-    searchText: "",
-    filters: options?.onlyRentMode === true ? { mode: ["RENT"] } : {},
-  });
+  const apartmentsRes = await queryApartments(
+    {
+      workspaceId,
+      projectIds,
+      page: 1,
+      perPage: 200,
+      searchText: "",
+      filters: options?.onlyRentMode === true ? { mode: ["RENT"] } : {},
+    },
+    options?.viewer
+  );
 
   const data = apartmentsRes.data ?? [];
   const allowIds =

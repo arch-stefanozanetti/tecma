@@ -128,6 +128,7 @@ L'admin è attualmente determinato da `user.role === "admin"` nel users DB. Con 
 | **Fase 1** | `tz_user_workspaces` (user → workspace) + UI per invitare/gestire utenti nel workspace |
 | **Fase 2** | `tz_workspace_user_projects` + filtri nelle query (clients, apartments, requests) per `projectIds` dell'utente |
 | **Fase 3** | `tz_entity_assignments` + UI per assegnare clienti/appartamenti a utenti + filtri nelle query |
+| **Fase 4 (2026-05)** | `ListQueryContext` + clamp `projectIds` su CRM/calendario; `permissions_deny`; `tz_user_project_access` per scope/permessi per progetto; UX unificata in UsersPage |
 
 ## 9. Riferimenti
 

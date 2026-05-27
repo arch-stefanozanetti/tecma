@@ -51,7 +51,8 @@ describe("sendError in modalità production-like", () => {
       AUTH_JWT_SECRET: save.AUTH_JWT_SECRET && save.AUTH_JWT_SECRET.length >= 32
         ? save.AUTH_JWT_SECRET
         : "prod-auth-jwt-secret-at-least-32-characters",
-      SIGNATURE_WEBHOOK_SECRET: "prod-signature-webhook-secret-16"
+      SIGNATURE_WEBHOOK_SECRET: "prod-signature-webhook-secret-16",
+      ZEUS_SIP_WEBHOOK_SECRET: "prod-zeus-sip-webhook-secret-min-16"
     });
     const { sendError: sendErrorProd } = await import("./asyncHandler.js");
     const res = { status: vi.fn().mockReturnThis(), json: vi.fn() } as unknown as Response;
@@ -81,7 +82,8 @@ describe("sendError in modalità production-like", () => {
         save.AUTH_JWT_SECRET && save.AUTH_JWT_SECRET.length >= 32
           ? save.AUTH_JWT_SECRET
           : "staging-auth-jwt-secret-min-32-chars-ok!!",
-      SIGNATURE_WEBHOOK_SECRET: "staging-signature-webhook-secret"
+      SIGNATURE_WEBHOOK_SECRET: "staging-signature-webhook-secret",
+      ZEUS_SIP_WEBHOOK_SECRET: "staging-zeus-sip-webhook-secret-min-16"
     });
     const { sendError: sendErrorProd } = await import("./asyncHandler.js");
     const res = { status: vi.fn().mockReturnThis(), json: vi.fn() } as unknown as Response;

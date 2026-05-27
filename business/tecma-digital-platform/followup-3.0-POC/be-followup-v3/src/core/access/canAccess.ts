@@ -5,6 +5,7 @@
  */
 import { getDb } from "../../config/db.js";
 import { listWorkspaceIdsForUser } from "../workspaces/workspace-users.service.js";
+import { getProjectAccessByEmail } from "../auth/projectAccess.service.js";
 
 const COLLECTION_PROJECTS = "tz_projects";
 const COLLECTION_WORKSPACE_PROJECTS = "tz_workspace_projects";
@@ -115,36 +116,26 @@ export async function getProjectsAccessibleByUser(
     return [...ids];
   }
 
-  const workspaceIds = await listWorkspaceIdsForUser(userMemberKey(user));
-  const filtered = workspaceId ? workspaceIds.filter((id) => id === workspaceId) : workspaceIds;
-  if (filtered.length === 0) return [];
+  const memberKey = userMemberKey(user);
+  if (!memberKey) return [];
 
-  const db = getDb();
+  if (workspaceId?.trim()) {
+    const access = await getProjectAccessByEmail({ email: memberKey, workspaceId: workspaceId.trim() });
+    if (!access.found) return [];
+    return access.projects.map((p) => String(p.id ?? "")).filter(Boolean);
+  }
+
+  const workspaceIds = await listWorkspaceIdsForUser(memberKey);
+  if (workspaceIds.length === 0) return [];
+
   const ids = new Set<string>();
-
-  const wpColl = db.collection(COLLECTION_WORKSPACE_PROJECTS);
-  const wpDocs = await wpColl.find({ workspaceId: { $in: filtered } }).project({ projectId: 1 }).toArray();
-  for (const d of wpDocs) {
-    const pid = (d as { projectId?: string }).projectId;
-    if (pid) ids.add(pid);
+  for (const wid of workspaceIds) {
+    const access = await getProjectAccessByEmail({ email: memberKey, workspaceId: wid });
+    if (!access.found) continue;
+    for (const p of access.projects) {
+      const id = String(p.id ?? "");
+      if (id) ids.add(id);
+    }
   }
-
-  const projectsWithOwner = await db
-    .collection(COLLECTION_PROJECTS)
-    .find({ workspace_id: { $in: filtered } })
-    .project({ _id: 1, id: 1 })
-    .toArray();
-  for (const d of projectsWithOwner) {
-    const id = (d as { _id?: string; id?: string })._id ?? (d as { id?: string }).id;
-    if (id) ids.add(String(id));
-  }
-
-  const paColl = db.collection(COLLECTION_PROJECT_ACCESS);
-  const paDocs = await paColl.find({ workspace_id: { $in: filtered } }).project({ project_id: 1 }).toArray();
-  for (const d of paDocs) {
-    const pid = (d as { project_id?: string }).project_id;
-    if (pid) ids.add(pid);
-  }
-
   return [...ids];
 }

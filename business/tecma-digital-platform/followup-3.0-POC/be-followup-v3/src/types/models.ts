@@ -15,6 +15,7 @@ export interface TzUserDoc {
   role?: string;
   project_ids?: string[];
   permissions_override?: string[];
+  permissions_deny?: string[];
   status?: string;
   isDisabled?: boolean;
   created_at?: Date;

@@ -3,11 +3,13 @@ import { z } from "zod";
 import { getDb } from "../../config/db.js";
 import { escapeRegex } from "../../utils/escapeRegex.js";
 import { ListQuerySchema, type ListQueryInput, buildPagination } from "../shared/list-query.js";
+import { isNoAccessProjectIds, emptyListResult } from "../access/listQueryContext.js";
 import { HttpError, PaginatedResponse } from "../../types/http.js";
 import { joinClientFullName, namesFromDoc, splitLegacyFullName } from "./client-name.util.js";
 import { listEntityAssignments } from "../workspaces/entity-assignments.service.js";
 import {
   shouldApplyEntityAssignmentListFilter,
+  useStrictEntityAssignmentOnly,
   viewerAssignmentUserId,
   type EntityAssignmentListViewer,
 } from "../workspaces/entity-assignment-query.util.js";
@@ -194,6 +196,7 @@ const queryPrimaryClients = async (
   if (shouldApplyEntityAssignmentListFilter(viewer)) {
     const wid = input.workspaceId;
     const viewerId = viewerAssignmentUserId(viewer!);
+    const strict = useStrictEntityAssignmentOnly(viewer);
     const lookupAndVisibility: Document[] = [
       {
         $lookup: {
@@ -212,9 +215,9 @@ const queryPrimaryClients = async (
         },
       },
       {
-        $match: {
-          $or: [{ __ea: { $size: 0 } }, { "__ea.0.userId": viewerId }],
-        },
+        $match: strict
+          ? { "__ea.0.userId": viewerId }
+          : { $or: [{ __ea: { $size: 0 } }, { "__ea.0.userId": viewerId }] },
       },
     ];
 
@@ -324,6 +327,9 @@ export const queryClients = async (
   viewer?: EntityAssignmentListViewer
 ): Promise<PaginatedResponse<ClientRow>> => {
   const input = ListQuerySchema.parse(rawInput);
+  if (isNoAccessProjectIds(input.projectIds)) {
+    return emptyListResult(input.page, input.perPage);
+  }
   return queryPrimaryClients(input, viewer);
 };
 
@@ -371,7 +377,12 @@ export const getClientById = async (
   const client = mapDocToClientRow(doc as Record<string, unknown>);
   if (shouldApplyEntityAssignmentListFilter(viewer) && client.workspaceId) {
     const { data } = await listEntityAssignments(client.workspaceId, "client", client._id);
-    if (data.length > 0 && data[0].userId !== viewerAssignmentUserId(viewer!)) {
+    const strict = useStrictEntityAssignmentOnly(viewer);
+    if (strict) {
+      if (data.length === 0 || data[0].userId !== viewerAssignmentUserId(viewer!)) {
+        throw new HttpError("Client not found", 404);
+      }
+    } else if (data.length > 0 && data[0].userId !== viewerAssignmentUserId(viewer!)) {
       throw new HttpError("Client not found", 404);
     }
   }

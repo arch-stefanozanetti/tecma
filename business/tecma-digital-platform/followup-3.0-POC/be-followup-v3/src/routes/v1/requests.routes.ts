@@ -23,6 +23,8 @@ import { PERMISSIONS } from "../../core/rbac/permissions.js";
 import { record as auditRecord } from "../../core/audit/audit-log.service.js";
 import { dispatchEvent } from "../../core/automations/automation-events.service.js";
 import { safeAsync } from "../../core/shared/safeAsync.js";
+import { resolveListQueryFromRequest, toEntityAssignmentListViewer } from "../helpers/listQueryViewer.js";
+import { buildListQueryContext, toEntityAssignmentViewer } from "../../core/access/listQueryContext.js";
 
 export const requestsRoutes = Router();
 
@@ -30,7 +32,10 @@ requestsRoutes.post(
   "/requests/query",
   requirePermission(PERMISSIONS.REQUESTS_READ),
   requireCanAccessWorkspace("workspaceId"),
-  handleAsync((req) => queryRequests(req.body))
+  handleAsync(async (req) => {
+    const { input, viewer } = await resolveListQueryFromRequest(req.user, req.body);
+    return queryRequests(input, viewer);
+  })
 );
 
 requestsRoutes.get(
@@ -69,7 +74,12 @@ requestsRoutes.get(
   "/requests/:id",
   requirePermission(PERMISSIONS.REQUESTS_READ),
   requireCanAccessWorkspace("workspaceId"),
-  handleAsync((req) => getRequestById(req.params.id))
+  handleAsync(async (req) => {
+    const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+    const ctx = workspaceId ? await buildListQueryContext(req.user, workspaceId) : null;
+    const viewer = ctx ? toEntityAssignmentViewer(ctx) : toEntityAssignmentListViewer(req.user);
+    return getRequestById(req.params.id, viewer);
+  })
 );
 
 requestsRoutes.post(

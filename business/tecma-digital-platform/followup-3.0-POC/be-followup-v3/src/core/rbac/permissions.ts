@@ -160,18 +160,44 @@ export function hasAllPermissions(granted: string[], required: string[]): boolea
 }
 
 /**
+ * Risolve permessi effettivi da ruolo + override utente (grant) − deny.
+ * Se il ruolo ha `*`, i deny rimuovono permessi specifici (es. calendar.create).
+ */
+export function resolveEffectivePermissionsList(
+  rolePerms: string[] | typeof PERMISSIONS.ALL,
+  overrides: string[] | undefined,
+  deny: string[] | undefined
+): string[] {
+  if (rolePerms === PERMISSIONS.ALL) {
+    const denied = new Set((deny ?? []).filter(Boolean));
+    if (denied.size === 0) return [PERMISSIONS.ALL];
+    const allIds = ALL_PERMISSION_IDS.filter((p) => !denied.has(p));
+    const granted = new Set(allIds);
+    for (const p of overrides ?? []) {
+      if (p && typeof p === "string") granted.add(p);
+    }
+    for (const p of deny ?? []) granted.delete(p);
+    return [...granted];
+  }
+  const set = new Set(rolePerms);
+  for (const p of overrides ?? []) {
+    if (p && typeof p === "string") set.add(p);
+  }
+  for (const p of deny ?? []) {
+    if (p && typeof p === "string") set.delete(p);
+  }
+  return [...set];
+}
+
+/**
  * Risolve permessi effettivi da ruolo + override utente (aggiunte).
+ * @deprecated Preferire resolveEffectivePermissionsList con deny.
  */
 export function mergeRoleAndOverrides(
   rolePerms: string[] | typeof PERMISSIONS.ALL,
   overrides: string[] | undefined
 ): string[] {
-  if (rolePerms === PERMISSIONS.ALL) return [PERMISSIONS.ALL];
-  const set = new Set(rolePerms);
-  for (const p of overrides ?? []) {
-    if (p && typeof p === "string") set.add(p);
-  }
-  return [...set];
+  return resolveEffectivePermissionsList(rolePerms, overrides, undefined);
 }
 
 const MODULE_LABELS: Record<string, string> = {

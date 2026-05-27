@@ -24,6 +24,13 @@ import { requireAnyPermission, requirePermission } from "../permissionMiddleware
 import { PERMISSIONS } from "../../core/rbac/permissions.js";
 import { record as auditRecord } from "../../core/audit/audit-log.service.js";
 import { safeAsync } from "../../core/shared/safeAsync.js";
+import { resolveListQueryFromRequest, toEntityAssignmentListViewer } from "../helpers/listQueryViewer.js";
+import {
+  buildListQueryContext,
+  clampProjectIds,
+  isNoAccessProjectIds,
+  toEntityAssignmentViewer,
+} from "../../core/access/listQueryContext.js";
 
 export const hcRoutes = Router();
 
@@ -159,10 +166,9 @@ hcRoutes.post(
   "/clients/lite/query",
   requirePermission(PERMISSIONS.CLIENTS_READ),
   handleAsync(async (req) => {
-    const body = z
-      .object({ workspaceId: z.string().min(1), projectIds: z.array(z.string().min(1)).min(1) })
-      .parse(req.body);
-    return { data: await queryClientsLite(body.workspaceId, body.projectIds) };
+    const { input } = await resolveListQueryFromRequest(req.user, req.body);
+    if (isNoAccessProjectIds(input.projectIds)) return { data: [] };
+    return { data: await queryClientsLite(input.workspaceId, input.projectIds) };
   })
 );
 
@@ -171,15 +177,23 @@ hcRoutes.get(
   requirePermission(PERMISSIONS.CLIENTS_READ),
   handleAsync(async (req) => {
     const clientId = req.params.id;
-    const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";
-    const projectIds =
+    const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+    let projectIds =
       typeof req.query.projectIds === "string"
         ? req.query.projectIds
             .split(",")
             .map((p) => p.trim())
             .filter(Boolean)
         : [];
-    return getClientCandidates(clientId, workspaceId, projectIds);
+    let viewer = toEntityAssignmentListViewer(req.user);
+    if (workspaceId) {
+      const ctx = await buildListQueryContext(req.user, workspaceId);
+      if (ctx) {
+        projectIds = clampProjectIds(projectIds, ctx.allowedProjectIds, ctx.isAdmin || ctx.isTecmaAdmin);
+        viewer = toEntityAssignmentViewer(ctx);
+      }
+    }
+    return getClientCandidates(clientId, workspaceId, projectIds, viewer);
   })
 );
 
@@ -188,14 +202,22 @@ hcRoutes.get(
   requirePermission(PERMISSIONS.APARTMENTS_READ),
   handleAsync(async (req) => {
     const apartmentId = req.params.id;
-    const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";
-    const projectIds =
+    const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId.trim() : "";
+    let projectIds =
       typeof req.query.projectIds === "string"
         ? req.query.projectIds
             .split(",")
             .map((p) => p.trim())
             .filter(Boolean)
         : [];
-    return getApartmentCandidates(apartmentId, workspaceId, projectIds);
+    let viewer = toEntityAssignmentListViewer(req.user);
+    if (workspaceId) {
+      const ctx = await buildListQueryContext(req.user, workspaceId);
+      if (ctx) {
+        projectIds = clampProjectIds(projectIds, ctx.allowedProjectIds, ctx.isAdmin || ctx.isTecmaAdmin);
+        viewer = toEntityAssignmentViewer(ctx);
+      }
+    }
+    return getApartmentCandidates(apartmentId, workspaceId, projectIds, viewer);
   })
 );

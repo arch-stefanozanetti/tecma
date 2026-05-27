@@ -29,6 +29,35 @@ vi.mock("../core/access/canAccess.js", () => ({
   getProjectsAccessibleByUser: vi.fn().mockResolvedValue(["p1"]),
 }));
 
+vi.mock("../core/auth/projectAccess.service.js", () => ({
+  getProjectAccessByEmail: vi.fn().mockResolvedValue({
+    found: true,
+    email: "u@test.it",
+    role: "collaborator",
+    isAdmin: true,
+    projects: [{ id: "p1", name: "P1", displayName: "P1", mode: "sell" }],
+    defaultWorkspaceId: "ws1",
+  }),
+  shouldRestrictToAssignments: vi.fn().mockReturnValue(false),
+  buildProjectIdsQuery: vi.fn(),
+}));
+
+vi.mock("../core/access/listQueryContext.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../core/access/listQueryContext.js")>();
+  return {
+    ...actual,
+    buildListQueryContext: vi.fn().mockResolvedValue({
+      email: "u@test.it",
+      workspaceId: "ws1",
+      isAdmin: true,
+      isTecmaAdmin: false,
+      accessScope: "all",
+      membershipRole: "admin",
+      allowedProjectIds: ["p1"],
+    }),
+  };
+});
+
 vi.mock("../core/auth/mfa.service.js", () => ({
   getUserSecurity: vi.fn().mockResolvedValue(null),
   startMfaSetup: vi.fn(),
@@ -42,10 +71,9 @@ vi.mock("../core/clients/clients.service.js", () => ({
   updateClient: vi.fn(),
   getClientById: vi.fn().mockImplementation(async (rawId: unknown) => {
     const id = String(rawId);
-    if (id === "404") {
-      const err = new Error("Client not found");
-      (err as Error & { statusCode?: number }).statusCode = 404;
-      throw err;
+    if (id === "404" || id === "507f1f77bcf86cd799439011") {
+      const { HttpError } = await import("../types/http.js");
+      throw new HttpError("Client not found", 404);
     }
     return {
       client: {
@@ -581,8 +609,9 @@ describe("v1 routes", () => {
 
     it("returns 404 when client not found", async () => {
       const token = makeToken();
+      const missingId = "507f1f77bcf86cd799439011";
       const res = await st()
-        .get("/v1/clients/404")
+        .get(`/v1/clients/${missingId}`)
         .query({ workspaceId: "ws1" })
         .set("Authorization", `Bearer ${token}`);
       expect(res.status).toBe(404);

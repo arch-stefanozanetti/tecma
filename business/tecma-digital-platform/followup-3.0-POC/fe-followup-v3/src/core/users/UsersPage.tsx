@@ -34,6 +34,7 @@ import {
   permissionOverrideDraftDirty,
   type PermissionCatalogGroup,
 } from "./PermissionOverrideMatrix";
+import { UserProjectAccessPanel } from "./UserProjectAccessPanel";
 
 function flattenCatalogPermissionIds(groups: PermissionCatalogGroup[] | null): string[] {
   if (!groups?.length) return [];
@@ -110,6 +111,7 @@ export const UsersPage = () => {
   const [permissionCatalogLoading, setPermissionCatalogLoading] = useState(false);
   const [permissionCatalogError, setPermissionCatalogError] = useState<string | null>(null);
   const [detailOverrideDraft, setDetailOverrideDraft] = useState<string[]>([]);
+  const [detailDenyDraft, setDetailDenyDraft] = useState<string[]>([]);
   const [savingPermissionsOverride, setSavingPermissionsOverride] = useState(false);
   const [addUserOverrideDraft, setAddUserOverrideDraft] = useState<string[]>([]);
 
@@ -170,8 +172,10 @@ export const UsersPage = () => {
   useEffect(() => {
     if (selectedUser) {
       setDetailOverrideDraft([...(selectedUser.permissions_override ?? [])].sort((a, b) => a.localeCompare(b)));
+      setDetailDenyDraft([...(selectedUser.permissions_deny ?? [])].sort((a, b) => a.localeCompare(b)));
     } else {
       setDetailOverrideDraft([]);
+      setDetailDenyDraft([]);
     }
   }, [selectedUser]);
 
@@ -400,9 +404,18 @@ export const UsersPage = () => {
     if (!selectedUser?.userId) return;
     setSavingPermissionsOverride(true);
     try {
-      await followupApi.patchAdminUser(selectedUser.userId, { permissions_override: detailOverrideDraft });
+      await followupApi.patchAdminUser(selectedUser.userId, {
+        permissions_override: detailOverrideDraft,
+        permissions_deny: detailDenyDraft,
+      });
       setSelectedUser((u) =>
-        u ? { ...u, permissions_override: [...detailOverrideDraft] } : null
+        u
+          ? {
+              ...u,
+              permissions_override: [...detailOverrideDraft],
+              permissions_deny: [...detailDenyDraft],
+            }
+          : null
       );
       load();
     } catch (e) {
@@ -1156,6 +1169,16 @@ export const UsersPage = () => {
                       selectedIds={detailOverrideDraft}
                       onChange={setDetailOverrideDraft}
                       disabled={savingPermissionsOverride}
+                      mode="grant"
+                    />
+                    <PermissionOverrideMatrix
+                      groups={permissionCatalogGroups}
+                      loading={permissionCatalogLoading}
+                      loadError={permissionCatalogError}
+                      selectedIds={detailDenyDraft}
+                      onChange={setDetailDenyDraft}
+                      disabled={savingPermissionsOverride}
+                      mode="deny"
                     />
                     <div className="flex flex-wrap gap-2 pt-2">
                       <Button
@@ -1163,11 +1186,12 @@ export const UsersPage = () => {
                         className="min-h-11"
                         disabled={
                           savingPermissionsOverride ||
-                          !permissionOverrideDraftDirty(detailOverrideDraft, selectedUser.permissions_override)
+                          (!permissionOverrideDraftDirty(detailOverrideDraft, selectedUser.permissions_override) &&
+                            !permissionOverrideDraftDirty(detailDenyDraft, selectedUser.permissions_deny))
                         }
                         onClick={saveDetailPermissionOverrides}
                       >
-                        {savingPermissionsOverride ? "Salvataggio…" : "Salva permessi aggiuntivi"}
+                        {savingPermissionsOverride ? "Salvataggio…" : "Salva permessi"}
                       </Button>
                       <Button
                         type="button"
@@ -1176,13 +1200,17 @@ export const UsersPage = () => {
                         className="min-h-11"
                         disabled={
                           savingPermissionsOverride ||
-                          !permissionOverrideDraftDirty(detailOverrideDraft, selectedUser.permissions_override)
+                          (!permissionOverrideDraftDirty(detailOverrideDraft, selectedUser.permissions_override) &&
+                            !permissionOverrideDraftDirty(detailDenyDraft, selectedUser.permissions_deny))
                         }
-                        onClick={() =>
+                        onClick={() => {
                           setDetailOverrideDraft(
                             [...(selectedUser.permissions_override ?? [])].sort((a, b) => a.localeCompare(b))
-                          )
-                        }
+                          );
+                          setDetailDenyDraft(
+                            [...(selectedUser.permissions_deny ?? [])].sort((a, b) => a.localeCompare(b))
+                          );
+                        }}
                       >
                         Annulla modifiche
                       </Button>
@@ -1192,70 +1220,32 @@ export const UsersPage = () => {
               </div>
 
               <div className="glass-panel rounded-ui space-y-3 p-4">
-                <h3 className="text-sm font-semibold text-foreground">Progetti visibili</h3>
+                <h3 className="text-sm font-semibold text-foreground">Accesso utente × progetto</h3>
                 <p className="text-xs text-muted-foreground">
-                  Se nessun progetto è associato per un workspace, l’utente vede tutti i progetti del workspace.
+                  Visibilità progetti, scope entità e permessi grant/deny per ogni progetto del workspace.
                 </p>
                 {detailLoading ? (
                   <p className="text-sm text-muted-foreground">Caricamento progetti...</p>
                 ) : (
-                  selectedUser.workspaces.map((w) => {
-                    const projectIds = userProjectIdsByWorkspace[w.workspaceId] ?? [];
-                    const allProjects = workspaceProjectsByWorkspace[w.workspaceId] ?? [];
-                    const availableToAdd = allProjects.filter((p) => !projectIds.includes(p.projectId));
-                    return (
-                      <div key={w.workspaceId} className="mb-6">
-                        <h4 className="text-sm font-medium text-foreground mb-2">
-                          Progetti visibili – {w.workspaceName}
-                        </h4>
-                        <ul className="space-y-1 mb-2">
-                          {projectIds.length === 0 ? (
-                            <li className="text-sm text-muted-foreground">Tutti i progetti del workspace</li>
-                          ) : (
-                            projectIds.map((pid) => {
-                              const proj = allProjects.find((p) => p.projectId === pid);
-                              const label = proj?.displayName ?? proj?.name ?? pid;
-                              return (
-                                <li key={pid} className="flex items-center justify-between rounded-md bg-muted/50 px-2 py-1.5 text-sm">
-                                  <span>{label}</span>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="min-h-11 text-muted-foreground hover:text-destructive"
-                                    disabled={savingProject !== null}
-                                    onClick={() => removeProject(w.workspaceId, pid)}
-                                  >
-                                    Rimuovi
-                                  </Button>
-                                </li>
-                              );
-                            })
-                          )}
-                        </ul>
-                        {availableToAdd.length > 0 && (
-                          <div className="flex items-center gap-2">
-                            <Select
-                              value={addSelectValueByWorkspace[w.workspaceId] ?? ""}
-                              onValueChange={(projectId) => {
-                                if (projectId) addProject(w.workspaceId, projectId);
-                              }}
-                            >
-                              <SelectTrigger className="w-56">
-                                <SelectValue placeholder="Aggiungi progetto" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {availableToAdd.map((p) => (
-                                  <SelectItem key={p.projectId} value={p.projectId}>
-                                    {p.displayName ?? p.name ?? p.projectId}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
+                  selectedUser.workspaces.map((w) => (
+                    <div key={w.workspaceId} className="mb-6">
+                      <h4 className="text-sm font-medium text-foreground mb-3">{w.workspaceName}</h4>
+                      <UserProjectAccessPanel
+                        workspaceId={w.workspaceId}
+                        userEmail={selectedUser.email}
+                        workspaceRole={w.role}
+                        projects={workspaceProjectsByWorkspace[w.workspaceId] ?? []}
+                        restrictedProjectIds={userProjectIdsByWorkspace[w.workspaceId] ?? []}
+                        onAddProject={(projectId) => addProject(w.workspaceId, projectId)}
+                        onRemoveProject={(projectId) => removeProject(w.workspaceId, projectId)}
+                        permissionCatalogGroups={permissionCatalogGroups}
+                        permissionCatalogLoading={permissionCatalogLoading}
+                        getRoleLabel={getRoleLabel}
+                        workspaceRoles={workspaceRoles}
+                        projectMutationDisabled={savingProject !== null}
+                      />
+                    </div>
+                  ))
                 )}
               </div>
 

@@ -8,6 +8,7 @@ import {
   hasAnyPermission,
   hasPermission,
   mergeRoleAndOverrides,
+  resolveEffectivePermissionsList,
 } from "./permissions.js";
 
 describe("rbac/permissions", () => {
@@ -25,6 +26,12 @@ describe("rbac/permissions", () => {
     expect(hasAllPermissions(granted, [PERMISSIONS.USERS_READ])).toBe(true);
     expect(hasAllPermissions(granted, [PERMISSIONS.USERS_READ, PERMISSIONS.APARTMENTS_READ])).toBe(true);
     expect(hasAllPermissions(granted, [PERMISSIONS.USERS_READ, PERMISSIONS.USERS_DELETE])).toBe(false);
+  });
+
+  it("resolveEffectivePermissionsList applies deny even with wildcard role", () => {
+    const perms = resolveEffectivePermissionsList(PERMISSIONS.ALL, [], [PERMISSIONS.CALENDAR_CREATE]);
+    expect(perms).not.toContain(PERMISSIONS.CALENDAR_CREATE);
+    expect(perms).toContain(PERMISSIONS.CLIENTS_READ);
   });
 
   it("mergeRoleAndOverrides merges uniquely and preserves wildcard", () => {

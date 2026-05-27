@@ -56,6 +56,13 @@ import {
   getPriceAvailabilityMatrix,
 } from "../../core/price-availability-matrix/price-availability-matrix.service.js";
 import { getOpenRentRequestBadgesByApartmentIds } from "../../core/requests/requests.service.js";
+import {
+  getUserProjectAccess,
+  listUserProjectAccessForUser,
+  upsertUserProjectAccess,
+  bulkReplaceUserProjectAccess,
+} from "../../core/access/user-project-access.service.js";
+import { buildListQueryContext, clampProjectIds, toEntityAssignmentViewer } from "../../core/access/listQueryContext.js";
 import type { MembershipRole } from "../../types/models.js";
 import { HttpError } from "../../types/http.js";
 import { handleAsync } from "../asyncHandler.js";
@@ -288,6 +295,65 @@ workspacesRoutes.delete(
 );
 
 workspacesRoutes.get(
+  "/workspaces/:id/users/:userId/project-access",
+  requireCanAccessWorkspace("id"),
+  requireAdmin,
+  handleAsync(async (req) => {
+    const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
+    const data = await listUserProjectAccessForUser(req.params.id, userId);
+    return { data };
+  })
+);
+
+workspacesRoutes.get(
+  "/workspaces/:id/users/:userId/projects/:projectId/access",
+  requireCanAccessWorkspace("id"),
+  requireAdmin,
+  handleAsync(async (req) => {
+    const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
+    const row = await getUserProjectAccess(req.params.id, userId, req.params.projectId);
+    return { data: row };
+  })
+);
+
+workspacesRoutes.put(
+  "/workspaces/:id/users/:userId/projects/:projectId/access",
+  requireCanAccessWorkspace("id"),
+  requireAdmin,
+  handleAsync(async (req) => {
+    const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
+    const body = req.body as {
+      role?: string;
+      access_scope?: "all" | "assigned";
+      permissions_override?: string[];
+      permissions_deny?: string[];
+    };
+    const data = await upsertUserProjectAccess(req.params.id, userId, req.params.projectId, body);
+    return { data };
+  })
+);
+
+workspacesRoutes.put(
+  "/workspaces/:id/users/:userId/project-access",
+  requireCanAccessWorkspace("id"),
+  requireAdmin,
+  handleAsync(async (req) => {
+    const userId = typeof req.params.userId === "string" ? decodeURIComponent(req.params.userId) : "";
+    const body = req.body as {
+      rows?: Array<{
+        projectId: string;
+        role?: string;
+        access_scope?: "all" | "assigned";
+        permissions_override?: string[];
+        permissions_deny?: string[];
+      }>;
+    };
+    const data = await bulkReplaceUserProjectAccess(req.params.id, userId, body.rows ?? []);
+    return { data };
+  })
+);
+
+workspacesRoutes.get(
   "/workspaces/:id/projects",
   requireCanAccessWorkspace("id"),
   handleAsync((req) => listWorkspaceProjects(req.params.id).then((rows) => ({ data: rows })))
@@ -312,6 +378,11 @@ workspacesRoutes.get(
     const to = (req.query.to as string) ?? "";
     if (!from || !to) throw new HttpError("query from and to (YYYY-MM-DD) required", 400);
     if (projectIds.length === 0) throw new HttpError("projectIds required (comma-separated)", 400);
+    const ctx = await buildListQueryContext(req.user, workspaceId);
+    const clamped = ctx
+      ? clampProjectIds(projectIds, ctx.allowedProjectIds, ctx.isAdmin || ctx.isTecmaAdmin)
+      : projectIds;
+    const viewer = ctx ? toEntityAssignmentViewer(ctx) : undefined;
     const unitIdsRaw = req.query.unitIds;
     const unitIds =
       typeof unitIdsRaw === "string"
@@ -321,9 +392,10 @@ workspacesRoutes.get(
             .filter(Boolean)
         : [];
     const onlyRent = req.query.onlyRent === "1" || req.query.onlyRent === "true";
-    return getPriceAvailabilityMatrix(workspaceId, projectIds, from, to, {
+    return getPriceAvailabilityMatrix(workspaceId, clamped, from, to, {
       unitIds: unitIds.length > 0 ? unitIds : undefined,
       onlyRentMode: onlyRent,
+      viewer,
     });
   })
 );
@@ -352,7 +424,12 @@ workspacesRoutes.get(
         : [];
     if (projectIds.length === 0) throw new HttpError("projectIds required (comma-separated)", 400);
     if (apartmentIds.length === 0) throw new HttpError("apartmentIds required (comma-separated)", 400);
-    const badges = await getOpenRentRequestBadgesByApartmentIds(workspaceId, projectIds, apartmentIds);
+    const ctx = await buildListQueryContext(req.user, workspaceId);
+    const clamped = ctx
+      ? clampProjectIds(projectIds, ctx.allowedProjectIds, ctx.isAdmin || ctx.isTecmaAdmin)
+      : projectIds;
+    const viewer = ctx ? toEntityAssignmentViewer(ctx) : undefined;
+    const badges = await getOpenRentRequestBadgesByApartmentIds(workspaceId, clamped, apartmentIds, viewer);
     return { data: { badges } };
   })
 );
