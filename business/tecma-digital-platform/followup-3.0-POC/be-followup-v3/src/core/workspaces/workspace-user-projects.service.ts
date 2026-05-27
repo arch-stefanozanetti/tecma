@@ -7,6 +7,7 @@ import { HttpError } from "../../types/http.js";
 
 const COLLECTION = "tz_workspace_user_projects";
 const COLLECTION_WORKSPACE_PROJECTS = "tz_workspace_projects";
+const USERS_COLLECTION = "tz_users";
 
 let indexEnsured = false;
 async function ensureIndex(): Promise<void> {
@@ -17,6 +18,26 @@ async function ensureIndex(): Promise<void> {
     { unique: true }
   );
   indexEnsured = true;
+}
+
+/** Allinea tz_users.project_ids all'unione delle assegnazioni workspace (Gestisci → progetti). */
+export async function syncUserProjectIdsFromWorkspaceAssignments(userId: string): Promise<void> {
+  const uid = userId.trim().toLowerCase();
+  if (!uid) return;
+  await ensureIndex();
+  const db = getDb();
+  const docs = await db.collection(COLLECTION).find({ userId: uid }).project({ projectId: 1 }).toArray();
+  const projectIds = [
+    ...new Set(
+      (docs as { projectId?: unknown }[])
+        .map((d) => (typeof d.projectId === "string" ? d.projectId : String(d.projectId ?? "")))
+        .filter(Boolean)
+    ),
+  ];
+  await db.collection(USERS_COLLECTION).updateOne(
+    { email: { $regex: `^${uid.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" } },
+    { $set: { project_ids: projectIds } }
+  );
 }
 
 export const listWorkspaceUserProjects = async (
@@ -58,6 +79,7 @@ export const addWorkspaceUserProject = async (
   const coll = db.collection(COLLECTION);
   const existing = await coll.findOne({ workspaceId, userId: uid, projectId: pid });
   if (existing) {
+    await syncUserProjectIdsFromWorkspaceAssignments(uid);
     return {
       row: {
         _id: String(existing._id),
@@ -70,6 +92,7 @@ export const addWorkspaceUserProject = async (
   const now = new Date().toISOString();
   const doc = { workspaceId, userId: uid, projectId: pid, createdAt: now };
   const res = await coll.insertOne(doc);
+  await syncUserProjectIdsFromWorkspaceAssignments(uid);
   return {
     row: {
       _id: res.insertedId.toHexString(),
@@ -92,5 +115,6 @@ export const removeWorkspaceUserProject = async (
   }
   const db = getDb();
   const result = await db.collection(COLLECTION).deleteOne({ workspaceId, userId: uid, projectId: pid });
+  await syncUserProjectIdsFromWorkspaceAssignments(uid);
   return { deleted: (result.deletedCount ?? 0) > 0 };
 };

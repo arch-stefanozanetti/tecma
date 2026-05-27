@@ -34,6 +34,19 @@ const normalizeId = (id: string | ObjectId): string => {
   return id.toHexString();
 };
 
+/** tz_projects usa spesso _id stringa legacy; supporta anche ObjectId e legacyProjectId. */
+export function buildProjectIdsQuery(projectIds: string[]): Record<string, unknown> {
+  const ids = [...new Set(projectIds.map((id) => id.trim()).filter(Boolean))];
+  if (ids.length === 0) {
+    return { _id: { $in: [] as string[] }, archived: { $ne: true } };
+  }
+  const objectIds = ids.filter((id) => ObjectId.isValid(id)).map((id) => new ObjectId(id));
+  return {
+    $or: [{ _id: { $in: ids } }, { _id: { $in: objectIds } }, { legacyProjectId: { $in: ids } }],
+    archived: { $ne: true },
+  };
+}
+
 /** Solo collection presenti in test-zanetti. */
 const USERS_COLLECTION = "tz_users";
 const PROJECTS_COLLECTION = "tz_projects";
@@ -76,23 +89,15 @@ async function fetchMergedProjectsForIds(
   projectIds: string[]
 ): Promise<ProjectDoc[]> {
   if (projectIds.length === 0) return [];
-  const objectIds = projectIds.filter((id) => ObjectId.isValid(id)).map((id) => new ObjectId(id));
-  const [fromProjectDb, fromTz] = await Promise.all([
-    projectsCollection
-      .find({
-        $or: [{ _id: { $in: objectIds } }, { _id: { $in: projectIds as unknown as ObjectId[] } }],
-        archived: { $ne: true },
-      } as Record<string, unknown>)
-      .project({ _id: 1, name: 1, displayName: 1, mode: 1, broker: 1, legacyProjectId: 1 })
-      .toArray() as Promise<ProjectDoc[]>,
-    fetchTzProjects(projectIds).catch(() => []),
-  ]);
+  const docs = (await projectsCollection
+    .find(buildProjectIdsQuery(projectIds) as Record<string, unknown>)
+    .project({ _id: 1, name: 1, displayName: 1, mode: 1, broker: 1, legacyProjectId: 1 })
+    .toArray()) as ProjectDoc[];
   const byId = new Map<string, ProjectDoc>();
-  for (const p of [...fromProjectDb, ...fromTz]) {
+  for (const p of docs) {
     const id = normalizeId(p._id ?? "");
     if (!id) continue;
-    const prev = byId.get(id);
-    byId.set(id, prev ? { ...prev, ...p, _id: prev._id ?? p._id } : p);
+    byId.set(id, p);
   }
   return [...byId.values()];
 }
@@ -139,16 +144,27 @@ const buildProjectOutput = (project: ProjectDoc) => {
 const fetchTzProjects = async (filterIds?: string[]): Promise<ProjectDoc[]> => {
   const db = getDb();
   const coll = db.collection("tz_projects");
-  const query: Record<string, unknown> = { archived: { $ne: true } };
-  if (filterIds && filterIds.length > 0) {
-    const objectIds = filterIds.filter((id) => ObjectId.isValid(id)).map((id) => new ObjectId(id));
-    query.$or = [{ _id: { $in: filterIds } }, { _id: { $in: objectIds } }, { legacyProjectId: { $in: filterIds } }];
-  }
+  const query =
+    filterIds && filterIds.length > 0
+      ? (buildProjectIdsQuery(filterIds) as Record<string, unknown>)
+      : ({ archived: { $ne: true } } as Record<string, unknown>);
   const docs = await coll
     .find(query)
     .project({ _id: 1, legacyProjectId: 1, name: 1, displayName: 1, mode: 1 })
     .toArray();
   return docs as ProjectDoc[];
+};
+
+const resolveEffectiveWorkspaceId = async (
+  workspaceId: string | undefined,
+  emailKey: string
+): Promise<string | undefined> => {
+  if (workspaceId) return workspaceId;
+  const membershipWorkspaceIds = await listWorkspaceIdsForUser(emailKey);
+  if (membershipWorkspaceIds.length === 1) {
+    return membershipWorkspaceIds[0];
+  }
+  return undefined;
 };
 
 export const getProjectAccessByEmail = async (rawInput: unknown) => {
@@ -177,6 +193,9 @@ export const getProjectAccessByEmail = async (rawInput: unknown) => {
   const isTecmaAdmin = user.system_role === "tecma_admin";
   const isAdmin = role === "admin" || isTecmaAdmin;
 
+  const emailKey = email.trim().toLowerCase();
+  const effectiveWorkspaceId = await resolveEffectiveWorkspaceId(workspaceId, emailKey);
+
   let projectsFromProjectDb: ProjectDoc[] = [];
   let projectsFromTz: ProjectDoc[] = [];
 
@@ -191,24 +210,21 @@ export const getProjectAccessByEmail = async (rawInput: unknown) => {
     projectsFromProjectDb = fromProjectDb;
     projectsFromTz = fromTz;
   } else {
-    const projectIds = (user.project_ids || []).map(normalizeId);
-    if (projectIds.length > 0) {
-      const objectIds = projectIds
-        .filter((id) => ObjectId.isValid(id))
-        .map((id) => new ObjectId(id));
-
-      const [fromProjectDb, fromTz] = await Promise.all([
-        projectsCollection
-          .find({
-            $or: [{ _id: { $in: objectIds } }, { _id: { $in: projectIds } }],
-            archived: { $ne: true }
-          })
-          .project({ _id: 1, name: 1, displayName: 1, mode: 1, broker: 1 })
-          .toArray() as Promise<ProjectDoc[]>,
-        fetchTzProjects(projectIds).catch(() => []),
-      ]);
-      projectsFromProjectDb = fromProjectDb;
-      projectsFromTz = fromTz;
+    let sourceProjectIds = (user.project_ids || []).map(normalizeId);
+    if (effectiveWorkspaceId) {
+      const membership = await loadMembershipForWorkspace(effectiveWorkspaceId, emailKey);
+      const { data: assignmentIds } = await listWorkspaceUserProjects(effectiveWorkspaceId, emailKey);
+      const restrict = shouldRestrictToAssignments(
+        membership?.role,
+        membership?.access_scope,
+        assignmentIds.length > 0
+      );
+      if (restrict && assignmentIds.length > 0) {
+        sourceProjectIds = assignmentIds;
+      }
+    }
+    if (sourceProjectIds.length > 0) {
+      projectsFromProjectDb = await fetchMergedProjectsForIds(projectsCollection, sourceProjectIds);
     }
   }
 
@@ -232,15 +248,6 @@ export const getProjectAccessByEmail = async (rawInput: unknown) => {
 
   const allNormalizedProjects = merged.map(buildProjectOutput).sort((a, b) => a.displayName.localeCompare(b.displayName));
   let normalizedProjects = allNormalizedProjects;
-
-  const emailKey = email.trim().toLowerCase();
-  let effectiveWorkspaceId = workspaceId;
-  if (!effectiveWorkspaceId) {
-    const membershipWorkspaceIds = await listWorkspaceIdsForUser(emailKey);
-    if (membershipWorkspaceIds.length === 1) {
-      effectiveWorkspaceId = membershipWorkspaceIds[0];
-    }
-  }
 
   if (effectiveWorkspaceId) {
     const inWorkspace = await loadWorkspaceProjectIds(effectiveWorkspaceId);

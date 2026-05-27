@@ -80,7 +80,17 @@ vi.mock("../../config/db.js", () => ({
   }),
 }));
 
-import { getProjectAccessByEmail, shouldRestrictToAssignments } from "./projectAccess.service.js";
+import { getProjectAccessByEmail, shouldRestrictToAssignments, buildProjectIdsQuery } from "./projectAccess.service.js";
+
+describe("buildProjectIdsQuery", () => {
+  it("include string _id e legacyProjectId", () => {
+    const q = buildProjectIdsQuery(["67814d587ec732aecc45f6ee", "legacy-1"]);
+    expect(q).toMatchObject({
+      archived: { $ne: true },
+    });
+    expect(q.$or).toHaveLength(3);
+  });
+});
 
 describe("shouldRestrictToAssignments", () => {
   it("collaborator con assegnazioni → restrict", () => {
@@ -163,9 +173,10 @@ describe("projectAccess.service", () => {
       project_ids: [p1.toHexString(), p2.toHexString()],
     });
 
-    mocks.projectsToArrayMock
-      .mockResolvedValueOnce([{ _id: p1, displayName: "Project One" }])
-      .mockResolvedValueOnce([{ _id: p2, name: "Project Two" }]);
+    mocks.projectsToArrayMock.mockResolvedValueOnce([
+      { _id: p1, displayName: "Project One" },
+      { _id: p2, name: "Project Two" },
+    ]);
 
     const result = await getProjectAccessByEmail({ email: "agent@example.com" });
 
@@ -187,7 +198,7 @@ describe("projectAccess.service", () => {
       role: "agent",
       project_ids: [p1.toHexString()],
     });
-    mocks.projectsToArrayMock.mockResolvedValueOnce([{ _id: p1, name: "One" }]).mockResolvedValueOnce([]);
+    mocks.projectsToArrayMock.mockResolvedValueOnce([{ _id: p1, name: "One" }]);
     mocks.workspaceProjectsToArrayMock.mockResolvedValueOnce([]);
 
     const result = await getProjectAccessByEmail({
@@ -207,9 +218,7 @@ describe("projectAccess.service", () => {
       role: "agent",
       project_ids: [p1.toHexString(), p2.toHexString()],
     });
-    mocks.projectsToArrayMock
-      .mockResolvedValueOnce([{ _id: p1, name: "One" }, { _id: p2, name: "Two" }])
-      .mockResolvedValueOnce([]);
+    mocks.projectsToArrayMock.mockResolvedValueOnce([{ _id: p1, name: "One" }, { _id: p2, name: "Two" }]);
     mocks.workspaceProjectsToArrayMock.mockResolvedValueOnce([{ projectId: p1.toHexString() }]);
 
     const result = await getProjectAccessByEmail({
@@ -272,19 +281,24 @@ describe("projectAccess.service", () => {
       project_ids: [p1.toHexString(), p2.toHexString()],
     });
     mocks.projectsToArrayMock
-      .mockResolvedValueOnce([{ _id: p1, name: "One" }, { _id: p2, name: "Two" }])
-      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ _id: p1, name: "One" }])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([{ _id: p1, name: "One" }]);
     mocks.workspaceProjectsToArrayMock.mockResolvedValueOnce([
       { projectId: p1.toHexString() },
       { projectId: p2.toHexString() },
     ]);
-    mocks.workspaceUserProjectsToArrayMock.mockResolvedValueOnce([{ projectId: p1.toHexString() }]);
-    mocks.workspaceUsersCollection.findOne.mockResolvedValueOnce({
-      role: "collaborator",
-      access_scope: "all",
-    });
+    mocks.workspaceUserProjectsToArrayMock
+      .mockResolvedValueOnce([{ projectId: p1.toHexString() }])
+      .mockResolvedValueOnce([{ projectId: p1.toHexString() }]);
+    mocks.workspaceUsersCollection.findOne
+      .mockResolvedValueOnce({
+        role: "collaborator",
+        access_scope: "all",
+      })
+      .mockResolvedValueOnce({
+        role: "collaborator",
+        access_scope: "all",
+      });
 
     const result = await getProjectAccessByEmail({
       email: "agent@example.com",
@@ -295,6 +309,42 @@ describe("projectAccess.service", () => {
     expect(result.projects[0]?.id).toBe(p1.toHexString());
   });
 
+  it("non-admin with stale project_ids still sees all workspace assignments", async () => {
+    const p1 = new ObjectId();
+    const p2 = new ObjectId();
+    mocks.usersFindOneMock.mockResolvedValueOnce({
+      email: "agent@example.com",
+      role: "agent",
+      project_ids: [p1.toHexString()],
+    });
+    mocks.projectsToArrayMock
+      .mockResolvedValueOnce([
+        { _id: p1, name: "One" },
+        { _id: p2, name: "Two" },
+      ])
+      .mockResolvedValueOnce([
+        { _id: p1, name: "One" },
+        { _id: p2, name: "Two" },
+      ]);
+    mocks.workspaceProjectsToArrayMock.mockResolvedValueOnce([
+      { projectId: p1.toHexString() },
+      { projectId: p2.toHexString() },
+    ]);
+    mocks.workspaceUserProjectsToArrayMock
+      .mockResolvedValueOnce([{ projectId: p1.toHexString() }, { projectId: p2.toHexString() }])
+      .mockResolvedValueOnce([{ projectId: p1.toHexString() }, { projectId: p2.toHexString() }]);
+    mocks.workspaceUsersCollection.findOne
+      .mockResolvedValueOnce({ role: "collaborator", access_scope: "all" })
+      .mockResolvedValueOnce({ role: "collaborator", access_scope: "all" });
+
+    const result = await getProjectAccessByEmail({
+      email: "agent@example.com",
+      workspaceId: "507f1f77bcf86cd799439011",
+    });
+
+    expect(result.projects).toHaveLength(2);
+  });
+
   it("non-admin restricted loads assignment by legacy project id", async () => {
     const p1 = new ObjectId();
     mocks.usersFindOneMock.mockResolvedValueOnce({
@@ -303,16 +353,25 @@ describe("projectAccess.service", () => {
       project_ids: [],
     });
     mocks.projectsToArrayMock
-      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { _id: p1, legacyProjectId: "legacy-proj-1", displayName: "Legacy One" },
+      ])
       .mockResolvedValueOnce([
         { _id: p1, legacyProjectId: "legacy-proj-1", displayName: "Legacy One" },
       ]);
     mocks.workspaceProjectsToArrayMock.mockResolvedValueOnce([{ projectId: "legacy-proj-1" }]);
-    mocks.workspaceUserProjectsToArrayMock.mockResolvedValueOnce([{ projectId: "legacy-proj-1" }]);
-    mocks.workspaceUsersCollection.findOne.mockResolvedValueOnce({
-      role: "collaborator",
-      access_scope: "assigned",
-    });
+    mocks.workspaceUserProjectsToArrayMock
+      .mockResolvedValueOnce([{ projectId: "legacy-proj-1" }])
+      .mockResolvedValueOnce([{ projectId: "legacy-proj-1" }]);
+    mocks.workspaceUsersCollection.findOne
+      .mockResolvedValueOnce({
+        role: "collaborator",
+        access_scope: "assigned",
+      })
+      .mockResolvedValueOnce({
+        role: "collaborator",
+        access_scope: "assigned",
+      });
 
     const result = await getProjectAccessByEmail({
       email: "agent@example.com",
