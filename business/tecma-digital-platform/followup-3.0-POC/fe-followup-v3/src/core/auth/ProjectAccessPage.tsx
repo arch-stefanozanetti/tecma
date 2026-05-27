@@ -10,21 +10,13 @@ import { Checkbox } from "../../components/ui/checkbox";
 import { Input } from "../../components/ui/input";
 import { cn } from "../../lib/utils";
 import { LogoTecma } from "../../components/LogoTecma";
-
-interface ProjectAccessPageProps {
-  onCompleted: () => void;
-}
-
-type LegacyWorkspaceId = "dev-1" | "demo" | "prod";
+import { isLegacyWorkspaceId, resolveMongoWorkspaceId, type LegacyWorkspaceId } from "./workspaceSessionId";
 
 const LEGACY_WORKSPACE_LABELS: Record<LegacyWorkspaceId, string> = {
   "dev-1": "Dev-1",
   demo: "Demo",
   prod: "Production",
 };
-
-const isLegacyWorkspaceId = (id: string): id is LegacyWorkspaceId =>
-  id === "dev-1" || id === "demo" || id === "prod";
 
 /** Workspace Mongo → passato a getProjectAccessByEmail; legacy → nessun filtro lato API. */
 const resolveWorkspaceForSessionApi = (id: string): string | undefined => {
@@ -40,6 +32,10 @@ type ProjectTypeFilter = "all" | "rent" | "sell";
 /** Project mode from backend; fallback for legacy responses without mode. */
 function projectMode(project: ProjectAccessProject): "rent" | "sell" {
   return String(project.mode ?? "").toLowerCase() === "rent" ? "rent" : "sell";
+}
+
+interface ProjectAccessPageProps {
+  onCompleted: () => void;
 }
 
 export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
@@ -89,13 +85,18 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
         const validProjectIds = access.projects.map((p) => p.id);
         const intersected = (prefs.selectedProjectIds ?? []).filter((id) => validProjectIds.includes(id));
         if (intersected.length > 0) setSelected(intersected);
-        if (prefs.workspaceId) setWorkspaceId(prefs.workspaceId);
+        const ws = resolveMongoWorkspaceId(
+          prefs.workspaceId,
+          access.defaultWorkspaceId,
+          workspaces
+        );
+        if (ws && !isLegacyWorkspaceId(ws)) setWorkspaceId(ws);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [access]);
+  }, [access, workspaces]);
 
   // Default workspace: admin → lista workspace; altri → membership o defaultWorkspaceId API
   useEffect(() => {
@@ -110,8 +111,6 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
       setWorkspaceId("dev-1");
     } else if (workspaces.length > 0) {
       setWorkspaceId(workspaces[0]._id);
-    } else {
-      setWorkspaceId("demo");
     }
   }, [access, workspaceId, workspaces, access?.defaultWorkspaceId]);
 
@@ -227,6 +226,11 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
           ? (workspaceId as "dev-1" | "demo" | "prod")
           : "demo";
     if (typeof window !== "undefined") sessionStorage.removeItem("followup3.chosenWorkspaceId");
+    const effectiveWorkspaceId = resolveMongoWorkspaceId(
+      workspaceId,
+      access.defaultWorkspaceId,
+      workspaces
+    );
     let permissions: string[] = [];
     let isTecmaAdmin = false;
     try {
@@ -240,7 +244,7 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
       email: access.email,
       role: access.role,
       isAdmin: access.isAdmin,
-      workspaceId,
+      workspaceId: effectiveWorkspaceId,
       apiEnvironment: apiEnv,
       projects: access.projects,
       selectedProjectIds: selected,
@@ -249,7 +253,7 @@ export const ProjectAccessPage = ({ onCompleted }: ProjectAccessPageProps) => {
     };
     saveProjectScope(scope);
     void followupApi
-      .saveUserPreferences(scope.email, scope.workspaceId, scope.selectedProjectIds)
+      .saveUserPreferences(scope.email, effectiveWorkspaceId, scope.selectedProjectIds)
       .catch(() => {
         // opzionale: non bloccare il flusso in caso di errore
       })

@@ -16,6 +16,7 @@ vi.mock("../../api/followupApi", () => ({
     getProjectsByEmail: vi.fn().mockResolvedValue({
       found: true,
       email: "user@test.com",
+      defaultWorkspaceId: "ws-mongo-1",
       projects: [
         { id: "p1", name: "Progetto 1", displayName: "P1" },
         { id: "p2-rent", name: "Progetto Rent", displayName: "Rent" },

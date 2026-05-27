@@ -26,6 +26,7 @@ import { SetPasswordFromInvitePage } from "./core/auth/SetPasswordFromInvitePage
 import { ResetPasswordPage } from "./core/auth/ResetPasswordPage";
 import { ForgotPasswordPage } from "./core/auth/ForgotPasswordPage";
 import { isPublicAppRoute } from "./core/auth/publicRoutes";
+import { isLegacyWorkspaceId } from "./core/auth/workspaceSessionId";
 import { ProjectAccessPage } from "./core/auth/ProjectAccessPage";
 import { ApprovalsPage } from "./core/ai/ApprovalsPage";
 import { RequestsPage } from "./core/requests/RequestsPage";
@@ -638,6 +639,30 @@ export const App = () => {
       cancelled = true;
     };
   }, [pathname, projectScope?.selectedProjectIds?.length, projectScope?.email]);
+
+  /** Corregge sessioni con workspaceId legacy (demo/dev-1/prod) salvato al posto dell'id Mongo. */
+  useEffect(() => {
+    if (isPublicAppRoute(pathname)) return;
+    const scope = loadProjectScope();
+    if (!scope?.email || !isLegacyWorkspaceId(scope.workspaceId)) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const access = await followupApi.getProjectsByEmail(scope.email);
+        const mongoWs = access.defaultWorkspaceId?.trim();
+        if (!mongoWs || isLegacyWorkspaceId(mongoWs) || cancelled) return;
+        saveProjectScope({ ...scope, workspaceId: mongoWs });
+        await followupApi.saveUserPreferences(scope.email, mongoWs, scope.selectedProjectIds);
+        if (!cancelled) setAccessVersion((v) => v + 1);
+      } catch {
+        /* rete o sessione scaduta */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname, accessVersion, projectScope?.workspaceId, projectScope?.email]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
