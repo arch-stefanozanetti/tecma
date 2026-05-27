@@ -25,6 +25,7 @@ import { AccountSecurityPage } from "./core/auth/AccountSecurityPage";
 import { SetPasswordFromInvitePage } from "./core/auth/SetPasswordFromInvitePage";
 import { ResetPasswordPage } from "./core/auth/ResetPasswordPage";
 import { ForgotPasswordPage } from "./core/auth/ForgotPasswordPage";
+import { isPublicAppRoute } from "./core/auth/publicRoutes";
 import { ProjectAccessPage } from "./core/auth/ProjectAccessPage";
 import { ApprovalsPage } from "./core/ai/ApprovalsPage";
 import { RequestsPage } from "./core/requests/RequestsPage";
@@ -602,6 +603,7 @@ export const App = () => {
 
   /** Allinea permessi in localStorage con JWT aggiornato (dopo deploy RBAC / refresh ruoli). */
   useEffect(() => {
+    if (isPublicAppRoute(pathname)) return;
     if (!projectScope?.selectedProjectIds?.length || !projectScope.email) return;
     if (isBssAuth()) return;
     const SYNC_KEY = "followup3.permLastSync";
@@ -635,7 +637,7 @@ export const App = () => {
     return () => {
       cancelled = true;
     };
-  }, [projectScope?.selectedProjectIds?.length, projectScope?.email]);
+  }, [pathname, projectScope?.selectedProjectIds?.length, projectScope?.email]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -654,6 +656,7 @@ export const App = () => {
 
   // Carica progetti del workspace quando è un tz_workspace (per filtrare)
   useEffect(() => {
+    if (isPublicAppRoute(pathname)) return;
     if (!projectScope?.workspaceId) return;
     const ws = projectScope.workspaceId;
     if (isLegacyWorkspace(ws)) {
@@ -670,7 +673,7 @@ export const App = () => {
       .getWorkspaceById(ws)
       .then((res) => setWorkspaceFeatures(res.workspace?.features))
       .catch(() => setWorkspaceFeatures(undefined));
-  }, [projectScope?.workspaceId, accessVersion]);
+  }, [pathname, projectScope?.workspaceId, accessVersion]);
 
   // Sezione effettiva: pathname esatto da PATH_TO_SECTION (sync con useEffect); su "/" solo `section` per ?section=
   const effectiveSection: Section =
@@ -749,6 +752,7 @@ export const App = () => {
     [projectScopeRef?.selectedProjectIds, filteredProjectsRef]
   );
   useEffect(() => {
+    if (isPublicAppRoute(pathname)) return;
     const scope = projectScopeRef;
     const isTz = isTzWorkspaceRef;
     const filtered = filteredProjectsRef;
@@ -758,7 +762,7 @@ export const App = () => {
     updateSelectedProjectIds(allIds);
     void followupApi.saveUserPreferences(scope.email ?? "", scope.workspaceId ?? "", allIds).catch(() => {});
     setAccessVersion((v) => v + 1);
-  }, [isTzWorkspaceRef, filteredSelectedRef.length, filteredProjectsRef, projectScopeRef?.email, projectScopeRef?.workspaceId]);
+  }, [pathname, isTzWorkspaceRef, filteredSelectedRef.length, filteredProjectsRef, projectScopeRef?.email, projectScopeRef?.workspaceId]);
 
   // Click su voce di menu: path pulito quando esiste, altrimenti ?section=X. state per shortcut di flusso (es. apri drawer).
   const onSectionChange = (s: Section, state?: object) => {

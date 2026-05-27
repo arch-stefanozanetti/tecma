@@ -266,7 +266,10 @@ describe("http", () => {
     it("su 401 se refresh fallisce reindirizza e lancia", async () => {
       setTokens("old-access", "refresh-token");
       const replace = vi.fn();
-      Object.defineProperty(window, "location", { value: { replace }, writable: true });
+      Object.defineProperty(window, "location", {
+        value: { replace, pathname: "/clients", href: "http://localhost/clients" },
+        writable: true
+      });
       const mockFetch = vi.mocked(fetch);
       mockFetch
         .mockResolvedValueOnce(new Response("Unauthorized", { status: 401 }))
@@ -274,6 +277,22 @@ describe("http", () => {
 
       await expect(getJson("/clients/1")).rejects.toThrow(/Sessione scaduta|accesso/i);
       expect(replace).toHaveBeenCalledWith(expect.stringMatching(/\/login/));
+    });
+
+    it("su set-password non reindirizza al login se manca il token", async () => {
+      clearTokens();
+      const replace = vi.fn();
+      Object.defineProperty(window, "location", {
+        value: {
+          replace,
+          pathname: "/set-password",
+          href: "http://localhost/set-password?token=abc"
+        },
+        writable: true
+      });
+
+      await expect(getJson("/clients/1")).rejects.toThrow(/Sessione non valida/i);
+      expect(replace).not.toHaveBeenCalled();
     });
   });
 });

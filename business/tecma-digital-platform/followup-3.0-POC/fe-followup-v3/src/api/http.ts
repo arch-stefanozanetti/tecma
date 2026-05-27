@@ -117,16 +117,23 @@ const callRefresh = async (): Promise<RefreshResponse> => {
   return res.json() as Promise<RefreshResponse>;
 };
 
-const isOnLoginPage = (): boolean => {
+const isPublicFrontendRoute = (): boolean => {
   if (typeof window === "undefined") return false;
   const path = window.location.pathname ?? "";
-  return path.endsWith("/login") || path.includes("/login/");
+  return (
+    path.endsWith("/login") ||
+    path.includes("/login/") ||
+    path.startsWith("/set-password") ||
+    path.startsWith("/reset-password") ||
+    path.startsWith("/forgot-password") ||
+    path.startsWith("/r/")
+  );
 };
 
 const redirectToLogin = (): void => {
   clearTokens();
   if (typeof window === "undefined") return;
-  if (isOnLoginPage()) return;
+  if (isPublicFrontendRoute()) return;
   const href = window.location.href;
   const backTo = encodeURIComponent(href);
   const loginQs = backTo ? `?backTo=${backTo}` : "";
@@ -139,7 +146,7 @@ const requestJson = async <T>(path: string, options: RequestInit, isRetry = fals
     if (import.meta.env.DEV) {
       console.warn("[http] Protected API call without token; redirecting to login.", path);
     }
-    if (!isOnLoginPage()) redirectToLogin();
+    if (!isPublicFrontendRoute()) redirectToLogin();
     throw new Error("Sessione non valida. Reindirizzamento al login.");
   }
   const headers = new Headers(options.headers);
@@ -171,7 +178,7 @@ const requestJson = async <T>(path: string, options: RequestInit, isRetry = fals
       setTokens(data.accessToken, data.refreshToken);
       return requestJson<T>(path, options, true);
     } catch {
-      if (!isOnLoginPage()) redirectToLogin();
+      if (!isPublicFrontendRoute()) redirectToLogin();
       throw new Error("Sessione scaduta. Effettua di nuovo l'accesso.");
     }
   }
@@ -190,7 +197,7 @@ const requestJson = async <T>(path: string, options: RequestInit, isRetry = fals
       /* testo non JSON */
     }
     if (response.status === 401 && (authCode === "MISSING_AUTH" || authCode === "INVALID_TOKEN" || message.includes("Authorization"))) {
-      if (!isOnLoginPage()) redirectToLogin();
+      if (!isPublicFrontendRoute()) redirectToLogin();
       throw new Error("Sessione non valida o scaduta. Reindirizzamento al login.");
     }
     throw new HttpApiError(message, { status: response.status, code: authCode, hint });
@@ -216,7 +223,7 @@ export const postFormData = async <T>(path: string, form: FormData): Promise<T> 
     if (import.meta.env.DEV) {
       console.warn("[http] Protected API call without token; redirecting to login.", path);
     }
-    if (!isOnLoginPage()) redirectToLogin();
+    if (!isPublicFrontendRoute()) redirectToLogin();
     throw new Error("Sessione non valida. Reindirizzamento al login.");
   }
   const headers = new Headers();
@@ -239,7 +246,7 @@ export const postFormData = async <T>(path: string, form: FormData): Promise<T> 
       if (t2) h2.set("Authorization", `Bearer ${t2}`);
       response = await fetch(`${resolveApiBaseUrl()}${path}`, { method: "POST", headers: h2, body: form });
     } catch {
-      if (!isOnLoginPage()) redirectToLogin();
+      if (!isPublicFrontendRoute()) redirectToLogin();
       throw new Error("Sessione scaduta. Effettua di nuovo l'accesso.");
     }
   }
