@@ -28,6 +28,7 @@ import { rbacRoutes } from './modules/rbac/routes.js';
 import { requestsRoutes } from './modules/requests/routes.js';
 import { usersRoutes } from './modules/users/routes.js';
 import { apartmentsRoutes } from './modules/apartments/routes.js';
+import { apartmentStayQuoteRoutes } from './modules/apartments/stayQuoteRoutes.js';
 import { workspacesRoutes } from './modules/workspaces/routes.js';
 import { apiKeyPlugin } from './plugins/apiKey.js';
 import { jwtPlugin } from './plugins/jwt.js';
@@ -224,6 +225,7 @@ export const buildServer = async () => {
   await app.register(projectDetailRoutes);
   await app.register(requestsRoutes);
   await app.register(apartmentsRoutes);
+  await app.register(apartmentStayQuoteRoutes);
   await app.register(adminAuditRoutes);
   await app.register(adminEmailFlowRoutes);
   await app.register(adminI18nBundleWriteRoutes);
