@@ -35,11 +35,11 @@ Tutte le route protette richiedono header **`x-api-key`** uguale a `INTERNAL_API
 
 ## Script utili
 
-| Script                        | Descrizione                                             |
-| ----------------------------- | ------------------------------------------------------- |
-| `pnpm openapi:generate`       | Rigenera `openapi/openapi.v1.yaml` da Fastify           |
-| `pnpm migrate:tz-users`       | Utility per ambienti greenfield `tz_*`                  |
-| `pnpm migrate:tz-collections` | Utility per ambienti greenfield `tz_*`                  |
+| Script                        | Descrizione                                   |
+| ----------------------------- | --------------------------------------------- |
+| `pnpm openapi:generate`       | Rigenera `openapi/openapi.v1.yaml` da Fastify |
+| `pnpm migrate:tz-users`       | Utility per ambienti greenfield `tz_*`        |
+| `pnpm migrate:tz-collections` | Utility per ambienti greenfield `tz_*`        |
 
 ## Documentazione correlata
 
