@@ -26,12 +26,25 @@ is not part of the runtime architecture.
 
 - The backend workspace is imported and independently buildable/testable.
 - The Lovable frontend has not been changed or connected to this API yet.
-- Render is deployed as a backend-only service, independently from Lovable.
+- Render service: <https://followup-3-1-be.onrender.com>.
+- Render deploys are manual and use the backend-only branch
+  `codex/followup-3-1-backend`; the GitLab repository remains the source of
+  truth.
 - The current `tz_*` repositories are the staging baseline to validate and
   evolve before designing the final greenfield database.
 - Index bootstrap and operational scripts require the explicit
   `ENABLE_POC_TZ_WRITES=1` flag and may only target an approved greenfield
   environment such as `test-zanetti`.
+
+The current Render POC runs with index bootstrap disabled because
+`test-zanetti.tz_projects` contains duplicate `(workspaceId, code)` values.
+Normal API writes remain enabled. No data was deleted or silently deduplicated.
+Before production, the final greenfield database must satisfy all unique and
+TTL indexes and start with bootstrap enabled.
+
+SMTP delivery is currently mocked, SSO is not configured, connector discovery
+is stub-backed, and asset uploads use the staging inline fallback. These are
+intentional POC limits, not production behavior.
 
 The next backend phase is to close functional gaps against the Lovable POC,
 stabilize API contracts, and validate the canonical workspace/RBAC/domain
