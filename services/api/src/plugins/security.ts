@@ -104,6 +104,9 @@ export const securityPlugin = fp(async (app: FastifyInstance) => {
       'X-Api-Key',
       'x-workspace-platform-key',
       'X-Workspace-Platform-Key',
+      /** Ambiente della richiesta (`demo` | `prod`) inviato dal frontend. */
+      'x-app-env',
+      'X-App-Env',
     ],
   });
 

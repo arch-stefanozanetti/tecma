@@ -124,7 +124,28 @@ export const buildServer = async () => {
       auditDb = auditMongo.getDb();
     }
 
+    // Ambiente demo: connessione separata, stesso database. Se `MONGO_URI_DEMO`
+    // non e' configurata, `/demo` ricade sulla connessione di produzione.
+    let demoMongo: FollowupMongoClient | null = null;
+    let demoDb = db;
+    if (config.MONGO_URI_DEMO != null) {
+      demoMongo = new FollowupMongoClient({
+        mongoUri: config.MONGO_URI_DEMO,
+        mongoDbName: config.MONGO_DB_NAME,
+        nodeEnv: config.NODE_ENV,
+      });
+      await demoMongo.connect();
+      demoDb = demoMongo.getDb();
+    }
+
     app.decorate('mongoDb', db);
+    app.decorateRequest('appEnv', 'prod');
+    app.decorateRequest('envDb', null);
+    app.addHook('onRequest', async (request) => {
+      const header = String(request.headers['x-app-env'] ?? '').toLowerCase();
+      request.appEnv = header === 'demo' ? 'demo' : 'prod';
+      request.envDb = request.appEnv === 'demo' ? demoDb : db;
+    });
     app.decorate('auditService', new AuditService(auditDb));
     app.decorate(
       'mail',
@@ -149,6 +170,7 @@ export const buildServer = async () => {
 
     app.addHook('onClose', async () => {
       if (auditMongo != null) await auditMongo.close();
+      if (demoMongo != null) await demoMongo.close();
       await mongo.close();
     });
   } else {
@@ -171,6 +193,12 @@ export const buildServer = async () => {
       authEvent: async () => undefined,
       listAuthEvents: async () => [],
     } as unknown as AuditService);
+    app.decorateRequest('appEnv', 'prod');
+    app.decorateRequest('envDb', null);
+    app.addHook('onRequest', async (request) => {
+      request.appEnv = 'prod';
+      request.envDb = app.mongoDb;
+    });
     app.decorate('mail', createMailPort({ nodeEnv: 'test' }));
   }
 

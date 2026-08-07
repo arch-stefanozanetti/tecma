@@ -5,9 +5,15 @@ export const REFRESH_TOKEN_COOKIE_NAME = 'followup_refresh_token';
 const isSecureCookieEnv = (app: FastifyInstance): boolean =>
   app.config.NODE_ENV === 'staging' || app.config.NODE_ENV === 'production';
 
-/** Strict in prod/staging; Lax in dev/test per non rompere API e web su host/port diverse (localhost). */
-const refreshCookieSameSite = (app: FastifyInstance): 'strict' | 'lax' =>
-  app.config.NODE_ENV === 'production' || app.config.NODE_ENV === 'staging' ? 'strict' : 'lax';
+/**
+ * Il frontend Lovable vive su un'origine diversa dall'API (`*.lovable.app` vs
+ * Render): con `strict` il browser non rimanda mai il cookie di refresh e la
+ * sessione muore alla scadenza dell'access token. In prod/staging serve quindi
+ * `none` + `secure` + `partitioned` (CHIPS, per il blocco dei cookie di terze
+ * parti). In dev/test resta `lax`, che funziona su localhost.
+ */
+const refreshCookieSameSite = (app: FastifyInstance): 'none' | 'lax' =>
+  app.config.NODE_ENV === 'production' || app.config.NODE_ENV === 'staging' ? 'none' : 'lax';
 
 const refreshTokenMaxAgeSeconds = (app: FastifyInstance): number =>
   app.config.AUTH_REFRESH_EXPIRES_DAYS * 24 * 60 * 60;
@@ -21,6 +27,7 @@ export const setRefreshTokenCookie = (
     httpOnly: true,
     secure: isSecureCookieEnv(app),
     sameSite: refreshCookieSameSite(app),
+    partitioned: isSecureCookieEnv(app),
     path: '/v1/auth',
     maxAge: refreshTokenMaxAgeSeconds(app),
   });
@@ -31,6 +38,7 @@ export const clearRefreshTokenCookie = (app: FastifyInstance, reply: FastifyRepl
     httpOnly: true,
     secure: isSecureCookieEnv(app),
     sameSite: refreshCookieSameSite(app),
+    partitioned: isSecureCookieEnv(app),
     path: '/v1/auth',
   });
 };

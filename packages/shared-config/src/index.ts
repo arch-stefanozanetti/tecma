@@ -5,6 +5,11 @@ const envSchema = z.object({
   APP_ENV: z.enum(['dev-1', 'demo', 'prod']).default('dev-1'),
   PORT: z.coerce.number().int().positive().default(8080),
   MONGO_URI: z.string().min(1),
+  /**
+   * Connessione dell'ambiente demo. Se assente, `/demo` ricade sulla
+   * connessione di produzione (comportamento storico).
+   */
+  MONGO_URI_DEMO: z.string().trim().min(1).optional(),
   MONGO_DB_NAME: z.string().min(1),
   /**
    * Connessione opzionale dedicata alla sola scrittura audit append-only.

@@ -11,6 +11,13 @@ import type { AuditService } from './modules/auditService.js';
 import type { MailPort } from './modules/mail/createMailPort.js';
 
 declare module 'fastify' {
+  interface FastifyRequest {
+    /** Ambiente della richiesta, letto dall'header `x-app-env`. */
+    appEnv: 'demo' | 'prod';
+    /** Database dell'ambiente della richiesta (demo o prod). */
+    envDb: Db;
+  }
+
   interface FastifyInstance {
     config: AppConfig;
     mongoDb: Db;
