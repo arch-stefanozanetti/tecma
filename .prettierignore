@@ -17,3 +17,7 @@ security-reports
 
 # Lockfiles
 pnpm-lock.yaml
+
+# Spec OpenAPI rigenerato da `pnpm openapi:generate`: riformattarlo a mano
+# significa creare diff spurie ad ogni rigenerazione.
+services/api/openapi/openapi.v1.yaml
