@@ -29,6 +29,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # I pacchetti condivisi espongono i loro tipi dalla cartella dist:
+      # senza questa build il typecheck non trova @followup/logger & co.
+      - name: Build shared packages
+        run: pnpm dev:deps
+
       # I controlli sostanziali vengono prima: un problema di sola formattazione
       # non deve piu' nascondere errori di tipo, test rossi o build rotte.
       - name: Lint
