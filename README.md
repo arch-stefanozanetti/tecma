@@ -10,30 +10,32 @@ The initial baseline comes from the committed `followup-3.0` API and its shared
 packages. Functional gaps will be recovered from `followup-3.0-POC` through
 explicit ports and regression tests, not by merging the two codebases.
 
-## Database Constraint
+## Database Strategy
 
-The target runtime must use the CTO-approved legacy database for both reads and
-writes. `MONGO_DB_NAME` and `ALLOWED_WRITE_DB` are required and must match.
-There is intentionally no default database name.
+The runtime must never connect to the legacy databases. During the current
+staging/POC phase it uses `test-zanetti` and the greenfield `tz_*` model. The
+final greenfield database will be designed after the complete product model has
+been validated and will use a different name.
 
-The imported baseline still contains repositories for the POC `tz_*` model.
-Those repositories are migration input, not an approved production data layer.
-Do not deploy this backend against production until each active route has a
-reviewed legacy adapter and the parity suite passes.
+`MONGO_DB_NAME` and `ALLOWED_WRITE_DB` are required and must match. This guard
+keeps each deployment confined to its explicitly selected greenfield database.
+Legacy data migration into the final database is a later, separate project; it
+is not part of the runtime architecture.
 
 ## Integration Status
 
 - The backend workspace is imported and independently buildable/testable.
 - The Lovable frontend has not been changed or connected to this API yet.
-- Render deployment is intentionally not configured on this branch.
-- The current `tz_*` repositories and migration scripts must not run against
-  the approved legacy database.
-- POC index bootstrap and operational write scripts are disabled unless the
-  local/test-only flag `ENABLE_POC_TZ_WRITES=1` is explicitly set.
+- Render is deployed as a backend-only service, independently from Lovable.
+- The current `tz_*` repositories are the staging baseline to validate and
+  evolve before designing the final greenfield database.
+- Index bootstrap and operational scripts require the explicit
+  `ENABLE_POC_TZ_WRITES=1` flag and may only target an approved greenfield
+  environment such as `test-zanetti`.
 
-The next backend phase is to inventory the legacy collections and contracts,
-implement read/write adapters route by route, and prove parity with regression
-tests. Render can be connected only after that deployment gate is satisfied.
+The next backend phase is to close functional gaps against the Lovable POC,
+stabilize API contracts, and validate the canonical workspace/RBAC/domain
+model. Legacy analysis is needed only to plan the future offline migration.
 
 ## Local Commands
 

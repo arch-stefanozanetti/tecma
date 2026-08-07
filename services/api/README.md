@@ -1,15 +1,14 @@
 # `@followup/api` - baseline backend Followup 3.1
 
 Questo servizio e stato importato come base tecnica nel repository condiviso
-con il frontend Lovable. Il target approvato legge e scrive sul database
-legacy indicato dal CTO: `MONGO_DB_NAME` e `ALLOWED_WRITE_DB` sono obbligatori
-e devono coincidere.
+con il frontend Lovable. La fase corrente usa il database greenfield temporaneo
+`test-zanetti` e il modello `tz_*`; non accede mai ai database legacy.
 
-La baseline contiene ancora route e repository basati sul modello POC `tz_*`.
-Non e quindi pronta per il deploy su Render o per l'uso sul database di
-produzione: prima servono adapter legacy revisionati e test di parita.
-Il bootstrap degli indici e gli script di scrittura `tz_*` sono disabilitati
-senza l'opt-in locale/test `ENABLE_POC_TZ_WRITES=1`.
+`MONGO_DB_NAME` e `ALLOWED_WRITE_DB` sono obbligatori e devono coincidere. Il
+bootstrap degli indici e gli script operativi richiedono inoltre
+`ENABLE_POC_TZ_WRITES=1`, da abilitare soltanto sugli ambienti greenfield
+approvati. Il database definitivo verra progettato dopo la validazione del
+prodotto completo e ricevera i dati legacy tramite una migrazione separata.
 
 ## Avvio locale
 
@@ -39,8 +38,8 @@ Tutte le route protette richiedono header **`x-api-key`** uguale a `INTERNAL_API
 | Script                        | Descrizione                                             |
 | ----------------------------- | ------------------------------------------------------- |
 | `pnpm openapi:generate`       | Rigenera `openapi/openapi.v1.yaml` da Fastify           |
-| `pnpm migrate:tz-users`       | Utility POC `tz_*`; non autorizzata sul database legacy |
-| `pnpm migrate:tz-collections` | Utility POC `tz_*`; non autorizzata sul database legacy |
+| `pnpm migrate:tz-users`       | Utility per ambienti greenfield `tz_*`                  |
+| `pnpm migrate:tz-collections` | Utility per ambienti greenfield `tz_*`                  |
 
 ## Documentazione correlata
 
