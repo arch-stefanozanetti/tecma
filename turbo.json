@@ -1,0 +1,63 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "globalDependencies": ["**/.env.*local", "tsconfig.base.json"],
+  "globalEnv": ["NODE_ENV", "MONGO_DB_NAME", "APP_ENV"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "build/**", ".next/**", "!.next/cache/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "outputs": []
+    },
+    "check:locales": {
+      "outputs": []
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
+    "test:integration": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage-integration/**"],
+      "env": ["MONGO_URI", "MONGO_DB_NAME"]
+    },
+    "test:authz": {
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "env": ["MONGO_URI", "MONGO_DB_NAME"]
+    },
+    "test:smoke:built": {
+      "dependsOn": ["build"],
+      "outputs": []
+    },
+    "test:e2e": {
+      "dependsOn": ["^build"],
+      "outputs": ["playwright-report/**"]
+    },
+    "test:e2e:preview": {
+      "dependsOn": ["build"],
+      "outputs": ["playwright-report/**"]
+    },
+    "test:e2e:fullstack": {
+      "dependsOn": ["^build"],
+      "outputs": ["playwright-report/**"]
+    },
+    "openapi:generate": {
+      "dependsOn": ["^build"],
+      "outputs": ["openapi/openapi.v1.yaml"]
+    },
+    "clean": {
+      "cache": false
+    }
+  }
+}

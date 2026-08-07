@@ -1,0 +1,19 @@
+node_modules
+.pnpm-store
+dist
+build
+.next
+.turbo
+coverage
+playwright-report
+.husky/_
+*.tsbuildinfo
+security-reports
+.cache
+
+# Generated files
+**/*.generated.ts
+**/*.generated.js
+
+# Lockfiles
+pnpm-lock.yaml

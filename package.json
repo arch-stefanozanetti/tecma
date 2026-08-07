@@ -1,0 +1,45 @@
+{
+  "name": "followup-3-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Followup 3.1 backend workspace (API and shared packages)",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.15.9",
+  "pnpm": {
+    "overrides": {
+      "fast-uri": "3.1.2"
+    }
+  },
+  "scripts": {
+    "build": "pnpm --filter @followup/api... run build",
+    "dev": "pnpm --filter @followup/api run dev",
+    "dev:deps": "pnpm --filter @followup/shared-types build && pnpm --filter @followup/logger build && pnpm --filter @followup/shared-config build && pnpm --filter @followup/shared-rbac build && pnpm --filter @followup/db build",
+    "start": "pnpm --filter @followup/api run start",
+    "lint": "pnpm --filter @followup/api... run lint",
+    "test": "pnpm --filter @followup/api... run test",
+    "test:integration": "pnpm --filter @followup/api run test:integration",
+    "test:authz": "pnpm --filter @followup/api run test:authz",
+    "test:smoke:built": "pnpm --filter @followup/api run test:smoke:built",
+    "typecheck": "pnpm --filter @followup/api... run typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "openapi:generate": "pnpm --filter @followup/api run openapi:generate"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/node": "^22.10.0",
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-security": "^3.0.1",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.4"
+  }
+}
