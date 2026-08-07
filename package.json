@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Followup 3.1 backend workspace (API and shared packages)",
   "engines": {
-    "node": ">=22.0.0",
+    "node": "22.x",
     "pnpm": ">=9.0.0"
   },
   "packageManager": "pnpm@9.15.9",
