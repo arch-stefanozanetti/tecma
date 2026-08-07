@@ -140,7 +140,7 @@ export const buildServer = async () => {
 
     app.decorate('mongoDb', db);
     app.decorateRequest('appEnv', 'prod');
-    app.decorateRequest('envDb', null);
+    app.decorateRequest('envDb', null as unknown as Db);
     app.addHook('onRequest', async (request) => {
       const header = String(request.headers['x-app-env'] ?? '').toLowerCase();
       request.appEnv = header === 'demo' ? 'demo' : 'prod';
@@ -194,7 +194,7 @@ export const buildServer = async () => {
       listAuthEvents: async () => [],
     } as unknown as AuditService);
     app.decorateRequest('appEnv', 'prod');
-    app.decorateRequest('envDb', null);
+    app.decorateRequest('envDb', null as unknown as Db);
     app.addHook('onRequest', async (request) => {
       request.appEnv = 'prod';
       request.envDb = app.mongoDb;
@@ -291,3 +291,4 @@ const isMainModule =
 if (isMainModule) {
   void run();
 }
+
