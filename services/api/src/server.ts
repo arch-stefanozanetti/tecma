@@ -291,4 +291,3 @@ const isMainModule =
 if (isMainModule) {
   void run();
 }
-
