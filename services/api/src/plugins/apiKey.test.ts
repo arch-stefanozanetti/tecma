@@ -17,6 +17,8 @@ describe('isPublicApiPath', () => {
     expect(isPublicApiPath('/v1/auth/reset-password')).toBe(true);
     expect(isPublicApiPath('/v1/auth/invite-accept')).toBe(true);
     expect(isPublicApiPath('/v1/auth/sso-exchange')).toBe(true);
+    expect(isPublicApiPath('/v1/auth/refresh')).toBe(true);
+    expect(isPublicApiPath('/v1/auth/logout')).toBe(true);
     expect(isPublicApiPath('/v1/docs')).toBe(true);
     expect(isPublicApiPath('/v1/docs/static/foo.js')).toBe(true);
     expect(isPublicApiPath('/v1/openapi.json')).toBe(true);
