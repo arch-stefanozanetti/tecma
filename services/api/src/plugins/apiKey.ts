@@ -10,6 +10,10 @@ export const isPublicApiPath = (url: string): boolean => {
   if (url === '/v1/auth/reset-password' || url.startsWith('/v1/auth/reset-password?')) return true;
   if (url === '/v1/auth/invite-accept' || url.startsWith('/v1/auth/invite-accept?')) return true;
   if (url === '/v1/auth/sso-exchange' || url.startsWith('/v1/auth/sso-exchange?')) return true;
+  // Refresh e logout viaggiano con il refresh token (cookie o corpo), non con
+  // la chiave interna: il browser non deve mai custodire `INTERNAL_API_KEY`.
+  if (url === '/v1/auth/refresh' || url.startsWith('/v1/auth/refresh?')) return true;
+  if (url === '/v1/auth/logout' || url.startsWith('/v1/auth/logout?')) return true;
   // Swagger UI e OpenAPI JSON sono pubblici SOLO fuori dalla produzione.
   // In produzione restano protetti da x-api-key per non esporre la struttura API.
   const isProd = process.env.NODE_ENV === 'production' || process.env.APP_ENV === 'prod';
@@ -43,6 +47,11 @@ export const apiKeyPlugin = fp(async (app: FastifyInstance) => {
       });
     }
     if (isPublicApiPath(request.url)) return;
+    // I client browser si autenticano con Bearer JWT: la verifica del token
+    // (e dei permessi) avviene nelle route. Richiedere anche `x-api-key`
+    // costringerebbe a spedire un segreto server-to-server nel frontend.
+    const authorization = request.headers['authorization'];
+    if (typeof authorization === 'string' && /^Bearer\s+\S+/i.test(authorization)) return;
     const key = request.headers['x-api-key'];
     if (typeof key !== 'string' || key !== app.config.INTERNAL_API_KEY) {
       return reply.status(401).send({
