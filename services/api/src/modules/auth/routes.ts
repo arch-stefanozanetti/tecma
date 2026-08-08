@@ -12,8 +12,9 @@ import { AuthService } from './service.js';
 import { AMBIGUOUS_LOGIN_IDENTITY_CODE } from '../../lib/workspaceScopedIdentity.js';
 import {
   clearRefreshTokenCookie,
-  readRefreshTokenCookie,
+  readRefreshToken,
   setRefreshTokenCookie,
+  wantsTokenInBody,
 } from './cookieAuth.js';
 import {
   authForgotPasswordRateLimit,
@@ -88,7 +89,11 @@ const accessTokenResponse = {
       type: 'object',
       additionalProperties: false,
       required: ['accessToken'],
-      properties: { accessToken: { type: 'string', minLength: 20 } },
+      properties: {
+        accessToken: { type: 'string', minLength: 20 },
+        // Presente solo per i client che chiedono `x-token-delivery: body`.
+        refreshToken: { type: 'string', minLength: 20 },
+      },
     },
   },
 };
@@ -104,6 +109,8 @@ const loginResponse = {
       required: ['accessToken', 'user'],
       properties: {
         accessToken: { type: 'string', minLength: 20 },
+        // Presente solo per i client che chiedono `x-token-delivery: body`.
+        refreshToken: { type: 'string', minLength: 20 },
         user: {
           type: 'object',
           additionalProperties: false,
@@ -306,6 +313,7 @@ export const authRoutes = async (app: FastifyInstance): Promise<void> => {
         return reply.send({
           data: {
             accessToken: result.accessToken,
+            ...(wantsTokenInBody(request) ? { refreshToken: result.refreshToken } : {}),
             user: result.user,
           },
         });
@@ -390,8 +398,19 @@ export const authRoutes = async (app: FastifyInstance): Promise<void> => {
         operationId: 'authRefresh',
         summary: 'Rinnova access token',
         description:
-          'Scambia refresh token per nuova coppia (rotazione). Richiede cookie HttpOnly `followup_refresh_token` impostato dal login.',
+          'Scambia refresh token per nuova coppia (rotazione). Usa il cookie HttpOnly `followup_refresh_token`; i client che non possono riceverlo (iframe cross-site) lo passano nel corpo con header `x-token-delivery: body`.',
         security: [],
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            refreshToken: {
+              type: 'string',
+              minLength: 20,
+              description: 'Refresh token, alternativa al cookie HttpOnly',
+            },
+          },
+        },
         response: {
           200: accessTokenResponse,
           401: err,
@@ -400,7 +419,7 @@ export const authRoutes = async (app: FastifyInstance): Promise<void> => {
       },
     },
     async (request, reply) => {
-      const refreshToken = readRefreshTokenCookie(request);
+      const refreshToken = readRefreshToken(request);
       if (refreshToken == null) {
         return reply.status(401).send({
           error: { code: 'InvalidRefreshToken', message: 'Invalid refresh token', status: 401 },
@@ -409,7 +428,12 @@ export const authRoutes = async (app: FastifyInstance): Promise<void> => {
       try {
         const result = await authService.refresh(refreshToken);
         setRefreshTokenCookie(app, reply, result.refreshToken);
-        return reply.send({ data: { accessToken: result.accessToken } });
+        return reply.send({
+          data: {
+            accessToken: result.accessToken,
+            ...(wantsTokenInBody(request) ? { refreshToken: result.refreshToken } : {}),
+          },
+        });
       } catch {
         return reply.status(401).send({
           error: { code: 'InvalidRefreshToken', message: 'Invalid refresh token', status: 401 },
@@ -941,8 +965,19 @@ export const authRoutes = async (app: FastifyInstance): Promise<void> => {
         operationId: 'authLogout',
         summary: 'Invalida refresh token',
         description:
-          'Revoca sessione refresh lato server. Usa cookie HttpOnly `followup_refresh_token` se presente.',
+          'Revoca sessione refresh lato server. Usa il cookie HttpOnly `followup_refresh_token` se presente, altrimenti il refresh token nel corpo.',
         security: [],
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            refreshToken: {
+              type: 'string',
+              minLength: 20,
+              description: 'Refresh token, alternativa al cookie HttpOnly',
+            },
+          },
+        },
         response: {
           200: booleanDataResponse('ok'),
           400: err,
@@ -951,7 +986,7 @@ export const authRoutes = async (app: FastifyInstance): Promise<void> => {
       },
     },
     async (request, reply) => {
-      const refreshToken = readRefreshTokenCookie(request);
+      const refreshToken = readRefreshToken(request);
       if (refreshToken != null) {
         await authService.logout(refreshToken);
       }
