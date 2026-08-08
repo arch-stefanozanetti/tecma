@@ -49,3 +49,28 @@ export const readRefreshTokenCookie = (request: FastifyRequest): string | null =
   const trimmed = token.trim();
   return trimmed === '' ? null : trimmed;
 };
+
+/**
+ * Quando il browser blocca i cookie di terze parti (iframe della preview
+ * Lovable), il client chiede il refresh token nel corpo della risposta con
+ * l'header `x-token-delivery: body` e lo custodisce lui.
+ */
+export const wantsTokenInBody = (request: FastifyRequest): boolean => {
+  const header = request.headers['x-token-delivery'];
+  const value = Array.isArray(header) ? header[0] : header;
+  return typeof value === 'string' && value.trim().toLowerCase() === 'body';
+};
+
+/**
+ * Legge il refresh token dal cookie oppure, per i client che usano la consegna
+ * nel corpo, dal campo `refreshToken` della richiesta.
+ */
+export const readRefreshToken = (request: FastifyRequest): string | null => {
+  const fromCookie = readRefreshTokenCookie(request);
+  if (fromCookie != null) return fromCookie;
+  const body = request.body as { refreshToken?: unknown } | undefined;
+  const fromBody = body?.refreshToken;
+  if (typeof fromBody !== 'string') return null;
+  const trimmed = fromBody.trim();
+  return trimmed === '' ? null : trimmed;
+};
