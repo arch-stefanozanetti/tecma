@@ -36,6 +36,23 @@ const isLocalDevOrigin = (origin: string): boolean => {
   }
 };
 
+/**
+ * Le anteprime Lovable cambiano sottodominio a ogni progetto/deploy: invece di
+ * inseguirle nell'allowlist, accettiamo l'intera famiglia di domini ufficiali
+ * (solo https, solo sottodomini di primo livello sotto i domini noti).
+ */
+const LOVABLE_HOST_SUFFIXES = ['.lovableproject.com', '.lovable.app'];
+
+const isLovablePreviewOrigin = (origin: string): boolean => {
+  try {
+    const u = new URL(origin);
+    if (u.protocol !== 'https:') return false;
+    return LOVABLE_HOST_SUFFIXES.some((suffix) => u.hostname.endsWith(suffix));
+  } catch {
+    return false;
+  }
+};
+
 export const securityPlugin = fp(async (app: FastifyInstance) => {
   const isDevLike = app.config.NODE_ENV === 'development' || app.config.NODE_ENV === 'test';
   /** Header `Permissions-Policy` impostato anche in `onSend` (allineato alla policy precedente). */
@@ -91,7 +108,7 @@ export const securityPlugin = fp(async (app: FastifyInstance) => {
         callback(null, origin);
         return;
       }
-      if (app.config.corsOrigins.includes(origin)) {
+      if (app.config.corsOrigins.includes(origin) || isLovablePreviewOrigin(origin)) {
         callback(null, origin);
         return;
       }
@@ -109,6 +126,9 @@ export const securityPlugin = fp(async (app: FastifyInstance) => {
       /** Ambiente della richiesta (`demo` | `prod`) inviato dal frontend. */
       'x-app-env',
       'X-App-Env',
+      /** Chiede al backend di restituire i token nel body invece che nei cookie. */
+      'x-token-delivery',
+      'X-Token-Delivery',
     ],
   });
 
