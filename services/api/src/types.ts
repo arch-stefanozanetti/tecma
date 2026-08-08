@@ -7,6 +7,7 @@ import type { Permission } from '@followup/shared-rbac';
 import type { WorkspaceRole } from '@followup/shared-types';
 
 import type { ProjectAccessCapability } from './lib/projectAccess.js';
+import type { JobQueue } from './infra/jobQueue.js';
 import type { AuditService } from './modules/auditService.js';
 import type { MailPort } from './modules/mail/createMailPort.js';
 
@@ -21,6 +22,8 @@ declare module 'fastify' {
   interface FastifyInstance {
     config: AppConfig;
     mongoDb: Db;
+    /** Coda dei job persistita su Mongo, consumata dal processo worker. */
+    jobQueue: JobQueue;
     auditService: AuditService;
     mail: MailPort;
     authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;

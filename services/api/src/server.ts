@@ -12,6 +12,8 @@ import { loadEnv, type AppConfig } from '@followup/shared-config';
 
 import './types.js';
 import { initSentry, installRequestContextHooks } from './infra/observability.js';
+import { JobQueue } from './infra/jobQueue.js';
+import { resolveAppEnv } from './lib/appEnv.js';
 import { adminAuditRoutes } from './modules/admin/auditRoutes.js';
 import { adminEmailFlowRoutes } from './modules/admin/emailFlowRoutes.js';
 import { assetsRoutes } from './modules/assets/routes.js';
@@ -33,6 +35,7 @@ import { workspacesRoutes } from './modules/workspaces/routes.js';
 import { apiKeyPlugin } from './plugins/apiKey.js';
 import { jwtPlugin } from './plugins/jwt.js';
 import { permissionPlugin } from './plugins/permission.js';
+import { initRateLimitStore } from './plugins/rateLimitStore.js';
 import { securityPlugin } from './plugins/security.js';
 import { registerSharedSchemas } from './schemas/registerSharedSchemas.js';
 
@@ -142,10 +145,18 @@ export const buildServer = async () => {
     app.decorateRequest('appEnv', 'prod');
     app.decorateRequest('envDb', null as unknown as Db);
     app.addHook('onRequest', async (request) => {
-      const header = String(request.headers['x-app-env'] ?? '').toLowerCase();
-      request.appEnv = header === 'demo' ? 'demo' : 'prod';
+      request.appEnv = resolveAppEnv(request.headers['x-app-env']);
       request.envDb = request.appEnv === 'demo' ? demoDb : db;
     });
+
+    // Contatori del rate limit condivisi tra istanze (vedi plugins/rateLimitStore.ts).
+    await initRateLimitStore(db);
+
+    // La coda dei job e' scritta dall'API e consumata dal processo worker.
+    const jobQueue = new JobQueue(db);
+    await jobQueue.ensureIndexes();
+    app.decorate('jobQueue', jobQueue);
+
     app.decorate('auditService', new AuditService(auditDb));
     app.decorate(
       'mail',
@@ -193,6 +204,7 @@ export const buildServer = async () => {
       authEvent: async () => undefined,
       listAuthEvents: async () => [],
     } as unknown as AuditService);
+    app.decorate('jobQueue', new JobQueue(app.mongoDb));
     app.decorateRequest('appEnv', 'prod');
     app.decorateRequest('envDb', null as unknown as Db);
     app.addHook('onRequest', async (request) => {

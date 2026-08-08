@@ -58,5 +58,66 @@ export default [
       'import/order': 'off',
     },
   },
+  /**
+   * Confini tra moduli di dominio: un modulo non deve leggere l'interno di un
+   * altro. Il codice condiviso va in `lib/`, `infra/` o nei pacchetti
+   * `@followup/*`. Le eccezioni sono infrastruttura trasversale gia' usata come
+   * tale (audit, mail): sono elencate qui in modo esplicito, cosi' ogni nuova
+   * eccezione passa da una modifica visibile in review.
+   */
+  {
+    files: ['services/api/src/modules/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              /**
+               * Le pattern seguono la semantica di `.gitignore`: `../x/y` copre
+               * anche tutto cio' che sta sotto. Sono elencati esplicitamente i
+               * moduli fratelli, cosi' i risalti verso `../../lib`, `../../infra`
+               * e `../../schemas` (codice condiviso, consentito) non vengono
+               * colpiti per errore.
+               */
+              group: [
+                '../admin/*',
+                '../apartments/*',
+                '../assets/*',
+                '../audit/*',
+                '../auth/*',
+                '../i18n/*',
+                '../mail/*',
+                '../projects/*',
+                '../rbac/*',
+                '../requests/*',
+                '../users/*',
+                '../workspaces/*',
+                '../../modules/*/*',
+                /**
+                 * `audit/withAudit` e' infrastruttura trasversale (ogni scrittura
+                 * di dominio deve produrre un evento di audit): resta consentito.
+                 */
+                '!../audit/withAudit.js',
+              ],
+              allowTypeImports: true,
+              message:
+                'Confine tra moduli: non importare l’interno di un altro modulo. Sposta il codice condiviso in lib/, infra/ o in un pacchetto @followup/*.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // Eccezioni note e motivate al confine tra moduli.
+    files: [
+      'services/api/src/modules/**/withAudit.ts',
+      'services/api/src/modules/users/routes.ts',
+      'services/api/src/modules/admin/emailFlowRoutes.ts',
+      'services/api/src/modules/**/*.test.ts',
+    ],
+    rules: { 'no-restricted-imports': 'off' },
+  },
   prettierConfig,
 ];

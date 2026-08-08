@@ -4,6 +4,8 @@ import fastifyCors from '@fastify/cors';
 import fastifyHelmet from '@fastify/helmet';
 import fastifyRateLimit from '@fastify/rate-limit';
 
+import { MongoRateLimitStore, isRateLimitStoreReady } from './rateLimitStore.js';
+
 /**
  * Si registra SEMPRE il plugin `@fastify/rate-limit` perche le rotte sensibili
  * dichiarano `config.rateLimit` per-route (vedi `lib/rateLimitProfiles.ts`).
@@ -137,6 +139,12 @@ export const securityPlugin = fp(async (app: FastifyInstance) => {
       max: resolveGlobalRateLimitMax(app.config),
       timeWindow: '1 minute',
       keyGenerator: (request) => request.ip,
+      /**
+       * Con lo store su Mongo i contatori sono condivisi tra le istanze, quindi
+       * il limite dichiarato resta quello anche scalando orizzontalmente.
+       * Senza store (generazione OpenAPI, test) si ricade sul default in-memory.
+       */
+      ...(isRateLimitStoreReady() ? { store: MongoRateLimitStore as never } : {}),
     });
   }
 });

@@ -19,6 +19,7 @@
     "dev": "pnpm --filter @followup/api run dev",
     "dev:deps": "pnpm --filter @followup/shared-types build && pnpm --filter @followup/logger build && pnpm --filter @followup/shared-config build && pnpm --filter @followup/shared-rbac build && pnpm --filter @followup/db build",
     "start": "pnpm --filter @followup/api run start",
+    "start:worker": "pnpm --filter @followup/api run start:worker",
     "lint": "pnpm --filter @followup/api... run lint",
     "test": "pnpm --filter @followup/api... run test",
     "test:integration": "pnpm --filter @followup/api run test:integration",
