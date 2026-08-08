@@ -149,8 +149,15 @@ export const buildServer = async () => {
       request.envDb = request.appEnv === 'demo' ? demoDb : db;
     });
 
-    // Contatori del rate limit condivisi tra istanze (vedi plugins/rateLimitStore.ts).
-    await initRateLimitStore(db);
+    /**
+     * Contatori del rate limit condivisi tra istanze (vedi plugins/rateLimitStore.ts).
+     * Sotto test ogni caso costruisce una app nuova sullo stesso Mongo in memoria:
+     * con lo store condiviso i contatori sopravvivrebbero tra i test e li
+     * farebbero fallire con 429. In test si resta sul contatore in memoria.
+     */
+    if (process.env['NODE_ENV'] !== 'test') {
+      await initRateLimitStore(db);
+    }
 
     // La coda dei job e' scritta dall'API e consumata dal processo worker.
     const jobQueue = new JobQueue(db);
