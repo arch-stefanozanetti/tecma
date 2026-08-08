@@ -1,6 +1,6 @@
 import type { Db } from 'mongodb';
 
-import type { FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyReply } from 'fastify';
 
 import type { AppConfig } from '@followup/shared-config';
 import type { Permission } from '@followup/shared-rbac';
